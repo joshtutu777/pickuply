@@ -47,7 +47,7 @@ async function DriverDetail({
   const supabase = await createClient();
   const { data: driver } = await supabase.from("drivers").select("*").eq("profile_id", id).maybeSingle();
   if (!driver) notFound();
-  const [{ data: profile }, { data: vehicle }] = await Promise.all([
+  const [{ data: profile }, { data: vehicle }, { data: payout }] = await Promise.all([
     supabase.from("profiles").select("full_name, role, photo_url").eq("id", id).maybeSingle(),
     supabase
       .from("vehicles")
@@ -55,6 +55,11 @@ async function DriverDetail({
       .eq("driver_id", id)
       .order("created_at", { ascending: false })
       .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("driver_connect_accounts")
+      .select("payouts_enabled, details_submitted, requirements_due, disabled_reason")
+      .eq("driver_id", id)
       .maybeSingle(),
   ]);
   const [licenseUrl, insuranceUrl, profileUrl, vehicleUrl] = await Promise.all([
@@ -72,6 +77,16 @@ async function DriverDetail({
       </h1>
       <p className="mt-2 text-base text-muted">
         {driver.status.replaceAll("_", " ")} · role {profile?.role}
+      </p>
+      <p className="mt-2 text-base text-ink">
+        Payout setup:{" "}
+        {payout?.payouts_enabled
+          ? "ready to receive transfers"
+          : payout
+            ? "started, not ready"
+            : "not started"}
+        {payout?.disabled_reason ? " · Stripe paused this account" : ""}
+        {payout && (payout.requirements_due ?? []).length > 0 ? ` · ${(payout.requirements_due ?? []).length} item(s) still due in Stripe` : ""}
       </p>
       <Link href="/admin/drivers" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
         All drivers

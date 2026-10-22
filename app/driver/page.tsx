@@ -84,6 +84,11 @@ async function DriverContent({
             Alerts
           </Link>
         </p>
+        <p>
+          <Link href="/driver/earnings" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Set up payouts
+          </Link>
+        </p>
         {driver?.status === "approved_new" ? (
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.

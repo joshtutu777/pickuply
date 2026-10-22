@@ -111,6 +111,9 @@ async function DriverJob({
         Area only: {job.pickup_area}
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
+      {job.service === "junk" ? (
+        <p className="mt-3 text-base text-ink">Your earnings must cover disposal fees.</p>
+      ) : null}
       <JobTrackerView tracker={tracker} />
       {query.error === "step" ? (
         <p role="alert" className="mt-4 text-base text-danger">

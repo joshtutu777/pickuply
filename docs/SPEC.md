@@ -278,7 +278,7 @@ The total is always shown before the customer accepts. There is no auto-booking.
 
 Free-item pickups: priced like Light Load, ASAP by default. Construction deliveries: priced like Full Service.
 
-**Driver pay:** for admin-quoted jobs, the admin enters driver earnings and the fees are calculated on top. Junk dump fees are recorded separately. For fixed/range jobs, the driver enters earnings on a counter or offer, and the customer total is calculated forward. A Fixed Accept keeps the posted customer total. Tips go 100% to the driver.
+**Driver pay:** for admin-quoted jobs, the admin enters driver earnings and the fees are calculated on top. For junk jobs, those earnings must cover disposal. `dump_fee_cents` is an informational estimate for the admin. The disposal receipt is proof of disposal, not a reason to pay the driver anything beyond those earnings. For fixed/range jobs, the driver enters earnings on a counter or offer, and the customer total is calculated forward. A Fixed Accept keeps the posted customer total. Tips go 100% to the driver.
 
 Store `driver_earnings` (as `driver_pay_cents` / `driver_amount_cents`), `platform_fee_cents`, `service_fee_cents`, and the customer total separately. The original posted price or range stays unchanged.
 
