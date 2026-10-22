@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
-import { receiveStripeEvent } from "@/lib/payments/webhook";
+import { handlePlatformPaymentEvent, isPlatformPaymentEvent } from "@/lib/payments/platform-events";
+import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 
 export async function POST(request: Request) {
-  const received = await receiveStripeEvent(request, "STRIPE_WEBHOOK_SECRET");
-  if (received instanceof NextResponse) return received;
+  const event = await readStripeEvent(request, "STRIPE_WEBHOOK_SECRET");
+  if (event instanceof NextResponse) return event;
+  if (!isPlatformPaymentEvent(event.type)) return NextResponse.json({ ok: true, ignored: true });
+
+  const claimed = await claimStripeEvent(event);
+  if (claimed instanceof NextResponse) return claimed;
+  if (claimed.duplicate) return NextResponse.json({ ok: true, duplicate: true });
+
+  try {
+    await handlePlatformPaymentEvent(event);
+  } catch {
+    await releaseStripeEvent(event.id);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

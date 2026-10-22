@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
+import { PayPanel } from "@/components/request/pay-panel";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
 import { ProofGallery } from "@/components/request/proof-gallery";
@@ -95,6 +96,28 @@ async function JobEntry({
         </p>
       </div>
       {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
+      {session?.role === "customer" &&
+      job.status === "assigned" &&
+      job.price_cents != null &&
+      job.driver_pay_cents != null &&
+      job.platform_fee_cents != null &&
+      job.service_fee_cents != null ? (
+        <PayPanel
+          jobId={id}
+          driverPayCents={job.driver_pay_cents}
+          platformFeeCents={job.platform_fee_cents}
+          serviceFeeCents={job.service_fee_cents}
+          totalCents={job.price_cents}
+          paymentStatus={job.payment_status}
+          minutesLeft={
+            job.payment_due_at
+              ? Math.max(0, Math.ceil((new Date(job.payment_due_at).getTime() - new Date().getTime()) / 60000))
+              : 0
+          }
+          windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
+          returning={query.paid === "return"}
+        />
+      ) : null}
     </>
   );
 }

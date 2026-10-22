@@ -38,6 +38,10 @@ export type JobDetail = {
   budget_min_cents: number | null;
   budget_max_cents: number | null;
   price_cents: number | null;
+  driver_pay_cents: number | null;
+  platform_fee_cents: number | null;
+  service_fee_cents: number | null;
+  payment_due_at: string | null;
   pickup_area: string;
   dropoff_area: string | null;
   description: string;
@@ -94,7 +98,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id",
+        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id",
       )
       .eq("id", id)
       .maybeSingle();

@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { saveConnectAccount } from "@/lib/payments/connect";
-import { receiveStripeEvent } from "@/lib/payments/webhook";
+import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export async function POST(request: Request) {
-  const received = await receiveStripeEvent(request, "STRIPE_CONNECT_WEBHOOK_SECRET");
-  if (received instanceof NextResponse) return received;
-  const { event } = received;
+  const event = await readStripeEvent(request, "STRIPE_CONNECT_WEBHOOK_SECRET");
+  if (event instanceof NextResponse) return event;
+  if (event.type !== "account.updated") return NextResponse.json({ ok: true, ignored: true });
+
+  const claimed = await claimStripeEvent(event);
+  if (claimed instanceof NextResponse) return claimed;
+  if (claimed.duplicate) return NextResponse.json({ ok: true, duplicate: true });
 
   if (event.type === "account.updated") {
     const account = event.data.object as Stripe.Account;
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
           });
         }
       } catch {
-        await createServiceClient().from("stripe_events").delete().eq("id", event.id);
+        await releaseStripeEvent(event.id);
         return NextResponse.json({ ok: false }, { status: 500 });
       }
     }

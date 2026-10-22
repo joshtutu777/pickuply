@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/notifications",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/payment-deadlines",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

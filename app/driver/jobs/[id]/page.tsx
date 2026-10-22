@@ -93,6 +93,12 @@ async function DriverJob({
       <p className="mt-2 text-base text-muted">{job.service}</p>
       {job.driver_pay_cents != null ? <p>Your earnings {formatCents(job.driver_pay_cents)}</p> : null}
       {job.payment_status ? <p>Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
+      {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
+        <p>Waiting for customer payment</p>
+      ) : null}
+      {job.status === "assigned" && ["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
+        <p>Payment confirmed: you can start</p>
+      ) : null}
       {job.payment_due_at ? (
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>
       ) : null}
