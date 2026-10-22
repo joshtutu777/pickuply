@@ -366,3 +366,11 @@ A driver claims an open quote job, or a customer chooses one fixed or range offe
 Local pgTAP: `0001` 68, `0006` 51, `0010_step4` 32. Files=3, Tests=151, Result: PASS. The old pickup-photo assertion now checks pickup photos only, because eligible drivers can read request-stage photos. Migrations `0007` through `0012` are local only. They were not applied to the hosted project.
 
 One cent on the written $35 example: half-up rounding of 2.9% of 3500 cents is 102, not 101. The posted $35 stays $35. Driver earnings are $23.68, the platform fee is $10.00, and the service fee is $1.32. The $150, $60, and $120 examples match the written figures.
+
+## Step 4 verification (2026-10-22)
+
+Local Playwright ran against local Supabase through gitignored `.env.test.local`. `.env.local` was not changed. Placeholder 555 numbers were used for the local OTP check and then removed from `supabase/config.toml`.
+
+The browser walk covered driver application, admin approval, a published fixed-price job, an offer, customer selection, and a quote that the customer accepted and one driver claimed. The assigned driver saw the street. The other online driver did not see the job or the street. Both assigned jobs were `awaiting_payment` with `payment_due_at` set and no Stripe id. A direct driver update to `en_route` did not change the row.
+
+Migration `0013_assignment_documents.sql` closes the gaps found in review: document expiry after approval, vehicle approval, and assignment now go through audited admin functions. Concurrent claims and concurrent offer choices each left one assigned driver. pgTAP is now 192 assertions (the original 151 plus 41). Local only. Not applied to the hosted project.
