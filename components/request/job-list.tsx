@@ -9,12 +9,14 @@ export function JobList({
   emptyCopy,
   showPricing = false,
   actionHref = "/request",
+  hrefFor,
 }: {
   jobs: JobSummary[];
   emptyTitle: string;
   emptyCopy: string;
   showPricing?: boolean;
   actionHref?: string | null;
+  hrefFor?: (id: string) => string;
 }) {
   if (jobs.length === 0) {
     return (
@@ -49,14 +51,15 @@ export function JobList({
             ) : null}
           </>
         );
+        const href = hrefFor ? hrefFor(job.id) : showPricing ? null : `/jobs/${job.id}`;
         return (
           <li key={job.id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-            {showPricing ? (
-              body
-            ) : (
-              <Link href={`/jobs/${job.id}`} className="block min-h-12">
+            {href ? (
+              <Link href={href} className="block min-h-12">
                 {body}
               </Link>
+            ) : (
+              body
             )}
           </li>
         );

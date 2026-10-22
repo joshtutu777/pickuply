@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { respondToQuote } from "@/app/jobs/actions";
 import {
+  fees,
   hearAboutOptions,
   itemSizes,
   junkLoadSizes,
@@ -9,6 +11,7 @@ import {
   valueApprovalWarning,
   type ServiceId,
 } from "@/lib/constants";
+import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { formatCents } from "@/lib/money";
 
@@ -42,7 +45,17 @@ export function statusLabel(status: string): string {
   return statusLabels[status] ?? status;
 }
 
-export function JobStatus({ job }: { job: JobDetail }) {
+export function JobStatus({
+  job,
+  notice,
+  canRespond = false,
+  error,
+}: {
+  job: JobDetail;
+  notice?: QuoteNotice | null;
+  canRespond?: boolean;
+  error?: string;
+}) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
   const current = timeline.indexOf(job.status as (typeof timeline)[number]);
@@ -145,6 +158,48 @@ export function JobStatus({ job }: { job: JobDetail }) {
             </li>
           ))}
         </ul>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-4 text-base text-danger">
+          {error}
+        </p>
+      ) : null}
+      {notice?.adminNote ? (
+        <p className="mt-4 rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">{notice.adminNote}</p>
+      ) : null}
+      {notice?.quote && canRespond ? (
+        <section className="mt-4 space-y-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <h2 className="text-lg font-semibold text-ink">Your quote</h2>
+          <p>Subtotal {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
+          <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>
+          <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
+          <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
+          <p>
+            Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
+            at pickup: {formatCents(fees.tripFeeCents)}. Damage coverage limit{" "}
+            {formatCents(fees.damageCoverageLimitCents)}.
+          </p>
+          <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
+          <form action={respondToQuote} className="grid gap-3 pt-2">
+            <input type="hidden" name="jobId" value={job.id} />
+            <button
+              type="submit"
+              name="decision"
+              value="accept"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white"
+            >
+              Accept quote
+            </button>
+            <button
+              type="submit"
+              name="decision"
+              value="decline"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper font-semibold text-ink ring-1 ring-line"
+            >
+              Decline quote
+            </button>
+          </form>
+        </section>
       ) : null}
       <p className="mt-6">
         <Link href="/account" className="font-semibold text-brand">

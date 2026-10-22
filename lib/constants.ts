@@ -98,7 +98,7 @@ export const trustPoints = [
   "Card charged only after delivery",
 ] as const;
 
-/** Locked v1 policies from SPEC §3. Platform fee is the spec default, still marked for the owner to confirm, and is not added on this form. */
+/** Locked v1 policies. Booking fees live in platform_settings. These defaults match that row and are not added on the request form. */
 export const fees = {
   currency: "USD",
   minimumCents: 3_500,
@@ -106,8 +106,10 @@ export const fees = {
   tripFeeCents: 2_500,
   damageCoverageLimitCents: 25_000,
   itemValueCapCents: 100_000,
-  platformFeeRate: 0.2,
+  platformFeeRate: 0.1,
   platformFeeMinimumCents: 1_000,
+  serviceFeeBps: 290,
+  serviceFeeFixedCents: 30,
   capture: "manual",
   chargedWhen: "after_delivery",
   driverPayouts: "manual_zelle_or_cash_app",

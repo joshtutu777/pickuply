@@ -46,12 +46,12 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 
 ## Money rules
 - Store all money as integer **cents**.
-- Customer card is authorized when the quote is accepted and **captured only after delivery is confirmed** (or 24h auto-complete).
+- No card is collected, authorized, or held before the customer confirms a driver. Confirming an offer, or a driver claiming an accepted quote job, sets `payment_status = awaiting_payment` and `payment_due_at` (default 30 minutes, configurable). Step 5 releases the assignment if payment is not completed. Drivers cannot start work (`en_route` or later) unless payment is `authorized` or `paid`. Capture still happens after delivery. This workflow is not launch-ready until Step 5 payments.
 - Fees: $15 late cancel (after assignment), $25 trip fee (item rejected at pickup), $35 minimum price. Damage coverage limit $250.
 - Driver payouts are recorded in the `payouts` table and paid manually (Zelle/Cash App) within 24 hours; admin marks them paid.
 - Customers choose a pricing method: Get a quote (only an admin sends the price; the customer must accept it before drivers see the job), Name your price, or Set a budget range (drivers accept, offer, or counter with a required reason). An offer is never a booking until the customer chooses it. There is no auto-booking.
 - Drivers discover jobs only through `driver_job_feed`. That feed must not include exact addresses, names, phone, email, access notes, free-text descriptions, or photos.
-- Platform fee is added on top of the driver's amount (default 20%, min $10, configurable). Always show the customer the total before they accept.
+- Two fees, stored separately in integer cents and configurable on `/admin/settings`: platform fee is 10% of driver earnings, minimum $10; service fee covers card processing (default 2.9% + 30¢) and is labeled "Service fee". Forward totals use the smallest cent amount that covers the separately rounded processing charge. Fixed Accept keeps the posted customer total and solves backward. Service-fee wording and card surcharge rules need review before launch. Always show the customer the breakdown before they accept.
 - Drivers can never change a price after booking. Price adjustments require the other party's approval in the app.
 
 ## UI rules

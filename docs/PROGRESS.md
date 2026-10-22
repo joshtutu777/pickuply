@@ -348,3 +348,7 @@ The public Supabase URL in `.env.local` included `/rest/v1`. Auth calls then mis
 ## Step 4a — driver onboarding (2026-10-22)
 
 Signed-in people can apply at `/driver/onboarding`. The save stays on their account: role remains `customer` and driver status becomes `pending_review`. Documents go in the private `driver-docs` bucket. `/driver/training` is a short static page. `/admin/drivers` lists applications. Approve, request changes, decline, pause, and remove run through `review_driver`, which checks `is_admin()` and writes `audit_log`. Approval is what sets role `driver`. This migration is local only.
+
+## Step 4b — admin review and fees (2026-10-22)
+
+`/admin/requests/[id]` shows the request, photos, and contact details. An admin sets the zone, service level, and vehicle, then publishes a fixed or range job or sends a quote. High-value and specialty items need a confirmation checkbox. Quote acceptance rejects an expired quote and does not charge a card. `/admin/settings` stores the platform percent, platform minimum, service-fee percent, service-fee fixed cents, and payment deadline. `lib/fees.ts` and `price_breakdown` use the same integer half-up math. A ready-to-copy message replaces SMS. Local migration only. The workflow is not launch-ready until Step 5 payments.
