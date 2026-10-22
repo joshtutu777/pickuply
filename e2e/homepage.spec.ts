@@ -24,6 +24,6 @@ test("homepage loads and Get a price opens the request page", async ({
 
   await expect(page).toHaveURL(/\/request$/);
   await expect(
-    page.getByRole("heading", { level: 1, name: "Request a pickup" }),
+    page.getByRole("heading", { level: 1, name: "What do you need?" }),
   ).toBeVisible();
 });

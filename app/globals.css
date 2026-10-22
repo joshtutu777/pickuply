@@ -9,6 +9,7 @@
   --brand: #145a3a;
   --brand-dark: #0e4630;
   --brand-soft: #e6f3ec;
+  --danger: #9f1239;
 }
 
 @theme inline {
@@ -20,6 +21,7 @@
   --color-brand: var(--brand);
   --color-brand-dark: var(--brand-dark);
   --color-brand-soft: var(--brand-soft);
+  --color-danger: var(--danger);
   --font-sans: var(--font-outfit), "Segoe UI", sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
 }
@@ -37,4 +39,13 @@ body {
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 3px;
+}
+
+input,
+textarea,
+button,
+select,
+label {
+  scroll-margin-top: 6rem;
+  scroll-margin-bottom: 8rem;
 }

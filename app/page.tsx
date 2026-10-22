@@ -46,14 +46,16 @@ export default function HomePage() {
           </h2>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
             {services.map((service) => (
-              <li
-                key={service.id}
-                className="rounded-3xl bg-paper-raised p-5 ring-1 ring-line"
-              >
-                <h3 className="text-xl font-semibold text-ink">{service.name}</h3>
-                <p className="mt-2 text-base leading-relaxed text-muted">
-                  {service.summary}
-                </p>
+              <li key={service.id}>
+                <Link
+                  href={`/request?service=${service.id}`}
+                  className="block min-h-24 rounded-3xl bg-paper-raised p-5 ring-1 ring-line transition-colors hover:ring-brand"
+                >
+                  <h3 className="text-xl font-semibold text-ink">{service.name}</h3>
+                  <p className="mt-2 text-base leading-relaxed text-muted">
+                    {service.summary}
+                  </p>
+                </Link>
               </li>
             ))}
           </ul>
