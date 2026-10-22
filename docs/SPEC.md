@@ -52,9 +52,9 @@ A user has exactly one role. Admin role is set manually in the database (never s
 | Sign-in | Phone number + 6-digit text code (passwordless) for everyone. Email optional |
 | Pricing | Customer chooses one of **three pricing methods**: Get a quote, Name your price (fixed offer), or Set a budget range. See §7.1. Every price is locked before booking |
 | Who responds | **Get a quote:** only the admin sends the quote (customer price, driver pay, pickup window). Drivers do not price these jobs. The customer must accept before the job is published. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
-| Platform fee | **Shown on top** of the driver's price (default 20%, minimum $10, admin-configurable). Customer always sees the total before accepting. *(Default — owner to confirm)* |
+| Platform fee | **10% of driver earnings, minimum $10**, shown in the subtotal. Admin-configurable. |
 | Driver matching | Admin reviews each request. Quote jobs are published to eligible drivers only after the customer accepts the admin's quote. Fixed and range jobs are published after admin approval. Nothing is booked or charged until the customer accepts the admin's quote or chooses a driver's offer. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
-| Customer payment | Stripe. Card **authorized (held)** when quote is accepted; **captured after delivery is confirmed** |
+| Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, sets `payment_status = awaiting_payment` and a payment deadline (default 30 minutes). Work cannot start until payment is `authorized` or `paid`. Capture still happens after delivery. **Not launch-ready until Step 5 payments.** |
 | Driver payouts | Manual: Zelle or Cash App within **24 hours** of completion. Admin marks "Paid" in the app. (Stripe Connect is v2) |
 | Background checks | **None in v1.** Verification = ID/license, insurance, vehicle photo, personal call with admin. Never claim background checks in UI copy |
 | Minimum fee | $35 |
@@ -102,8 +102,8 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 4.3 Quotes, offers, and booking
 - Admin reviews every new request first (prohibited items, safety, zone, completeness, item value). Fixed and range jobs are published after that approval. Quote jobs stay unpublished until the customer accepts the admin's quote.
-- **Get a quote:** admin sets the customer price, driver pay, and pickup window (status `quoted`). The customer accepts: the card is authorized and the job becomes `open`. That publication is not an assignment. An eligible Online driver then accepts the open job, which assigns that driver (status `assigned`).
-- **Name your price / Budget range:** admin approval publishes the job (`open`) without booking. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose and confirm one offer before the card is authorized and a driver is assigned.
+- **Get a quote:** admin sets driver pay, and the app adds the platform fee and service fee (status `quoted`). The customer sees the breakdown and accepts before the quote expires. Acceptance publishes the job (`open`). It does not assign a driver and it does not charge the card. An eligible Online driver then claims the open job, which assigns that driver and sets `payment_status = awaiting_payment`.
+- **Name your price / Budget range:** admin approval publishes the job (`open`) without booking. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. Nothing is charged at that step.
 - **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, and the **total price including the Pickuply fee**. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
 - Admin quotes expire after 24 hours; driver offers expire after **2 hours** (default) unless chosen. Customers can edit or withdraw a request before booking.
 - Quote/offer page shows: price breakdown, what's included, cancellation/trip fee policy, item value cap.
@@ -172,13 +172,13 @@ A driver sees a published job only if ALL are true:
 - Driver is not paused, removed, pending, or globally blocked, and this customer has no `customer_driver_blocks` row for them
 - Drivers may browse while Offline. Accepting or offering requires Online
 
-Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. They do not show item photos, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned.
+Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. An eligible driver may also see request-stage item photos through a database policy and a short-lived signed URL. Cards do not show pickup, drop-off, report, or private document images, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned. This request-photo exception is intentional and is enforced in the database, not by hiding fields in the page.
 
 ### 5.5 Accepting, offering, and countering (no double booking)
 - **Admin-priced jobs** (Get a quote): **Accept** calls a single database function that atomically assigns the job only if it is still `open` and the driver is eligible and Online. Anyone else gets "Job already taken."
 - **Fixed-price jobs:** driver taps **Accept $X**, which creates an offer at that price, or **Counter** with a new amount and a required reason (for example, "3 flights of stairs not mentioned"). Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
 - **Budget-range jobs:** driver taps **Offer** with an amount inside the range, or **Counter** outside it with a required reason. Offers outside the range are stored with `outside_range`. The customer chooses the offer.
-- Drivers enter **their own earnings**; the customer sees that amount plus the platform fee. Drivers always see exactly what they'll earn.
+- Drivers enter **their own earnings** on a counter or range offer. The app adds the platform fee and the service fee and shows the customer total. A Fixed Accept keeps the posted total and shows the driver their earnings before they accept. Drivers always see exactly what they'll earn.
 - Limits: one active offer per driver per job (they can withdraw and resubmit once); counters can't exceed 2× the customer's fixed price or range max; offers expire after 2 hours.
 - Only **Online**, eligible drivers can accept or offer. Final assignment uses the same atomic database function, so only one driver can be assigned.
 - After booking, any price change requires a request in the app and the other party's approval. Drivers can never charge unilaterally.
@@ -206,9 +206,9 @@ Completed jobs, pending payouts, paid payouts, totals by week.
 | 1 | `requested` | Customer | Request submitted, phone verified |
 | 2 | `in_review` | Admin | Admin checking the request (optional) |
 | 3 | `quoted` | Admin | Get-a-quote jobs: price, driver pay, service level, required vehicle, pickup window set |
-| 4 | `open` | Admin/System | Published to eligible drivers. For quote jobs: after the customer accepted and the card was authorized. For fixed/range jobs: after admin approval, collecting offers |
-| 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer (card authorized), a driver accepted an open admin-quoted job, or admin assigned. Quote acceptance only publishes the job (`open`); it does not assign a driver |
-| 6 | `en_route` | Driver | On the way to pickup |
+| 4 | `open` | Admin/System | Published to eligible drivers. For quote jobs: after the customer accepts, with no charge. For fixed/range jobs: after admin approval, collecting offers |
+| 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer, a driver claimed an open quote job, or admin assigned. Payment status becomes `awaiting_payment`. Quote acceptance only publishes the job (`open`) |
+| 6 | `en_route` | Driver | On the way to pickup. Blocked unless payment is `authorized` or `paid` |
 | 7 | `arrived` | Driver | At pickup |
 | 8 | `item_check` | Driver | Photos uploaded, waiting for customer approval |
 | 9 | `in_transit` | Driver/Customer | Item approved and loaded |
@@ -242,7 +242,18 @@ Card authorizations expire after ~7 days. For jobs scheduled more than 5 days ou
 | Name your price | One amount, min $35 | `'fixed'`, `offer_cents` | Drivers accept or counter. The original `offer_cents` stays. The customer chooses the offer |
 | Set a budget range | Min (≥ $35) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within the range or counter outside it (`outside_range`). The original range stays. The customer chooses the offer |
 
-**Customer total = driver price + platform fee** (default 20%, min $10; admin-configurable). For admin quotes, admin sets the customer price and driver pay directly. The total is always shown before the customer accepts.
+Two fees, both stored in integer cents and configurable in `platform_settings`:
+
+- **Platform fee** = max(round(10% × driver earnings), $10).
+- **Subtotal** = driver earnings + platform fee.
+- **Service fee** covers card processing. Default 2.9% + 30¢. The customer total is the smallest cent amount whose separately rounded 2.9% plus 30¢ covers the subtotal. Service fee = customer total − subtotal. The label is "Service fee". Wording and card-surcharge rules need a review before launch.
+- **Fixed Accept** keeps the customer's posted total. The service fee is round(2.9% × that total) + 30¢, then the subtotal is split into driver earnings and the platform fee. Rounding pennies stay in driver earnings. Reject the price if driver earnings would be zero or less.
+- **Fixed Counter and range offer/counter:** the driver enters earnings and the app computes the customer total.
+- **Quote:** the admin sets driver pay. The platform fee and service fee are calculated on top. The customer sees the full breakdown before accepting.
+
+Rounding is half up on integer cents: `(numerator + denominator / 2) / denominator`. Example: a $60 earnings offer totals $72.40. A $120 earnings offer totals $136.25. A posted $150 Accept stays $150 and splits to $132.14 earnings, $13.21 platform fee, and $4.65 service fee. A posted $35 Accept stays $35. 2.9% of 3500 cents is 101.5, which half-up rounds to 102, so the service fee is $1.32 and driver earnings are $23.68 (the $10 platform minimum applies).
+
+The total is always shown before the customer accepts. There is no auto-booking.
 
 ### 7.2 Typical price ranges (pilot defaults, used for estimates and admin quotes; admin can override every price)
 
@@ -267,7 +278,9 @@ Card authorizations expire after ~7 days. For jobs scheduled more than 5 days ou
 
 Free-item pickups: priced like Light Load, ASAP by default. Construction deliveries: priced like Full Service.
 
-**Driver pay:** for admin-quoted jobs, set per job by admin (default 75–80% of price; junk removal: dump fee reimbursed first). For fixed/range jobs, driver pay = the driver's chosen offer amount; the platform fee is added on top. Tips go 100% to the driver.
+**Driver pay:** for admin-quoted jobs, the admin enters driver earnings and the fees are calculated on top. Junk dump fees are recorded separately. For fixed/range jobs, the driver enters earnings on a counter or offer, and the customer total is calculated forward. A Fixed Accept keeps the posted customer total. Tips go 100% to the driver.
+
+Store `driver_earnings` (as `driver_pay_cents` / `driver_amount_cents`), `platform_fee_cents`, `service_fee_cents`, and the customer total separately. The original posted price or range stays unchanged.
 
 ---
 

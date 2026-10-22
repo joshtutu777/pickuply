@@ -1,28 +1,81 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { OnboardingForm } from "@/components/driver/onboarding-form";
 import { LoadingMain } from "@/components/loading-main";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { requireSignedIn } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Drive with Pickuply",
 };
 
-export default function DriverOnboardingPage() {
+export default function DriverOnboardingPage({
+  searchParams,
+}: PageProps<"/driver/onboarding">) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <OnboardingContent />
+      <OnboardingContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function OnboardingContent() {
-  await requireSignedIn("/driver/onboarding");
+async function OnboardingContent({
+  searchParams,
+}: {
+  searchParams: PageProps<"/driver/onboarding">["searchParams"];
+}) {
+  const session = await requireSignedIn("/driver/onboarding");
+  const params = await searchParams;
+  const submitted = params.submitted === "1";
+  const supabase = await createClient();
+  const [{ data: zones }, { data: driver }] = await Promise.all([
+    supabase.from("zones").select("id, name").eq("active", true).order("name"),
+    supabase
+      .from("drivers")
+      .select("status, review_note")
+      .eq("profile_id", session.userId)
+      .maybeSingle(),
+  ]);
+
+  const waiting = driver?.status === "pending_review" && submitted;
+  const closed = driver?.status === "removed";
+  const approved = driver?.status === "active" || driver?.status === "approved_new";
+
   return (
-    <PlaceholderPage
-      eyebrow="Driver"
-      title="Drive with Pickuply"
-      description="Tell us about your vehicle. Driver signup is not open yet."
-    />
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
+      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+        Drive with Pickuply
+      </h1>
+      {waiting ? (
+        <div className="mt-6 space-y-4 text-base leading-relaxed text-ink">
+          <p>Your application is in for review. We will look at your documents before you can take jobs.</p>
+          <Link href="/driver/training" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Read the short training
+          </Link>
+        </div>
+      ) : null}
+      {approved ? (
+        <p className="mt-6 text-base leading-relaxed text-ink">
+          Your driver account is approved.{" "}
+          <Link href="/driver" className="font-semibold text-brand">
+            Go to driver home
+          </Link>
+        </p>
+      ) : null}
+      {closed ? (
+        <p className="mt-6 text-base leading-relaxed text-ink">
+          This application was closed. You can submit it again below if something changed.
+        </p>
+      ) : null}
+      {!waiting && !approved ? (
+        <OnboardingForm
+          userId={session.userId}
+          zones={zones ?? []}
+          reviewNote={driver?.status === "pending_review" ? driver.review_note : null}
+        />
+      ) : null}
+    </main>
   );
 }

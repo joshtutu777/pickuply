@@ -305,7 +305,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 
 ## Migration log
 
-`0001` and `0002` were pasted in the SQL editor, so the hosted project has no `supabase_migrations.schema_migrations` table. `0003`, `0004`, and `0005` were applied on 2026-10-22 through the Management API and are not recorded in that table either.
+`0001` and `0002` were pasted in the SQL editor, so the hosted project has no `supabase_migrations.schema_migrations` table. `0003`, `0004`, `0005`, and `0006` were applied on 2026-10-22 through the Management API and are not recorded in that table either.
 
 | File | Date | Local | Hosted | How it was applied | Deviations |
 | --- | --- | --- | --- | --- | --- |
@@ -314,7 +314,14 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0003_fix_driver_job_feed.sql` | 2026-10-22 | Applied by the same reset. Version `0003`, name `fix_driver_job_feed`. | Applied. | Local: CLI reset. Hosted: Management API. | None. The only change from the original function is `profiles.id = uid`. |
 | `supabase/migrations/0004_revoke_anon_sensitive_grants.sql` | 2026-10-22 | Applied by the same reset. Version `0004`, name `revoke_anon_sensitive_grants`. | Applied. | Local: CLI reset. Hosted: Management API. | Public-table revokes took effect on both. The storage revokes do nothing on either database because `supabase_storage_admin` granted those privileges. |
 | `supabase/migrations/0005_migration_session_requires_empty_jwt.sql` | 2026-10-22 | Applied by the same reset. Version `0005`, name `migration_session_requires_empty_jwt`. | Applied. | Local: CLI reset. Hosted: Management API. | Replaces `is_migration_session()` with a stricter check: empty JWT role and empty JWT claims, as well as no user id. |
-| `supabase/migrations/0006_create_customer_request.sql` | 2026-10-22 | Applied by `supabase db reset --local --no-seed`. Version `0006`, name `create_customer_request`. | Not applied. | Local only. | Do not run this on the hosted project until it is reviewed and approved. `create_customer_request` runs as the caller and always sets `customer_id` to `auth.uid()`. A matching retry returns the same id and does not update the job. A different retry is rejected. `request_id_visibility` is security definer only so another customer's hidden row can be told apart from a missing id; it returns `absent`, `own`, or `other` and no request fields. `attach_request_photo` returns the existing row for the same path. |
+| `supabase/migrations/0006_create_customer_request.sql` | 2026-10-22 | Applied by `supabase db reset --local --no-seed`. Version `0006`, name `create_customer_request`. | Applied. | Local: CLI reset. Hosted: Management API. Earlier migrations were not run again. | `create_customer_request` runs as the caller and sets `customer_id` to `auth.uid()`. A matching retry does not update the job. `request_id_visibility` is security definer and returns only `absent`, `own`, or `other`. `attach_request_photo` returns the existing row for the same path. Hosted still has no `supabase_migrations.schema_migrations` row for this file. |
+| `supabase/migrations/0007_driver_onboarding.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API. `0001` through `0006` were not run again. | None. Hosted still has no `schema_migrations` row. |
+| `supabase/migrations/0008_admin_publish.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0007`. | The settings row uses the defaults: platform 1000 bps with a 1000 cent minimum, service 290 bps plus 30 cents, payment deadline 30 minutes. |
+| `supabase/migrations/0009_driver_feed_photos.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0008`. | The request-photo policies in this file call `driver_is_eligible_for_job` directly. `0011` replaces them before the app relies on them. |
+| `supabase/migrations/0010_claims_offers.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0009`. | None. |
+| `supabase/migrations/0011_request_photo_access.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0010`. | Replaces the `0009` request-photo policies with `request_photo_visible`. |
+| `supabase/migrations/0012_quote_expiry.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0011`. | A quote with no expiry can still be accepted. A past expiry is rejected. |
+| `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -324,7 +331,16 @@ Photos go to the private `job-photos` bucket at `{job_id}/request/{photo_id}.jpg
 
 `/jobs/[id]` reads the signed-in owner or an admin. Anyone else sees "This request isn't available." Photos use signed URLs that last about five minutes. `/account` lists that customer's jobs, newest first. `/admin` lists date, service, pricing method, area, and status, with no street address and no quoting.
 
-Request-creation tests ran on the disposable local database only: `supabase/tests/0001_rls.test.sql` (68) and `supabase/tests/0006_customer_request.test.sql` (51). `Files=2, Tests=119, Result: PASS`. Playwright stops at phone confirmation and does not create a hosted job. `0006` is not on the hosted project. A hosted smoke test waits until that migration is approved and applied.
+Request-creation tests ran on the disposable local database only: `supabase/tests/0001_rls.test.sql` (68) and `supabase/tests/0006_customer_request.test.sql` (51). `Files=2, Tests=119, Result: PASS`.
+
+## Hosted apply of 0006 and smoke test (2026-10-22)
+
+`0006_create_customer_request.sql` was applied to the hosted database through the Management API. `0001` through `0005` were not run again. The three functions are present. `authenticated` can execute them. `anon` and `service_role` cannot. `create_customer_request` and `attach_request_photo` run as the caller. `request_id_visibility` is security definer.
+
+The read-only fingerprint is 374 lines on both sides. Before ignoring carriage returns, older function bodies differed because the local copies still contain Windows line endings. After removing those characters, there were no differences. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
+
+One hosted smoke request was submitted in the app as the reserved test customer. Description: `TEST delivery smoke request`. Job id: `adfe0035-822a-4600-a753-dcd3f292d8d6`. It is a delivery quote, status `requested`, with no price and no assigned driver. Two photos are in the private `job-photos` bucket and on the job page as signed URLs. The same customer sees it on `/jobs/[id]` and `/account`. The admin sees Pickup & Delivery, quote, Austell, 30106, and Requested on `/admin`, without the street, and can open the description. A second customer, `smoke-other@pickuply.test`, sees "This request isn't available." An active driver session, created only for the check and then deleted, got zero rows from `driver_job_feed()` for this job.
+
 
 `supabase/config.toml` and `supabase/.gitignore` stay in the workspace. `config.toml` has no embedded secrets or privileged credentials. Secret-like settings use `env(...)` or are comments.
 
@@ -335,3 +351,41 @@ Phone sign-in was turned off on the hosted project, and no SMS provider credenti
 `TEST_PHONE` and `TEST_ADMIN_PHONE` were the same number, and both codes were 4 digits. The project sends 6-digit codes. The customer tests now use the reserved number `+15555550100`. The admin number already in `.env.local` was signed in once and promoted to `admin` with the name `Test Admin`. There were no auth users before that.
 
 The public Supabase URL in `.env.local` included `/rest/v1`. Auth calls then missed `/auth/v1`. The app now strips that suffix, and the saved URL is the project origin.
+
+## Step 4a — driver onboarding (2026-10-22)
+
+Signed-in people can apply at `/driver/onboarding`. The save stays on their account: role remains `customer` and driver status becomes `pending_review`. Documents go in the private `driver-docs` bucket. `/driver/training` is a short static page. `/admin/drivers` lists applications. Approve, request changes, decline, pause, and remove run through `review_driver`, which checks `is_admin()` and writes `audit_log`. Approval is what sets role `driver`. This migration is local only.
+
+## Step 4b — admin review and fees (2026-10-22)
+
+`/admin/requests/[id]` shows the request, photos, and contact details. An admin sets the zone, service level, and vehicle, then publishes a fixed or range job or sends a quote. High-value and specialty items need a confirmation checkbox. Quote acceptance rejects an expired quote and does not charge a card. `/admin/settings` stores the platform percent, platform minimum, service-fee percent, service-fee fixed cents, and payment deadline. `lib/fees.ts` and `price_breakdown` use the same integer half-up math. A ready-to-copy message replaces SMS. Local migration only. The workflow is not launch-ready until Step 5 payments.
+
+## Step 4c — driver feed (2026-10-22)
+
+Approved drivers use `/driver` to go Online or Offline and to browse `driver_job_feed`. Online requires an approved status, unexpired license and insurance, and an approved vehicle. Browsing works while Offline. `approved_new` drivers only see invited jobs. Request-stage photos are readable only when `driver_is_eligible_for_job` is true. An admin can invite a driver from the open request. Local migration only.
+
+## Step 4d — claims, offers, and payment status (2026-10-22)
+
+A driver claims an open quote job, or a customer chooses one fixed or range offer. Either step assigns one driver and sets `payment_status` to `awaiting_payment` with `payment_due_at`. Nothing is charged. The original posted price or range stays. Stored cents are driver earnings, platform fee, service fee, and customer total, and they add up to the total. Work cannot move to `en_route` until payment is `authorized` or `paid`. The assigned driver can open the street address. Everyone else cannot.
+
+**This workflow is not launch-ready until Step 5 payments.** Step 5 still has to collect the card, release an unpaid assignment when `payment_due_at` passes, and capture after delivery. Service-fee wording and card-surcharge rules need a review before launch.
+
+Local pgTAP: `0001` 68, `0006` 51, `0010_step4` 32. Files=3, Tests=151, Result: PASS. The old pickup-photo assertion now checks pickup photos only, because eligible drivers can read request-stage photos. Migrations `0007` through `0012` are local only. They were not applied to the hosted project.
+
+One cent on the written $35 example: half-up rounding of 2.9% of 3500 cents is 102, not 101. The posted $35 stays $35. Driver earnings are $23.68, the platform fee is $10.00, and the service fee is $1.32. The $150, $60, and $120 examples match the written figures.
+
+## Step 4 verification (2026-10-22)
+
+Local Playwright ran against local Supabase through gitignored `.env.test.local`. `.env.local` was not changed. Placeholder 555 numbers were used for the local OTP check and then removed from `supabase/config.toml`.
+
+The browser walk covered driver application, admin approval, a published fixed-price job, an offer, customer selection, and a quote that the customer accepted and one driver claimed. The assigned driver saw the street. The other online driver did not see the job or the street. Both assigned jobs were `awaiting_payment` with `payment_due_at` set and no Stripe id. A direct driver update to `en_route` did not change the row.
+
+Migration `0013_assignment_documents.sql` closes the gaps found in review: document expiry after approval, vehicle approval, and assignment now go through audited admin functions. Concurrent claims and concurrent offer choices each left one assigned driver. pgTAP is now 192 assertions (the original 151 plus 41).
+
+## Hosted apply of 0007–0013 (2026-10-22)
+
+`0007` through `0013` were applied to the hosted database through the Management API, one file at a time, in order. `0001` through `0006` were not run again. None of the seven calls failed.
+
+`platform_settings` id 1 is present with platform 1000 bps, platform minimum 1000 cents, service 290 bps, service fixed 30 cents, and a 30 minute payment deadline.
+
+The read-only fingerprint matched on columns (166), constraints (56), indexes (27), functions (43), function grants (78), table grants (226), policies (41), triggers (22), row level security (15), enums (61), and the `job-photos` and `driver-docs` buckets. Digests were identical. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
