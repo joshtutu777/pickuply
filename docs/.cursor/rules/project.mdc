@@ -1,0 +1,67 @@
+---
+description: Core project rules for Pickuply — always apply
+alwaysApply: true
+---
+
+# Pickuply project rules
+
+You are helping build **Pickuply** (working name, formerly DeliveryMatch): a local pickup, delivery, and junk-hauling marketplace connecting customers with verified drivers, managed by one admin.
+
+## Source of truth
+- `docs/SPEC.md` is the product spec. Read the relevant section before building any feature.
+- `docs/BUILD_PLAN.md` lists the build steps in order. Work on one step at a time.
+- `docs/PROGRESS.md` is our running log. After finishing a step, update it with what was built, files changed, decisions made, and anything left to do.
+- If the spec is unclear or seems wrong, **ask me before guessing**. Never silently change a business rule.
+
+## Tech stack (do not swap without asking)
+- Next.js App Router + TypeScript (strict) + Tailwind CSS
+- Supabase: Postgres with Row Level Security, phone OTP auth, Storage, Realtime
+- Stripe: PaymentIntents with `capture_method: manual`, webhooks
+- Twilio for SMS; Web Push (VAPID, `web-push`) for push notifications
+- PWA: web app manifest + service worker
+- Hosting: Vercel (cron jobs via `vercel.json`)
+- Use `@supabase/ssr` for server/client Supabase clients. In Next.js 15, `cookies()` and route `params` are async — await them.
+
+## How to work with me
+- I'm the owner and I have a data/SQL background, but I'm new to React/Next.js. Explain non-obvious code briefly in plain language.
+- **Small steps.** Before large changes, show a short plan and wait for my OK.
+- After each step, tell me exactly how to test it (what to click, what should happen).
+- Prefer simple, readable code over clever abstractions. Don't add libraries without telling me why.
+- Don't refactor or rename things outside the current step unless I ask.
+- When fixing an error, fix the root cause; never suppress errors, disable type checks, or weaken security to make something "work".
+
+## Security and privacy (never break these)
+- Never put secret keys in code or commit `.env.local`. Use environment variables. Only `NEXT_PUBLIC_*` values may reach the browser.
+- The Supabase **service role key** is server-only (API routes, server actions, webhooks, cron). Never import it in client components.
+- Every table has **RLS enabled**. Default deny; add explicit policies.
+- **Drivers must never see exact addresses, customer names, or phone numbers** until they are the assigned driver. Approximate area (city/ZIP) only in job feeds. Exact data lives in `job_private`.
+- Customers and drivers never see each other's phone numbers; use in-app messages.
+- Photos and documents go in **private** storage buckets, served with short-lived signed URLs to job participants and admin only.
+- All mutations that change money, job status, driver status, or roles happen **server-side** with permission checks. Never trust role or price values sent from the browser.
+- Job claiming and offer selection must be **atomic in the database** (`claim_job` and `choose_offer` functions) so two drivers can't get the same job.
+- Every job status change writes a row to `job_events`; every admin action writes to `audit_log`.
+- Verify Stripe webhooks with the signing secret. Use idempotency keys for captures and refunds.
+- Do not claim background checks anywhere in the UI (we don't run them in v1).
+
+## Money rules
+- Store all money as integer **cents**.
+- Customer card is authorized when the quote is accepted and **captured only after delivery is confirmed** (or 24h auto-complete).
+- Fees: $15 late cancel (after assignment), $25 trip fee (item rejected at pickup), $35 minimum price. Damage coverage limit $250.
+- Driver payouts are recorded in the `payouts` table and paid manually (Zelle/Cash App) within 24 hours; admin marks them paid.
+- Customers choose a pricing method: Get a quote (admin quotes), Name your price, or Set a budget range (drivers accept, offer, or counter with a required reason). An offer is never a booking until the customer chooses it (or auto-book is on and the card authorization succeeds).
+- Platform fee is added on top of the driver's amount (default 20%, min $10, configurable). Always show the customer the total before they accept.
+- Drivers can never change a price after booking. Price adjustments require the other party's approval in the app.
+
+## UI rules
+- Mobile-first: design for a phone screen first, then larger screens.
+- Big tap targets, clear status labels, plain language (no jargon).
+- Every screen handles loading, empty, and error states.
+- Accessible: labels on inputs, good color contrast, works with screen readers.
+- Show prices clearly with the total before the customer commits.
+
+## Code organization
+- `app/` routes: `(public)` landing and request, `account/` customer, `jobs/[id]` status page, `driver/`, `admin/`, `api/`
+- `lib/` shared server/client helpers (`supabase/`, `stripe.ts`, `sms.ts`, `push.ts`, `pricing.ts`, `constants.ts`)
+- `components/` reusable UI
+- `supabase/migrations/` numbered SQL migration files — never edit an applied migration; add a new one
+- Keep constants (zones, statuses, fees, report categories, strike points) in one place: `lib/constants.ts` and the database

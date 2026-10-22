@@ -1,0 +1,16 @@
+---
+description: Rules for Supabase SQL, migrations, and Row Level Security
+globs: supabase/**/*.sql, lib/supabase/**
+alwaysApply: false
+---
+
+# Database rules (Supabase / Postgres)
+
+- Put schema changes in a new numbered file in `supabase/migrations/` (e.g. `0003_reports.sql`). Never edit a migration that has already been run.
+- Every new table: `alter table ... enable row level security;` plus explicit policies. Explain each policy in a SQL comment in plain English.
+- Use `uuid` primary keys (`gen_random_uuid()`), `timestamptz` for times, integer cents for money, Postgres enums or check constraints for statuses.
+- Add indexes for foreign keys and for columns used in filters (status, zone_id, assigned_driver_id, customer_id).
+- Helper functions for RLS (e.g. `is_admin()`, `is_assigned_driver(job_id)`) should be `security definer` with `set search_path = public` and must not leak data.
+- `claim_job(job_id uuid)` must use a single `update ... where status = 'open' ... returning` (or `select ... for update`) so only one driver can win.
+- Prefer doing writes through server-side code with the service role, after checking permissions in code; keep RLS SELECT policies tight so the browser can only read what the user is allowed to see.
+- When you write SQL for me, also give me a short test query I can run in the Supabase SQL editor to confirm it works.
