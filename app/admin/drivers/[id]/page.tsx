@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -6,10 +5,6 @@ import { reviewDriver } from "@/app/admin/drivers/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-
-export const metadata: Metadata = {
-  title: "Review driver",
-};
 
 const actions = [
   ["approve_new", "Approve as new"],

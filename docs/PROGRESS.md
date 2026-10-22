@@ -389,3 +389,7 @@ Migration `0013_assignment_documents.sql` closes the gaps found in review: docum
 `platform_settings` id 1 is present with platform 1000 bps, platform minimum 1000 cents, service 290 bps, service fixed 30 cents, and a 30 minute payment deadline.
 
 The read-only fingerprint matched on columns (166), constraints (56), indexes (27), functions (43), function grants (78), table grants (226), policies (41), triggers (22), row level security (15), enums (61), and the `job-photos` and `driver-docs` buckets. Digests were identical. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
+
+## Admin operations dashboard (2026-10-22)
+
+`/admin` is now the operations dashboard. Summary cards, the needs-action list, driver counts, and the latest 25 job and audit events come from the signed-in admin's Supabase session. Existing request review, quotes, publishing, invitations, assignment, driver review, and settings stay on their current pages. `/admin/requests` is the searchable list. Jobs & Assignments opens that list on open and in-progress jobs. Payments is labeled "Coming in Step 5" and is not a link. Customers is omitted. No new migration. This is local only and has not been applied or deployed to the hosted project.

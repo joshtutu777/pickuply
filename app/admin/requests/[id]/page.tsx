@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -13,10 +12,6 @@ import { serviceById, type ServiceId } from "@/lib/constants";
 import { getJobDetail } from "@/lib/data/job-queries";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
-
-export const metadata: Metadata = {
-  title: "Review request",
-};
 
 export default function AdminRequestPage({
   params,
@@ -67,7 +62,7 @@ async function RequestDetail({
       <p className="mt-2 text-base text-muted">
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
-      <Link href="/admin" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
+      <Link href="/admin/requests" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
         All requests
       </Link>
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}

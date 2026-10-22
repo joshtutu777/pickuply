@@ -62,5 +62,10 @@ export default defineConfig({
       use: { ...devices["Pixel 5"] },
       testMatch: /step4\.spec\.ts/,
     },
+    {
+      name: "local-admin",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /admin-dashboard\.spec\.ts/,
+    },
   ],
 });
