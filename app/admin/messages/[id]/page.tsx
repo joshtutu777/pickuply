@@ -27,12 +27,10 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
     .maybeSingle();
   if (!thread) notFound();
   const { data } = await supabase.rpc("thread_messages", { target_thread: id });
-  const closed = Boolean(thread.closes_at && thread.closes_at <= new Date().toISOString());
-
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <h1 className="font-display text-4xl font-semibold text-ink">Message</h1>
-      <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closed={closed} />
+      <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closesAt={thread.closes_at} />
     </main>
   );
 }

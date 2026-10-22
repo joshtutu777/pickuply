@@ -1,4 +1,4 @@
-import { waitedLabel } from "@/lib/admin/ops";
+import { LastUpdate } from "@/components/request/last-update";
 import type { JobTracker } from "@/lib/jobs/tracker";
 
 export function JobTrackerView({
@@ -35,11 +35,7 @@ export function JobTrackerView({
           </div>
         </div>
       ) : null}
-      {tracker.lastUpdate ? (
-        <p className="mb-3 text-sm text-muted">
-          Last update {waitedLabel(tracker.lastUpdate, new Date().getTime())}
-        </p>
-      ) : null}
+      {tracker.lastUpdate ? <LastUpdate iso={tracker.lastUpdate} /> : null}
       {compact ? (
         <p className="text-base font-semibold text-ink">{current?.label ?? tracker.steps.at(-1)?.label}</p>
       ) : (

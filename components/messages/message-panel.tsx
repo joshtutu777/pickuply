@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { containsContact } from "@/lib/messages/contact";
 
 export type ChatMessage = {
@@ -13,21 +13,34 @@ export type ChatMessage = {
 
 const quickReplies = ["On my way", "Running 10 minutes late", "I'm outside", "Can't find the entrance"];
 
+function emptySubscribe(): () => void {
+  return () => undefined;
+}
+
+let messageClock = "";
+
+function messageClockSnapshot(): string {
+  if (messageClock.length === 0) messageClock = new Date().toISOString();
+  return messageClock;
+}
+
 export function MessagePanel({
   threadId,
   initial,
-  closed,
+  closesAt,
   showQuickReplies = false,
 }: {
   threadId: string;
   initial: ChatMessage[];
-  closed: boolean;
+  closesAt: string | null;
   showQuickReplies?: boolean;
 }) {
   const [messages, setMessages] = useState(initial);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const warning = containsContact(text);
+  const nowIso = useSyncExternalStore(emptySubscribe, messageClockSnapshot, () => "");
+  const closed = Boolean(closesAt && nowIso.length > 0 && closesAt <= nowIso);
 
   useEffect(() => {
     const timer = window.setInterval(async () => {

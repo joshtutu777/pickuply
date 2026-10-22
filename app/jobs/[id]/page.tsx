@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
@@ -38,6 +39,7 @@ async function JobEntry({
   params: PageProps<"/jobs/[id]">["params"];
   searchParams: PageProps<"/jobs/[id]">["searchParams"];
 }) {
+  await connection();
   const { id } = await params;
   const query = await searchParams;
   const job = await getJobDetail(id);

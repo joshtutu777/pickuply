@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 
@@ -40,6 +41,7 @@ function OfferActions({
   const [reason, setReason] = useState("");
   const [preview, setPreview] = useState<{ cents: number; total: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
   const earningsCents = parseDollarsToCents(earnings) ?? 0;
   const previewTotal = preview && preview.cents === earningsCents ? preview.total : null;
 
@@ -74,6 +76,7 @@ function OfferActions({
       return;
     }
     setMessage(kind === "claim" ? "You are assigned. Payment is still due." : "Offer sent. The customer chooses.");
+    if (kind === "claim") router.refresh();
     onDone();
   }
 

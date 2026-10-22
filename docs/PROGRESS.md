@@ -432,9 +432,17 @@ A problem report during the job, or within 7 days after completion, marks the jo
 
 `0018_proof_reports.sql` is local only. `0014` through `0019` are not on the hosted project. `0019` only renames the way an alert is inserted after an argument name blocked a new job from being saved. Local pgTAP `0018_proof_reports.test.sql` passed 12 tests: proof counts differ by service, a report leaves a completed capture alone, and a dispute blocks a new capture, a new payout, and deleting a photo. A customer cannot read the rounded proof location.
 
+## Local verification before Step 5 (2026-10-22)
+
+The local database was reset and migrations `0001` through `0019` were applied in order. The full pgTAP suite passed: 6 files, 210 tests. That is the earlier 192 assertions plus SMS consent (6) and proof/reports (12). Lint, typecheck, 63 unit tests, and the production build passed.
+
+Local Playwright passed 23 tests. One hosted admin sign-in test was skipped because those credentials stay in `.env.local`. The local walk signed in with the placeholder numbers, chose a driver, confirmed the tracker through payment, blocked a phone number in chat, exchanged a message, and filed a problem report that left the job disputed. The admin dashboard suite passed against the same local database.
+
+A claimed job now shows up in the driver's assigned list without a manual reload. The job page waits for a request-time render before formatting dates, so prerender no longer stops on the current time. "Last update" and whether a conversation is closed are read in the browser.
+
 ## Untested edge cases
 
-- Hosted pages still use the hosted database, so the new tracker, alerts, messages, proof, and reports were not clicked through in the hosted browser.
+- Hosted pages still use the hosted database, so the new tracker, alerts, messages, proof, and reports were not clicked through in the hosted browser. The same walk passed on the local database.
 - Push delivery needs VAPID keys, and email delivery needs Resend. Those sends were not exercised.
 - Texting stays off. The Twilio call was not made.
 - The iPhone Home Screen hint is shown only on an iPhone browser, which was not opened here.

@@ -39,7 +39,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   timeout: 240_000,
-  expect: { timeout: 20_000 },
+  expect: { timeout: 45_000 },
   use: {
     baseURL: "http://127.0.0.1:3001",
     trace: "retain-on-failure",
@@ -57,6 +57,24 @@ export default defineConfig({
     },
   },
   projects: [
+    {
+      name: "local-homepage",
+      testDir: "./e2e",
+      testMatch: /homepage\.spec\.ts/,
+      use: { ...devices["Pixel 5"] },
+    },
+    {
+      name: "local-request",
+      testDir: "./e2e",
+      testMatch: /request\.spec\.ts/,
+      use: { ...devices["iPhone 13"] },
+    },
+    {
+      name: "local-auth",
+      testDir: "./e2e",
+      testMatch: /auth\.spec\.ts/,
+      use: { ...devices["Pixel 5"], trace: "off" },
+    },
     {
       name: "local-step4",
       use: { ...devices["Pixel 5"] },

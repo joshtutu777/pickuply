@@ -42,7 +42,7 @@ async function Support() {
           We couldn&apos;t open support. Try again.
         </p>
       ) : (
-        <MessagePanel threadId={threadId} initial={(messages ?? []) as ChatMessage[]} closed={false} />
+        <MessagePanel threadId={threadId} initial={(messages ?? []) as ChatMessage[]} closesAt={null} />
       )}
     </main>
   );

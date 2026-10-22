@@ -17,12 +17,11 @@ export async function JobMessages({
     supabase.rpc("thread_messages", { target_thread: threadId }),
     supabase.from("message_threads").select("closes_at").eq("id", threadId).maybeSingle(),
   ]);
-  const closed = Boolean(thread?.closes_at && thread.closes_at <= new Date().toISOString());
   return (
     <MessagePanel
       threadId={threadId}
       initial={(data ?? []) as ChatMessage[]}
-      closed={closed}
+      closesAt={thread?.closes_at ?? null}
       showQuickReplies={showQuickReplies}
     />
   );

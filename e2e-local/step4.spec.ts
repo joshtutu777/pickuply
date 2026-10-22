@@ -87,7 +87,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await driver.page.goto("/driver");
   const quoteCard = driver.page.locator("li").filter({ hasText: "Lithia Springs 30122" });
   await quoteCard.getByRole("button", { name: "Claim this job" }).click();
-  await expect(quoteCard.getByText("You are assigned. Payment is still due.")).toBeVisible();
+  await expect(driver.page.locator(`a[href="/driver/jobs/${quoteId}"]`)).toContainText("assigned");
 
   await driver2.page.goto("/driver");
   await expect(driver2.page.getByText("Lithia Springs 30122")).toHaveCount(0);
@@ -115,6 +115,38 @@ test("local marketplace assignment does not charge or reveal the address", async
   expect(blocked).not.toContain("en_route");
   expect(jobPayment(fixedId).status).toBe("assigned");
   expect(stripeUrls).toEqual([]);
+
+  await customer.page.goto(`/jobs/${fixedId}`);
+  const progress = customer.page.getByRole("region", { name: "Job progress" });
+  await expect(progress.getByRole("listitem").filter({ hasText: "Request received" })).toBeVisible();
+  await expect(progress.locator("[aria-current=step]")).toContainText("Payment confirmed");
+
+  const messages = customer.page.getByRole("region", { name: "Messages" });
+  const message = messages.getByRole("textbox", { name: "Message", exact: true });
+  await message.fill("call me at 404-555-0100");
+  await expect(messages.getByText("Remove the phone number or email before sending.")).toBeVisible();
+  await expect(messages.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+  await message.fill("Please use the side door");
+  await messages.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(messages.getByText("Please use the side door")).toBeVisible();
+
+  const driverMessages = driver.page.getByRole("region", { name: "Messages" });
+  await driver.page.goto(`/driver/jobs/${fixedId}`);
+  await expect(driverMessages.getByText("Please use the side door")).toBeVisible();
+  await driverMessages.getByRole("button", { name: "I'm outside" }).click();
+  await driverMessages.getByRole("button", { name: "Send" }).click();
+  await expect(driverMessages.locator("li").filter({ hasText: "I'm outside" })).toBeVisible();
+
+  await customer.page.reload();
+  await expect(customer.page.getByRole("region", { name: "Messages" }).locator("li").filter({ hasText: "I'm outside" })).toBeVisible();
+  await customer.page.locator("#report-category").selectOption("damaged");
+  await customer.page.locator("#report-description").fill("The desk corner is cracked.");
+  await customer.page.locator("#report-outcome").selectOption("repair");
+  await customer.page.getByRole("button", { name: "Send report" }).click();
+  await expect(customer.page.getByText("Report saved.")).toBeVisible();
+  await customer.page.reload();
+  await expect(customer.page.getByRole("heading", { name: "Disputed" })).toBeVisible();
+  expect(jobPayment(fixedId).status).toBe("disputed");
 
   await customer.context.close();
   await driver.context.close();
