@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { TextField } from "@/components/request/fields";
+import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { validateFullName } from "@/lib/auth/name";
 import { createClient } from "@/lib/supabase/client";
 
@@ -81,6 +82,7 @@ export function OnboardingForm({
   const [licenseExpires, setLicenseExpires] = useState("");
   const [insuranceExpires, setInsuranceExpires] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("zelle");
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [payoutHandle, setPayoutHandle] = useState("");
   const [agreements, setAgreements] = useState<string[]>([]);
   const [signature, setSignature] = useState("");
@@ -153,6 +155,16 @@ export function OnboardingForm({
         setError(saveError.message);
         setPending(false);
         return;
+      }
+      if (smsOptIn) {
+        const consentError = await recordOptionalSmsConsent("driver_onboarding");
+        if (consentError) {
+          setError(
+            "Your application was saved. We couldn't save your text-message choice, so optional texts stay off.",
+          );
+          setPending(false);
+          return;
+        }
       }
       router.push("/driver/onboarding?submitted=1");
       router.refresh();
@@ -373,6 +385,7 @@ export function OnboardingForm({
         />
       </section>
 
+      <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} />
       {error ? (
         <p role="alert" className="text-base font-medium text-danger">
           {error}

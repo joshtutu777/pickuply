@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { safeNextParam } from "@/lib/auth/access";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
 
@@ -32,6 +33,8 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [cooling, setCooling] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [signedInTo, setSignedInTo] = useState("");
   const codeRef = useRef<HTMLInputElement>(null);
   const configured = authConfigured();
   const sentCopy = sentPhone ? codeSentMessage(sentPhone) : null;
@@ -106,6 +109,15 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
       const destination = safeNext
         ? `/auth/continue?${new URLSearchParams({ next: safeNext }).toString()}`
         : "/auth/continue";
+      if (smsOptIn) {
+        const consentError = await recordOptionalSmsConsent("login");
+        if (consentError) {
+          setSignedInTo(destination);
+          setError("We couldn't save your text-message choice. Optional texts stay off.");
+          setPending(false);
+          return;
+        }
+      }
       window.location.assign(destination);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "";
@@ -159,6 +171,7 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
               disabled={!configured || pending || cooling}
             />
           </label>
+          <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="phone-error" role="alert" className="text-sm font-medium text-danger">
               {error}
@@ -200,10 +213,16 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
               disabled={pending}
             />
           </label>
+          <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="code-error" role="alert" className="text-sm font-medium text-danger">
               {error}
             </p>
+          ) : null}
+          {signedInTo ? (
+            <a href={signedInTo} className="text-base font-semibold text-brand underline underline-offset-4">
+              Continue without optional texts
+            </a>
           ) : null}
           <button type="submit" className={primaryButton} disabled={pending}>
             Verify and continue

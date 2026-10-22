@@ -322,6 +322,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0011_request_photo_access.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0010`. | Replaces the `0009` request-photo policies with `request_photo_visible`. |
 | `supabase/migrations/0012_quote_expiry.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0011`. | A quote with no expiry can still be accepted. A past expiry is rejected. |
 | `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
+| `supabase/migrations/0014_sms_consent.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Optional SMS consent is a separate unchecked checkbox. A phone number is not consent. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -385,6 +386,12 @@ Migration `0013_assignment_documents.sql` closes the gaps found in review: docum
 ## Hosted apply of 0007–0013 (2026-10-22)
 
 `0007` through `0013` were applied to the hosted database through the Management API, one file at a time, in order. `0001` through `0006` were not run again. None of the seven calls failed.
+
+## SMS consent for Twilio review (2026-10-22)
+
+`/login` and driver onboarding show the SMS disclosure, links to `/privacy` and `/terms`, and an unchecked optional checkbox. Entering a phone number does not opt anyone in. A checked box calls `record_sms_consent` after sign-in or after the application is saved, and the row stores the profile, time, disclosure version `2026-10-22`, and source `login` or `driver_onboarding`. Existing phone OTP is unchanged, and no SMS is sent from this step.
+
+`supabase/migrations/0014_sms_consent.sql` is written and applied locally only. It has not been applied to the hosted project.
 
 `platform_settings` id 1 is present with platform 1000 bps, platform minimum 1000 cents, service 290 bps, service fixed 30 cents, and a 30 minute payment deadline.
 
