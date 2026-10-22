@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { JobTrackerView } from "@/components/request/job-tracker";
 import {
   fees,
   hearAboutOptions,
@@ -11,8 +12,10 @@ import {
   valueApprovalWarning,
   type ServiceId,
 } from "@/lib/constants";
+import type { DriverCard } from "@/lib/data/driver-card";
 import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
+import type { JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
@@ -31,16 +34,6 @@ const statusLabels: Record<string, string> = {
   disputed: "Disputed",
 };
 
-const timeline = [
-  "requested",
-  "quoted",
-  "open",
-  "assigned",
-  "item_check",
-  "delivered",
-  "completed",
-] as const;
-
 export function statusLabel(status: string): string {
   return statusLabels[status] ?? status;
 }
@@ -50,15 +43,18 @@ export function JobStatus({
   notice,
   canRespond = false,
   error,
+  tracker,
+  driver,
 }: {
   job: JobDetail;
   notice?: QuoteNotice | null;
   canRespond?: boolean;
   error?: string;
+  tracker: JobTracker;
+  driver?: DriverCard | null;
 }) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
-  const current = timeline.indexOf(job.status as (typeof timeline)[number]);
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -73,21 +69,7 @@ export function JobStatus({
           your acceptance. A named price or budget waits for confirmation before a driver is chosen.
         </p>
       ) : null}
-      <ol className="mt-6 grid gap-2">
-        {timeline.map((status, index) => (
-          <li
-            key={status}
-            aria-current={status === job.status ? "step" : undefined}
-            className={`flex min-h-12 items-center rounded-2xl px-4 text-base font-semibold ${
-              index === current
-                ? "bg-brand text-white"
-                : "bg-paper-raised text-muted ring-1 ring-line"
-            }`}
-          >
-            {statusLabel(status)}
-          </li>
-        ))}
-      </ol>
+      <JobTrackerView tracker={tracker} driver={driver} />
       <section className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Request</h2>
         <p>{job.description}</p>

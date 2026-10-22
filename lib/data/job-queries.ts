@@ -9,8 +9,11 @@ export type JobSummary = {
   service: string;
   status: string;
   created_at: string;
+  updated_at: string;
   pricing_method: string;
   pickup_area: string;
+  payment_status: string | null;
+  dump_fee_cents: number | null;
 };
 
 export type JobPhoto = {
@@ -45,6 +48,11 @@ export type JobDetail = {
   time_window: string | null;
   source: string | null;
   junk_load_size: string | null;
+  payment_status: string | null;
+  dump_fee_cents: number | null;
+  assigned_driver_id: string | null;
+  updated_at: string;
+  has_dump_receipt: boolean;
   private: {
     customer_name: string;
     customer_phone: string;
@@ -62,7 +70,9 @@ export async function listOwnJobs(): Promise<{ jobs: JobSummary[]; error: boolea
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("jobs")
-      .select("id, service, status, created_at, pricing_method, pickup_area")
+      .select(
+        "id, service, status, created_at, updated_at, pricing_method, pickup_area, payment_status, dump_fee_cents",
+      )
       .order("created_at", { ascending: false });
     if (error) return { jobs: [], error: true };
     return { jobs: data ?? [], error: false };
@@ -84,7 +94,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size",
+        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id",
       )
       .eq("id", id)
       .maybeSingle();
@@ -103,14 +113,15 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
         .order("created_at", { ascending: true }),
       supabase
         .from("job_photos")
-        .select("id, storage_path")
+        .select("id, storage_path, stage")
         .eq("job_id", id)
-        .eq("stage", "request")
+        .in("stage", ["request", "dump_receipt"])
         .order("created_at", { ascending: true }),
     ]);
 
     const photos: JobPhoto[] = [];
-    for (const photo of photoResult.data ?? []) {
+    const hasDumpReceipt = (photoResult.data ?? []).some((photo) => photo.stage === "dump_receipt");
+    for (const photo of (photoResult.data ?? []).filter((item) => item.stage === "request")) {
       const signed = await supabase.storage
         .from("job-photos")
         .createSignedUrl(photo.storage_path, signedUrlSeconds);
@@ -121,6 +132,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
 
     return {
       ...job,
+      has_dump_receipt: hasDumpReceipt,
       private: privateResult.data,
       events: (eventResult.data ?? []).map((event) => {
         const data = event.data as { to?: string } | null;

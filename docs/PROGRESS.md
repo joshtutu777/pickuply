@@ -323,6 +323,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0012_quote_expiry.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0011`. | A quote with no expiry can still be accepted. A past expiry is rejected. |
 | `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
 | `supabase/migrations/0014_sms_consent.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Optional SMS consent is a separate unchecked checkbox. A phone number is not consent. |
+| `supabase/migrations/0015_job_tracker.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Customers see only the assigned driver's first name, profile photo, and vehicle. Notifications move to 0016. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -400,3 +401,9 @@ The read-only fingerprint matched on columns (166), constraints (56), indexes (2
 ## Admin operations dashboard (2026-10-22)
 
 `/admin` is now the operations dashboard. Summary cards, the needs-action list, driver counts, and the latest 25 job and audit events come from the signed-in admin's Supabase session. Existing request review, quotes, publishing, invitations, assignment, driver review, and settings stay on their current pages. `/admin/requests` is the searchable list. Jobs & Assignments opens that list on open and in-progress jobs. Payments is labeled "Coming in Step 5" and is not a link. Customers is omitted. No new migration. This is local only and has not been applied or deployed to the hosted project.
+
+## Step 6a — job tracker (2026-10-22)
+
+The request page, each active account card, and the assigned driver's job page share one progress list: request received, price confirmed, driver confirmed, payment confirmed, heading to pickup, arrived, item checked, picked up, delivered, and completed. Junk jobs say "Load picked up" and "Hauled away", and add "Disposal receipt uploaded" when a dump fee is stored. Cancelled and disputed jobs say so. A rescheduled or reassigned event would show that label, but those workflows are not built. Once a driver is assigned, the customer sees that driver's first name, profile photo, and vehicle through `assigned_driver_card`. The driver moves the job with `advance_job`. Item pickup still waits for the customer, and payment still cannot be collected until Step 5.
+
+`0015_job_tracker.sql` is local only. Notifications, messages, and proof are planned as `0016`, `0017`, and `0018` because this tracker function had to come first. `0014` remains local only.

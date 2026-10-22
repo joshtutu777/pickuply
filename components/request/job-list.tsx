@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { JobTrackerView } from "@/components/request/job-tracker";
 import { serviceById, type ServiceId } from "@/lib/constants";
 import type { JobSummary } from "@/lib/data/job-queries";
+import { buildJobTracker } from "@/lib/jobs/tracker";
 import { statusLabel } from "./job-status";
 
 export function JobList({
@@ -8,6 +10,7 @@ export function JobList({
   emptyTitle,
   emptyCopy,
   showPricing = false,
+  showTracker = false,
   actionHref = "/request",
   hrefFor,
 }: {
@@ -15,6 +18,7 @@ export function JobList({
   emptyTitle: string;
   emptyCopy: string;
   showPricing?: boolean;
+  showTracker?: boolean;
   actionHref?: string | null;
   hrefFor?: (id: string) => string;
 }) {
@@ -48,6 +52,21 @@ export function JobList({
               <p className="text-sm text-muted">
                 {job.pricing_method} · {job.pickup_area}
               </p>
+            ) : null}
+            {showTracker && job.status !== "completed" && job.status !== "cancelled" ? (
+              <JobTrackerView
+                compact
+                tracker={buildJobTracker({
+                  service: job.service,
+                  status: job.status,
+                  pricingMethod: job.pricing_method,
+                  paymentStatus: job.payment_status,
+                  createdAt: job.created_at,
+                  dumpFeeCents: job.dump_fee_cents,
+                  hasDumpReceipt: false,
+                  events: [{ type: "status", createdAt: job.updated_at, toStatus: job.status }],
+                })}
+              />
             ) : null}
           </>
         );

@@ -44,6 +44,7 @@ async function AccountContent({
       ) : (
         <JobList
           jobs={jobs}
+          showTracker
           emptyTitle="No requests yet"
           emptyCopy="When you submit a request, it shows up here. Drivers do not see it until it is confirmed."
         />

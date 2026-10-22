@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { advanceJob } from "@/app/driver/jobs/actions";
 import { LoadingMain } from "@/components/loading-main";
+import { JobTrackerView } from "@/components/request/job-tracker";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
+import { buildJobTracker, nextDriverAction } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,32 +15,65 @@ export const metadata: Metadata = {
   title: "Assigned job",
 };
 
-export default function DriverJobPage({ params }: PageProps<"/driver/jobs/[id]">) {
+export default function DriverJobPage({ params, searchParams }: PageProps<"/driver/jobs/[id]">) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <DriverJob params={params} />
+      <DriverJob params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function DriverJob({ params }: { params: PageProps<"/driver/jobs/[id]">["params"] }) {
+async function DriverJob({
+  params,
+  searchParams,
+}: {
+  params: PageProps<"/driver/jobs/[id]">["params"];
+  searchParams: PageProps<"/driver/jobs/[id]">["searchParams"];
+}) {
   const session = await requireSignedIn("/driver/jobs");
   if (session.role !== "driver") notFound();
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, pickup_area, dropoff_area, driver_pay_cents, payment_status, payment_due_at",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, payment_status, payment_due_at, dump_fee_cents",
     )
     .eq("id", id)
     .maybeSingle();
   if (!job) notFound();
-  const { data: details } = await supabase
-    .from("job_private")
-    .select("customer_name, pickup_address, dropoff_address, access_notes")
-    .eq("job_id", id)
-    .maybeSingle();
+  const [{ data: details }, { data: events }, { data: receipts }] = await Promise.all([
+    supabase
+      .from("job_private")
+      .select("customer_name, pickup_address, dropoff_address, access_notes")
+      .eq("job_id", id)
+      .maybeSingle(),
+    supabase.from("job_events").select("type, created_at, data").eq("job_id", id).order("created_at"),
+    supabase.from("job_photos").select("id").eq("job_id", id).eq("stage", "dump_receipt").limit(1),
+  ]);
+  const tracker = buildJobTracker({
+    service: job.service,
+    status: job.status,
+    pricingMethod: job.pricing_method,
+    paymentStatus: job.payment_status,
+    createdAt: job.created_at,
+    dumpFeeCents: job.dump_fee_cents,
+    hasDumpReceipt: (receipts ?? []).length > 0,
+    events: (events ?? []).map((event) => {
+      const data = event.data as { to?: string } | null;
+      return {
+        type: event.type,
+        createdAt: event.created_at,
+        toStatus: typeof data?.to === "string" ? data.to : null,
+      };
+    }),
+  });
+  const next = nextDriverAction({
+    status: job.status,
+    paymentStatus: job.payment_status,
+    service: job.service,
+  });
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -66,6 +102,25 @@ async function DriverJob({ params }: { params: PageProps<"/driver/jobs/[id]">["p
         Area only: {job.pickup_area}
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
+      <JobTrackerView tracker={tracker} />
+      {query.error === "step" ? (
+        <p role="alert" className="mt-4 text-base text-danger">
+          That step is not available yet.
+        </p>
+      ) : null}
+      {next.waiting ? <p className="mt-4 text-base text-muted">{next.waiting}</p> : null}
+      {next.nextStatus ? (
+        <form action={advanceJob} className="mt-4">
+          <input type="hidden" name="jobId" value={job.id} />
+          <input type="hidden" name="nextStatus" value={next.nextStatus} />
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+          >
+            {next.label}
+          </button>
+        </form>
+      ) : null}
       <Link href="/driver" className="mt-6 inline-flex min-h-12 items-center font-semibold text-brand">
         Driver home
       </Link>
