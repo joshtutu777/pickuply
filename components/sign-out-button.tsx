@@ -16,17 +16,17 @@ export function SignOutButton() {
     setPending(true);
     setError("");
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-    } catch {
-      // The server action still clears the cookies it can reach.
-    }
-    try {
       await signOutAction();
     } catch {
       setPending(false);
       setError("We couldn't sign you out. Try again.");
       return;
+    }
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // The server action already cleared the session cookies.
     }
     window.location.assign(new URL("/", window.location.origin).href);
   }

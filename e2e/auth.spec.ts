@@ -1,6 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeUsPhone } from "../lib/phone";
+import { supabaseProjectUrl } from "../lib/supabase/project-url";
+
+// Hosted phone sign-in allows one code every 5 seconds for a number.
+let lastCodeRequest = 0;
+
+async function waitForCodeWindow() {
+  const elapsed = Date.now() - lastCodeRequest;
+  if (lastCodeRequest !== 0 && elapsed < 6_000) {
+    await new Promise((resolve) => setTimeout(resolve, 6_000 - elapsed));
+  }
+  lastCodeRequest = Date.now();
+}
 
 test("login page shows the phone form", async ({ page }) => {
   await page.goto("/login");
@@ -42,12 +54,13 @@ test("pwa files are not redirected to login", async ({ request }) => {
 });
 
 test.describe("phone sign-in", () => {
-  test.describe.configure({ mode: "serial", timeout: 60_000 });
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
 
   test("wrong code stays on login", async ({ page }) => {
     const phone = requiredCustomerPhone();
     await page.goto("/login");
     await page.getByLabel("Mobile number").fill(phone);
+    await waitForCodeWindow();
     await page.getByRole("button", { name: "Text me a code" }).click();
     await expect(page.getByText(/Enter the 6-digit code for \(•••\) •••-\d{4}\./)).toBeVisible();
     const otp = process.env.TEST_OTP ?? "";
@@ -61,6 +74,7 @@ test.describe("phone sign-in", () => {
     const phone = requiredCustomerPhone();
     await page.goto("/login");
     await page.getByLabel("Mobile number").fill(phone);
+    await waitForCodeWindow();
     await page.getByRole("button", { name: "Text me a code" }).click();
     await expect(page.getByRole("button", { name: "Resend code" })).toBeDisabled();
   });
@@ -122,7 +136,8 @@ test.describe("phone sign-in", () => {
 
   test("a direct profile role update to admin fails", async () => {
     const { phone, otp } = customerLogin();
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const url = rawUrl ? supabaseProjectUrl(rawUrl) : "";
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     test.skip(
       url.length === 0 || anonKey.length === 0,
@@ -132,6 +147,9 @@ test.describe("phone sign-in", () => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     try {
+      await waitForCodeWindow();
+      const sent = await supabase.auth.signInWithOtp({ phone, options: { channel: "sms" } });
+      if (sent.error) throw new Error("Sign-in failed before the role check.");
       const verified = await supabase.auth.verifyOtp({ phone, token: otp, type: "sms" });
       if (verified.error) throw new Error("Sign-in failed before the role check.");
       const user = await supabase.auth.getUser();
@@ -148,7 +166,7 @@ test.describe("phone sign-in", () => {
 });
 
 test("admin browser login", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const phone = normalizeUsPhone(process.env.TEST_ADMIN_PHONE ?? "");
   const otp = process.env.TEST_ADMIN_OTP ?? "";
   test.skip(
@@ -188,6 +206,7 @@ async function signIn(page: Page, phone: string, otp: string) {
 
 async function signInOnPage(page: Page, phone: string, otp: string) {
   await page.getByLabel("Mobile number").fill(phone);
+  await waitForCodeWindow();
   await page.getByRole("button", { name: "Text me a code" }).click();
   await expect(page.getByText(/Enter the 6-digit code for \(•••\) •••-\d{4}\./)).toBeVisible();
   await page.getByLabel("6-digit code").fill(otp);

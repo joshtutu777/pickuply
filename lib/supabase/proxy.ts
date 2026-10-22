@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { accessStateFromProfile, decideAccess, isRole } from "@/lib/auth/access";
+import { supabaseProjectUrl } from "@/lib/supabase/project-url";
 
 type PendingCookie = {
   name: string;
@@ -14,8 +15,9 @@ type PendingCookie = {
  * If the public Supabase settings are missing, the request continues so the local form still works.
  */
 export async function updateSession(request: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = rawUrl ? supabaseProjectUrl(rawUrl) : rawUrl;
   if (!url || !anonKey) {
     return NextResponse.next({ request });
   }

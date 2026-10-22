@@ -243,3 +243,84 @@ Phone sign-in uses the browser anon client only. There is still no service-role 
 
 - A real text, a correct code, the name step, sign-out, a surviving reload, the forbidden-admin sentence, the Become a driver pitch, and the role-update rejection were not exercised in a browser. Those tests skip until the dashboard test numbers are in `.env.local` or `.env.test`.
 - The admin SQL was not executed.
+
+## Local Docker and pgTAP (2026-10-22)
+
+WSL 2 is running. Docker Desktop created the `docker-desktop` distro, version 2, kernel `6.18.40.1-microsoft-standard-WSL2`. There is no separate Ubuntu distro. Docker Desktop 4.96.2 is installed and the Linux engine answers. Supabase CLI 2.121.0 is installed at `%LOCALAPPDATA%\Programs\supabase` and is on the user PATH. Nothing was committed, pushed, linked, or applied to the hosted project.
+
+### Migration filenames
+
+CLI 2.121.0 accepts `<digits>_<name>.sql`. It applied `0001_core.sql` as version `0001` / name `core`, and `0002_storage.sql` as version `0002` / name `storage`. The tracked empty `supabase/migrations/.gitkeep` is skipped with a warning. The SQL files were not renamed. Hosted migration history was not repaired.
+
+`supabase init` added untracked `supabase/config.toml` and `supabase/.gitignore`. `project_id` is `pickuply`. Those files are not committed.
+
+### Local apply
+
+`supabase start` uses only Docker on this machine. The first apply of `0001_core.sql` failed at `alter table storage.objects enable row level security` with `must be owner of table objects`. On this image, `storage.objects` is already under row level security and is owned by `supabase_storage_admin`. The migration role `postgres` is not a superuser and is not that owner. `0002_storage.sql` already avoids that `ALTER` because hosted Supabase rejects it too.
+
+To apply the existing files on the disposable database only, `postgres` was given superuser for the apply and that privilege was removed afterward. `postgres` is not a superuser now. The image still gives `postgres` bypass-row-security, which it had before this step. Local history is version `0001` and `0002`. A later `supabase db reset` repeats the ownership failure unless that temporary privilege is used again.
+
+### pgTAP
+
+`supabase test db --local` ran `supabase/tests/0001_rls.test.sql` against `127.0.0.1` only. The on-disk `driver_job_feed()` stops on `column reference "id" is ambiguous` because `returns table (id uuid, ...)` creates a variable named `id`. So the suite can finish only 14 assertions, and assertion 12 fails before that error.
+
+On the disposable database only, that one `where` was qualified as `profiles.id`. The file was not edited. With that local copy, 35 assertions ran: 33 passed, and these two failed:
+
+- Assertion 12 expects SQLSTATE `42501` when anon reads `job_private`. Anon has table privileges from the image defaults, row level security returns no rows, and no exception is thrown.
+- Assertion 26 expects the duplicate-block insert to report `23505` with the sentence `a customer cannot block the same driver twice`. Postgres reports `23505` with `duplicate key value violates unique constraint "customer_driver_blocks_pkey"`.
+
+The script then stops at the fixture `update public.drivers set status = 'removed'`. `reset role` does not clear the JWT set earlier in the transaction, so `is_migration_session()` is false and `guard_drivers()` raises `only an admin can change driver approval fields`. Assertions 36 through 68 did not run.
+
+### Auth tests
+
+Playwright auth, one worker, Chromium: 4 passed and 8 skipped. The four unsigned checks passed. The sign-in tests and admin login still skip. `.env.local` has `TEST_PHONE` and `TEST_ADMIN_PHONE` set to the placeholder `+1XXXXXXXXXX`, and both OTP values are words with no digits. No code was submitted. `.env.test` is not present. The Playwright config reads `.env.local`.
+
+## One-time correction to 0001 (2026-10-22)
+
+`supabase/migrations/0001_core.sql` was edited after the hosted project had already been given the public schema. Both of these statements were removed:
+
+- `alter table storage.objects enable row level security`
+- `alter table storage.buckets enable row level security`
+
+The platform already enables row level security on those tables. The migration role does not own them, so the statements fail with `must be owner of table`. Creating policies and inserting the `job-photos` bucket do not need ownership. No other Storage statement in `0001_core.sql` or `0002_storage.sql` depends on owning those tables. The hosted schema was not changed to match this file edit. Do not run the edited `0001_core.sql` on the hosted project.
+
+The section above describes the first local apply, which used a temporary superuser, and a partial pgTAP run. That temporary privilege was removed. The reset below does not use it.
+
+## Clean local reset and full pgTAP (2026-10-22)
+
+`supabase db reset --local --yes --no-seed` recreated the disposable database and applied `0001` through `0005`. `postgres` is not a superuser (`rolsuper` is false). The image still gives that role bypass-row-security. `supabase/seed.sql` does not exist, so the reset skipped seeding. `.gitkeep` is still skipped with a warning.
+
+`supabase test db --local supabase/tests/0001_rls.test.sql` then ran the full file: `Files=1, Tests=68, Result: PASS`. No assertion failed. Two harmless warnings say no privileges were granted for `grant_pg_net_access` and `grant_pg_cron_access`.
+
+## Hosted apply of 0003–0005 (2026-10-22)
+
+Applied to the hosted database, in order, through the Supabase Management API. `0001_core.sql` and `0002_storage.sql` were not run again. This did not create `supabase_migrations.schema_migrations`.
+
+- `driver_job_feed()` uses `profiles.id = uid`. Calling it returns rows and does not raise the ambiguous-column error.
+- Anon has no privileges on `profiles`, `drivers`, `vehicles`, `jobs`, `job_private`, `job_photos`, `job_offers`, `job_events`, `audit_log`, `customer_driver_blocks`, or `job_driver_invitations`. `zones` is still readable.
+- `is_migration_session()` requires no user id, an empty JWT role, and empty JWT claims.
+- The storage revoke was run and did nothing. Anon still has `DELETE`, `INSERT`, `SELECT`, and `UPDATE` on `storage.objects` and `storage.buckets`. It was not forced. Row level security still hides the private photos.
+
+A read-only comparison after that apply matched the local schema on functions, policies, grants, triggers, row level security, and the `job-photos` bucket (368 fingerprint lines, no differences). The only remaining differences are local platform objects: `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger on `storage.buckets`.
+
+## Migration log
+
+`0001` and `0002` were pasted in the SQL editor, so the hosted project has no `supabase_migrations.schema_migrations` table. `0003`, `0004`, and `0005` were applied on 2026-10-22 through the Management API and are not recorded in that table either.
+
+| File | Date | Local | Hosted | How it was applied | Deviations |
+| --- | --- | --- | --- | --- | --- |
+| `supabase/migrations/0001_core.sql` | Hosted before 2026-10-22. Local 2026-10-22. | Applied by `supabase db reset --local`. Version `0001`, name `core`. | Applied earlier in the SQL editor. Not reapplied on 2026-10-22. | Hosted: SQL editor. Local: CLI reset, no superuser. | After the hosted apply, both storage `ENABLE ROW LEVEL SECURITY` statements were removed from the file. See the one-time correction above. The file no longer matches the SQL originally pasted. |
+| `supabase/migrations/0002_storage.sql` | Hosted before 2026-10-22. Local 2026-10-22. | Applied by the same reset. Version `0002`, name `storage`. | Applied earlier in the SQL editor. Not reapplied on 2026-10-22. | Hosted: SQL editor. Local: CLI reset. | None. Policies are created only when missing. |
+| `supabase/migrations/0003_fix_driver_job_feed.sql` | 2026-10-22 | Applied by the same reset. Version `0003`, name `fix_driver_job_feed`. | Applied. | Local: CLI reset. Hosted: Management API. | None. The only change from the original function is `profiles.id = uid`. |
+| `supabase/migrations/0004_revoke_anon_sensitive_grants.sql` | 2026-10-22 | Applied by the same reset. Version `0004`, name `revoke_anon_sensitive_grants`. | Applied. | Local: CLI reset. Hosted: Management API. | Public-table revokes took effect on both. The storage revokes do nothing on either database because `supabase_storage_admin` granted those privileges. |
+| `supabase/migrations/0005_migration_session_requires_empty_jwt.sql` | 2026-10-22 | Applied by the same reset. Version `0005`, name `migration_session_requires_empty_jwt`. | Applied. | Local: CLI reset. Hosted: Management API. | Replaces `is_migration_session()` with a stricter check: empty JWT role and empty JWT claims, as well as no user id. |
+
+`supabase/config.toml` and `supabase/.gitignore` stay in the workspace. `config.toml` has no embedded secrets or privileged credentials. Secret-like settings use `env(...)` or are comments.
+
+## Auth tests against hosted phone sign-in (2026-10-22)
+
+Phone sign-in was turned off on the hosted project, and no SMS provider credentials were stored. It is now enabled. Sign-in for the Playwright numbers uses Supabase test codes, so those numbers do not send a text. The test-code list expires at 2026-11-21 16:00 UTC. The codes stay in `.env.local` only.
+
+`TEST_PHONE` and `TEST_ADMIN_PHONE` were the same number, and both codes were 4 digits. The project sends 6-digit codes. The customer tests now use the reserved number `+15555550100`. The admin number already in `.env.local` was signed in once and promoted to `admin` with the name `Test Admin`. There were no auth users before that.
+
+The public Supabase URL in `.env.local` included `/rest/v1`. Auth calls then missed `/auth/v1`. The app now strips that suffix, and the saved URL is the project origin.

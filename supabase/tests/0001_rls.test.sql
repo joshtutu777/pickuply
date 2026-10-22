@@ -39,6 +39,20 @@ begin
 end;
 $$;
 
+-- Clears the local JWT after reset role so the next fixture write runs as the
+-- migration session. Call this only immediately before a harness write.
+-- Authorization checks after that write must set the role under test again.
+create or replace function pg_temp.clear_auth()
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claim.role', '', true);
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$;
+
 create or replace function pg_temp.make_user(uid uuid, email text)
 returns void
 language plpgsql
@@ -360,6 +374,7 @@ set local role anon;
 select throws_ok(
   'select * from public.job_private',
   '42501',
+  NULL,
   'anon cannot read private job details'
 );
 select lives_ok('select id from public.zones', 'anon can read zones');
@@ -435,6 +450,7 @@ select lives_ok(
 select throws_ok(
   $$insert into public.customer_driver_blocks (customer_id, driver_id) values ('11111111-1111-4111-8111-111111111111', '44444444-4444-4444-8444-444444444444')$$,
   '23505',
+  NULL,
   'a customer cannot block the same driver twice'
 );
 reset role;
@@ -508,18 +524,21 @@ select is(
   'a paused driver sees no jobs'
 );
 reset role;
+select pg_temp.clear_auth();
 
 update public.drivers set status = 'removed' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is((select count(*)::int from public.driver_job_feed()), 0, 'a removed driver sees no jobs');
 reset role;
+select pg_temp.clear_auth();
 
 update public.drivers set status = 'pending_review' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is((select count(*)::int from public.driver_job_feed()), 0, 'a pending driver sees no jobs');
 reset role;
+select pg_temp.clear_auth();
 
 update public.drivers set status = 'applied' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
@@ -535,6 +554,7 @@ select is(
   'an approved new driver sees nothing before an invitation'
 );
 reset role;
+select pg_temp.clear_auth();
 
 insert into public.job_driver_invitations (job_id, driver_id, invited_by)
 values (
@@ -560,6 +580,7 @@ select is(
   'an approved new driver does not see an open job without an invitation'
 );
 reset role;
+select pg_temp.clear_auth();
 
 insert into public.customer_driver_blocks (customer_id, driver_id)
 values (
@@ -629,6 +650,7 @@ select is(
   'a blocked driver does not see a published quote job'
 );
 reset role;
+select pg_temp.clear_auth();
 
 delete from public.customer_driver_blocks
 where customer_id = '11111111-1111-4111-8111-111111111111'
@@ -653,26 +675,33 @@ select throws_ok(
   'drivers cannot price a quote job'
 );
 reset role;
+select pg_temp.as_user('11111111-1111-4111-8111-111111111111');
+set local role authenticated;
 
--- Pricing constraints.
+-- Pricing constraints. The signed-in customer still has to pass the own-job rule.
 select throws_ok(
   $$insert into public.jobs (customer_id, service, pickup_area, description, pieces, size, item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method, offer_cents)
     values ('11111111-1111-4111-8111-111111111111', 'delivery', 'Marietta', 'x', 1, 'small', 0, 0, false, false, 'asap', 'fixed', 1000)$$,
   '23514',
+  NULL,
   'a fixed price under $35 is rejected'
 );
 select throws_ok(
   $$insert into public.jobs (customer_id, service, pickup_area, description, pieces, size, item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method, budget_min_cents, budget_max_cents)
     values ('11111111-1111-4111-8111-111111111111', 'delivery', 'Marietta', 'x', 1, 'small', 0, 0, false, false, 'asap', 'range', 5000, 5000)$$,
   '23514',
+  NULL,
   'a range maximum equal to the minimum is rejected'
 );
 select throws_ok(
   $$insert into public.jobs (customer_id, service, pickup_area, description, pieces, size, item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method, offer_cents)
     values ('11111111-1111-4111-8111-111111111111', 'delivery', 'Marietta', 'x', 1, 'small', 0, 0, false, false, 'asap', 'quote', 5000)$$,
   '23514',
+  NULL,
   'a quote job cannot store a customer amount'
 );
+reset role;
+select pg_temp.clear_auth();
 select throws_ok(
   $$update public.job_offers set status = 'chosen' where job_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'$$,
   'choosing an offer requires the customer booking step',
@@ -680,6 +709,7 @@ select throws_ok(
 );
 
 -- Distance fails closed once coordinates exist.
+select pg_temp.clear_auth();
 update public.drivers
 set last_lat = null, last_lng = null
 where profile_id = '44444444-4444-4444-8444-444444444444';
@@ -691,6 +721,7 @@ select is(
   'a job with coordinates is hidden when the driver location is missing'
 );
 reset role;
+select pg_temp.clear_auth();
 
 update public.drivers
 set last_lat = 33.952, last_lng = -84.55, max_distance_miles = 10
@@ -703,6 +734,7 @@ select is(
   'a driver inside the distance sees the job'
 );
 reset role;
+select pg_temp.clear_auth();
 
 update public.drivers
 set max_distance_miles = 1, last_lat = 34.2, last_lng = -84.55
@@ -715,6 +747,7 @@ select is(
   'a driver outside the distance does not see the job'
 );
 reset role;
+select pg_temp.clear_auth();
 
 -- Photos after assignment.
 update public.jobs
@@ -754,10 +787,12 @@ select is(
 reset role;
 
 -- Service role and an empty session are not admins.
+-- SET ROLE is enough. SET SESSION AUTHORIZATION needs a superuser, and this
+-- database role is not one. 0005 stops a JWT-bearing session from counting
+-- as the migration role, so the service role still cannot change quote prices.
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', 'service_role', true);
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
-set local session authorization authenticator;
 set local role service_role;
 select throws_ok(
   $$update public.jobs set price_cents = 1111 where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4'$$,
@@ -765,19 +800,16 @@ select throws_ok(
   'the service role cannot set quote prices'
 );
 reset role;
-reset session authorization;
 
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', '', true);
 select set_config('request.jwt.claims', '', true);
-set local session authorization authenticator;
 set local role authenticated;
 select lives_ok(
   $$update public.jobs set price_cents = 2222 where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4'$$,
   'an empty session does not raise while row security hides the job'
 );
 reset role;
-reset session authorization;
 select is(
   (select price_cents from public.jobs where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4'),
   8500,

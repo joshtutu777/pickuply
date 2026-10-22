@@ -1237,8 +1237,11 @@ insert into storage.buckets (id, name, public)
 values ('job-photos', 'job-photos', false)
 on conflict (id) do update set public = false;
 
-alter table storage.objects enable row level security;
-alter table storage.buckets enable row level security;
+-- The platform already enables row level security on storage.objects and
+-- storage.buckets. The migration role does not own those tables, so
+-- ALTER TABLE ... ENABLE ROW LEVEL SECURITY fails with "must be owner".
+-- Those two statements were removed in a one-time edit after hosted 0001
+-- had already been applied. Do not re-run this file on the hosted project.
 
 -- Authenticated users can see that the private bucket exists. Object policies still hide the files.
 create policy job_photos_bucket_read on storage.buckets

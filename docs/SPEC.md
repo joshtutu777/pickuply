@@ -421,6 +421,8 @@ Critical database functions:
 - `accept_admin_quote(job_id)` — the customer publishes their own `quoted` quote-job to `open`. It does not assign a driver.
 - `choose_offer(offer_id)` — customer explicitly chooses an active offer on an `open` fixed or range job: atomic; assigns the driver, marks other offers `declined`, writes an event. There is no auto-book path.
 
+Admin quote and price changes run as the signed-in admin. The database check is `is_admin()`. The service role never sets or changes `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, or `quote_expires_at`. The service role is only for webhooks, cron, and other system tasks. It must still be able to update payment and job status where this spec requires a system step: card authorization, capture after delivery or the 24-hour auto-complete, the $15 late-cancel capture, and the $25 trip-fee capture.
+
 ---
 
 ## 15. Pilot success criteria (30 days)

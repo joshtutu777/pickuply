@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
+import { supabaseProjectUrl } from "@/lib/supabase/project-url";
 
 /**
  * Reports whether the public Supabase API can be reached.
@@ -8,8 +9,9 @@ import { NextResponse } from "next/server";
 export async function GET() {
   await connection();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = rawUrl ? supabaseProjectUrl(rawUrl) : rawUrl;
   if (!url || !anonKey) {
     return NextResponse.json({ ok: false });
   }

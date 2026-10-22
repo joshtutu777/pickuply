@@ -53,7 +53,7 @@ export async function saveFullName(
   redirect(continueDestination(data.role, next));
 }
 
-/** Clears the server session cookies. The browser also signs out before calling this. */
+/** Clears the server session cookies, then the browser clears its own copy. */
 export async function signOutAction(): Promise<void> {
   await connection();
   try {

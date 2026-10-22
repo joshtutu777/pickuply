@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import "server-only";
+import { supabaseProjectUrl } from "./project-url";
 
 /**
  * Server client for Server Components and route handlers.
@@ -8,8 +9,9 @@ import "server-only";
  * Server Component can fail, and that failure is ignored on purpose.
  */
 export async function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = rawUrl ? supabaseProjectUrl(rawUrl) : rawUrl;
   if (!url || !anonKey) {
     throw new Error("Supabase URL and anon key are required on the server.");
   }
