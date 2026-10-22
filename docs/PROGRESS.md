@@ -344,3 +344,7 @@ Phone sign-in was turned off on the hosted project, and no SMS provider credenti
 `TEST_PHONE` and `TEST_ADMIN_PHONE` were the same number, and both codes were 4 digits. The project sends 6-digit codes. The customer tests now use the reserved number `+15555550100`. The admin number already in `.env.local` was signed in once and promoted to `admin` with the name `Test Admin`. There were no auth users before that.
 
 The public Supabase URL in `.env.local` included `/rest/v1`. Auth calls then missed `/auth/v1`. The app now strips that suffix, and the saved URL is the project origin.
+
+## Step 4a — driver onboarding (2026-10-22)
+
+Signed-in people can apply at `/driver/onboarding`. The save stays on their account: role remains `customer` and driver status becomes `pending_review`. Documents go in the private `driver-docs` bucket. `/driver/training` is a short static page. `/admin/drivers` lists applications. Approve, request changes, decline, pause, and remove run through `review_driver`, which checks `is_admin()` and writes `audit_log`. Approval is what sets role `driver`. This migration is local only.

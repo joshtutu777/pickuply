@@ -46,8 +46,8 @@ async function DriverContent({
         Become a driver
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        Have a truck or van? You can haul items for people nearby. Driver signup is not open yet.
-        You can still look at the signup page.
+        Have a truck or van? You can haul items for people nearby. Submit an application and we
+        will review your documents.
       </p>
       {forbidden ? <ForbiddenAlert /> : null}
       <Link

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { JobList } from "@/components/request/job-list";
 import { LoadingMain } from "@/components/loading-main";
@@ -25,6 +26,9 @@ async function AdminContent() {
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Admin</h1>
+      <Link href="/admin/drivers" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
+        Review drivers
+      </Link>
       <p className="mt-3 text-base leading-relaxed text-muted">
         Requests are read only. Quoting is not available here yet. Requested jobs stay hidden from
         drivers.

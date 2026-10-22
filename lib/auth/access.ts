@@ -146,7 +146,11 @@ function isProtected(pathname: string): boolean {
 }
 
 function driverOpenToAnyRole(pathname: string): boolean {
-  return pathname === "/driver" || matches(pathname, "/driver/onboarding");
+  return (
+    pathname === "/driver" ||
+    matches(pathname, "/driver/onboarding") ||
+    matches(pathname, "/driver/training")
+  );
 }
 
 function matches(pathname: string, base: string): boolean {
