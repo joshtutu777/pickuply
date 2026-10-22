@@ -81,13 +81,14 @@ export function splitJob(
   photoIds: string[],
   createdAt = new Date().toISOString(),
 ): { job: PublicJob; privateJob: PrivateJob } {
-  if (!draft.service || !draft.size || !draft.pricingMethod || !draft.hearAbout) {
+  if (!draft.service || !draft.pricingMethod) {
     throw new Error("Request is incomplete.");
   }
   const phone = normalizeUsPhone(draft.customerPhone);
   const value = itemValueCents(draft);
-  const pieceCount = Number(draft.pieces);
-  if (!phone || value == null || !Number.isInteger(pieceCount)) {
+  const pieceText = draft.pieces.trim();
+  const pieceCount = pieceText === "" ? null : Number(pieceText);
+  if (!phone || (pieceCount != null && !Number.isInteger(pieceCount))) {
     throw new Error("Request is incomplete.");
   }
 
@@ -107,15 +108,15 @@ export function splitJob(
     dropoff_area: junk ? null : area(draft.dropoffCity, draft.dropoffZip),
     description: draft.description.trim(),
     pieces: pieceCount,
-    size: draft.size,
+    size: draft.size || null,
     item_value_cents: value,
-    needs_value_approval: needsValueApproval(value),
+    needs_value_approval: value != null && needsValueApproval(value),
     listing_url: draft.listingUrl.trim() || null,
     already_paid: delivery ? yesNo(draft.alreadyPaid) : null,
     seller_holding: delivery ? yesNo(draft.sellerHolding) : null,
     wants_item_check: delivery ? yesNo(draft.wantsItemCheck) : null,
-    stairs_pickup: Number(draft.stairsPickup),
-    stairs_dropoff: junk ? null : Number(draft.stairsDropoff),
+    stairs_pickup: draft.stairsPickup === "" ? 0 : Number(draft.stairsPickup),
+    stairs_dropoff: junk ? null : draft.stairsDropoff === "" ? 0 : Number(draft.stairsDropoff),
     elevator: draft.elevator === "yes",
     help_loading: draft.helpLoading === "yes",
     junk_load_size: junk ? draft.junkLoadSize || null : null,
@@ -139,7 +140,7 @@ export function splitJob(
     offer_cents: offer,
     budget_min_cents: budgetMin,
     budget_max_cents: budgetMax,
-    source: draft.hearAbout,
+    source: draft.hearAbout || null,
     photo_ids: photoIds,
     created_at: createdAt,
   };
@@ -155,7 +156,11 @@ export function splitJob(
   };
 
   assertPublicJob(job);
-  if (job.item_value_cents > fees.itemValueCapCents && !job.needs_value_approval) {
+  if (
+    job.item_value_cents != null &&
+    job.item_value_cents > fees.itemValueCapCents &&
+    !job.needs_value_approval
+  ) {
     throw new Error("High-value requests must be flagged.");
   }
   return { job, privateJob };

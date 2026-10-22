@@ -1,23 +1,21 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   fees,
-  hearAboutOptions,
   itemSizes,
   junkLoadSizes,
   maxPhotos,
   driverPricingCopy,
   pricingMethods,
+  quotePricingCopy,
   privacyAreaNote,
-  prohibitedItems,
   requestSteps,
   serviceById,
   services,
   stairChoices,
   timeWindows,
-  valueApprovalWarning,
   type RequestStepId,
   type ServiceId,
 } from "@/lib/constants";
@@ -80,7 +78,6 @@ function focusField(errors: FieldErrors) {
 }
 
 export function RequestWizard({ initialService }: { initialService: ServiceId | null }) {
-  const router = useRouter();
   const [boot] = useState(() => loadBoot(initialService));
   const [showResume, setShowResume] = useState(boot.showResume);
   const [draft, setDraft] = useState<RequestDraft>(boot.draft);
@@ -98,6 +95,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const [otpError, setOtpError] = useState("");
   const [photoProgress, setPhotoProgress] = useState<Record<string, string>>({});
   const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
+  const [sentId, setSentId] = useState<string | null>(null);
 
   useEffect(() => {
     const ids = boot.photoIds;
@@ -126,12 +124,28 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   }, [boot.photoIds]);
 
   useEffect(() => {
-    if (stepIndex < requestSteps.length) return;
     let cancelled = false;
     void (async () => {
       try {
-        const { data } = await createClient().auth.getUser();
-        if (!cancelled) setSignedIn(Boolean(data.user));
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!data.user) {
+          setSignedIn(false);
+          return;
+        }
+        setSignedIn(true);
+        const profile = await supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        if (cancelled || profile.error || !profile.data) return;
+        setDraft((current) => ({
+          ...current,
+          customerName: current.customerName || profile.data?.full_name || "",
+          customerPhone: current.customerPhone || profile.data?.phone || "",
+        }));
       } catch {
         if (!cancelled) setSignedIn(false);
       }
@@ -139,7 +153,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     return () => {
       cancelled = true;
     };
-  }, [stepIndex]);
+  }, []);
 
   function persist(nextDraft: RequestDraft, nextPhotoIds: string[]) {
     try {
@@ -235,22 +249,27 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       return;
     }
     const step = requestSteps[stepIndex];
-    if (step.id === "review") {
+    const options = { photoCount: photoIds.length, signedIn: signedIn === true };
+    if (step.id === "verify") {
       const firstInvalid = requestSteps.findIndex(
-        (item) => Object.keys(validateStep(item.id, draft)).length > 0,
+        (item) => Object.keys(validateStep(item.id, draft, options)).length > 0,
       );
       if (firstInvalid >= 0) {
         setStepIndex(firstInvalid);
-        const stepErrors = validateStep(requestSteps[firstInvalid].id, draft);
+        const stepErrors = validateStep(requestSteps[firstInvalid].id, draft, options);
         setErrors(stepErrors);
         focusField(stepErrors);
         return;
       }
       setErrors({});
+      if (signedIn) {
+        void saveRequest();
+        return;
+      }
       setStepIndex(requestSteps.length);
       return;
     }
-    const stepErrors = validateStep(step.id, draft);
+    const stepErrors = validateStep(step.id, draft, options);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       focusField(stepErrors);
@@ -345,7 +364,8 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       clearStoredDraft();
       clearSubmissionId();
       await Promise.all(photoIds.map((id) => deletePhoto(id).catch(() => undefined)));
-      router.push(`/jobs/${job.id}`);
+      setSentId(job.id);
+      setSubmitting(false);
     } catch (error) {
       if (error instanceof RequestSubmitError) {
         if (error.code === "missing-photo") setMissingPhotos(error.missingPhotoIds);
@@ -356,6 +376,20 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       }
       setSubmitting(false);
     }
+  }
+
+  if (sentId) {
+    return (
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Request sent</h1>
+        <p className="mt-4 text-lg leading-relaxed text-muted">
+          We'll review this request. Nothing is booked, and drivers cannot see it until it is published.
+        </p>
+        <Link href={`/jobs/${sentId}`} className={`${primaryButton} mt-8`}>
+          View your request
+        </Link>
+      </main>
+    );
   }
 
   if (showResume) {
@@ -479,40 +513,39 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
           </section>
         ) : null}
 
-        {!verifying && step.id === "service" ? (
-          <section className="grid gap-5">
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">What do you need?</h1>
-            <RadioCards
-              legend="Service"
-              name="service"
-              value={draft.service}
-              error={errors.service}
-              onChange={(id) => update("service", id as ServiceId)}
-              options={services.map((service) => ({
-                id: service.id,
-                label: service.name,
-                hint: service.summary,
-              }))}
+        {!verifying && step.id === "what" ? (
+          <>
+            <section className="grid gap-5">
+              <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">What do you need?</h1>
+              <RadioCards
+                legend="Service"
+                name="service"
+                value={draft.service}
+                error={errors.service}
+                onChange={(id) => update("service", id as ServiceId)}
+                options={services.map((service) => ({
+                  id: service.id,
+                  label: service.name,
+                  hint: service.summary,
+                }))}
+              />
+            </section>
+            <ItemStep
+              draft={draft}
+              errors={errors}
+              update={update}
+              warning={warning}
+              previews={previews}
+              photoError={photoError}
+              onPhotos={addPhotos}
+              onRemove={removePhoto}
             />
-          </section>
-        ) : null}
-
-        {!verifying && step.id === "item" ? (
-          <ItemStep
-            draft={draft}
-            errors={errors}
-            update={update}
-            warning={warning}
-            previews={previews}
-            photoError={photoError}
-            onPhotos={addPhotos}
-            onRemove={removePhoto}
-          />
+          </>
         ) : null}
 
         {!verifying && step.id === "where" ? (
           <section className="grid gap-5">
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Where is it?</h1>
+            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Where and when?</h1>
             <p className="text-base leading-relaxed text-muted">{privacyAreaNote}</p>
             <TextField
               label="Pickup street address"
@@ -570,20 +603,6 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
             ) : (
               <p className="text-base text-muted">Junk removal does not need a drop-off address.</p>
             )}
-            <TextAreaField
-              label="Access instructions"
-              name="accessNotes"
-              optional
-              hint="Gate code, parking, or which entrance."
-              value={draft.accessNotes}
-              onChange={(value) => update("accessNotes", value)}
-            />
-          </section>
-        ) : null}
-
-        {!verifying && step.id === "access" ? (
-          <section className="grid gap-5">
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Access and when</h1>
             <RadioCards
               legend="Stairs at pickup"
               name="stairsPickup"
@@ -610,7 +629,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               onChange={(value) => update("elevator", value)}
             />
             <YesNo
-              legend="Can someone help load?"
+              legend="I can help load"
               name="helpLoading"
               value={draft.helpLoading}
               error={errors.helpLoading}
@@ -659,6 +678,14 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               />
             ) : null}
             <TextAreaField
+              label="Access instructions"
+              name="accessNotes"
+              optional
+              hint="Gate code, parking, or which entrance."
+              value={draft.accessNotes}
+              onChange={(value) => update("accessNotes", value)}
+            />
+            <TextAreaField
               label="Notes"
               name="notes"
               optional
@@ -668,11 +695,10 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
           </section>
         ) : null}
 
-        {!verifying && step.id === "contact" ? (
+        {!verifying && step.id === "price" ? (
           <section className="grid gap-5">
-            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
-              Contact and price
-            </h1>
+            <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Your price</h1>
+            <p className="text-base leading-relaxed text-muted">{quotePricingCopy}</p>
             <RadioCards
               legend="Pricing method"
               name="pricingMethod"
@@ -717,48 +743,19 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                 />
               </>
             ) : null}
-            <TextField
-              label="Your name"
-              name="customerName"
-              autoComplete="name"
-              value={draft.customerName}
-              error={errors.customerName}
-              onChange={(value) => update("customerName", value)}
-            />
-            <TextField
-              label="Phone number"
-              name="customerPhone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={draft.customerPhone}
-              error={errors.customerPhone}
-              onChange={(value) => update("customerPhone", value)}
-            />
-            <TextField
-              label="Email"
-              name="customerEmail"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              optional
-              value={draft.customerEmail}
-              error={errors.customerEmail}
-              onChange={(value) => update("customerEmail", value)}
-            />
-            <RadioCards
-              legend="How did you hear about us?"
-              name="hearAbout"
-              value={draft.hearAbout}
-              error={errors.hearAbout}
-              options={hearAboutOptions}
-              onChange={(id) => update("hearAbout", id as RequestDraft["hearAbout"])}
-            />
           </section>
         ) : null}
 
-        {!verifying && step.id === "review" ? (
-          <ReviewStep draft={draft} errors={errors} warning={warning} onEdit={goToStep} onAgree={(checked) => update("agreedToTerms", checked)} />
+        {!verifying && step.id === "verify" ? (
+          <ReviewStep
+            draft={draft}
+            errors={errors}
+            warning={warning}
+            hideContact={signedIn === true && Boolean(draft.customerName.trim()) && Boolean(normalizeUsPhone(draft.customerPhone))}
+            onEdit={goToStep}
+            onAgree={(checked) => update("agreedToTerms", checked)}
+            update={update}
+          />
         ) : null}
 
         {formError ? (
@@ -789,8 +786,10 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                   : codeSent
                     ? "Verify and continue"
                     : "Text me a code"
-                : step.id === "review"
-                  ? "Submit"
+                : step.id === "verify"
+                  ? signedIn
+                    ? "Send request"
+                    : "Continue"
                   : "Next"}
           </button>
         </div>
@@ -830,11 +829,11 @@ function ItemStep({
   onRemove: (id: string) => void;
 }) {
   return (
-    <section className="grid gap-5">
-      <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">What are we picking up?</h1>
+    <section className="mt-6 grid gap-5">
       <TextAreaField
         label="What needs a ride?"
         name="description"
+        hint="A photo or one line is enough."
         value={draft.description}
         error={errors.description}
         onChange={(value) => update("description", value)}
@@ -889,10 +888,24 @@ function ItemStep({
           </ul>
         ) : null}
       </div>
+      {draft.service === "junk" ? (
+        <RadioCards
+          legend="Load size"
+          name="junkLoadSize"
+          value={draft.junkLoadSize}
+          error={errors.junkLoadSize}
+          options={junkLoadSizes}
+          onChange={(id) => update("junkLoadSize", id as RequestDraft["junkLoadSize"])}
+        />
+      ) : null}
+      <details className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <summary className="cursor-pointer text-base font-semibold text-ink">Add details (optional)</summary>
+        <div className="mt-4 grid gap-5">
       <TextField
         label="Number of pieces"
         name="pieces"
         inputMode="numeric"
+        optional
         value={draft.pieces}
         error={errors.pieces}
         onChange={(value) => update("pieces", value)}
@@ -905,10 +918,11 @@ function ItemStep({
         options={itemSizes}
         onChange={(id) => update("size", id as RequestDraft["size"])}
       />
-      <TextField
+        <TextField
         label="Approximate item value"
         name="itemValue"
         inputMode="decimal"
+        optional
         hint="Use 0 if it is free."
         value={draft.itemValue}
         error={errors.itemValue}
@@ -942,17 +956,10 @@ function ItemStep({
       ) : null}
       {draft.service === "junk" ? (
         <>
-          <RadioCards
-            legend="Load size"
-            name="junkLoadSize"
-            value={draft.junkLoadSize}
-            error={errors.junkLoadSize}
-            options={junkLoadSizes}
-            onChange={(id) => update("junkLoadSize", id as RequestDraft["junkLoadSize"])}
-          />
           <TextAreaField
             label="Materials"
             name="junkMaterials"
+            optional
             value={draft.junkMaterials}
             error={errors.junkMaterials}
             onChange={(value) => update("junkMaterials", value)}
@@ -982,6 +989,7 @@ function ItemStep({
           <TextField
             label="Store name"
             name="storeName"
+            optional
             value={draft.storeName}
             error={errors.storeName}
             onChange={(value) => update("storeName", value)}
@@ -995,6 +1003,8 @@ function ItemStep({
           />
         </>
       ) : null}
+        </div>
+      </details>
     </section>
   );
 }
@@ -1003,14 +1013,18 @@ function ReviewStep({
   draft,
   errors,
   warning,
+  hideContact,
   onEdit,
   onAgree,
+  update,
 }: {
   draft: RequestDraft;
   errors: FieldErrors;
   warning: string | null;
+  hideContact: boolean;
   onEdit: (id: RequestStepId) => void;
   onAgree: (checked: boolean) => void;
+  update: <K extends keyof RequestDraft>(key: K, value: RequestDraft[K]) => void;
 }) {
   const serviceName = draft.service ? serviceById(draft.service).name : "Not chosen";
   const offer = parseDollarsToCents(draft.offerDollars);
@@ -1018,11 +1032,11 @@ function ReviewStep({
   const max = parseDollarsToCents(draft.budgetMaxDollars);
   return (
     <section className="grid gap-5">
-      <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Review</h1>
-      <Summary title="Service" onEdit={() => onEdit("service")}>
+      <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Check and send</h1>
+      <Summary title="What" onEdit={() => onEdit("what")}>
         <p>{serviceName}</p>
       </Summary>
-      <Summary title="Item" onEdit={() => onEdit("item")}>
+      <Summary title="Item" onEdit={() => onEdit("what")}>
         <p>{draft.description || "No description"}</p>
         <p>
           {draft.pieces || "—"} pieces · {labelOf(itemSizes, draft.size)}
@@ -1032,7 +1046,7 @@ function ReviewStep({
         {draft.service === "construction" ? <p>Store: {draft.storeName || "—"}</p> : null}
         {warning ? <p>{warning}</p> : null}
       </Summary>
-      <Summary title="Where" onEdit={() => onEdit("where")}>
+      <Summary title="Where and when" onEdit={() => onEdit("where")}>
         <p>{draft.pickupStreet || "No pickup street"}</p>
         <p>
           {draft.pickupCity || "—"}, {draft.pickupZip || "—"}
@@ -1046,15 +1060,11 @@ function ReviewStep({
         )}
         {draft.accessNotes ? <p>{draft.accessNotes}</p> : null}
       </Summary>
-      <Summary title="Access and when" onEdit={() => onEdit("access")}>
-        <p>Pickup stairs: {labelOf(stairChoices, draft.stairsPickup)}</p>
-        <p>{draft.preferredDate === "asap" ? "ASAP" : draft.preferredDate === "today" ? "Today" : draft.preferredDate || "No date"}</p>
-        {draft.timeWindow ? <p>{labelOf(timeWindows, draft.timeWindow)}</p> : null}
-      </Summary>
-      <Summary title="Contact and price" onEdit={() => onEdit("contact")}>
-        <p>{draft.customerName || "No name"}</p>
-        <p>{draft.customerPhone || "No phone"}</p>
-        {draft.customerEmail ? <p>{draft.customerEmail}</p> : null}
+      <Summary title="Your price" onEdit={() => onEdit("price")}>
+        <p>
+          {draft.preferredDate === "asap" ? "ASAP" : draft.preferredDate === "today" ? "Today" : draft.preferredDate || "No date"}
+          {draft.timeWindow ? ` · ${labelOf(timeWindows, draft.timeWindow)}` : ""}
+        </p>
         <p>{labelOf(pricingMethods, draft.pricingMethod)}</p>
         {draft.pricingMethod === "fixed" && offer != null ? <p>{formatCents(offer)}</p> : null}
         {draft.pricingMethod === "fixed" || draft.pricingMethod === "range" ? (
@@ -1065,25 +1075,56 @@ function ReviewStep({
             {formatCents(min)}–{formatCents(max)}
           </p>
         ) : null}
-        <p>{labelOf(hearAboutOptions, draft.hearAbout)}</p>
       </Summary>
       <p className="rounded-2xl bg-brand-soft px-4 py-3 text-base leading-relaxed text-ink">
         {estimateMessage(estimateForDraft(draft))}
       </p>
-      <div>
-        <h2 className="text-base font-semibold text-ink">Not accepted</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-base text-ink">
-          {prohibitedItems.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </div>
+      {hideContact ? null : (
+        <>
+          <TextField
+            label="Your name"
+            name="customerName"
+            autoComplete="name"
+            value={draft.customerName}
+            error={errors.customerName}
+            onChange={(value) => update("customerName", value)}
+          />
+          <TextField
+            label="Phone number"
+            name="customerPhone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={draft.customerPhone}
+            error={errors.customerPhone}
+            onChange={(value) => update("customerPhone", value)}
+          />
+          <TextField
+            label="Email"
+            name="customerEmail"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            optional
+            value={draft.customerEmail}
+            error={errors.customerEmail}
+            onChange={(value) => update("customerEmail", value)}
+          />
+        </>
+      )}
+      <p className="text-base leading-relaxed text-ink">
+        Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
+        <Link href="/terms" className="font-semibold text-brand underline">
+          Terms, fees, and prohibited items
+        </Link>
+        .
+      </p>
       <CheckField
         name="agreedToTerms"
         checked={draft.agreedToTerms}
         error={errors.agreedToTerms}
         onChange={onAgree}
-        label={`I agree this request does not include prohibited items. The late cancel fee is ${formatCents(fees.lateCancelFeeCents)} after a driver is assigned. The trip fee is ${formatCents(fees.tripFeeCents)} if I reject the item at the pickup item check. The damage coverage limit is ${formatCents(fees.damageCoverageLimitCents)} per job. ${valueApprovalWarning} Photos I add are part of this request.`}
+        label="I agree to the terms, fees, and prohibited items."
       />
     </section>
   );

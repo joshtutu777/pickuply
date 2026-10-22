@@ -207,15 +207,9 @@ async function submitRequest(
   await page.getByRole("button", { name: "Text me a code" }).click();
   await page.getByLabel("6-digit code").fill(input.person.code);
   await page.getByRole("button", { name: "Verify and continue" }).click();
-  await page.waitForURL(
-    (url) => url.pathname === "/login/name" || url.pathname.startsWith("/jobs/"),
-    { timeout: 30_000 },
-  );
-  if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(input.person.name);
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.waitForURL(/\/jobs\/[0-9a-f-]+$/);
-  }
+  await expect(page.getByRole("heading", { name: "Request sent" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("link", { name: "View your request" }).click();
+  await page.waitForURL(/\/jobs\/[0-9a-f-]+$/);
 }
 
 async function fillRequest(
@@ -229,23 +223,8 @@ async function fillRequest(
 ) {
   await expect(page.getByRole("heading", { name: "What do you need?" })).toBeVisible();
   await page.getByRole("radio", { name: new RegExp(input.service) }).check();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("What needs a ride?").fill(input.description);
-  await page.getByLabel("Number of pieces").fill("1");
-  await page.getByRole("radio", { name: "Medium" }).check();
-  await page.getByLabel("Approximate item value").fill("80");
   await page.locator("#photos").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
-  if (input.service.startsWith("Pickup")) {
-    await page.getByRole("group", { name: "Already paid?" }).getByRole("radio", { name: "Yes" }).check();
-    await page.getByRole("group", { name: "Is the seller holding it?" }).getByRole("radio", { name: "Yes" }).check();
-    await page
-      .getByRole("group", { name: "Want a video item check before pickup?" })
-      .getByRole("radio", { name: "Yes" })
-      .check();
-  } else {
-    await page.getByRole("radio", { name: "1/4 truck" }).check();
-    await page.getByLabel("Materials").fill("Yard debris");
-  }
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Pickup street address").fill("10 Secret Street");
   await page.getByLabel("Pickup city").fill("Austell");
@@ -255,12 +234,6 @@ async function fillRequest(
     await page.getByLabel("Drop-off city").fill("Smyrna");
     await page.getByLabel("Drop-off ZIP").fill("30080");
   }
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.getByRole("group", { name: "Stairs at pickup" }).getByRole("radio", { name: "None" }).check();
-  const dropoff = page.getByRole("group", { name: "Stairs at drop-off" });
-  if (await dropoff.count()) await dropoff.getByRole("radio", { name: "None" }).check();
-  await page.getByRole("group", { name: "Is there an elevator?" }).getByRole("radio", { name: "No" }).check();
-  await page.getByRole("group", { name: "Can someone help load?" }).getByRole("radio", { name: "Yes" }).check();
   await page.getByRole("radio", { name: "ASAP" }).check();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   const pricingLabel =
@@ -271,12 +244,11 @@ async function fillRequest(
     await page.getByRole("textbox", { name: /^Minimum/ }).fill("40");
     await page.getByRole("textbox", { name: /^Maximum/ }).fill("80");
   }
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name").fill(input.person.name);
   await page.getByLabel("Phone number").fill(input.person.phone);
-  await page.getByRole("radio", { name: "Nextdoor" }).check();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.getByRole("checkbox", { name: /late cancel fee/i }).check();
-  await page.getByRole("button", { name: "Submit" }).click();
+  await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();
 }
 

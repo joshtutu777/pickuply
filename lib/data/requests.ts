@@ -65,6 +65,7 @@ export async function createRequest(
 
   const id = submissionId();
   const payload = requestPayload(draft);
+  payload.has_photo = photoIds.length > 0;
   const created = await supabase.rpc("create_customer_request", {
     request_id: id,
     payload,

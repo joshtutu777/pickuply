@@ -175,7 +175,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "We'll review your request and send you a price. Nothing is charged until you accept.";
+  "We'll review your request and send a custom price. This is not an instant guaranteed quote. Nothing is charged until you accept.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
@@ -216,12 +216,10 @@ export const videoMaxSeconds = 30;
 export const videoMaxBytes = 8 * 1024 * 1024;
 
 export const requestSteps = [
-  { id: "service", label: "Service" },
-  { id: "item", label: "Item" },
-  { id: "where", label: "Where" },
-  { id: "access", label: "Access and when" },
-  { id: "contact", label: "Contact and price" },
-  { id: "review", label: "Review" },
+  { id: "what", label: "What" },
+  { id: "where", label: "Where and when" },
+  { id: "price", label: "Your price" },
+  { id: "verify", label: "Verify" },
 ] as const;
 
 export type RequestStepId = (typeof requestSteps)[number]["id"];

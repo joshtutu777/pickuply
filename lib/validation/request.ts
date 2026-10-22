@@ -59,61 +59,66 @@ export function needsValueApproval(cents: number): boolean {
   return cents > fees.itemValueCapCents;
 }
 
-export function validateStep(step: RequestStepId, draft: RequestDraft): FieldErrors {
-  if (step === "service") return validateService(draft);
-  if (step === "item") return validateItem(draft);
-  if (step === "where") return validateWhere(draft);
-  if (step === "access") return validateAccess(draft);
-  if (step === "contact") return validateContact(draft);
-  return validateReview(draft);
+export function validateStep(
+  step: RequestStepId,
+  draft: RequestDraft,
+  options?: { photoCount?: number; signedIn?: boolean },
+): FieldErrors {
+  if (step === "what") return validateWhat(draft, options?.photoCount ?? 0);
+  if (step === "where") return { ...validateWhere(draft), ...validateWhen(draft) };
+  if (step === "price") return validatePrice(draft);
+  return validateVerify(draft, options?.signedIn === true);
 }
 
-export function validateRequest(draft: RequestDraft): FieldErrors {
+export function validateRequest(
+  draft: RequestDraft,
+  options?: { photoCount?: number; signedIn?: boolean },
+): FieldErrors {
   return {
-    ...validateService(draft),
-    ...validateItem(draft),
+    ...validateWhat(draft, options?.photoCount ?? 0),
     ...validateWhere(draft),
-    ...validateAccess(draft),
-    ...validateContact(draft),
-    ...validateReview(draft),
+    ...validateWhen(draft),
+    ...validatePrice(draft),
+    ...validateVerify(draft, options?.signedIn === true),
   };
 }
 
-function validateService(draft: RequestDraft): FieldErrors {
-  const parsed = serviceSchema.safeParse(draft.service);
-  return parsed.success ? {} : { service: "Choose a service." };
-}
-
-function validateItem(draft: RequestDraft): FieldErrors {
+function validateWhat(draft: RequestDraft, photoCount: number): FieldErrors {
   const errors: FieldErrors = {};
-  if (!requiredText("Describe what needs a ride.").safeParse(draft.description).success) {
-    errors.description = "Describe what needs a ride.";
+  if (!serviceSchema.safeParse(draft.service).success) errors.service = "Choose a service.";
+  const described = requiredText("Add a photo or a short description.").safeParse(draft.description).success;
+  if (!described && photoCount < 1) {
+    errors.description = "Add a photo or a short description.";
   }
-  const url = listingUrl(draft.listingUrl);
-  if (url === false) errors.listingUrl = "Enter a full http or https link, or leave this blank.";
-  if (pieces(draft.pieces) == null) errors.pieces = "Enter the number of pieces (at least 1).";
-  if (!sizeSchema.safeParse(draft.size).success) errors.size = "Choose an approximate size.";
-  const value = itemValueCents(draft);
-  if (value == null) errors.itemValue = "Enter an approximate value. Use 0 if it is free.";
+  if (listingUrl(draft.listingUrl) === false) {
+    errors.listingUrl = "Enter a full http or https link, or leave this blank.";
+  }
+  if (draft.pieces.trim() && pieces(draft.pieces) == null) {
+    errors.pieces = "Enter the number of pieces (at least 1).";
+  }
+  if (draft.size && !sizeSchema.safeParse(draft.size).success) errors.size = "Choose an approximate size.";
+  if (draft.itemValue.trim() && itemValueCents(draft) == null) {
+    errors.itemValue = "Enter an approximate value, or leave it blank.";
+  }
   if (draft.service === "delivery") {
-    if (!yesNo.safeParse(draft.alreadyPaid).success) errors.alreadyPaid = "Say whether you already paid.";
-    if (!yesNo.safeParse(draft.sellerHolding).success) {
+    if (draft.alreadyPaid && !yesNo.safeParse(draft.alreadyPaid).success) {
+      errors.alreadyPaid = "Say whether you already paid.";
+    }
+    if (draft.sellerHolding && !yesNo.safeParse(draft.sellerHolding).success) {
       errors.sellerHolding = "Say whether the seller is holding it.";
     }
-    if (!yesNo.safeParse(draft.wantsItemCheck).success) {
+    if (draft.wantsItemCheck && !yesNo.safeParse(draft.wantsItemCheck).success) {
       errors.wantsItemCheck = "Say whether you want a video item check.";
     }
   }
   if (draft.service === "junk") {
-    if (!loadSchema.safeParse(draft.junkLoadSize).success) errors.junkLoadSize = "Choose a load size.";
-    if (!requiredText("Describe the materials.").safeParse(draft.junkMaterials).success) {
-      errors.junkMaterials = "Describe the materials.";
+    if (draft.junkLoadSize && !loadSchema.safeParse(draft.junkLoadSize).success) {
+      errors.junkLoadSize = "Choose a load size.";
     }
+    if (draft.junkMaterials.trim().length > 1000) errors.junkMaterials = "Materials are too long.";
   }
-  if (draft.service === "construction") {
-    if (!requiredText("Enter the store name.").safeParse(draft.storeName).success) {
-      errors.storeName = "Enter the store name.";
-    }
+  if (draft.service === "construction" && draft.storeName.trim().length > 120) {
+    errors.storeName = "Store name is too long.";
   }
   return errors;
 }
@@ -139,17 +144,13 @@ function validateWhere(draft: RequestDraft): FieldErrors {
   return errors;
 }
 
-function validateAccess(draft: RequestDraft): FieldErrors {
+function validateWhen(draft: RequestDraft): FieldErrors {
   const errors: FieldErrors = {};
-  if (!stairSchema.safeParse(draft.stairsPickup).success) {
+  if (draft.stairsPickup && !stairSchema.safeParse(draft.stairsPickup).success) {
     errors.stairsPickup = "Choose the stairs at pickup.";
   }
-  if (draft.service !== "junk" && !stairSchema.safeParse(draft.stairsDropoff).success) {
+  if (draft.service !== "junk" && draft.stairsDropoff && !stairSchema.safeParse(draft.stairsDropoff).success) {
     errors.stairsDropoff = "Choose the stairs at drop-off.";
-  }
-  if (!yesNo.safeParse(draft.elevator).success) errors.elevator = "Say whether there is an elevator.";
-  if (!yesNo.safeParse(draft.helpLoading).success) {
-    errors.helpLoading = "Say whether someone can help load.";
   }
   if (!draft.preferredDate) {
     errors.preferredDate = "Choose ASAP, today, or a date.";
@@ -164,7 +165,7 @@ function validateAccess(draft: RequestDraft): FieldErrors {
   return errors;
 }
 
-function validateContact(draft: RequestDraft): FieldErrors {
+function validatePrice(draft: RequestDraft): FieldErrors {
   const errors: FieldErrors = {};
   if (draft.pricingMethod === "quote") {
     // No amount.
@@ -187,24 +188,28 @@ function validateContact(draft: RequestDraft): FieldErrors {
   } else {
     errors.pricingMethod = "Choose how you want to price this.";
   }
-  if (!requiredText("Enter your name.").safeParse(draft.customerName).success) {
-    errors.customerName = "Enter your name.";
-  }
-  if (!normalizeUsPhone(draft.customerPhone)) {
-    errors.customerPhone = "Enter a 10-digit US phone number.";
+  return errors;
+}
+
+function validateVerify(draft: RequestDraft, signedIn: boolean): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!signedIn || draft.customerName.trim() || draft.customerPhone.trim()) {
+    if (!requiredText("Enter your name.").safeParse(draft.customerName).success) {
+      errors.customerName = "Enter your name.";
+    }
+    if (!normalizeUsPhone(draft.customerPhone)) {
+      errors.customerPhone = "Enter a 10-digit US phone number.";
+    }
   }
   const email = draft.customerEmail.trim();
   if (email && !z.string().email().safeParse(email).success) {
     errors.customerEmail = "Enter a valid email, or leave it blank.";
   }
-  if (!hearSchema.safeParse(draft.hearAbout).success) {
+  if (draft.hearAbout && !hearSchema.safeParse(draft.hearAbout).success) {
     errors.hearAbout = "Tell us how you heard about Pickuply.";
   }
+  if (!draft.agreedToTerms) errors.agreedToTerms = "Agree to the terms to submit.";
   return errors;
-}
-
-function validateReview(draft: RequestDraft): FieldErrors {
-  return draft.agreedToTerms ? {} : { agreedToTerms: "Agree to the terms to submit." };
 }
 
 export function valueWarning(draft: RequestDraft): string | null {

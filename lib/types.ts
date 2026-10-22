@@ -74,9 +74,9 @@ export type PublicJob = {
   pickup_area: string;
   dropoff_area: string | null;
   description: string;
-  pieces: number;
-  size: ItemSize;
-  item_value_cents: number;
+  pieces: number | null;
+  size: ItemSize | null;
+  item_value_cents: number | null;
   needs_value_approval: boolean;
   listing_url: string | null;
   already_paid: boolean | null;
@@ -102,7 +102,7 @@ export type PublicJob = {
   offer_cents: number | null;
   budget_min_cents: number | null;
   budget_max_cents: number | null;
-  source: HearAbout;
+  source: HearAbout | null;
   photo_ids: string[];
   created_at: string;
 };
@@ -126,7 +126,7 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     service,
     description: "",
     listingUrl: "",
-    pieces: "1",
+    pieces: "",
     size: "",
     itemValue: "",
     alreadyPaid: "",
@@ -139,10 +139,10 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     dropoffCity: "",
     dropoffZip: "",
     accessNotes: "",
-    stairsPickup: "",
-    stairsDropoff: "",
-    elevator: "",
-    helpLoading: "",
+    stairsPickup: "0",
+    stairsDropoff: "0",
+    elevator: "no",
+    helpLoading: "no",
     preferredDate: service === "free_item" ? "asap" : "",
     timeWindow: "",
     notes: "",
@@ -153,7 +153,7 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     junkAppliances: false,
     storeName: "",
     storeOrderNumber: "",
-    pricingMethod: "",
+    pricingMethod: "quote",
     offerDollars: "",
     budgetMinDollars: "",
     budgetMaxDollars: "",

@@ -27,5 +27,5 @@ export function estimateForDraft(draft: RequestDraft): EstimateRange | null {
 
 export function estimateMessage(range: EstimateRange | null): string {
   if (!range) return estimateMissingMessage;
-  return `Typical price for jobs like this within 10 miles: ${formatDollarRange(range.minCents, range.maxCents)}. Distance and details may change the final price.`;
+  return `Typical price for jobs like this within 10 miles: ${formatDollarRange(range.minCents, range.maxCents)}. Final price confirmed after review.`;
 }
