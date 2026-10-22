@@ -2,6 +2,7 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { captureReadyPayment, releaseCustomerAuthorization } from "@/lib/payments/capture";
 import { createClient } from "@/lib/supabase/server";
 
 export async function respondToQuote(formData: FormData) {
@@ -49,6 +50,13 @@ export async function decidePickup(formData: FormData) {
   if (result.error) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
   }
+  if (decision === "reject") {
+    try {
+      await captureReadyPayment(jobId);
+    } catch {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The item was rejected. The trip fee still needs to be captured.")}`);
+    }
+  }
   redirect(`/jobs/${jobId}`);
 }
 
@@ -59,6 +67,29 @@ export async function confirmDelivery(formData: FormData) {
   const result = await supabase.rpc("confirm_delivery", { target_job: jobId });
   if (result.error) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
+  }
+  try {
+    await captureReadyPayment(jobId);
+  } catch {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("You confirmed delivery. The card charge is still being finished.")}`);
+  }
+  redirect(`/jobs/${jobId}`);
+}
+
+export async function cancelAssignedJob(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  try {
+    await releaseCustomerAuthorization(jobId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const known = [
+      "only the customer can cancel this job",
+      "this job can no longer be cancelled here",
+      "this payment can no longer be cancelled here",
+    ];
+    const text = known.find((item) => message.includes(item)) ?? "This job could not be cancelled.";
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(text)}`);
   }
   redirect(`/jobs/${jobId}`);
 }

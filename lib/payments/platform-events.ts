@@ -1,6 +1,7 @@
 import "server-only";
 
 import type Stripe from "stripe";
+import { captureReadyPayment } from "@/lib/payments/capture";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -10,6 +11,8 @@ const handled = new Set([
   "payment_intent.amount_capturable_updated",
   "payment_intent.payment_failed",
   "payment_intent.canceled",
+  "payment_intent.succeeded",
+  "charge.captured",
 ]);
 
 export function isPlatformPaymentEvent(type: string): boolean {
@@ -103,5 +106,22 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
       payment_intent: intent.id,
     });
     if (noted.error) throw new Error("The canceled authorization could not be recorded.");
+    return;
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    const jobId = intent.metadata?.job_id;
+    if (jobId) await captureReadyPayment(jobId);
+    return;
+  }
+
+  if (event.type === "charge.captured") {
+    const charge = event.data.object as Stripe.Charge;
+    const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+    if (!intentId) return;
+    const intent = await stripe.paymentIntents.retrieve(intentId);
+    const jobId = intent.metadata?.job_id;
+    if (jobId) await captureReadyPayment(jobId);
   }
 }
