@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { inviteDriver } from "@/app/admin/requests/actions";
 import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
@@ -114,6 +115,25 @@ async function RequestDetail({
       <CopyMessage
         message={`Your Pickuply request is ready: ${link}`}
       />
+      {job.status === "open" ? (
+        <form action={inviteDriver} className="mt-6 space-y-3">
+          <input type="hidden" name="jobId" value={id} />
+          <label className="block text-base font-semibold text-ink" htmlFor="driverId">
+            Invite a driver by their account id
+            <input
+              id="driverId"
+              name="driverId"
+              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+          >
+            Invite driver
+          </button>
+        </form>
+      ) : null}
       {job.status === "requested" || job.status === "in_review" ? (
         <ReviewRequestForm
           jobId={id}

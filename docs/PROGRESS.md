@@ -352,3 +352,7 @@ Signed-in people can apply at `/driver/onboarding`. The save stays on their acco
 ## Step 4b — admin review and fees (2026-10-22)
 
 `/admin/requests/[id]` shows the request, photos, and contact details. An admin sets the zone, service level, and vehicle, then publishes a fixed or range job or sends a quote. High-value and specialty items need a confirmation checkbox. Quote acceptance rejects an expired quote and does not charge a card. `/admin/settings` stores the platform percent, platform minimum, service-fee percent, service-fee fixed cents, and payment deadline. `lib/fees.ts` and `price_breakdown` use the same integer half-up math. A ready-to-copy message replaces SMS. Local migration only. The workflow is not launch-ready until Step 5 payments.
+
+## Step 4c — driver feed (2026-10-22)
+
+Approved drivers use `/driver` to go Online or Offline and to browse `driver_job_feed`. Online requires an approved status, unexpired license and insurance, and an approved vehicle. Browsing works while Offline. `approved_new` drivers only see invited jobs. Request-stage photos are readable only when `driver_is_eligible_for_job` is true. An admin can invite a driver from the open request. Local migration only.

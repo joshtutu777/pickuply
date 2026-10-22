@@ -35,6 +35,19 @@ export async function reviewRequest(formData: FormData) {
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 
+export async function inviteDriver(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const driverId = String(formData.get("driverId") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("invite_driver", {
+    target_job: jobId,
+    target_driver: driverId,
+  });
+  if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
 export async function saveSettings(formData: FormData) {
   await connection();
   const supabase = await createClient();

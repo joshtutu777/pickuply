@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { DriverHome } from "@/components/driver/driver-home";
 import { ForbiddenAlert } from "@/components/forbidden-alert";
 import { LoadingMain } from "@/components/loading-main";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Driver home",
@@ -19,6 +20,27 @@ export default function DriverPage({ searchParams }: PageProps<"/driver">) {
   );
 }
 
+async function AssignedLinks({ userId }: { userId: string }) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("jobs")
+    .select("id, service, status")
+    .eq("assigned_driver_id", userId)
+    .order("updated_at", { ascending: false });
+  if (!data || data.length === 0) return null;
+  return (
+    <ul className="mt-4 space-y-2">
+      {data.map((job) => (
+        <li key={job.id}>
+          <Link href={`/driver/jobs/${job.id}`} className="font-semibold text-brand">
+            {job.service} · {job.status}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 async function DriverContent({
   searchParams,
 }: {
@@ -29,13 +51,43 @@ async function DriverContent({
   const forbidden = singleQuery(params.error) === "forbidden";
 
   if (session.role === "driver") {
+    const supabase = await createClient();
+    const { data: driver } = await supabase
+      .from("drivers")
+      .select("status, is_online, license_expires, insurance_expires, insurance_url")
+      .eq("profile_id", session.userId)
+      .maybeSingle();
+    const { data: vehicle } = await supabase
+      .from("vehicles")
+      .select("approved")
+      .eq("driver_id", session.userId)
+      .eq("approved", true)
+      .limit(1)
+      .maybeSingle();
+    const missing: string[] = [];
+    if (!driver || !["active", "approved_new"].includes(driver.status)) {
+      missing.push("Your driver account is not approved for jobs.");
+    }
+    if (!driver?.license_expires || driver.license_expires < new Date().toISOString().slice(0, 10)) {
+      missing.push("Add an unexpired driver license before going Online.");
+    }
+    if (!driver?.insurance_url || !driver.insurance_expires || driver.insurance_expires < new Date().toISOString().slice(0, 10)) {
+      missing.push("Add unexpired insurance before going Online.");
+    }
+    if (!vehicle) missing.push("An approved vehicle is required before going Online.");
     return (
-      <PlaceholderPage
-        eyebrow="Driver"
-        title="Driver home"
-        description="Assigned jobs will show up here. The driver home is not built yet."
-        forbidden={forbidden}
-      />
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+        <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
+        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
+        {driver?.status === "approved_new" ? (
+          <p className="mt-3 text-base text-muted">
+            New drivers see jobs an admin invites them to. You will not see the full public feed yet.
+          </p>
+        ) : null}
+        {forbidden ? <ForbiddenAlert /> : null}
+        <AssignedLinks userId={session.userId} />
+        <DriverHome isOnline={Boolean(driver?.is_online)} missing={missing} />
+      </main>
     );
   }
 

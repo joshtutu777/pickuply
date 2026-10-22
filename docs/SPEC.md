@@ -172,7 +172,7 @@ A driver sees a published job only if ALL are true:
 - Driver is not paused, removed, pending, or globally blocked, and this customer has no `customer_driver_blocks` row for them
 - Drivers may browse while Offline. Accepting or offering requires Online
 
-Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. They do not show item photos, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned.
+Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. An eligible driver may also see request-stage item photos through a database policy and a short-lived signed URL. Cards do not show pickup, drop-off, report, or private document images, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned. This request-photo exception is intentional and is enforced in the database, not by hiding fields in the page.
 
 ### 5.5 Accepting, offering, and countering (no double booking)
 - **Admin-priced jobs** (Get a quote): **Accept** calls a single database function that atomically assigns the job only if it is still `open` and the driver is eligible and Online. Anyone else gets "Job already taken."
