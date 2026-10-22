@@ -73,6 +73,40 @@ test("cancelled and disputed jobs are called out", () => {
   assert.equal(disputed.banner, "Disputed");
 });
 
+test("an assigned job says awaiting payment until the card is authorized", () => {
+  const events = [
+    { type: "offer_chosen", createdAt: "2026-10-22T16:00:00.000Z", toStatus: null },
+    { type: "status", createdAt: "2026-10-22T16:00:01.000Z", toStatus: "assigned" },
+  ];
+  const unpaid = buildJobTracker({
+    service: "delivery",
+    status: "assigned",
+    pricingMethod: "fixed",
+    paymentStatus: "awaiting_payment",
+    createdAt: created,
+    dumpFeeCents: null,
+    hasDumpReceipt: false,
+    events,
+  });
+  const payment = unpaid.steps.find((step) => step.id === "payment");
+  assert.equal(payment?.state, "current");
+  assert.equal(payment?.label, "Awaiting payment");
+  assert.equal(unpaid.steps.some((step) => step.label === "Payment confirmed"), false);
+
+  const authorized = buildJobTracker({
+    service: "delivery",
+    status: "assigned",
+    pricingMethod: "fixed",
+    paymentStatus: "authorized",
+    createdAt: created,
+    dumpFeeCents: null,
+    hasDumpReceipt: false,
+    events,
+  });
+  assert.equal(authorized.steps.find((step) => step.id === "payment")?.label, "Payment confirmed");
+  assert.equal(authorized.steps.find((step) => step.id === "payment")?.state, "done");
+});
+
 test("the next driver button waits for payment and for the item check", () => {
   assert.equal(
     nextDriverAction({ status: "assigned", paymentStatus: "awaiting_payment", service: "delivery" }).waiting,

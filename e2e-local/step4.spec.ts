@@ -119,7 +119,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await customer.page.goto(`/jobs/${fixedId}`);
   const progress = customer.page.getByRole("region", { name: "Job progress" });
   await expect(progress.getByRole("listitem").filter({ hasText: "Request received" })).toBeVisible();
-  await expect(progress.locator("[aria-current=step]")).toContainText("Payment confirmed");
+  await expect(progress.locator("[aria-current=step]")).toContainText("Awaiting payment");
 
   const messages = customer.page.getByRole("region", { name: "Messages" });
   const message = messages.getByRole("textbox", { name: "Message", exact: true });
