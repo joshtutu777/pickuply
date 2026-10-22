@@ -45,7 +45,6 @@ export type RequestDraft = {
   offerDollars: string;
   budgetMinDollars: string;
   budgetMaxDollars: string;
-  autoBookOnAccept: boolean;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -103,7 +102,6 @@ export type PublicJob = {
   offer_cents: number | null;
   budget_min_cents: number | null;
   budget_max_cents: number | null;
-  auto_book_on_accept: boolean;
   source: HearAbout;
   photo_ids: string[];
   created_at: string;
@@ -159,7 +157,6 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     offerDollars: "",
     budgetMinDollars: "",
     budgetMaxDollars: "",
-    autoBookOnAccept: false,
     customerName: "",
     customerPhone: "",
     customerEmail: "",

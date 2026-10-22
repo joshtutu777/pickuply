@@ -64,19 +64,12 @@ async function fillAccess(page: Page) {
   await next(page);
 }
 
-async function fillContact(
-  page: Page,
-  pricing: "quote" | "fixed" | "range",
-  options?: { autoBook?: boolean },
-) {
+async function fillContact(page: Page, pricing: "quote" | "fixed" | "range") {
   const label =
     pricing === "quote" ? "Get a quote" : pricing === "fixed" ? "Name your price" : "Set a budget range";
   await page.getByRole("radio", { name: new RegExp(label) }).check();
   if (pricing === "fixed") {
     await page.getByRole("textbox", { name: "Your price" }).fill("40");
-    if (options?.autoBook) {
-      await page.getByRole("checkbox", { name: "Book the first driver who accepts my price" }).check();
-    }
   }
   if (pricing === "range") {
     await page.getByRole("textbox", { name: /^Minimum/ }).fill("40");
@@ -95,6 +88,9 @@ async function agreeAndSave(page: Page) {
   await page.getByRole("button", { name: "Save on this device" }).click();
   await expect(page.getByText("Demo: saved on this device only. Not sent yet.")).toBeVisible();
   await expect(page.locator("li[aria-current='step']")).toHaveText("Requested");
+  await expect(page.getByText("Confirmed")).toHaveCount(0);
+  await expect(page.getByText("Open for drivers")).toBeVisible();
+  await expect(page.getByText("It has not been quoted, booked, or assigned.")).toBeVisible();
 }
 
 test("deep link preselects junk removal", async ({ page }) => {
@@ -203,7 +199,12 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await fillAccess(page);
 
   await page.getByRole("radio", { name: /Name your price/ }).check();
-  await expect(page.getByRole("checkbox", { name: "Book the first driver who accepts my price" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Book the first driver who accepts my price" })).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.",
+    ),
+  ).toBeVisible();
   await page.getByRole("textbox", { name: "Your price" }).fill("20");
   await page.getByLabel("Your name").fill("Ada Lovelace");
   await page.getByLabel("Phone number").fill("4045551212");
@@ -212,10 +213,9 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await expect(page.getByText("Enter a price of at least $35.")).toBeVisible();
 
   await page.getByRole("textbox", { name: "Your price" }).fill("40");
-  await page.getByRole("checkbox", { name: "Book the first driver who accepts my price" }).check();
   await next(page);
   await expect(page.getByText("$40")).toBeVisible();
-  await expect(page.getByText("Book the first driver who accepts this price.")).toBeVisible();
+  await expect(page.getByText("You will choose before booking.")).toBeVisible();
   await page.getByRole("button", { name: "Edit Contact and price" }).click();
 
   await page.getByRole("radio", { name: /Set a budget range/ }).check();
@@ -230,6 +230,9 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await page.getByRole("button", { name: "Edit Contact and price" }).click();
 
   await page.getByRole("radio", { name: /Get a quote/ }).check();
+  await expect(
+    page.getByText("We'll review your request and send you a price. Nothing is charged until you accept."),
+  ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Your price" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /^Minimum/ })).toHaveCount(0);
   await next(page);

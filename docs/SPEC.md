@@ -51,9 +51,9 @@ A user has exactly one role. Admin role is set manually in the database (never s
 | App type | Mobile-first web app, installable PWA, push notifications |
 | Sign-in | Phone number + 6-digit text code (passwordless) for everyone. Email optional |
 | Pricing | Customer chooses one of **three pricing methods**: Get a quote, Name your price (fixed offer), or Set a budget range. See §7.1. Every price is locked before booking |
-| Who responds | **Get a quote:** admin sends the quote (v1). **Fixed offer:** eligible drivers accept the price or send a counteroffer. **Budget range:** eligible drivers offer a price within the range or counter above it. Admin can quote, counter, or assign on any job |
+| Who responds | **Get a quote:** only the admin sends the quote (customer price, driver pay, pickup window). Drivers do not price these jobs. The customer must accept before the job is published. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
 | Platform fee | **Shown on top** of the driver's price (default 20%, minimum $10, admin-configurable). Customer always sees the total before accepting. *(Default — owner to confirm)* |
-| Driver matching | Admin reviews each request, then publishes it to eligible drivers. Booking happens when the customer accepts a quote/offer, or instantly when a driver accepts a fixed price and the customer opted in to auto-booking. The database guarantees one assigned driver. Admin can also assign manually |
+| Driver matching | Admin reviews each request. Quote jobs are published to eligible drivers only after the customer accepts the admin's quote. Fixed and range jobs are published after admin approval. Nothing is booked or charged until the customer accepts the admin's quote or chooses a driver's offer. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
 | Customer payment | Stripe. Card **authorized (held)** when quote is accepted; **captured after delivery is confirmed** |
 | Driver payouts | Manual: Zelle or Cash App within **24 hours** of completion. Admin marks "Paid" in the app. (Stripe Connect is v2) |
 | Background checks | **None in v1.** Verification = ID/license, insurance, vehicle photo, personal call with admin. Never claim background checks in UI copy |
@@ -92,7 +92,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 | Junk only | Load size (single item, ¼, ½, full), materials, includes mattress/tires/appliances? |
 | Item value | Approximate value. Over $1,000 is allowed but flagged `needs_value_approval` with the warning "Items over $1,000 need approval before booking." |
 | Construction only | Store name, optional order/pickup number |
-| Pricing method (required) | **Get a quote** (no amount) · **Name your price** (fixed amount, min $35, optional "Book the first driver who accepts my price" = `auto_book_on_accept`) · **Set a budget range** (min ≥ $35, max > min). Copy: "Drivers can accept your price or send a counteroffer. You choose. Nothing is charged until you accept." |
+| Pricing method (required) | **Get a quote** (no amount). Copy: "We'll review your request and send you a price. Nothing is charged until you accept." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
 | Contact | Name, phone (required), email (optional), "How did you hear about us?" (Nextdoor, Facebook, friend, landlord/property manager, other) |
 
 - Shows a **typical price range** as guidance (see §7), labeled: "Typical price for jobs like this within 10 miles: $X–$Y. Distance and details may change the final price." If required inputs are missing, show "We'll confirm a price after reviewing your request" instead of a number. The estimate never changes the customer's chosen pricing method or amounts.
@@ -101,11 +101,10 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - Customer agrees to terms (prohibited items, fees, damage policy, photos) at submission.
 
 ### 4.3 Quotes, offers, and booking
-- Admin reviews every new request first (prohibited items, safety, zone, completeness, item value) → **approves and publishes** it, or asks the customer for changes.
-- **Get a quote:** admin sends a locked price + pickup window → customer gets a text with a link → **Accept** → card authorized → job published to eligible drivers at the admin-set driver pay; first eligible Online driver to accept is assigned.
-- **Name your price / Budget range:** the job is published to eligible drivers, who can accept, offer, or counter (§5.5). Customer sees offers on the job page.
-- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), and the **total price including the Pickuply fee**. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed.
-- **Auto-book:** if `auto_book_on_accept` is on and a driver accepts the exact fixed price, the card on file is authorized immediately and the job is booked. If authorization fails, the job is not booked and the customer is asked to update payment.
+- Admin reviews every new request first (prohibited items, safety, zone, completeness, item value). Fixed and range jobs are published after that approval. Quote jobs stay unpublished until the customer accepts the admin's quote.
+- **Get a quote:** admin sets the customer price, driver pay, and pickup window (status `quoted`). The customer accepts: the card is authorized and the job becomes `open`. That publication is not an assignment. An eligible Online driver then accepts the open job, which assigns that driver (status `assigned`).
+- **Name your price / Budget range:** admin approval publishes the job (`open`) without booking. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose and confirm one offer before the card is authorized and a driver is assigned.
+- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, and the **total price including the Pickuply fee**. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
 - Admin quotes expire after 24 hours; driver offers expire after **2 hours** (default) unless chosen. Customers can edit or withdraw a request before booking.
 - Quote/offer page shows: price breakdown, what's included, cancellation/trip fee policy, item value cap.
 
@@ -164,18 +163,21 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 5.4 Job feed (eligibility)
 A driver sees a published job only if ALL are true:
-- Job zone = driver zone, and pickup is within the driver's max distance (when coordinates exist)
+- The job status is `open`. Quote jobs become `open` only after the customer accepts the admin's quote. Fixed and range jobs become `open` after admin approval. `requested` and `quoted` jobs are not discoverable
+- Job zone = driver zone, and pickup is within the driver's max distance when coordinates exist. If coordinates exist but the distance cannot be checked, the job is hidden
 - Driver offers that service
-- Job service level ≤ driver level (`full` jobs → only `full` drivers)
-- Driver has an approved vehicle that meets the job's `required_vehicle`
-- Driver is not paused/removed and not blocked by that customer
+- Job service level is set and is ≤ driver level (`full` jobs → only `full` drivers)
+- The job names a required vehicle, and the driver has an approved vehicle of that type
+- Driver status is `active`. `approved_new` drivers see only open jobs that have a row in `job_driver_invitations` for them. An invitation is not an assignment and does not set `assigned_driver_id`
+- Driver is not paused, removed, pending, or globally blocked, and this customer has no `customer_driver_blocks` row for them
+- Drivers may browse while Offline. Accepting or offering requires Online
 
-Job cards show: service, item photos, **approximate** pickup/drop-off area (city or ZIP only), distance, stairs, time window, **driver pay**. Exact addresses and customer contact are hidden until assigned.
+Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. They do not show item photos, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned.
 
 ### 5.5 Accepting, offering, and countering (no double booking)
 - **Admin-priced jobs** (Get a quote): **Accept** calls a single database function that atomically assigns the job only if it is still `open` and the driver is eligible and Online. Anyone else gets "Job already taken."
-- **Fixed-price jobs:** driver taps **Accept $X** (books instantly if auto-book is on; otherwise sends an offer at that price) or **Counter** with a new amount and a **required reason** (e.g. "3 flights of stairs not mentioned", "needs two people").
-- **Budget-range jobs:** driver taps **Offer** with an amount inside the range, or **Counter** above the max with a required reason.
+- **Fixed-price jobs:** driver taps **Accept $X**, which creates an offer at that price, or **Counter** with a new amount and a required reason (for example, "3 flights of stairs not mentioned"). Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
+- **Budget-range jobs:** driver taps **Offer** with an amount inside the range, or **Counter** outside it with a required reason. Offers outside the range are stored with `outside_range`. The customer chooses the offer.
 - Drivers enter **their own earnings**; the customer sees that amount plus the platform fee. Drivers always see exactly what they'll earn.
 - Limits: one active offer per driver per job (they can withdraw and resubmit once); counters can't exceed 2× the customer's fixed price or range max; offers expire after 2 hours.
 - Only **Online**, eligible drivers can accept or offer. Final assignment uses the same atomic database function, so only one driver can be assigned.
@@ -205,7 +207,7 @@ Completed jobs, pending payouts, paid payouts, totals by week.
 | 2 | `in_review` | Admin | Admin checking the request (optional) |
 | 3 | `quoted` | Admin | Get-a-quote jobs: price, driver pay, service level, required vehicle, pickup window set |
 | 4 | `open` | Admin/System | Published to eligible drivers. For quote jobs: after the customer accepted and the card was authorized. For fixed/range jobs: after admin approval, collecting offers |
-| 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer (card authorized), driver accepted an admin-priced job, auto-book succeeded, or admin assigned |
+| 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer (card authorized), a driver accepted an open admin-quoted job, or admin assigned. Quote acceptance only publishes the job (`open`); it does not assign a driver |
 | 6 | `en_route` | Driver | On the way to pickup |
 | 7 | `arrived` | Driver | At pickup |
 | 8 | `item_check` | Driver | Photos uploaded, waiting for customer approval |
@@ -236,9 +238,9 @@ Card authorizations expire after ~7 days. For jobs scheduled more than 5 days ou
 ### 7.1 Pricing methods
 | Method | Customer enters | Stored as | Who responds |
 |---|---|---|---|
-| Get a quote | Nothing | `pricing_method = 'quote'` | Admin (v1) |
-| Name your price | One amount, min $35; optional auto-book | `'fixed'`, `offer_cents`, `auto_book_on_accept` | Drivers accept or counter |
-| Set a budget range | Min (≥ $35) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within range or counter above |
+| Get a quote | Nothing | `pricing_method = 'quote'` and no customer amount | Admin sends the only price. The customer must accept it before drivers see the job |
+| Name your price | One amount, min $35 | `'fixed'`, `offer_cents` | Drivers accept or counter. The original `offer_cents` stays. The customer chooses the offer |
+| Set a budget range | Min (≥ $35) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within the range or counter outside it (`outside_range`). The original range stays. The customer chooses the offer |
 
 **Customer total = driver price + platform fee** (default 20%, min $10; admin-configurable). For admin quotes, admin sets the customer price and driver pay directly. The total is always shown before the customer accepts.
 
@@ -364,8 +366,9 @@ Push uses Web Push (VAPID). On iPhone, push works only after "Add to Home Screen
 
 ## 12. Privacy and safety rules (must hold everywhere)
 
-- Drivers browsing jobs see **only approximate areas** (city/ZIP), distance, and requirements.
-- Exact addresses, phone numbers, and names are visible only to: the customer, the **assigned** driver (from assignment until 24h after completion), and admin.
+- Drivers discover open jobs only through `driver_job_feed`. That feed returns structured fields (service, size, pieces, city/ZIP, distance, stairs, schedule, and the relevant price). It does not return free-text descriptions, notes, listing links, order numbers, photos, exact addresses, names, phone numbers, email, or access notes. Those free-text fields and photos can contain private details even when the customer did not mean to include them.
+- Exact addresses, phone numbers, email, and names are visible only to: the customer, the **assigned** driver (from assignment until 24h after completion), and admin.
+- Request, pickup, drop-off, and report photos stay private to the customer, the assigned driver, and admin. Eligible drivers who are only browsing do not receive them.
 - Phone numbers are never shown between customer and driver; they talk through in-app messages.
 - Photos are stored privately; served via short-lived signed URLs only to job participants and admin.
 - Drivers never handle item payments or cash. For purchases, the buyer pays the seller directly after approving the item check.
@@ -397,9 +400,12 @@ Push uses Web Push (VAPID). On iPhone, push works only after "Add to Home Screen
 - `drivers` — profile_id, status, zone_id, home_city, max_distance_miles, service_level, services[], equipment[], helper_name, helper_phone, license_url, license_expires, insurance_url, insurance_expires, payout_method, payout_handle, w9_received, agreement_signed_at, is_online, last_location, new_driver_jobs_completed, rating_avg, rating_count, alert_prefs
 - `vehicles` — id, driver_id, type, make, model, year, plate, cargo_length_in, photo_url, approved
 - `availability_blocks` — driver_id, weekday, start_time, end_time
-- `jobs` — id, customer_id, service, status, zone_id, pickup_area (city/ZIP), dropoff_area (city/ZIP), distance_miles, description, pieces, size (`small`/`medium`/`large`/`xl`), item_value_cents, needs_value_approval, listing_url, already_paid, seller_holding, wants_item_check, stairs_pickup, stairs_dropoff, elevator, help_loading, junk_load_size, junk_materials, junk_special_items, store_name, store_order_number, preferred_date, time_window, notes, **pricing_method** (`quote`/`fixed`/`range`), **offer_cents**, **budget_min_cents**, **budget_max_cents**, **auto_book_on_accept**, service_level, required_vehicle, price_cents (customer total), driver_pay_cents, platform_fee_cents, dump_fee_cents, quote_expires_at, assigned_driver_id, accepted_offer_id, stripe_payment_intent_id, payment_status, captured_cents, source, created_at, timestamps per status
-- `job_offers` — id, job_id, driver_id, kind (`accept`/`offer`/`counter`), driver_amount_cents, platform_fee_cents, customer_total_cents, reason, available_at, status (`active`/`withdrawn`/`expired`/`chosen`/`declined`), expires_at, created_at
-- `job_private` — job_id, pickup_address, dropoff_address, pickup_lat/lng, dropoff_lat/lng, customer_name, customer_phone, access_notes (RLS: customer, assigned driver, admin only)
+- `jobs` — id, customer_id, service, status, zone_id, pickup_area (city/ZIP), dropoff_area (city/ZIP), distance_miles, description, pieces, size (`small`/`medium`/`large`/`xl`), item_value_cents, needs_value_approval, listing_url, already_paid, seller_holding, wants_item_check, stairs_pickup, stairs_dropoff, elevator, help_loading, junk_load_size, junk_materials, junk_special_items, store_name, store_order_number, preferred_date, time_window, notes, **pricing_method** (`quote`/`fixed`/`range`), **offer_cents**, **budget_min_cents**, **budget_max_cents**, service_level, required_vehicle, price_cents (admin quote or chosen total), driver_pay_cents, platform_fee_cents, dump_fee_cents, quote_expires_at, assigned_driver_id (set only when a driver is actually assigned), accepted_offer_id, stripe_payment_intent_id, payment_status, captured_cents, source, created_at. Status changes are recorded in `job_events`. The customer's pricing columns are immutable after insert. Only an admin can set or change `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, and `quote_expires_at`
+- `job_offers` — id, job_id, driver_id, kind (`accept`/`offer`/`counter`), driver_amount_cents, platform_fee_cents, customer_total_cents, reason, outside_range, available_at, status (`active`/`withdrawn`/`expired`/`chosen`/`declined`), expires_at, created_at. Allowed only when the job's `pricing_method` is `fixed` or `range`. Inserting an offer does not assign the driver or change the customer's price
+- `job_private` — job_id, pickup_address, dropoff_address, pickup_lat/lng, dropoff_lat/lng, customer_name, customer_phone, customer_email, access_notes (RLS: customer, assigned driver, admin only)
+- `customer_driver_blocks` — customer_id, driver_id, created_at. One row per pair. The customer manages only their own blocks. A blocked driver cannot discover or offer on that customer's jobs
+- `job_driver_invitations` — job_id, driver_id, invited_by, created_at. This is how an admin lets an `approved_new` driver see one open job. It is not an assignment and does not set `assigned_driver_id`
+- `driver_job_feed()` — the only discovery path for drivers. `SECURITY DEFINER`, executable by signed-in users, and it takes no driver id argument. It checks the signed-in driver, role, status, zone, service, level, approved vehicle, blocks, invitation, and `open` status inside the function. It returns no free-text customer fields and no photo paths
 - `job_photos` — id, job_id, stage (`request`, `pickup`, `dropoff`, `dump_receipt`, `report`), storage_path, uploaded_by, created_at
 - `job_events` — id, job_id, actor_id, type, data (jsonb), created_at
 - `messages` — id, job_id, sender_id, body, created_at, read_at
@@ -412,7 +418,8 @@ Push uses Web Push (VAPID). On iPhone, push works only after "Add to Home Screen
 
 Critical database functions:
 - `claim_job(job_id)` — admin-priced jobs: atomic, checks eligibility and Online status, assigns, writes event, returns success or reason.
-- `choose_offer(offer_id)` — customer chooses an offer (or auto-book): atomic, only if the job is still `open` and the offer `active`; assigns the driver, marks other offers `declined`, writes event.
+- `accept_admin_quote(job_id)` — the customer publishes their own `quoted` quote-job to `open`. It does not assign a driver.
+- `choose_offer(offer_id)` — customer explicitly chooses an active offer on an `open` fixed or range job: atomic; assigns the driver, marks other offers `declined`, writes an event. There is no auto-book path.
 
 ---
 
@@ -426,4 +433,4 @@ Critical database functions:
 
 ## 16. Later (v2+, do not build in v1)
 
-Drivers responding to "Get a quote" requests with their own quotes, Stripe Connect automatic payouts, business accounts for landlords (multiple properties, invoicing), seller "delivery available" links, favorite drivers, referral credits, background checks, ID verification, masked phone calls, native iOS/Android apps with background GPS, cargo insurance per job.
+Stripe Connect automatic payouts, business accounts for landlords (multiple properties, invoicing), seller "delivery available" links, favorite drivers, referral credits, background checks, ID verification, masked phone calls, native iOS/Android apps with background GPS, cargo insurance per job.

@@ -87,6 +87,10 @@ export function JobDemo({ id }: { id: string }) {
       </p>
       <h1 className="mt-6 font-display text-4xl font-semibold tracking-tight text-ink">Job status</h1>
       <p className="mt-2 text-lg text-ink">{serviceById(job.service).name}</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Preview only. This device saved the request as requested. It has not been quoted, booked, or
+        assigned.
+      </p>
       <ol className="mt-6 grid gap-2">
         {demoTimeline.map((label, index) => (
           <li
@@ -111,12 +115,8 @@ export function JobDemo({ id }: { id: string }) {
         {job.junk_load_size ? <p>Load size: {labelOf(junkLoadSizes, job.junk_load_size)}</p> : null}
         <p>{pricing?.label}</p>
         {job.pricing_method === "fixed" && job.offer_cents != null ? <p>{formatCents(job.offer_cents)}</p> : null}
-        {job.pricing_method === "fixed" ? (
-          <p>
-            {job.auto_book_on_accept
-              ? "Book the first driver who accepts this price."
-              : "You will choose before booking."}
-          </p>
+        {job.pricing_method === "fixed" || job.pricing_method === "range" ? (
+          <p>You will choose before booking.</p>
         ) : null}
         {job.pricing_method === "range" && job.budget_min_cents != null && job.budget_max_cents != null ? (
           <p>

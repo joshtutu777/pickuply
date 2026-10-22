@@ -172,11 +172,17 @@ export const hearAboutOptions = [
 
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
+export const quotePricingCopy =
+  "We'll review your request and send you a price. Nothing is charged until you accept.";
+
+export const driverPricingCopy =
+  "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
+
 export const pricingMethods = [
   {
     id: "quote",
     label: "Get a quote",
-    hint: "No amount. Pickuply sends a price after review.",
+    hint: quotePricingCopy,
   },
   {
     id: "fixed",
@@ -191,9 +197,6 @@ export const pricingMethods = [
 ] as const;
 
 export type PricingMethod = (typeof pricingMethods)[number]["id"];
-
-export const pricingMethodExplanation =
-  "Drivers can accept your price or send a counteroffer. You choose. Nothing is charged until you accept.";
 
 export const estimateMissingMessage =
   "We'll confirm a price after reviewing your request";
@@ -221,11 +224,11 @@ export const requestSteps = [
 
 export type RequestStepId = (typeof requestSteps)[number]["id"];
 
-/** Customer-facing demo timeline from the approved Step 2 plan. Stored status stays `requested`. SPEC §6 uses a longer status list and has no "Confirmed" status. */
+/** Local preview only. The saved status is `requested`. Later labels match the real flow and do not include a Confirmed step. */
 export const demoTimeline = [
   "Requested",
   "Quoted",
-  "Confirmed",
+  "Open for drivers",
   "Driver assigned",
   "Picked up",
   "Delivered",

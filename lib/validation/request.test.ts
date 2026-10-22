@@ -15,11 +15,10 @@ test("quote pricing needs no amount", () => {
   assert.equal(errors.offerDollars, undefined);
 });
 
-test("a fixed price under $35 is rejected and auto-book is not required", () => {
+test("a fixed price under $35 is rejected", () => {
   const draft = emptyDraft("delivery");
   draft.pricingMethod = "fixed";
   draft.offerDollars = "34";
-  draft.autoBookOnAccept = false;
   draft.customerName = "Ada";
   draft.customerPhone = "4045551212";
   draft.hearAbout = "friend";

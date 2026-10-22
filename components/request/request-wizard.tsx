@@ -8,7 +8,7 @@ import {
   itemSizes,
   junkLoadSizes,
   maxPhotos,
-  pricingMethodExplanation,
+  driverPricingCopy,
   pricingMethods,
   privacyAreaNote,
   prohibitedItems,
@@ -131,7 +131,6 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       if (key === "service" && value === "free_item" && !current.preferredDate) {
         next.preferredDate = "asap";
       }
-      if (key === "pricingMethod" && value !== "fixed") next.autoBookOnAccept = false;
       if (key === "preferredDate" && value === "asap") next.timeWindow = "";
       if (!showResume) persist(next, photoIdsRef.current);
       return next;
@@ -511,25 +510,19 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               options={pricingMethods}
               onChange={(id) => update("pricingMethod", id as RequestDraft["pricingMethod"])}
             />
-            <p className="text-base leading-relaxed text-muted">{pricingMethodExplanation}</p>
+            {draft.pricingMethod === "fixed" || draft.pricingMethod === "range" ? (
+              <p className="text-base leading-relaxed text-muted">{driverPricingCopy}</p>
+            ) : null}
             {draft.pricingMethod === "fixed" ? (
-              <>
-                <TextField
-                  label="Your price"
-                  name="offerDollars"
-                  inputMode="decimal"
-                  hint="Minimum $35."
-                  value={draft.offerDollars}
-                  error={errors.offerDollars}
-                  onChange={(value) => update("offerDollars", value)}
-                />
-                <CheckField
-                  name="autoBookOnAccept"
-                  checked={draft.autoBookOnAccept}
-                  onChange={(checked) => update("autoBookOnAccept", checked)}
-                  label="Book the first driver who accepts my price"
-                />
-              </>
+              <TextField
+                label="Your price"
+                name="offerDollars"
+                inputMode="decimal"
+                hint="Minimum $35."
+                value={draft.offerDollars}
+                error={errors.offerDollars}
+                onChange={(value) => update("offerDollars", value)}
+              />
             ) : null}
             {draft.pricingMethod === "range" ? (
               <>
@@ -883,8 +876,8 @@ function ReviewStep({
         {draft.customerEmail ? <p>{draft.customerEmail}</p> : null}
         <p>{labelOf(pricingMethods, draft.pricingMethod)}</p>
         {draft.pricingMethod === "fixed" && offer != null ? <p>{formatCents(offer)}</p> : null}
-        {draft.pricingMethod === "fixed" ? (
-          <p>{draft.autoBookOnAccept ? "Book the first driver who accepts this price." : "You will choose before booking."}</p>
+        {draft.pricingMethod === "fixed" || draft.pricingMethod === "range" ? (
+          <p>You will choose before booking.</p>
         ) : null}
         {draft.pricingMethod === "range" && min != null && max != null ? (
           <p>

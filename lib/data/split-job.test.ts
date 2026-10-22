@@ -28,7 +28,6 @@ function readyDraft() {
   draft.timeWindow = "morning";
   draft.pricingMethod = "fixed";
   draft.offerDollars = "90";
-  draft.autoBookOnAccept = true;
   draft.customerName = "Ada Lovelace";
   draft.customerPhone = "(404) 555-1212";
   draft.customerEmail = "ada@example.com";
@@ -52,7 +51,6 @@ test("public jobs omit addresses, name, phone, email, and access notes", () => {
   assert.equal(job.needs_value_approval, true);
   assert.equal(job.pricing_method, "fixed");
   assert.equal(job.offer_cents, 9000);
-  assert.equal(job.auto_book_on_accept, true);
   assert.equal(job.budget_min_cents, null);
   assert.equal(privateJob.customer_phone, "+14045551212");
   assert.equal(privateJob.pickup_address, "1 Secret St");
@@ -63,11 +61,9 @@ test("quote and range amounts are stored without changing the method", () => {
   const quote = readyDraft();
   quote.pricingMethod = "quote";
   quote.offerDollars = "200";
-  quote.autoBookOnAccept = true;
   const quoted = splitJob(quote, "job-2", []).job;
   assert.equal(quoted.pricing_method, "quote");
   assert.equal(quoted.offer_cents, null);
-  assert.equal(quoted.auto_book_on_accept, false);
 
   const range = readyDraft();
   range.pricingMethod = "range";

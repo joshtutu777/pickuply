@@ -48,7 +48,8 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 - Customer card is authorized when the quote is accepted and **captured only after delivery is confirmed** (or 24h auto-complete).
 - Fees: $15 late cancel (after assignment), $25 trip fee (item rejected at pickup), $35 minimum price. Damage coverage limit $250.
 - Driver payouts are recorded in the `payouts` table and paid manually (Zelle/Cash App) within 24 hours; admin marks them paid.
-- Customers choose a pricing method: Get a quote (admin quotes), Name your price, or Set a budget range (drivers accept, offer, or counter with a required reason). An offer is never a booking until the customer chooses it (or auto-book is on and the card authorization succeeds).
+- Customers choose a pricing method: Get a quote (only an admin sends the price; the customer must accept it before drivers see the job), Name your price, or Set a budget range (drivers accept, offer, or counter with a required reason). An offer is never a booking until the customer chooses it. There is no auto-booking.
+- Drivers discover jobs only through `driver_job_feed`. That feed must not include exact addresses, names, phone, email, access notes, free-text descriptions, or photos.
 - Platform fee is added on top of the driver's amount (default 20%, min $10, configurable). Always show the customer the total before they accept.
 - Drivers can never change a price after booking. Price adjustments require the other party's approval in the app.
 

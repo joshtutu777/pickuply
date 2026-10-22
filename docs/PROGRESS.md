@@ -80,13 +80,13 @@ The form at `/request` works without Supabase, Stripe, or Twilio. Nothing is sen
 - Six steps: Service, Item, Where, Access and when, Contact and price, Review. Back and Next keep what was typed. A progress bar shows the step.
 - Homepage service cards open `/request?service=delivery|free_item|junk|construction`.
 - Item photos: up to 8, compressed in the browser to a JPEG no wider or taller than 1600px, stored in IndexedDB, with a thumbnail and remove button.
-- Three required pricing methods: Get a quote, Name your price (minimum $35, optional “Book the first driver who accepts my price”), Set a budget range (minimum at least $35, maximum higher than the minimum). The estimate does not change those amounts.
+- Three required pricing methods: Get a quote, Name your price (minimum $35), and Set a budget range (minimum at least $35, maximum higher than the minimum). The estimate does not change those amounts. Step 3a removed “Book the first driver who accepts my price.” The customer chooses a driver before anything is booked.
 - Estimate uses only the SPEC §7.2 ranges and the $35 minimum. Unknown distance is treated as within 10 miles. Per-mile, extra-stop, and platform-fee amounts are not added. If a required input is missing, the form says “We'll confirm a price after reviewing your request” instead of a number. On a phone, that line stays in a bar at the bottom once a service is chosen.
 - 3+ flights are counted as 3. Junk has no stair adder. Free-item pickups use the light-load range and default the date to ASAP. Construction uses the full-service ranges. “Full truck” is the spec row “Full pickup or trailer.”
 - Item value over $1,000 is allowed and flagged. The warning is “Items over $1,000 need approval before booking.”
 - Pickup city is matched to the spec zones (`west_metro`, `east_gwinnett`). Any other city is stored with no zone. There is no zone picker.
 - After Submit, the screen says “Text verification will be added in a later step.” It does not pretend a text was sent. “Save on this device” writes the request and opens the job page, labeled “Demo: saved on this device only. Not sent yet.”
-- The job page timeline is Requested → Quoted → Confirmed → Driver assigned → Picked up → Delivered, with Requested current. The stored status is only `requested`.
+- The job page timeline is Requested → Quoted → Open for drivers → Driver assigned → Picked up → Delivered, with Requested current. The stored status is only `requested`. Step 3a validation removed the misleading “Confirmed” step.
 - Drafts stay in `localStorage` except phone, email, and street addresses. Name, city, ZIP, and access notes are in the draft. Returning visitors can continue or start over. Start over deletes photos. After a save, private fields are in a separate `localStorage` key so this device can show them. That is not database row-level security. Any script on this site can read it.
 
 ### Files
@@ -125,12 +125,70 @@ Checked on 2026-10-21:
 
 - No live Supabase, Stripe, or Twilio. Phone verification is a placeholder. The request is not sent to drivers and no card is charged.
 - The cancellation fee, trip fee, and damage-limit wording need business and legal review before production.
-- SPEC §6 has no “Confirmed” status. The demo timeline uses the approved Step 2 labels. Stored status stays `requested`.
+- The demo timeline no longer shows “Confirmed.” Stored status stays `requested`, and the page says the request has not been quoted, booked, or assigned.
 - Access notes, including gate codes, are saved in the browser draft. Phone, email, and street addresses are not.
-- Email is stored only on the local private record. SPEC §14 does not put email on `job_private`; it belongs on the profile later.
+- Email is stored on the local private record. Step 3a also adds `customer_email` to `job_private` in the database migration. That migration has not been applied to the hosted project.
 - `docs/BUILD_PLAN.md` Step 6 is the live form with a text code and `POST /api/jobs`. This step is the offline form.
 - Cursor rules are in `docs/.cursor/rules/`, not `.cursor/rules/`, so Cursor may not apply them automatically.
 - The project rules mention Next.js 15. This app is Next.js 16.4.2.
 - Landing-page price ranges from SPEC §4.1 are not on the homepage yet.
 - Purchase questions are delivery only, matching SPEC §4.2.
 - Size is one choice (small, medium, large, extra large). There is no separate weight field.
+
+## Step 3a — Supabase client, schema, and row-level security (2026-10-21)
+
+The app can reach Supabase with the public URL and anon key. The database rules are written in a migration and covered by pgTAP tests. That migration has not been applied to the hosted project. Nothing was committed or pushed.
+
+### What was built
+
+- Browser and server Supabase clients, using the anon key only. There is no service-role client.
+- `proxy.ts` refreshes the session. If Supabase is missing or does not answer within 4 seconds, the page still loads so the on-device form keeps working.
+- `GET /api/health` returns only `{ ok: true }` or `{ ok: false }`. It is dynamic, so production build does not call Supabase.
+- Migration `supabase/migrations/0001_core.sql`: profiles, zones (`west_metro`, `east_gwinnett`), drivers, vehicles, jobs, job_private (including `customer_email`), job_photos, job_offers, job_events, audit_log, `customer_driver_blocks`, and `job_driver_invitations`.
+- Money is integer cents. There is no auto-book column. The customer’s pricing choice cannot be changed after insert, including by an admin.
+- Quote price columns (`price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, `quote_expires_at`) can be set only by an admin profile, or by the local migration role when no user is signed in. The service role is not an admin.
+- `accept_admin_quote(job_id)` moves the customer’s own quoted quote-job to `open` and does not set `assigned_driver_id`. An admin cannot publish that job with a normal update.
+- `driver_job_feed()` takes no driver id. It checks the signed-in driver, role, status, zone, service, level, approved vehicle, customer blocks, and open status. `approved_new` drivers see a job only when `job_driver_invitations` has a row. An invitation is not an assignment.
+- The feed returns structured card fields only. It does not return descriptions, notes, addresses, names, phone, email, access notes, listing URLs, or photos. If a pickup has coordinates, the job stays hidden unless the driver’s last location is inside their max miles.
+- Private photo bucket `job-photos`. Browsing drivers have no read policy. The customer and the assigned driver can read that job’s photos.
+- The form no longer offers “Book the first driver who accepts my price.” Fixed and range jobs say the customer chooses who to book. Get a quote uses the approved review sentence.
+
+### How to apply, test, and roll back
+
+Docker and the Supabase CLI are not installed on this machine, so this was not applied anywhere.
+
+When those are installed, from this repo:
+
+```bash
+supabase init
+supabase start
+supabase test db
+```
+
+`supabase init` is only needed because `supabase/config.toml` is not in the repo yet. Keep the existing `supabase/migrations` folder. `supabase start` and `supabase test db` use a local database. Do not run `supabase link` or `supabase db push`.
+
+Nothing is applied on the hosted project, so there is nothing to roll back there. If a local database is created later, `supabase db reset` deletes that local database only. Do not point it at the hosted project. If this migration is ever applied to the hosted project, roll it back with a new migration that drops these policies, functions, and tables. Do not delete hosted data by hand.
+
+### Checked on 2026-10-21
+
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run test:unit` passed (22 tests).
+- `npm run build` passed. `/api/health` is dynamic. The proxy is registered.
+- Playwright, one worker: homepage on Pixel 5 passed. All 9 iPhone 13 request tests passed after the quote sentence was left on the pricing choice instead of repeated under it. WebKit and Chromium had to be installed into this sandbox cache first.
+- `GET /api/health` returned `{ "ok": true }`. That only checks the public auth health endpoint. It does not migrate or write data.
+- `supabase/tests/0001_rls.test.sql` was not run. The Supabase CLI, Docker, and a local Postgres install are missing. The tests were not pointed at the hosted project.
+
+### Known limitations and decisions
+
+- `SUPABASE_SERVICE_ROLE_KEY` is not in `.env.local`. The admin client stays deferred.
+- The Supabase SQL editor runs as the database owner. That owner can set quote prices when no user id is present. The API service role cannot.
+- Customer price columns stay fixed even for an admin. Changing one later needs a new migration.
+- `choose_offer` and driver assignment are not functions yet. Marking an offer `chosen` is rejected. Inserting an offer does not assign the job. An admin can still move an open job to `assigned` in a separate update.
+- Job descriptions can contain an address. Browsing drivers do not receive the description or photos. The assigned driver can read the job row, which includes the description, along with the private address.
+- `profiles` is not publicly readable. A later offer screen needs a small driver card, not the whole profile.
+- A job with pickup coordinates is hidden when the driver has no last location. Zone match is not enough in that case.
+- The demo job page no longer shows “Confirmed.” The highlighted step is the local `requested` save.
+- The $15 / $25 / $250 wording still needs business and legal review.
+- Cursor rules remain in `docs/.cursor/rules/`, so Cursor may not apply them automatically.
+- `npm install` reported 5 high severity vulnerabilities. They were not changed.
