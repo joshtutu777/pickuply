@@ -305,7 +305,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 
 ## Migration log
 
-`0001` and `0002` were pasted in the SQL editor, so the hosted project has no `supabase_migrations.schema_migrations` table. `0003`, `0004`, and `0005` were applied on 2026-10-22 through the Management API and are not recorded in that table either.
+`0001` and `0002` were pasted in the SQL editor, so the hosted project has no `supabase_migrations.schema_migrations` table. `0003`, `0004`, `0005`, and `0006` were applied on 2026-10-22 through the Management API and are not recorded in that table either.
 
 | File | Date | Local | Hosted | How it was applied | Deviations |
 | --- | --- | --- | --- | --- | --- |
@@ -314,7 +314,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0003_fix_driver_job_feed.sql` | 2026-10-22 | Applied by the same reset. Version `0003`, name `fix_driver_job_feed`. | Applied. | Local: CLI reset. Hosted: Management API. | None. The only change from the original function is `profiles.id = uid`. |
 | `supabase/migrations/0004_revoke_anon_sensitive_grants.sql` | 2026-10-22 | Applied by the same reset. Version `0004`, name `revoke_anon_sensitive_grants`. | Applied. | Local: CLI reset. Hosted: Management API. | Public-table revokes took effect on both. The storage revokes do nothing on either database because `supabase_storage_admin` granted those privileges. |
 | `supabase/migrations/0005_migration_session_requires_empty_jwt.sql` | 2026-10-22 | Applied by the same reset. Version `0005`, name `migration_session_requires_empty_jwt`. | Applied. | Local: CLI reset. Hosted: Management API. | Replaces `is_migration_session()` with a stricter check: empty JWT role and empty JWT claims, as well as no user id. |
-| `supabase/migrations/0006_create_customer_request.sql` | 2026-10-22 | Applied by `supabase db reset --local --no-seed`. Version `0006`, name `create_customer_request`. | Not applied. | Local only. | Do not run this on the hosted project until it is reviewed and approved. `create_customer_request` runs as the caller and always sets `customer_id` to `auth.uid()`. A matching retry returns the same id and does not update the job. A different retry is rejected. `request_id_visibility` is security definer only so another customer's hidden row can be told apart from a missing id; it returns `absent`, `own`, or `other` and no request fields. `attach_request_photo` returns the existing row for the same path. |
+| `supabase/migrations/0006_create_customer_request.sql` | 2026-10-22 | Applied by `supabase db reset --local --no-seed`. Version `0006`, name `create_customer_request`. | Applied. | Local: CLI reset. Hosted: Management API. Earlier migrations were not run again. | `create_customer_request` runs as the caller and sets `customer_id` to `auth.uid()`. A matching retry does not update the job. `request_id_visibility` is security definer and returns only `absent`, `own`, or `other`. `attach_request_photo` returns the existing row for the same path. Hosted still has no `supabase_migrations.schema_migrations` row for this file. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -324,7 +324,16 @@ Photos go to the private `job-photos` bucket at `{job_id}/request/{photo_id}.jpg
 
 `/jobs/[id]` reads the signed-in owner or an admin. Anyone else sees "This request isn't available." Photos use signed URLs that last about five minutes. `/account` lists that customer's jobs, newest first. `/admin` lists date, service, pricing method, area, and status, with no street address and no quoting.
 
-Request-creation tests ran on the disposable local database only: `supabase/tests/0001_rls.test.sql` (68) and `supabase/tests/0006_customer_request.test.sql` (51). `Files=2, Tests=119, Result: PASS`. Playwright stops at phone confirmation and does not create a hosted job. `0006` is not on the hosted project. A hosted smoke test waits until that migration is approved and applied.
+Request-creation tests ran on the disposable local database only: `supabase/tests/0001_rls.test.sql` (68) and `supabase/tests/0006_customer_request.test.sql` (51). `Files=2, Tests=119, Result: PASS`.
+
+## Hosted apply of 0006 and smoke test (2026-10-22)
+
+`0006_create_customer_request.sql` was applied to the hosted database through the Management API. `0001` through `0005` were not run again. The three functions are present. `authenticated` can execute them. `anon` and `service_role` cannot. `create_customer_request` and `attach_request_photo` run as the caller. `request_id_visibility` is security definer.
+
+The read-only fingerprint is 374 lines on both sides. Before ignoring carriage returns, older function bodies differed because the local copies still contain Windows line endings. After removing those characters, there were no differences. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
+
+One hosted smoke request was submitted in the app as the reserved test customer. Description: `TEST delivery smoke request`. Job id: `adfe0035-822a-4600-a753-dcd3f292d8d6`. It is a delivery quote, status `requested`, with no price and no assigned driver. Two photos are in the private `job-photos` bucket and on the job page as signed URLs. The same customer sees it on `/jobs/[id]` and `/account`. The admin sees Pickup & Delivery, quote, Austell, 30106, and Requested on `/admin`, without the street, and can open the description. A second customer, `smoke-other@pickuply.test`, sees "This request isn't available." An active driver session, created only for the check and then deleted, got zero rows from `driver_job_feed()` for this job.
+
 
 `supabase/config.toml` and `supabase/.gitignore` stay in the workspace. `config.toml` has no embedded secrets or privileged credentials. Secret-like settings use `env(...)` or are comments.
 
