@@ -315,6 +315,13 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0004_revoke_anon_sensitive_grants.sql` | 2026-10-22 | Applied by the same reset. Version `0004`, name `revoke_anon_sensitive_grants`. | Applied. | Local: CLI reset. Hosted: Management API. | Public-table revokes took effect on both. The storage revokes do nothing on either database because `supabase_storage_admin` granted those privileges. |
 | `supabase/migrations/0005_migration_session_requires_empty_jwt.sql` | 2026-10-22 | Applied by the same reset. Version `0005`, name `migration_session_requires_empty_jwt`. | Applied. | Local: CLI reset. Hosted: Management API. | Replaces `is_migration_session()` with a stricter check: empty JWT role and empty JWT claims, as well as no user id. |
 | `supabase/migrations/0006_create_customer_request.sql` | 2026-10-22 | Applied by `supabase db reset --local --no-seed`. Version `0006`, name `create_customer_request`. | Applied. | Local: CLI reset. Hosted: Management API. Earlier migrations were not run again. | `create_customer_request` runs as the caller and sets `customer_id` to `auth.uid()`. A matching retry does not update the job. `request_id_visibility` is security definer and returns only `absent`, `own`, or `other`. `attach_request_photo` returns the existing row for the same path. Hosted still has no `supabase_migrations.schema_migrations` row for this file. |
+| `supabase/migrations/0007_driver_onboarding.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API. `0001` through `0006` were not run again. | None. Hosted still has no `schema_migrations` row. |
+| `supabase/migrations/0008_admin_publish.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0007`. | The settings row uses the defaults: platform 1000 bps with a 1000 cent minimum, service 290 bps plus 30 cents, payment deadline 30 minutes. |
+| `supabase/migrations/0009_driver_feed_photos.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0008`. | The request-photo policies in this file call `driver_is_eligible_for_job` directly. `0011` replaces them before the app relies on them. |
+| `supabase/migrations/0010_claims_offers.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0009`. | None. |
+| `supabase/migrations/0011_request_photo_access.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0010`. | Replaces the `0009` request-photo policies with `request_photo_visible`. |
+| `supabase/migrations/0012_quote_expiry.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0011`. | A quote with no expiry can still be accepted. A past expiry is rejected. |
+| `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -373,4 +380,12 @@ Local Playwright ran against local Supabase through gitignored `.env.test.local`
 
 The browser walk covered driver application, admin approval, a published fixed-price job, an offer, customer selection, and a quote that the customer accepted and one driver claimed. The assigned driver saw the street. The other online driver did not see the job or the street. Both assigned jobs were `awaiting_payment` with `payment_due_at` set and no Stripe id. A direct driver update to `en_route` did not change the row.
 
-Migration `0013_assignment_documents.sql` closes the gaps found in review: document expiry after approval, vehicle approval, and assignment now go through audited admin functions. Concurrent claims and concurrent offer choices each left one assigned driver. pgTAP is now 192 assertions (the original 151 plus 41). Local only. Not applied to the hosted project.
+Migration `0013_assignment_documents.sql` closes the gaps found in review: document expiry after approval, vehicle approval, and assignment now go through audited admin functions. Concurrent claims and concurrent offer choices each left one assigned driver. pgTAP is now 192 assertions (the original 151 plus 41).
+
+## Hosted apply of 0007–0013 (2026-10-22)
+
+`0007` through `0013` were applied to the hosted database through the Management API, one file at a time, in order. `0001` through `0006` were not run again. None of the seven calls failed.
+
+`platform_settings` id 1 is present with platform 1000 bps, platform minimum 1000 cents, service 290 bps, service fixed 30 cents, and a 30 minute payment deadline.
+
+The read-only fingerprint matched on columns (166), constraints (56), indexes (27), functions (43), function grants (78), table grants (226), policies (41), triggers (22), row level security (15), enums (61), and the `job-photos` and `driver-docs` buckets. Digests were identical. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
