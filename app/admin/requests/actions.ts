@@ -3,6 +3,7 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
+import { requestRefund } from "@/lib/payments/refunds";
 import { createClient } from "@/lib/supabase/server";
 
 export async function reviewRequest(formData: FormData) {
@@ -60,6 +61,19 @@ export async function overrideJobStatus(formData: FormData) {
     reason,
   });
   if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The status could not be changed.")}`);
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function refundJob(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const amount = Math.round(Number(formData.get("amount") || 0) * 100);
+  const reason = String(formData.get("reason") ?? "");
+  try {
+    await requestRefund(jobId, amount, reason);
+  } catch {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The refund could not be completed.")}`);
+  }
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 

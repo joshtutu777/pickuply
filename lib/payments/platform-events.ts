@@ -13,6 +13,11 @@ const handled = new Set([
   "payment_intent.canceled",
   "payment_intent.succeeded",
   "charge.captured",
+  "charge.dispute.created",
+  "charge.dispute.updated",
+  "charge.dispute.closed",
+  "refund.created",
+  "refund.updated",
 ]);
 
 export function isPlatformPaymentEvent(type: string): boolean {
@@ -123,5 +128,34 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     const intent = await stripe.paymentIntents.retrieve(intentId);
     const jobId = intent.metadata?.job_id;
     if (jobId) await captureReadyPayment(jobId);
+    return;
+  }
+
+  if (event.type.startsWith("charge.dispute.")) {
+    const dispute = event.data.object as Stripe.Dispute;
+    const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+    if (!chargeId) return;
+    const payment = await supabase.from("job_payments").select("job_id").eq("charge_id", chargeId).maybeSingle();
+    if (!payment.data?.job_id) return;
+    if (event.type === "charge.dispute.created") {
+      const recorded = await supabase.rpc("record_chargeback", {
+        target_job: payment.data.job_id,
+        dispute_id: dispute.id,
+      });
+      if (recorded.error) throw new Error("The card dispute could not be recorded.");
+    }
+    return;
+  }
+
+  if (event.type === "refund.created" || event.type === "refund.updated") {
+    const refund = event.data.object as Stripe.Refund;
+    const refundId = refund.metadata?.refund_id;
+    if (!refundId || refund.status === "pending") return;
+    const applied = await supabase.rpc("apply_refund", {
+      target_refund: refundId,
+      stripe_refund_id: refund.id,
+      succeeded: refund.status === "succeeded",
+    });
+    if (applied.error) throw new Error("The refund could not be recorded.");
   }
 }

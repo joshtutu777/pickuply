@@ -43,9 +43,27 @@ function NavLinks({
           </li>
         );
       })}
-      <li className="px-3 py-3 text-base text-muted">
-        <span className="block font-semibold text-ink">Payments</span>
-        <span className="mt-1 block text-sm">Coming in Step 5</span>
+      <li>
+        <Link
+          href="/admin/payments"
+          aria-current={current === "payments" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "payments" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Payments
+        </Link>
+      </li>
+      <li>
+        <Link
+          href="/admin/payouts"
+          aria-current={current === "payouts" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "payouts" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Payouts
+        </Link>
       </li>
     </ul>
   );

@@ -17,12 +17,15 @@ type CaptureContext = {
   expired: boolean;
 };
 
-async function stripeFeeCents(chargeId: string | null): Promise<number | null> {
-  if (!chargeId) return null;
+async function stripeFeeCents(chargeId: string | null): Promise<{ fee: number | null; availableOn: string | null }> {
+  if (!chargeId) return { fee: null, availableOn: null };
   const charge = await getStripe().charges.retrieve(chargeId, { expand: ["balance_transaction"] });
   const balance = charge.balance_transaction;
-  if (!balance || typeof balance === "string") return null;
-  return balance.fee;
+  if (!balance || typeof balance === "string") return { fee: null, availableOn: null };
+  return {
+    fee: balance.fee,
+    availableOn: balance.available_on ? new Date(balance.available_on * 1000).toISOString() : null,
+  };
 }
 
 async function chargeIdFromIntent(intent: Stripe.PaymentIntent): Promise<string | null> {
@@ -54,14 +57,18 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
   if (intent.status !== "succeeded") return;
 
   const chargeId = (await chargeIdFromIntent(intent)) ?? row.charge_id;
-  const fee = await stripeFeeCents(chargeId);
+  const balance = await stripeFeeCents(chargeId);
   const recorded = await supabase.rpc("record_capture", {
     target_job: jobId,
     amount_cents: row.amount_cents,
     kind: row.kind,
-    stripe_fee: fee,
+    stripe_fee: balance.fee,
   });
   if (recorded.error) throw new Error("The capture could not be recorded.");
+  await supabase.rpc("post_driver_earnings", {
+    target_job: jobId,
+    available_on: balance.availableOn,
+  });
   await sendReceipt(jobId);
 }
 
@@ -71,8 +78,11 @@ export async function syncStripeFees(): Promise<void> {
   if (missing.error) return;
   for (const row of (missing.data ?? []) as { job_id: string; charge_id: string }[]) {
     const fee = await stripeFeeCents(row.charge_id);
-    if (fee == null) continue;
-    await supabase.rpc("record_stripe_fee", { target_job: row.job_id, stripe_fee: fee });
+    if (fee.fee == null) continue;
+    await supabase.rpc("record_stripe_fee", { target_job: row.job_id, stripe_fee: fee.fee });
+    if (fee.availableOn) {
+      await supabase.rpc("post_driver_earnings", { target_job: row.job_id, available_on: fee.availableOn });
+    }
   }
 }
 

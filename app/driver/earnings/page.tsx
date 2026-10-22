@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { refreshPayoutSetup, startPayoutSetup } from "@/app/driver/connect/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { payoutSetupLabel, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
+import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
 export default function EarningsPage({ searchParams }: PageProps<"/driver/earnings">) {
@@ -16,6 +18,7 @@ export default function EarningsPage({ searchParams }: PageProps<"/driver/earnin
 }
 
 async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/earnings">["searchParams"] }) {
+  await connection();
   const session = await requireSignedIn("/driver/earnings");
   if (session.role !== "driver") {
     return (
@@ -48,6 +51,24 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     .maybeSingle();
   const missing = requirementLabels(fresh?.requirements_due ?? []);
   const ready = Boolean(fresh?.payouts_enabled);
+  const [{ data: entries }, { data: bankPayout }] = await Promise.all([
+    supabase
+      .from("ledger_entries")
+      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at")
+      .eq("driver_id", session.userId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("driver_bank_payouts")
+      .select("status, amount_cents, created_at")
+      .eq("driver_id", session.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const weekAgo = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
+  const week = (entries ?? []).filter((entry) => new Date(entry.created_at).getTime() >= weekAgo);
+  const weekTotal = (status: string) =>
+    week.filter((entry) => entry.status === status).reduce((sum, entry) => sum + entry.amount_cents, 0);
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -89,6 +110,26 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         ) : null}
         {typeof query.error === "string" ? <p className="mt-3 text-base text-danger">{query.error}</p> : null}
         {query.saved === "1" ? <p className="mt-3 text-base text-ink">Payout status updated.</p> : null}
+      </section>
+      <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">This week</h2>
+        <p>Pending {formatCents(weekTotal("pending"))}</p>
+        <p>Held {formatCents(weekTotal("held") + weekTotal("held_until_onboarding"))}</p>
+        <p>Transferred {formatCents(weekTotal("transferred"))}</p>
+        <p className="mt-2 text-base text-muted">
+          Latest bank payout: {bankPayout ? `${bankPayout.status} ${formatCents(bankPayout.amount_cents ?? 0)}` : "none yet"}. A transfer is not a bank deposit.
+        </p>
+        {(entries ?? []).length === 0 ? <p className="mt-3">No earnings yet.</p> : null}
+        <ul className="mt-3 grid gap-2">
+          {(entries ?? []).map((entry) => (
+            <li key={entry.id} className="rounded-2xl bg-paper px-3 py-3 ring-1 ring-line">
+              <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status.replaceAll("_", " ")}</p>
+              <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
+              {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
+              {entry.hold_reason ? <p>{entry.hold_reason}</p> : null}
+            </li>
+          ))}
+        </ul>
       </section>
       <p className="mt-4">
         <Link href="/driver" className="inline-flex min-h-12 items-center font-semibold text-brand">

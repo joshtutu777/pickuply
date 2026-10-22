@@ -54,13 +54,13 @@ A user has exactly one role. Admin role is set manually in the database (never s
 | Who responds | **Get a quote:** only the admin sends the quote (customer price, driver pay, pickup window). Drivers do not price these jobs. The customer must accept before the job is published. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
 | Platform fee | **10% of driver earnings, minimum $10**, shown in the subtotal. Admin-configurable. |
 | Driver matching | Admin reviews each request. Quote jobs are published to eligible drivers only after the customer accepts the admin's quote. Fixed and range jobs are published after admin approval. Nothing is booked or charged until the customer accepts the admin's quote or chooses a driver's offer. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
-| Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, sets `payment_status = awaiting_payment` and a payment deadline (default 30 minutes). Work cannot start until payment is `authorized` or `paid`. Capture still happens after delivery. **Not launch-ready until Step 5 payments.** |
-| Driver payouts | Manual: Zelle or Cash App within **24 hours** of completion. Admin marks "Paid" in the app. (Stripe Connect is v2) |
+| Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, starts a payment deadline (default 30 minutes). The customer pays by card on Stripe Checkout. The card is authorized, not captured. Work cannot start until payment is `authorized`. Capture happens after the customer confirms delivery, or 24 hours after delivery if they do not. If the authorization expires, stop and flag an admin. Do not start a new charge automatically. |
+| Driver payouts | Stripe Connect Express. One account per driver. The app stores the account id and status only, never bank details. After a captured payment, the driver's earnings are a ledger line. A transfer to that Connect account is not a deposit in their bank. Earnings stay held until payout setup is finished, unless an admin records a payment outside Stripe. |
 | Background checks | **None in v1.** Verification = ID/license, insurance, vehicle photo, personal call with admin. Never claim background checks in UI copy |
 | Minimum fee | $35 |
 | Damage coverage limit | $250 per job |
-| Late cancel fee | $15 (after a driver is assigned) — goes to the driver |
-| Trip fee | $25 if the customer rejects the item at the pickup item check |
+| Late cancel fee | $15 after a driver is assigned and before work starts, once that workflow is built. It is one partial capture of the fee on the existing authorization, and the rest of the hold is released. It is not a new charge, and the card is not saved for a later charge. If the payment was already captured, refund the difference. |
+| Trip fee | $25 if the customer rejects the item at the pickup item check. That amount is the only capture, and the rest of the authorization is released. |
 | Auto-complete | 24 hours after "Delivered" unless the customer reports a problem |
 | Item value cap | $1,000 per job during the pilot (admin can override) |
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { inviteDriver } from "@/app/admin/requests/actions";
+import { inviteDriver, refundJob } from "@/app/admin/requests/actions";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
@@ -133,6 +133,22 @@ async function RequestDetail({
       ) : null}
       {job.status === "disputed" ? <DisputeResolution jobId={id} /> : null}
       <AdminOverride jobId={id} />
+      <form action={refundJob} className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Refund</h2>
+        <p className="text-base text-muted">Before capture, enter the full total to release the hold. After capture, enter the amount to refund.</p>
+        <input type="hidden" name="jobId" value={id} />
+        <label className="font-semibold" htmlFor="refund-amount">
+          Amount in dollars
+          <input id="refund-amount" name="amount" inputMode="decimal" required className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" />
+        </label>
+        <label className="font-semibold" htmlFor="refund-reason">
+          Reason
+          <input id="refund-reason" name="reason" required minLength={3} className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" />
+        </label>
+        <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Refund
+        </button>
+      </form>
       {job.status === "requested" || job.status === "in_review" ? (
         <ReviewRequestForm
           jobId={id}

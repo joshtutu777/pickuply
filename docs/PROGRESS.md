@@ -448,4 +448,20 @@ A claimed job now shows up in the driver's assigned list without a manual reload
 - The iPhone Home Screen hint is shown only on an iPhone browser, which was not opened here.
 - A video re-record depends on the browser supporting capture of a playing video.
 - Two reports on one job keep the holds on, and a resolution that releases only one hold leaves the other.
-- Step 5 still has to call the capture hold before it captures a card, and it still has to perform any refund the resolution recorded.
+- Step 5 calls the capture hold before it captures a card. A refund outcome on a dispute starts the Stripe refund before the holds come off. The signed-in Stripe test walk, including a real transfer, has not been run.
+
+## Step 5 — payments (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0020` through `0024` are applied on the local database.
+
+Drivers start Stripe Express payout setup from the driver home and the earnings page. The app stores the Connect account id and status fields only. Saving that row uses the service role because a driver must not be able to mark payouts as enabled. That is the only new use of the service role outside webhooks and cron.
+
+After a driver is assigned, the customer sees the driver, the subtotal, the service fee, the total, and a countdown, then pays with Checkout. The card is authorized, not captured. If fewer than 30 minutes remain, Checkout uses Stripe's 30-minute minimum, and an authorization that arrives after the job was reopened or reassigned is released. The payment-deadline cron reopens an unpaid job. Quote jobs stay at the same driver pay. A chosen offer expires.
+
+The customer approves or rejects the pickup photo. Rejection records the trip fee and captures only that amount. "Got it", or 24 hours after delivery, captures the full authorization if it is still inside `capture_before`. A cancel before work starts is free before payment and releases the whole hold after authorization. The $15 late-cancel fee is not built. When it is, it will be one partial capture on this same authorization.
+
+Driver earnings are one ledger line. A junk disposal estimate is not added. Transfers wait for the payout delay, a finished Connect account, no dispute hold, and `available_on`. The transfer idempotency key is the ledger id. A transfer is not a bank payout. Admins can record an outside payment, refund, reverse a transfer, or deduct a named future earning. None of those happen by themselves.
+
+Manual cron checks, with `CRON_SECRET` from the environment: `/api/cron/payment-deadlines` every five minutes, `/api/cron/auto-complete` and `/api/cron/transfers` every fifteen minutes.
+
+Not run yet: the Stripe test-card walk with `stripe listen`, a full pgTAP rerun after `0020`–`0024`, and the production build for this step. Connect eligibility in the Stripe Dashboard was not checked from here. Do not deploy until that walk passes and the owner approves hosted migrations.

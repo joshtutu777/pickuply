@@ -31,9 +31,9 @@ test("admin dashboard counts, filters, and blocks everyone else", async ({ brows
     await expect(adminPage.getByRole("heading", { name: "At a glance" })).toBeVisible();
     await expect(adminPage.getByRole("heading", { name: "Drivers" })).toBeVisible();
     await expect(adminPage.getByRole("heading", { name: "Recent activity" })).toBeVisible();
-    await expect(adminPage.getByRole("link", { name: "Payments" })).toHaveCount(0);
     await adminPage.getByText("Menu", { exact: false }).click();
-    await expect(adminPage.locator("details").getByText("Coming in Step 5")).toBeVisible();
+    await expect(adminPage.locator("details").getByRole("link", { name: "Payments" })).toBeVisible();
+    await expect(adminPage.getByText("Coming in Step 5")).toHaveCount(0);
 
     const needsBox = await adminPage.getByRole("heading", { name: "Needs your action" }).boundingBox();
     const cardsBox = await adminPage.getByRole("heading", { name: "At a glance" }).boundingBox();
