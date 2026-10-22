@@ -5,6 +5,9 @@ import { Suspense } from "react";
 import { advanceJob } from "@/app/driver/jobs/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { JobTrackerView } from "@/components/request/job-tracker";
+import { ProofForm } from "@/components/driver/proof-form";
+import { ProofGallery } from "@/components/request/proof-gallery";
+import { ReportForm } from "@/components/request/report-form";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -70,6 +73,11 @@ async function DriverJob({
       };
     }),
   });
+  const { data: settings } = await supabase
+    .from("platform_settings")
+    .select("proof_location_enabled")
+    .eq("id", 1)
+    .maybeSingle();
   const next = nextDriverAction({
     status: job.status,
     paymentStatus: job.payment_status,
@@ -121,6 +129,11 @@ async function DriverJob({
             {next.label}
           </button>
         </form>
+      ) : null}
+      <ProofGallery jobId={job.id} />
+      <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} />
+      {["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
+        <ReportForm jobId={job.id} />
       ) : null}
       <JobMessages jobId={job.id} showQuickReplies />
       <p className="mt-4">

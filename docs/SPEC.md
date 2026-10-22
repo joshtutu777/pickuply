@@ -298,6 +298,8 @@ Show drivers' average rating, completed jobs, review count. Never show private r
 
 ## 9. Reports, disputes, and strikes
 
+Built locally on 2026-10-22, with these differences from the workflow below: a report holds capture and payout creation and marks the job disputed, but it does not reverse money that already moved and it does not call Stripe. Refunds wait for Step 5. Critical reports alert an admin immediately. A driver is paused only when an admin chooses that outcome. Strikes are not built yet.
+
 ### Customer reports a driver/job problem
 Available from the active job, job history (7 days after completion), or driver profile on their booking.
 
@@ -357,6 +359,8 @@ All admin actions are permission-checked on the server and audit-logged.
 ---
 
 ## 11. Notifications
+
+Built locally on 2026-10-22. Alerts are stored in the app, push is ready when VAPID keys are set, and email is ready when Resend is set. Texting is wired and stays off until an admin turns it on after Twilio approval. The one-time iPhone Home Screen note is on the alerts page. Job messages open at assignment and close 24 hours after completion. Proof photos are private, locked after upload, and any optional location is rounded and visible only to an admin.
 
 | Event | Customer | Driver | Admin |
 |---|---|---|---|

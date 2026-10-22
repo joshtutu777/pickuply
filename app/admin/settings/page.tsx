@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
-import { saveSmsSetting, saveSupportContact } from "@/app/admin/settings/actions";
+import { saveSmsSetting, saveSupportContact, saveProofLocation } from "@/app/admin/settings/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +35,7 @@ async function SettingsContent({
     sms_enabled: false,
     support_phone: null,
     support_email: null,
+    proof_location_enabled: false,
   };
 
   return (
@@ -146,6 +147,27 @@ async function SettingsContent({
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
         >
           Save support contact
+        </button>
+      </form>
+      <form action={saveProofLocation} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Proof location</h2>
+        <p className="text-base text-muted">
+          Off by default. When it is on, a driver can choose to share a rounded location. Customers never see it.
+        </p>
+        <label className="flex min-h-12 items-center gap-3 text-base font-semibold" htmlFor="proofLocation">
+          <input
+            id="proofLocation"
+            name="proofLocation"
+            type="checkbox"
+            defaultChecked={Boolean(settings.proof_location_enabled)}
+          />
+          Allow approximate proof location
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save location setting
         </button>
       </form>
     </main>

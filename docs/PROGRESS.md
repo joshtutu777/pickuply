@@ -326,6 +326,8 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0015_job_tracker.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Customers see only the assigned driver's first name, profile photo, and vehicle. Notifications move to 0016. |
 | `supabase/migrations/0016_notifications.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Texting stays off until an admin enables it. |
 | `supabase/migrations/0017_messages.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Messages cannot contain a phone number or email. |
+| `supabase/migrations/0018_proof_reports.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | A report holds capture and payout. It does not refund a card. |
+| `supabase/migrations/0019_notification_dedupe.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Fixes an alert insert that blocked saving a new job. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -421,3 +423,21 @@ Each person gets an in-app alert list with an unread count in the header. A data
 A job conversation opens when a driver is assigned and closes 24 hours after the job is completed. The customer, the assigned driver, and an admin can read and post. The screen checks for a phone number or email and will not send one. Drivers get four quick replies. Contact support on a job, the account page, and the driver job page opens one support thread and shows the support phone and email from settings when those are saved. The admin dashboard lists open threads with unread counts. New messages create an in-app alert that does not include the message text.
 
 `0017_messages.sql` is local only. Proof and reports are planned as `0018`.
+
+## Step 6d — proof and disputes (2026-10-22)
+
+Drivers add pickup, drop-off, and receipt proof from the job page. Photos are redrawn in the browser before upload, which drops the original location data. A video has to be 30 seconds or less and is re-recorded in the browser for the same reason. Proof cannot be deleted or replaced. Approximate location stays off unless an admin turns it on, the driver checks the box, and the stored point is rounded to two decimals. Only an admin can read that point.
+
+A problem report during the job, or within 7 days after completion, marks the job disputed and holds capture and payout creation. It does not change a payment that is already captured, and it does not create a Stripe refund. An admin records the outcome, amount, reason, and whether the holds come off. A driver pause is one of those outcomes. Strikes are not built. Cancellation fees, rescheduling, no-shows, and reassignment are still waiting until after Step 5 payments.
+
+`0018_proof_reports.sql` is local only. `0014` through `0019` are not on the hosted project. `0019` only renames the way an alert is inserted after an argument name blocked a new job from being saved. Local pgTAP `0018_proof_reports.test.sql` passed 12 tests: proof counts differ by service, a report leaves a completed capture alone, and a dispute blocks a new capture, a new payout, and deleting a photo. A customer cannot read the rounded proof location.
+
+## Untested edge cases
+
+- Hosted pages still use the hosted database, so the new tracker, alerts, messages, proof, and reports were not clicked through in the hosted browser.
+- Push delivery needs VAPID keys, and email delivery needs Resend. Those sends were not exercised.
+- Texting stays off. The Twilio call was not made.
+- The iPhone Home Screen hint is shown only on an iPhone browser, which was not opened here.
+- A video re-record depends on the browser supporting capture of a playing video.
+- Two reports on one job keep the holds on, and a resolution that releases only one hold leaves the other.
+- Step 5 still has to call the capture hold before it captures a card, and it still has to perform any refund the resolution recorded.

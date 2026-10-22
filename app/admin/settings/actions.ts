@@ -26,3 +26,13 @@ export async function saveSupportContact(formData: FormData) {
   revalidatePath("/support");
   redirect(error ? "/admin/settings?error=Could%20not%20save%20support%20contact" : "/admin/settings?saved=1");
 }
+
+export async function saveProofLocation(formData: FormData) {
+  await requireAdmin("/admin/settings");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_proof_location_enabled", {
+    enabled: formData.get("proofLocation") === "on",
+  });
+  revalidatePath("/admin/settings");
+  redirect(error ? "/admin/settings?error=Could%20not%20save%20proof%20location" : "/admin/settings?saved=1");
+}

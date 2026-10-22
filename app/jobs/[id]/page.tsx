@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
+import { ProofGallery } from "@/components/request/proof-gallery";
+import { ReportForm } from "@/components/request/report-form";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
@@ -80,6 +82,10 @@ async function JobEntry({
       />
       <div className="mx-auto w-full max-w-xl px-4">
         <JobMessages jobId={id} />
+        <ProofGallery jobId={id} />
+        {["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
+          <ReportForm jobId={id} />
+        ) : null}
         <p className="mt-4">
           <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
             Contact support

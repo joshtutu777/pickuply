@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { inviteDriver } from "@/app/admin/requests/actions";
+import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
@@ -129,6 +130,7 @@ async function RequestDetail({
           </button>
         </form>
       ) : null}
+      {job.status === "disputed" ? <DisputeResolution jobId={id} /> : null}
       {job.status === "requested" || job.status === "in_review" ? (
         <ReviewRequestForm
           jobId={id}

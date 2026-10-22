@@ -36,8 +36,9 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 - Admin quote and price changes run as the signed-in admin (`is_admin()`), never as the service role. The service role is only for webhooks, cron, and system tasks. It must still be able to update payment and job status where the spec requires a system step.
 - Every table has **RLS enabled**. Default deny; add explicit policies.
 - **Drivers must never see exact addresses, customer names, or phone numbers** until they are the assigned driver. Approximate area (city/ZIP) only in job feeds. Exact data lives in `job_private`.
-- Customers and drivers never see each other's phone numbers; use in-app messages.
-- Photos and documents go in **private** storage buckets, served with short-lived signed URLs to job participants and admin only.
+- Customers and drivers never see each other's phone numbers; use in-app messages. A message that contains a phone number or email is rejected.
+- Photos and documents go in **private** storage buckets, served with short-lived signed URLs to job participants and admin only. Proof photos cannot be deleted or replaced. Optional proof location is off by default, rounded, and visible only to an admin.
+- A problem report marks the job disputed and blocks capture and payout creation. It never reverses money that already moved. Stripe refunds wait for Step 5.
 - All mutations that change money, job status, driver status, or roles happen **server-side** with permission checks. Never trust role or price values sent from the browser.
 - Job claiming and offer selection must be **atomic in the database** (`claim_job` and `choose_offer` functions) so two drivers can't get the same job.
 - Every job status change writes a row to `job_events`; every admin action writes to `audit_log`.
