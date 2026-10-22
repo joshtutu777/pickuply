@@ -16,7 +16,7 @@ export default function PaymentsPage() {
 async function Payments() {
   await requireAdmin("/admin/payments");
   const supabase = await createClient();
-  const [{ data: jobs }, { data: refunds }] = await Promise.all([
+  const [{ data: jobs }, { data: refunds }, { data: disputes }] = await Promise.all([
     supabase
       .from("jobs")
       .select("id, status, payment_status, price_cents, captured_cents, refunded_cents, service_fee_cents")
@@ -24,6 +24,7 @@ async function Payments() {
       .order("updated_at", { ascending: false })
       .limit(50),
     supabase.from("refund_requests").select("id, job_id, amount_cents, status, reason").order("created_at", { ascending: false }).limit(25),
+    supabase.from("card_disputes").select("stripe_dispute_id, job_id, amount_cents, status, outcome").order("updated_at", { ascending: false }).limit(25),
   ]);
   const ids = (jobs ?? []).map((job) => job.id);
   const { data: payments } = ids.length
@@ -55,6 +56,16 @@ async function Payments() {
             </li>
           );
         })}
+      </ul>
+      <h2 className="mt-8 text-2xl font-semibold text-ink">Card disputes</h2>
+      {(disputes ?? []).length === 0 ? <p className="mt-3">No card disputes.</p> : null}
+      <ul className="mt-3 grid gap-2">
+        {(disputes ?? []).map((dispute) => (
+          <li key={dispute.stripe_dispute_id}>
+            {formatCents(dispute.amount_cents ?? 0)} · {dispute.status}
+            {dispute.outcome ? ` · ${dispute.outcome}` : " · open"}
+          </li>
+        ))}
       </ul>
       <h2 className="mt-8 text-2xl font-semibold text-ink">Refunds</h2>
       {(refunds ?? []).length === 0 ? <p className="mt-3">No refunds yet.</p> : null}

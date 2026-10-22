@@ -18,6 +18,7 @@ const handled = new Set([
   "charge.dispute.closed",
   "refund.created",
   "refund.updated",
+  "charge.refunded",
 ]);
 
 export function isPlatformPaymentEvent(type: string): boolean {
@@ -50,7 +51,7 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
     capture_before: charge.captureBefore,
     checkout_driver: driverId,
   });
-  if (result.error) throw new Error("The authorization could not be recorded.");
+  if (result.error) throw new Error(result.error.message);
   if (result.data === "released_late" || result.data === "duplicate") {
     try {
       await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
@@ -137,15 +138,26 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     if (!chargeId) return;
     const payment = await supabase.from("job_payments").select("job_id").eq("charge_id", chargeId).maybeSingle();
     if (!payment.data?.job_id) return;
-    if (event.type === "charge.dispute.created") {
+    if (event.type === "charge.dispute.created" || event.type === "charge.dispute.updated") {
       const recorded = await supabase.rpc("record_chargeback", {
         target_job: payment.data.job_id,
         dispute_id: dispute.id,
+        dispute_status: dispute.status,
+        amount_cents: dispute.amount,
       });
       if (recorded.error) throw new Error("The card dispute could not be recorded.");
     }
+    if (event.type === "charge.dispute.closed") {
+      const closed = await supabase.rpc("note_dispute_closed", {
+        dispute_id: dispute.id,
+        outcome: dispute.status === "won" ? "won" : "lost",
+      });
+      if (closed.error) throw new Error("The card dispute outcome could not be recorded.");
+    }
     return;
   }
+
+  if (event.type === "charge.refunded") return;
 
   if (event.type === "refund.created" || event.type === "refund.updated") {
     const refund = event.data.object as Stripe.Refund;

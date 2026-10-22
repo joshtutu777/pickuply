@@ -332,7 +332,7 @@ async function goOnline(page: Page) {
 
 function jobPayment(jobId: string) {
   const output = localSql(
-    `select status || '|' || payment_status || '|' || (payment_due_at is not null)::text || '|' || (stripe_payment_intent_id is not null)::text || '|' || (assigned_driver_id is not null)::text from public.jobs where id = '${jobId}'`,
+    `select j.status || '|' || coalesce(j.payment_status, '') || '|' || (j.payment_due_at is not null)::text || '|' || (p.payment_intent_id is not null)::text || '|' || (j.assigned_driver_id is not null)::text from public.jobs j left join public.job_payments p on p.job_id = j.id where j.id = '${jobId}'`,
   );
   const line = output
     .split(/\r?\n/)
@@ -363,6 +363,8 @@ function resetLocalPeople() {
     where customer_id in (select id from auth.users where phone in ${phones})
       or assigned_driver_id in (select id from auth.users where phone in ${phones});
     delete from public.job_offers
+    where driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.driver_bank_payouts
     where driver_id in (select id from auth.users where phone in ${phones});
     delete from public.jobs
     where customer_id in (select id from auth.users where phone in ${phones})

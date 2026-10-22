@@ -29,17 +29,32 @@ export async function saveConnectAccount(driverId: string, account: Stripe.Accou
   if (error) throw new Error("The payout account could not be saved.");
 }
 
+const previewVersion = "2026-09-30.preview";
+
 export async function ensureExpressAccount(driverId: string, existingId: string | null): Promise<string> {
   if (existingId) return existingId;
-  const account = await getStripe().accounts.create(
+  const stripe = getStripe();
+  // This test platform uses Accounts v2 with Managed Risk. Stripe must collect losses,
+  // and the account needs the Express dashboard plus card payments before transfers can be requested.
+  // The customer's card is still charged on the platform account. This account only receives transfers.
+  const created = await stripe.v2.core.accounts.create(
     {
-      type: "express",
-      country: "US",
-      capabilities: { transfers: { requested: true } },
+      dashboard: "express",
+      identity: { country: "US" },
+      configuration: {
+        merchant: { capabilities: { card_payments: { requested: true } } },
+      },
+      defaults: {
+        responsibilities: {
+          fees_collector: "stripe",
+          losses_collector: "stripe",
+        },
+      },
       metadata: { driver_id: driverId },
     },
-    { idempotencyKey: `connect-account:${driverId}` },
+    { apiVersion: previewVersion, idempotencyKey: `connect-account:${driverId}` },
   );
+  const account = await stripe.accounts.retrieve(created.id);
   await saveConnectAccount(driverId, account);
   return account.id;
 }
@@ -55,14 +70,19 @@ export async function refreshConnectAccount(driverId: string, accountId: string)
 }
 
 export async function onboardingLink(accountId: string, origin: string, detailsSubmitted: boolean): Promise<string> {
-  const link = await getStripe().accountLinks.create(
+  const refreshUrl = `${origin}/driver/earnings/refresh`;
+  const returnUrl = `${origin}/driver/earnings?connect=return`;
+  const link = await getStripe().v2.core.accountLinks.create(
     {
       account: accountId,
-      type: detailsSubmitted ? "account_update" : "account_onboarding",
-      refresh_url: `${origin}/driver/earnings/refresh`,
-      return_url: `${origin}/driver/earnings?connect=return`,
+      use_case: detailsSubmitted
+        ? { type: "account_update", account_update: { refresh_url: refreshUrl, return_url: returnUrl } }
+        : { type: "account_onboarding", account_onboarding: { refresh_url: refreshUrl, return_url: returnUrl } },
     },
-    { idempotencyKey: `connect-link:${accountId}:${detailsSubmitted ? "update" : "onboard"}:${Math.floor(Date.now() / 60000)}` },
+    {
+      apiVersion: previewVersion,
+      idempotencyKey: `connect-link:${accountId}:${detailsSubmitted ? "update" : "onboard"}:${Math.floor(Date.now() / 60000)}`,
+    },
   );
   if (!link.url) throw new Error("Stripe did not return a setup link.");
   return link.url;
@@ -71,6 +91,7 @@ export async function onboardingLink(accountId: string, origin: string, detailsS
 export function requestOrigin(headerList: Headers): string {
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
   const proto = headerList.get("x-forwarded-proto") ?? "http";
-  if (!host) return "http://127.0.0.1:3000";
-  return `${proto}://${host}`;
+  if (!host) return "http://localhost:3000";
+  const normalized = host.replace(/^127\.0\.0\.1(?=:|$)/, "localhost");
+  return `${proto}://${normalized}`;
 }

@@ -464,4 +464,26 @@ Driver earnings are one ledger line. A junk disposal estimate is not added. Tran
 
 Manual cron checks, with `CRON_SECRET` from the environment: `/api/cron/payment-deadlines` every five minutes, `/api/cron/auto-complete` and `/api/cron/transfers` every fifteen minutes.
 
-Not run yet: the Stripe test-card walk with `stripe listen`, a full pgTAP rerun after `0020`–`0024`, and the production build for this step. Connect eligibility in the Stripe Dashboard was not checked from here. Do not deploy until that walk passes and the owner approves hosted migrations.
+Not run in the first pass: the Stripe test-card walk. That walk is recorded below.
+
+## Step 5 verification (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0025`, `0026`, and `0027` are applied on the local database after `0001` through `0024`.
+
+`0025` adds a seconds payout delay for tests, card-dispute rows, dispute outcomes, and the ledger and refund alerts. `0026` fixes refund recording: the refund id argument had the same name as the column, so Postgres rejected the update. `0027` fixes the same kind of bug on authorization: the charge id was not saved, the webhook returned 500, and the job stayed unpaid.
+
+This Stripe test account uses Accounts v2 with Managed Risk. Stripe collects the losses, so a new payout account is an Express dashboard merchant with card payments requested. The customer's card is still charged on the platform account. The connected account is only there to receive a transfer. A recipient account for separate charges and transfers was rejected until the platform accepts loss liability in the Dashboard. Express terms cannot be accepted through the API, and the hosted form is behind a captcha, so payouts stayed off in the automated walk. The transfer cron ran and left the ledger `held_until_onboarding` with no transfer id.
+
+Checkout's hosted pay button was covered by a verification modal. The test opens the real Checkout page, then confirms that same session with Stripe's test card token: `tok_visa` for 4242, `tok_chargeDeclined` for the declined card, and `tok_createDispute` for the chargeback card.
+
+`stripe listen` on this machine needs `--all-snapshot`. The Connect webhook secret was not in `.env.local`. The test server used the listener secret for both webhook endpoints. Receipt email was not sent because Resend is not configured. The receipt on the job page was shown.
+
+Full local pgTAP: 8 files, 230 tests, pass. Lint, typecheck, 77 unit tests, and the production build passed. Playwright against the local database passed 12 payment tests, including the three crons called with `CRON_SECRET`.
+
+## Untested after Step 5
+
+- A transfer that Stripe actually creates, and the driver's bank payout after that. This sandbox cannot finish Express terms without a person passing the captcha.
+- Receipt email. Resend is not configured.
+- The 24-hour auto-complete path on a delivered job. The cron was called and returned ok.
+- A customer cancel click. The release-before-capture refund was tested.
+- Hosted deploy. Do not apply `0014` through `0027` or deploy until that is approved.

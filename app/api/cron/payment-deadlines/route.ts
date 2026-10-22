@@ -22,7 +22,11 @@ export async function GET(request: Request) {
     const due = await supabase.rpc("overdue_payment_jobs");
     if (due.error) return NextResponse.json({ ok: false }, { status: 500 });
 
-    for (const row of (due.data ?? []) as { job_id: string; payment_intent_id: string | null }[]) {
+    for (const row of (due.data ?? []) as {
+      job_id: string;
+      payment_intent_id: string | null;
+      checkout_session_id: string | null;
+    }[]) {
       if (row.payment_intent_id) {
         try {
           const intent = await stripe.paymentIntents.retrieve(row.payment_intent_id);
@@ -35,7 +39,9 @@ export async function GET(request: Request) {
             );
           }
         } catch {
-          continue;
+          if (row.checkout_session_id) {
+            await stripe.checkout.sessions.expire(row.checkout_session_id).catch(() => undefined);
+          }
         }
       }
       const released = await supabase.rpc("release_overdue_job", { target_job: row.job_id });

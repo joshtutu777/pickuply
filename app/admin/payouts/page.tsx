@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { recordOutsidePayment, recoverDeduction, recoverReversal } from "@/app/admin/payouts/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
@@ -17,10 +18,10 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
   await requireAdmin("/admin/payouts");
   const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: entries }, { data: recoveries }] = await Promise.all([
+  const [{ data: entries }, { data: recoveries }, { data: drivers }, { data: accounts }] = await Promise.all([
     supabase
       .from("ledger_entries")
-      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, stripe_transfer_id, external_method")
+      .select("id, job_id, driver_id, amount_cents, status, hold_reason, transfer_status, stripe_transfer_id, external_method")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
@@ -28,7 +29,17 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
       .select("id, amount_cents, status, reason, ledger_id")
       .eq("status", "recovery_due")
       .limit(25),
+    supabase.from("drivers").select("profile_id, status").in("status", ["approved_new", "active", "paused"]),
+    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled"),
   ]);
+  const readyAccounts = new Set((accounts ?? []).filter((account) => account.payouts_enabled).map((account) => account.driver_id));
+  const needsOnboarding = (drivers ?? []).filter((driver) => !readyAccounts.has(driver.profile_id));
+  const nameIds = needsOnboarding.map((driver) => driver.profile_id);
+  const { data: nameRows } = nameIds.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", nameIds)
+    : { data: [] };
+  const names = new Map((nameRows ?? []).map((row) => [row.id, row.full_name]));
+  const failedTransfers = (entries ?? []).filter((entry) => entry.transfer_status === "failed");
 
   return (
     <main className="px-4 py-8">
@@ -37,11 +48,31 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
         A transfer sends earnings to the driver Stripe account. It is not a deposit in their bank. Paid outside Stripe is an admin record, not a transfer.
       </p>
       {typeof query.error === "string" ? <p className="mt-4 text-danger">{query.error}</p> : null}
+      <h2 className="mt-6 text-2xl font-semibold">Drivers who still need payout setup</h2>
+      {needsOnboarding.length === 0 ? <p className="mt-2">Every approved driver can receive transfers.</p> : null}
+      <ul className="mt-2 grid gap-2">
+        {needsOnboarding.map((driver) => (
+          <li key={driver.profile_id}>
+            <Link className="font-semibold text-brand" href={`/admin/drivers/${driver.profile_id}`}>
+              {names.get(driver.profile_id) ?? "Driver"}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <h2 className="mt-6 text-2xl font-semibold">Failed transfers</h2>
+      {failedTransfers.length === 0 ? <p className="mt-2">No failed transfers.</p> : null}
+      <ul className="mt-2 grid gap-2">
+        {failedTransfers.map((entry) => (
+          <li key={entry.id}>
+            {formatCents(entry.amount_cents)} · {entry.hold_reason ?? "The transfer failed and will be tried again."}
+          </li>
+        ))}
+      </ul>
       {(entries ?? []).length === 0 ? <p className="mt-6">No earnings yet.</p> : null}
       <ul className="mt-6 grid gap-4">
         {(entries ?? []).map((entry) => (
           <li key={entry.id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-            <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status.replaceAll("_", " ")}</p>
+            <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
             <p>Transfer {entry.transfer_status ?? "not sent"}</p>
             {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
             {entry.hold_reason ? <p>{entry.hold_reason}</p> : null}

@@ -123,7 +123,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         <ul className="mt-3 grid gap-2">
           {(entries ?? []).map((entry) => (
             <li key={entry.id} className="rounded-2xl bg-paper px-3 py-3 ring-1 ring-line">
-              <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status.replaceAll("_", " ")}</p>
+              <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
               <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
               {entry.hold_reason ? <p>{entry.hold_reason}</p> : null}

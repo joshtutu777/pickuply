@@ -13,7 +13,8 @@ export async function POST(request: Request) {
 
   try {
     await handlePlatformPaymentEvent(event);
-  } catch {
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "webhook failed");
     await releaseStripeEvent(event.id);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
