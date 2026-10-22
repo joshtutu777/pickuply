@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
+import { saveSmsSetting } from "@/app/admin/settings/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,7 @@ async function SettingsContent({
     service_bps: 290,
     service_fixed_cents: 30,
     payment_due_minutes: 30,
+    sms_enabled: false,
   };
 
   return (
@@ -91,6 +93,27 @@ async function SettingsContent({
           className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand font-semibold text-white"
         >
           Save settings
+        </button>
+      </form>
+      <form action={saveSmsSetting} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Text messages</h2>
+        <p className="text-base text-muted">
+          Texting stays off until this box is checked. Leave it off until Twilio approves Pickuply.
+        </p>
+        <label className="flex min-h-12 items-center gap-3 text-base font-semibold" htmlFor="smsEnabled">
+          <input
+            id="smsEnabled"
+            name="smsEnabled"
+            type="checkbox"
+            defaultChecked={Boolean(settings.sms_enabled)}
+          />
+          Allow text message alerts
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save text setting
         </button>
       </form>
     </main>

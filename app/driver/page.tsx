@@ -79,6 +79,11 @@ async function DriverContent({
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
+        <p className="mt-3">
+          <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Alerts
+          </Link>
+        </p>
         {driver?.status === "approved_new" ? (
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.

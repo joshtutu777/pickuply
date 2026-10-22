@@ -464,6 +464,7 @@ export function auditLabel(action: string, data: unknown): string {
   if (action === "review_driver" && (decision === "approve_new" || decision === "approve_active")) return "Driver approved";
   if (action === "review_driver" && decision === "pause") return "Driver paused";
   if (action === "review_driver") return "Driver reviewed";
+  if (action === "set_sms_enabled") return "Text message setting changed";
   if (action === "update_platform_settings") return "Settings changed";
   if (action === "invite_driver") return "Driver invited";
   if (action === "set_payment_status") return "Payment status changed";

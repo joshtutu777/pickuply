@@ -9,7 +9,7 @@ const navLink =
 
 export type HeaderState =
   | { status: "signed-out" }
-  | { status: "signed-in"; firstName: string | null };
+  | { status: "signed-in"; firstName: string | null; alertsHref: string; unread: number };
 
 export function SiteHeader({ state }: { state: HeaderState }) {
   return (
@@ -45,6 +45,9 @@ export function SiteHeader({ state }: { state: HeaderState }) {
                   {state.firstName}
                 </span>
               ) : null}
+              <Link href={state.alertsHref} className={navLink}>
+                Alerts{state.unread > 0 ? ` (${state.unread})` : ""}
+              </Link>
               <SignOutButton />
             </>
           ) : (

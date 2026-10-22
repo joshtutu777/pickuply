@@ -324,6 +324,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
 | `supabase/migrations/0014_sms_consent.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Optional SMS consent is a separate unchecked checkbox. A phone number is not consent. |
 | `supabase/migrations/0015_job_tracker.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Customers see only the assigned driver's first name, profile photo, and vehicle. Notifications move to 0016. |
+| `supabase/migrations/0016_notifications.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Texting stays off until an admin enables it. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -407,3 +408,9 @@ The read-only fingerprint matched on columns (166), constraints (56), indexes (2
 The request page, each active account card, and the assigned driver's job page share one progress list: request received, price confirmed, driver confirmed, payment confirmed, heading to pickup, arrived, item checked, picked up, delivered, and completed. Junk jobs say "Load picked up" and "Hauled away", and add "Disposal receipt uploaded" when a dump fee is stored. Cancelled and disputed jobs say so. A rescheduled or reassigned event would show that label, but those workflows are not built. Once a driver is assigned, the customer sees that driver's first name, profile photo, and vehicle through `assigned_driver_card`. The driver moves the job with `advance_job`. Item pickup still waits for the customer, and payment still cannot be collected until Step 5.
 
 `0015_job_tracker.sql` is local only. Notifications, messages, and proof are planned as `0016`, `0017`, and `0018` because this tracker function had to come first. `0014` remains local only.
+
+## Step 6b — notifications (2026-10-22)
+
+Each person gets an in-app alert list with an unread count in the header. A database trigger writes the alert when a request, quote, offer, assignment, payment, or job step changes. Online drivers in the job's zone are told about a new open job. Admins are told about new requests, driver applications, no offers after 20 minutes, and a missed payment deadline. The 20-minute and payment checks run from `/api/cron/notifications` every five minutes and require `CRON_SECRET`. Push uses a service worker and VAPID keys. Email uses Resend when `RESEND_API_KEY` and `RESEND_FROM` are set. Texting has a Twilio path, but `sms_enabled` defaults to off and an admin has to turn it on. The copy-ready admin text on a request is unchanged. No-show alerts are not part of this step.
+
+`0016_notifications.sql` is local only.

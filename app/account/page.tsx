@@ -32,6 +32,11 @@ async function AccountContent({
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Account</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Your requests</h1>
+      <p className="mt-3">
+        <Link href="/account/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Alerts
+        </Link>
+      </p>
       {singleQuery(params.error) === "forbidden" ? (
         <p role="alert" className="mt-4 text-base font-medium text-danger">
           You don&apos;t have access to that page.
