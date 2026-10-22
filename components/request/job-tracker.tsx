@@ -36,7 +36,9 @@ export function JobTrackerView({
         </div>
       ) : null}
       {tracker.lastUpdate ? (
-        <p className="mb-3 text-sm text-muted">Last update {waitedLabel(tracker.lastUpdate, Date.now())}</p>
+        <p className="mb-3 text-sm text-muted">
+          Last update {waitedLabel(tracker.lastUpdate, new Date().getTime())}
+        </p>
       ) : null}
       {compact ? (
         <p className="text-base font-semibold text-ink">{current?.label ?? tracker.steps.at(-1)?.label}</p>
