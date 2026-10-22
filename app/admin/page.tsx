@@ -1,35 +1,47 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { JobList } from "@/components/request/job-list";
 import { LoadingMain } from "@/components/loading-main";
-import { PlaceholderPage } from "@/components/placeholder-page";
-import { singleQuery } from "@/lib/auth/query";
 import { requireAdmin } from "@/lib/auth/session";
+import { listAllJobs } from "@/lib/data/job-queries";
 
 export const metadata: Metadata = {
   title: "Admin",
 };
 
-export default function AdminPage({ searchParams }: PageProps<"/admin">) {
+export default function AdminPage() {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <AdminContent searchParams={searchParams} />
+      <AdminContent />
     </Suspense>
   );
 }
 
-async function AdminContent({
-  searchParams,
-}: {
-  searchParams: PageProps<"/admin">["searchParams"];
-}) {
+async function AdminContent() {
   await requireAdmin("/admin");
-  const params = await searchParams;
+  const { jobs, error } = await listAllJobs();
+
   return (
-    <PlaceholderPage
-      eyebrow="Admin"
-      title="Admin"
-      description="Operations tools will live here. The admin dashboard is not built yet."
-      forbidden={singleQuery(params.error) === "forbidden"}
-    />
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
+      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Admin</h1>
+      <p className="mt-3 text-base leading-relaxed text-muted">
+        Requests are read only. Quoting is not available here yet. Requested jobs stay hidden from
+        drivers.
+      </p>
+      {error ? (
+        <p role="alert" className="mt-6 text-lg text-danger">
+          We couldn&apos;t load requests. Try again.
+        </p>
+      ) : (
+        <JobList
+          jobs={jobs}
+          showPricing
+          emptyTitle="No requests yet"
+          emptyCopy="New customer requests will be listed here."
+          actionHref={null}
+        />
+      )}
+    </main>
   );
 }

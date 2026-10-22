@@ -3,16 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 import { normalizeUsPhone } from "../lib/phone";
 import { supabaseProjectUrl } from "../lib/supabase/project-url";
 
-// Hosted phone sign-in allows one code every 5 seconds for a number.
-let lastCodeRequest = 0;
+  // Hosted phone sign-in allows one code every 5 seconds. Leave extra room so
+  // the next test does not get "Too many attempts" when the previous send is still recent.
+  let lastCodeRequest = 0;
 
-async function waitForCodeWindow() {
-  const elapsed = Date.now() - lastCodeRequest;
-  if (lastCodeRequest !== 0 && elapsed < 6_000) {
-    await new Promise((resolve) => setTimeout(resolve, 6_000 - elapsed));
+  async function waitForCodeWindow() {
+    const elapsed = Date.now() - lastCodeRequest;
+    if (lastCodeRequest !== 0 && elapsed < 15_000) {
+      await new Promise((resolve) => setTimeout(resolve, 15_000 - elapsed));
+    }
+    lastCodeRequest = Date.now();
   }
-  lastCodeRequest = Date.now();
-}
 
 test("login page shows the phone form", async ({ page }) => {
   await page.goto("/login");

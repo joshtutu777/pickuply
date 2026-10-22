@@ -1,0 +1,66 @@
+import Link from "next/link";
+import { serviceById, type ServiceId } from "@/lib/constants";
+import type { JobSummary } from "@/lib/data/job-queries";
+import { statusLabel } from "./job-status";
+
+export function JobList({
+  jobs,
+  emptyTitle,
+  emptyCopy,
+  showPricing = false,
+  actionHref = "/request",
+}: {
+  jobs: JobSummary[];
+  emptyTitle: string;
+  emptyCopy: string;
+  showPricing?: boolean;
+  actionHref?: string | null;
+}) {
+  if (jobs.length === 0) {
+    return (
+      <div className="mt-8 rounded-3xl bg-paper-raised p-5 ring-1 ring-line">
+        <h2 className="text-xl font-semibold text-ink">{emptyTitle}</h2>
+        <p className="mt-2 text-base leading-relaxed text-muted">{emptyCopy}</p>
+        {actionHref ? (
+          <Link
+            href={actionHref}
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+          >
+            Get a price
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <ul className="mt-6 grid gap-3">
+      {jobs.map((job) => {
+        const service = serviceById(job.service as ServiceId);
+        const body = (
+          <>
+            <p className="text-lg font-semibold text-ink">{service.name}</p>
+            <p className="text-sm text-muted">{new Date(job.created_at).toLocaleString()}</p>
+            <p className="mt-1 text-base text-ink">{statusLabel(job.status)}</p>
+            {showPricing ? (
+              <p className="text-sm text-muted">
+                {job.pricing_method} · {job.pickup_area}
+              </p>
+            ) : null}
+          </>
+        );
+        return (
+          <li key={job.id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            {showPricing ? (
+              body
+            ) : (
+              <Link href={`/jobs/${job.id}`} className="block min-h-12">
+                {body}
+              </Link>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

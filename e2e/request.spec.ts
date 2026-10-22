@@ -82,15 +82,14 @@ async function fillContact(page: Page, pricing: "quote" | "fixed" | "range") {
   await next(page);
 }
 
-async function agreeAndSave(page: Page) {
+async function agreeAndReachPhone(page: Page) {
   await page.getByRole("checkbox", { name: /late cancel fee/i }).check();
   await page.getByRole("button", { name: "Submit" }).click();
-  await page.getByRole("button", { name: "Save on this device" }).click();
-  await expect(page.getByText("Demo: saved on this device only. Not sent yet.")).toBeVisible();
-  await expect(page.locator("li[aria-current='step']")).toHaveText("Requested");
-  await expect(page.getByText("Confirmed")).toHaveCount(0);
-  await expect(page.getByText("Open for drivers")).toBeVisible();
-  await expect(page.getByText("It has not been quoted, booked, or assigned.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();
+  await expect(page.getByLabel("Mobile number")).toHaveValue("4045551212");
+  await expect(page.getByRole("button", { name: "Text me a code" })).toBeVisible();
+  await expect(page.getByText("Demo: saved on this device only. Not sent yet.")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/request/);
 }
 
 test("deep link preselects junk removal", async ({ page }) => {
@@ -239,7 +238,11 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await expect(page.getByText("Get a quote", { exact: true })).toBeVisible();
 });
 
-test("each service can be saved on this device", async ({ page }) => {
+test("each service reaches phone confirmation without saving a job", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    localStorage.removeItem("pickuply.request-draft");
+  });
   const services = [
     { name: "Pickup & Delivery", service: "delivery" as const },
     { name: "Free-Item Pickups", service: "free_item" as const },
@@ -253,10 +256,10 @@ test("each service can be saved on this device", async ({ page }) => {
     await fillWhere(page, item.service);
     await fillAccess(page);
     await fillContact(page, "quote");
-    await agreeAndSave(page);
-    await expect(page.getByText(item.name).first()).toBeVisible();
-    const stored = await page.evaluate(() => localStorage.getItem("pickuply.jobs") ?? "");
+    await agreeAndReachPhone(page);
+    const stored = await page.evaluate(() => localStorage.getItem("pickuply.request-draft") ?? "");
     expect(stored).not.toContain("10 Secret Street");
+    expect(stored).not.toContain("20 Hidden Avenue");
     expect(stored).not.toContain("4045551212");
     expect(stored).not.toContain("ada@example.com");
   }

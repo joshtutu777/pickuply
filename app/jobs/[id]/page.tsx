@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { JobView } from "@/components/request/job-view";
+import { JobMissing, JobStatus } from "@/components/request/job-status";
+import { getJobDetail } from "@/lib/data/job-queries";
 
 export const metadata: Metadata = {
-  title: "Job status",
+  title: "Request",
 };
 
 export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
@@ -11,7 +12,7 @@ export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
     <Suspense
       fallback={
         <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10 text-lg text-muted">
-          Loading this job.
+          Loading this request.
         </main>
       }
     >
@@ -22,5 +23,7 @@ export default function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
 async function JobEntry({ params }: { params: PageProps<"/jobs/[id]">["params"] }) {
   const { id } = await params;
-  return <JobView id={id} />;
+  const job = await getJobDetail(id);
+  if (!job) return <JobMissing />;
+  return <JobStatus job={job} />;
 }

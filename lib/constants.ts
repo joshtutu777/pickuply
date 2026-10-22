@@ -207,11 +207,9 @@ export const valueApprovalWarning =
 export const privacyAreaNote =
   "Drivers only see your general area until they're assigned.";
 
-export const demoSavedLabel =
-  "Demo: saved on this device only. Not sent yet.";
-
 export const maxPhotos = 8;
 export const photoMaxEdgePx = 1600;
+export const photoMaxBytes = 5 * 1024 * 1024;
 
 export const requestSteps = [
   { id: "service", label: "Service" },
@@ -223,13 +221,3 @@ export const requestSteps = [
 ] as const;
 
 export type RequestStepId = (typeof requestSteps)[number]["id"];
-
-/** Local preview only. The saved status is `requested`. Later labels match the real flow and do not include a Confirmed step. */
-export const demoTimeline = [
-  "Requested",
-  "Quoted",
-  "Open for drivers",
-  "Driver assigned",
-  "Picked up",
-  "Delivered",
-] as const;

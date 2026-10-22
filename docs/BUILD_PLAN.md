@@ -52,6 +52,8 @@ Before each new step, start a **fresh chat** and begin with: *"Read docs/SPEC.md
 ## Step 6 — Customer request form (guest → verified)
 > Build the landing page per SPEC §4.1 and the request form at `/request` per SPEC §4.2. Mobile-first, multi-step (Service → Item → Where → Access & When → Contact). Show a live estimate range from `lib/pricing.ts` (SPEC §7). Save the draft in localStorage. Photos upload to a private `job-photos` bucket. At the end, verify phone with OTP, then call a server route `POST /api/jobs` that validates with zod, creates the `jobs` row (status `requested`) and `job_private` row, saves photos, writes a job event, and returns the job id. Redirect to `/jobs/[id]`.
 
+The form, draft, and estimate shipped earlier. Step 3c (2026-10-22) saves the request with `create_customer_request` in `supabase/migrations/0006_create_customer_request.sql` instead of `POST /api/jobs`. The customer signs in on the request page, then the browser calls that function with the signed-in session. Photos use `attach_request_photo`. `/account` lists the customer's jobs and `/admin` has a read-only list. `0006` is applied on the local database only. Do not apply it to the hosted project until it is approved. See `docs/PROGRESS.md`.
+
 ---
 
 ## Step 7 — Admin: requests inbox and quoting

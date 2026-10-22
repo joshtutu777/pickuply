@@ -21,13 +21,16 @@ import {
   type RequestStepId,
   type ServiceId,
 } from "@/lib/constants";
-import { createRequest } from "@/lib/data/requests";
+import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
+import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
 import { compressImage } from "@/lib/photos";
+import { createClient } from "@/lib/supabase/client";
 import { emptyDraft, type RequestDraft } from "@/lib/types";
 import { validateStep, valueWarning, type FieldErrors } from "@/lib/validation/request";
 import { CheckField, RadioCards, TextAreaField, TextField, YesNo } from "./fields";
@@ -89,6 +92,12 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(boot.formError);
   const [submitting, setSubmitting] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [photoProgress, setPhotoProgress] = useState<Record<string, string>>({});
+  const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     const ids = boot.photoIds;
@@ -115,6 +124,22 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       for (const url of urls) URL.revokeObjectURL(url);
     };
   }, [boot.photoIds]);
+
+  useEffect(() => {
+    if (stepIndex < requestSteps.length) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await createClient().auth.getUser();
+        if (!cancelled) setSignedIn(Boolean(data.user));
+      } catch {
+        if (!cancelled) setSignedIn(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [stepIndex]);
 
   function persist(nextDraft: RequestDraft, nextPhotoIds: string[]) {
     try {
@@ -150,6 +175,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     await Promise.all(photoIds.map((id) => deletePhoto(id).catch(() => undefined)));
     for (const preview of previews) URL.revokeObjectURL(preview.url);
     clearStoredDraft();
+    clearSubmissionId();
     setDraft(emptyDraft(initialService ?? ""));
     setPhotoIds([]);
     setPreviews([]);
@@ -203,7 +229,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (stepIndex >= requestSteps.length) {
-      void saveRequest();
+      if (signedIn) void saveRequest();
+      else if (codeSent) void verifyCode();
+      else void sendCode();
       return;
     }
     const step = requestSteps[stepIndex];
@@ -232,15 +260,100 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     setStepIndex((index) => index + 1);
   }
 
+  async function sendCode() {
+    const phone = normalizeUsPhone(draft.customerPhone);
+    if (!phone) {
+      setOtpError(otpErrorCopy.invalidNumber);
+      return;
+    }
+    setSubmitting(true);
+    setOtpError("");
+    try {
+      const { error } = await createClient().auth.signInWithOtp({
+        phone,
+        options: { channel: "sms" },
+      });
+      if (error) {
+        setOtpError(mapOtpError(error, "send"));
+        return;
+      }
+      setCodeSent(true);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "";
+      const name = caught instanceof Error ? caught.name : "";
+      setOtpError(mapOtpError({ message, name }, "send"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function verifyCode() {
+    const phone = normalizeUsPhone(draft.customerPhone);
+    if (!phone || !/^\d{6}$/.test(code)) {
+      setOtpError("Enter the 6-digit code.");
+      return;
+    }
+    setSubmitting(true);
+    setOtpError("");
+    try {
+      const { error } = await createClient().auth.verifyOtp({
+        phone,
+        token: code,
+        type: "sms",
+      });
+      if (error) {
+        setOtpError(mapOtpError(error, "verify"));
+        setSubmitting(false);
+        return;
+      }
+      setSignedIn(true);
+      await saveRequest();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "";
+      const name = caught instanceof Error ? caught.name : "";
+      setOtpError(mapOtpError({ message, name }, "verify"));
+      setSubmitting(false);
+    }
+  }
+
+  async function reselectPhoto(id: string, list: FileList | null) {
+    const file = list?.[0];
+    if (!file) return;
+    try {
+      const blob = await compressImage(file);
+      await savePhoto(id, blob);
+      setMissingPhotos((current) => current.filter((item) => item !== id));
+      setPreviews((current) => [
+        ...current.filter((item) => item.id !== id),
+        { id, url: URL.createObjectURL(blob) },
+      ]);
+      setPhotoError(null);
+    } catch (error) {
+      setPhotoError(
+        error instanceof Error ? error.message : "This photo couldn't be prepared. Try a JPEG or PNG.",
+      );
+    }
+  }
+
   async function saveRequest() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const job = createRequest(draft, photoIds);
+      const job = await createRequest(draft, photoIds, (photoId, state) => {
+        setPhotoProgress((current) => ({ ...current, [photoId]: state }));
+      });
       clearStoredDraft();
+      clearSubmissionId();
+      await Promise.all(photoIds.map((id) => deletePhoto(id).catch(() => undefined)));
       router.push(`/jobs/${job.id}`);
-    } catch {
-      setFormError("This browser couldn't save the request.");
+    } catch (error) {
+      if (error instanceof RequestSubmitError) {
+        if (error.code === "missing-photo") setMissingPhotos(error.missingPhotoIds);
+        if (error.code === "auth") setSignedIn(false);
+        setFormError(error.message);
+      } else {
+        setFormError("We couldn't save this request. Your draft is still here.");
+      }
       setSubmitting(false);
     }
   }
@@ -298,13 +411,71 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
 
       <form onSubmit={onSubmit} className="mt-6" noValidate>
         {verifying ? (
-          <section>
+          <section className="grid gap-4">
             <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
-              Text verification will be added in a later step
+              Confirm your phone
             </h1>
-            <p className="mt-4 text-lg leading-relaxed text-muted">
-              No text message is sent from this demo. Saving keeps the request on this device only.
+            <p className="text-lg leading-relaxed text-muted">
+              {signedIn
+                ? "You're signed in. Saving keeps this request on your account. It is not booked, and drivers cannot see it yet."
+                : "We'll text a 6-digit code to the number on this request. The rest of the form stays on this page."}
             </p>
+            {!signedIn ? (
+              <>
+                <label className="block" htmlFor="confirm-phone">
+                  <span className="text-base font-semibold text-ink">Mobile number</span>
+                  <input
+                    id="confirm-phone"
+                    readOnly
+                    value={draft.customerPhone}
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink"
+                  />
+                </label>
+                {codeSent ? (
+                  <label className="block" htmlFor="confirm-code">
+                    <span className="text-base font-semibold text-ink">6-digit code</span>
+                    <input
+                      id="confirm-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink"
+                    />
+                  </label>
+                ) : null}
+                {codeSent && normalizeUsPhone(draft.customerPhone) ? (
+                  <p className="text-base text-ink">{codeSentMessage(draft.customerPhone)}</p>
+                ) : null}
+              </>
+            ) : null}
+            {otpError ? (
+              <p role="alert" className="text-sm font-medium text-danger">
+                {otpError}
+              </p>
+            ) : null}
+            {photoIds.length > 0 ? (
+              <ul className="grid gap-3">
+                {photoIds.map((id) => (
+                  <li key={id} className="rounded-2xl bg-paper-raised px-4 py-3 ring-1 ring-line">
+                    <p className="font-semibold text-ink">
+                      Photo {photoProgress[id] === "done" ? "saved" : photoProgress[id] === "uploading" ? "uploading" : "waiting"}
+                    </p>
+                    {missingPhotos.includes(id) ? (
+                      <label className="mt-2 block text-sm font-semibold text-ink">
+                        Choose this photo again
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="mt-2 block w-full"
+                          onChange={(event) => void reselectPhoto(id, event.target.files)}
+                        />
+                      </label>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
         ) : null}
 
@@ -609,8 +780,18 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               Back
             </button>
           ) : null}
-          <button type="submit" className={primaryButton} disabled={submitting}>
-            {submitting ? "Saving…" : verifying ? "Save on this device" : step.id === "review" ? "Submit" : "Next"}
+          <button type="submit" className={primaryButton} disabled={submitting || (verifying && signedIn === null)}>
+            {submitting
+              ? "Saving…"
+              : verifying
+                ? signedIn
+                  ? "Save request"
+                  : codeSent
+                    ? "Verify and continue"
+                    : "Text me a code"
+                : step.id === "review"
+                  ? "Submit"
+                  : "Next"}
           </button>
         </div>
         <div className="h-28 sm:hidden" aria-hidden="true" />
