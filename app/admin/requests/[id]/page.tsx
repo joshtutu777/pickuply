@@ -7,6 +7,7 @@ import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
+import { AdminOverride } from "@/components/admin/admin-override";
 import { statusLabel } from "@/components/request/job-status";
 import { requireAdmin } from "@/lib/auth/session";
 import { serviceById, type ServiceId } from "@/lib/constants";
@@ -131,6 +132,7 @@ async function RequestDetail({
         </form>
       ) : null}
       {job.status === "disputed" ? <DisputeResolution jobId={id} /> : null}
+      <AdminOverride jobId={id} />
       {job.status === "requested" || job.status === "in_review" ? (
         <ReviewRequestForm
           jobId={id}

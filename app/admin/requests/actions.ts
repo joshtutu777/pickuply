@@ -48,6 +48,21 @@ export async function inviteDriver(formData: FormData) {
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 
+export async function overrideJobStatus(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const nextStatus = String(formData.get("nextStatus") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_override_status", {
+    target_job: jobId,
+    next_status: nextStatus,
+    reason,
+  });
+  if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The status could not be changed.")}`);
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
 export async function saveSettings(formData: FormData) {
   await connection();
   const supabase = await createClient();

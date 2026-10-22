@@ -18,3 +18,47 @@ export async function respondToQuote(formData: FormData) {
   }
   redirect(`/jobs/${jobId}`);
 }
+
+function stepError(message: string | undefined): string {
+  const text = message ?? "";
+  const known = [
+    "only the customer can approve the item",
+    "the item is not ready for approval",
+    "this job is on hold",
+    "the pickup photo is not ready",
+    "add a short reason",
+    "only the customer can reject the item",
+    "the item is not ready for a decision",
+    "only the customer can confirm delivery",
+    "this job is not delivered yet",
+    "payment is on hold",
+  ];
+  return known.find((item) => text.includes(item)) ?? "That step is not available.";
+}
+
+export async function decidePickup(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const supabase = await createClient();
+  const result =
+    decision === "reject"
+      ? await supabase.rpc("reject_pickup", { target_job: jobId, reason })
+      : await supabase.rpc("approve_pickup", { target_job: jobId });
+  if (result.error) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
+  }
+  redirect(`/jobs/${jobId}`);
+}
+
+export async function confirmDelivery(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const supabase = await createClient();
+  const result = await supabase.rpc("confirm_delivery", { target_job: jobId });
+  if (result.error) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
+  }
+  redirect(`/jobs/${jobId}`);
+}

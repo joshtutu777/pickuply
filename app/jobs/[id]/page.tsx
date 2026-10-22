@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { PayPanel } from "@/components/request/pay-panel";
+import { ConfirmDelivery, ItemDecision } from "@/components/request/item-decision";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
 import { ProofGallery } from "@/components/request/proof-gallery";
@@ -117,6 +118,10 @@ async function JobEntry({
           windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
           returning={query.paid === "return"}
         />
+      ) : null}
+      {session?.role === "customer" && job.status === "item_check" ? <ItemDecision jobId={id} /> : null}
+      {session?.role === "customer" && job.status === "delivered" ? (
+        <ConfirmDelivery jobId={id} confirmed={job.customer_confirmed_at != null} />
       ) : null}
     </>
   );
