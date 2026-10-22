@@ -85,5 +85,10 @@ export default defineConfig({
       use: { ...devices["Pixel 5"] },
       testMatch: /admin-dashboard\.spec\.ts/,
     },
+    {
+      name: "local-signup",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /signup-flow\.spec\.ts/,
+    },
   ],
 });

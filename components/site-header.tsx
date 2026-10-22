@@ -55,7 +55,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
               Log in
             </Link>
           )}
-          <Link href="/driver/onboarding" className={navLink}>
+          <Link href="/drive" className={navLink}>
             Drive with us
           </Link>
         </nav>

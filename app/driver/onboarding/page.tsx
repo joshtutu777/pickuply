@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { OnboardingForm } from "@/components/driver/onboarding-form";
 import { LoadingMain } from "@/components/loading-main";
@@ -38,9 +39,15 @@ async function OnboardingContent({
       .maybeSingle(),
   ]);
 
-  const waiting = driver?.status === "pending_review" && submitted;
+  const approved =
+    session.role === "driver" ||
+    driver?.status === "active" ||
+    driver?.status === "approved_new" ||
+    driver?.status === "paused";
+  if (approved) redirect("/driver");
+
+  const waiting = driver?.status === "pending_review" && (submitted || !driver.review_note);
   const closed = driver?.status === "removed";
-  const approved = driver?.status === "active" || driver?.status === "approved_new";
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -56,20 +63,12 @@ async function OnboardingContent({
           </Link>
         </div>
       ) : null}
-      {approved ? (
-        <p className="mt-6 text-base leading-relaxed text-ink">
-          Your driver account is approved.{" "}
-          <Link href="/driver" className="font-semibold text-brand">
-            Go to driver home
-          </Link>
-        </p>
-      ) : null}
       {closed ? (
         <p className="mt-6 text-base leading-relaxed text-ink">
           This application was closed. You can submit it again below if something changed.
         </p>
       ) : null}
-      {!waiting && !approved ? (
+      {!waiting ? (
         <OnboardingForm
           userId={session.userId}
           zones={zones ?? []}

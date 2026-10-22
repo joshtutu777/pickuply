@@ -6,6 +6,7 @@ import {
   continueDestination,
   decideAccess,
   roleHome,
+  safeIntent,
   safeNextParam,
   type AccessDecision,
   type AccessState,
@@ -102,6 +103,17 @@ test("a named person leaves login and is limited to their role", () => {
   assert.equal(namedNext.searchParams.get("next"), "/driver");
   assert.equal(redirectTo("/login/name", ready("driver")), "/auth/continue");
   assert.equal(redirectTo("/login", ready("customer"), "?next=https://evil.example"), "/auth/continue");
+  const driverIntent = new URL(
+    redirectTo("/login", ready("customer"), "?next=/driver/onboarding&intent=driver"),
+    "http://local",
+  );
+  assert.equal(driverIntent.pathname, "/auth/continue");
+  assert.equal(driverIntent.searchParams.get("next"), "/driver/onboarding");
+  assert.equal(driverIntent.searchParams.get("intent"), "driver");
+  assert.equal(
+    new URL(redirectTo("/login", ready("customer"), "?intent=not-real"), "http://local").searchParams.get("intent"),
+    null,
+  );
 
   assert.equal(redirectTo("/admin", ready("customer")), "/account?error=forbidden");
   assert.equal(redirectTo("/admin/jobs", ready("driver")), "/driver?error=forbidden");
@@ -135,6 +147,16 @@ test("continue drops external and forbidden destinations", () => {
   assert.equal(continueDestination("customer", "/login"), "/account");
   assert.equal(continueDestination("customer", "/auth/continue"), "/account");
   assert.equal(continueDestination("admin", null), "/admin");
+  assert.equal(continueDestination("customer", "/driver/onboarding", "driver"), "/driver/onboarding");
+  assert.equal(continueDestination("customer", null, "driver"), "/driver/onboarding");
+  assert.equal(continueDestination("driver", "/driver/onboarding", "driver"), "/driver");
+  assert.equal(continueDestination("driver", "/account", "driver"), "/driver");
+  assert.equal(continueDestination("customer", "/account", "driver"), "/account");
+  assert.equal(continueDestination("admin", "/driver/onboarding", "driver"), "/driver/onboarding");
+  assert.equal(continueDestination("customer", "https://evil.example", "not-a-driver"), "/account");
+  assert.equal(safeIntent("driver"), "driver");
+  assert.equal(safeIntent("admin"), null);
+  assert.equal(safeIntent("driver/../admin"), null);
   assert.equal(safeNextParam("//evil.example"), null);
   assert.equal(safeNextParam("/account?error=forbidden"), "/account?error=forbidden");
 });

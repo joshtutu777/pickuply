@@ -45,6 +45,28 @@ export function safeNextParam(value: string | null | undefined): string | null {
   return safe;
 }
 
+const SIGN_IN_INTENTS = new Set(["driver"]);
+
+/** Only known sign-in reasons change the login screen. Anything else is ignored. */
+export function safeIntent(value: string | null | undefined): "driver" | null {
+  if (typeof value !== "string" || !SIGN_IN_INTENTS.has(value)) return null;
+  return "driver";
+}
+
+export function authLocation(
+  pathname: string,
+  next: string | null | undefined,
+  intent: string | null | undefined,
+): string {
+  const params = new URLSearchParams();
+  const safeNext = safeNextParam(next);
+  const safe = safeIntent(intent);
+  if (safeNext) params.set("next", safeNext);
+  if (safe) params.set("intent", safe);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 export function decideAccess(input: {
   pathname: string;
   search?: string;
@@ -72,22 +94,30 @@ export function decideAccess(input: {
 
   if (input.state.status === "needs-name") {
     if (matches(pathname, "/login/name")) return { type: "allow" };
-    if (pathname === "/login") return redirect(withNext("/login/name", safeNextParam(rawNext(search))));
+    if (pathname === "/login") return redirect(withAuth("/login/name", search));
     if (isProtected(pathname)) return redirect(withNext("/login/name", nextFromHere(pathname, search)));
     return { type: "allow" };
   }
 
   if (pathname === "/login" || matches(pathname, "/login/name")) {
-    return redirect(withNext("/auth/continue", safeNextParam(rawNext(search))));
+    return redirect(withAuth("/auth/continue", search));
   }
 
   return roleGate(pathname, input.state.role);
 }
 
-export function continueDestination(role: Role, next: string | null | undefined): string {
+export function continueDestination(
+  role: Role,
+  next: string | null | undefined,
+  intent?: string | null,
+): string {
   const safe = safeNextParam(next);
+  const driverIntent = safeIntent(intent) === "driver";
+  const path = safe ? stripTrailingSlash(pathOnly(safe)) : "";
+  const onboarding = path === "/driver/onboarding" || path.startsWith("/driver/onboarding/");
+  if (role === "driver" && (driverIntent || onboarding)) return "/driver";
+  if (driverIntent && role !== "admin" && (!safe || onboarding)) return "/driver/onboarding";
   if (!safe) return roleHome(role);
-  const path = stripTrailingSlash(pathOnly(safe));
   const decision = roleGate(path, role);
   if (decision.type === "redirect") return decision.location;
   return safe;
@@ -95,9 +125,10 @@ export function continueDestination(role: Role, next: string | null | undefined)
 
 function continueRouteDecision(search: string, state: AccessState): AccessDecision {
   const next = safeNextParam(rawNext(search));
-  if (state.status === "anonymous") return redirect(withNext("/login", next));
+  const intent = safeIntent(rawParam(search, "intent"));
+  if (state.status === "anonymous") return redirect(authLocation("/login", next, intent));
   if (state.status === "missing-profile") return redirect("/login?error=profile");
-  if (state.status === "needs-name") return redirect(withNext("/login/name", next));
+  if (state.status === "needs-name") return redirect(authLocation("/login/name", next, intent));
   return { type: "allow" };
 }
 
@@ -121,10 +152,18 @@ function currentLocation(pathname: string, search: string): string | null {
   return safeReturnPath(`${pathname}${query}`) ?? safeReturnPath(pathname);
 }
 
-function rawNext(search: string): string | null {
+function rawParam(search: string, name: string): string | null {
   if (!search) return null;
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
-  return params.get("next");
+  return params.get(name);
+}
+
+function rawNext(search: string): string | null {
+  return rawParam(search, "next");
+}
+
+function withAuth(pathname: string, search: string): string {
+  return authLocation(pathname, safeNextParam(rawNext(search)), safeIntent(rawParam(search, "intent")));
 }
 
 function withNext(pathname: string, next: string | null): string {

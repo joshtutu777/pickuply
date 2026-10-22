@@ -70,7 +70,7 @@ test("local marketplace assignment does not charge or reveal the address", async
 
   await driver.page.goto(`/driver/jobs/${fixedId}`);
   await expect(driver.page.getByText("100 Market Street, Austell, GA 30168")).toBeVisible();
-  await expect(driver.page.getByText("awaiting payment")).toBeVisible();
+  await expect(driver.page.getByText("Payment: awaiting payment")).toBeVisible();
 
   await driver2.page.goto("/driver");
   await expect(driver2.page.getByText("Austell 30168")).toHaveCount(0);
@@ -352,6 +352,7 @@ function jobPayment(jobId: string) {
 function resetLocalPeople() {
   const phones = "('15555550123', '+15555550123', '15555550124', '+15555550124', '15555550125', '+15555550125', '15555550126', '+15555550126')";
   localSql(`
+    alter table public.job_photos disable trigger job_photos_lock;
     delete from public.job_events
     where actor_id in (select id from auth.users where phone in ${phones})
       or job_id in (
@@ -366,6 +367,12 @@ function resetLocalPeople() {
     where driver_id in (select id from auth.users where phone in ${phones});
     delete from public.driver_bank_payouts
     where driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.job_photos
+    where job_id in (
+      select id from public.jobs
+      where customer_id in (select id from auth.users where phone in ${phones})
+        or assigned_driver_id in (select id from auth.users where phone in ${phones})
+    );
     delete from public.jobs
     where customer_id in (select id from auth.users where phone in ${phones})
       or assigned_driver_id in (select id from auth.users where phone in ${phones});
@@ -375,6 +382,7 @@ function resetLocalPeople() {
     delete from public.profiles
     where id in (select id from auth.users where phone in ${phones});
     delete from auth.users where phone in ${phones};
+    alter table public.job_photos enable trigger job_photos_lock;
   `);
 }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { NameForm } from "@/app/login/name/name-form";
 import { LoadingMain } from "@/components/loading-main";
-import { safeNextParam } from "@/lib/auth/access";
+import { authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function NamePage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; intent?: string | string[] }>;
 }) {
   return (
     <Suspense fallback={<LoadingMain />}>
@@ -25,12 +25,14 @@ export default function NamePage({
 async function NameContent({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; intent?: string | string[] }>;
 }) {
   const params = await searchParams;
   const next = safeNextParam(singleQuery(params.next));
-  const search = next ? `?${new URLSearchParams({ next }).toString()}` : "";
-  await requireSignedIn("/login/name", search);
+  const intent = safeIntent(singleQuery(params.intent));
+  const located = authLocation("/login/name", next, intent);
+  const signedInSearch = located.startsWith("/login/name?") ? located.slice("/login/name".length) : "";
+  await requireSignedIn("/login/name", signedInSearch);
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -41,7 +43,7 @@ async function NameContent({
       <p className="mt-4 text-lg leading-relaxed text-muted">
         Enter your full name. We&apos;ll ask again the next time you sign in until it is saved.
       </p>
-      <NameForm next={next ?? ""} />
+      <NameForm next={next ?? ""} intent={intent ?? ""} />
     </main>
   );
 }

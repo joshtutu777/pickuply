@@ -28,8 +28,8 @@ export default function HomePage() {
               <Link href="/request" className={primaryAction}>
                 Get a price
               </Link>
-              <Link href="/driver/onboarding" className={secondaryAction}>
-                Have a truck? Drive with Pickuply
+              <Link href="/drive" className={secondaryAction}>
+                Drive with us
               </Link>
             </div>
           </div>

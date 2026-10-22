@@ -11,9 +11,11 @@ export const smsConsentDisclosure =
 export function SmsConsent({
   checked,
   onChange,
+  showDisclosure = true,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  showDisclosure?: boolean;
 }) {
   return (
     <section
@@ -24,16 +26,20 @@ export function SmsConsent({
       <h2 id="sms-consent-heading" className="text-base font-semibold text-ink">
         Text messages
       </h2>
-      <p className="text-sm leading-relaxed text-muted">{smsConsentDisclosure}</p>
-      <p className="text-sm leading-relaxed text-muted">
-        <Link href="/privacy" className="font-semibold text-brand underline underline-offset-4">
-          Privacy Policy
-        </Link>{" "}
-        and{" "}
-        <Link href="/terms" className="font-semibold text-brand underline underline-offset-4">
-          Terms of Service
-        </Link>
-      </p>
+      {showDisclosure ? (
+        <>
+          <p className="text-sm leading-relaxed text-muted">{smsConsentDisclosure}</p>
+          <p className="text-sm leading-relaxed text-muted">
+            <Link href="/privacy" className="font-semibold text-brand underline underline-offset-4">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="font-semibold text-brand underline underline-offset-4">
+              Terms of Service
+            </Link>
+          </p>
+        </>
+      ) : null}
       <label className="flex min-h-12 items-start gap-3 text-base leading-relaxed text-ink">
         <input
           className="mt-1"
@@ -44,6 +50,22 @@ export function SmsConsent({
         I agree to receive SMS booking and service notifications from Pickuply.
       </label>
     </section>
+  );
+}
+
+export function SignInSmsNotice() {
+  return (
+    <p className="text-sm leading-relaxed text-muted">
+      We&apos;ll text you a sign-in code. Message and data rates may apply. Reply STOP to opt out.{" "}
+      <Link href="/terms" className="font-semibold text-brand underline underline-offset-4">
+        SMS terms
+      </Link>
+      {" and "}
+      <Link href="/privacy" className="font-semibold text-brand underline underline-offset-4">
+        Privacy Policy
+      </Link>
+      .
+    </p>
   );
 }
 
