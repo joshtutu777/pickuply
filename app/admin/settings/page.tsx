@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
-import { saveSmsSetting } from "@/app/admin/settings/actions";
+import { saveSmsSetting, saveSupportContact } from "@/app/admin/settings/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -33,6 +33,8 @@ async function SettingsContent({
     service_fixed_cents: 30,
     payment_due_minutes: 30,
     sms_enabled: false,
+    support_phone: null,
+    support_email: null,
   };
 
   return (
@@ -114,6 +116,36 @@ async function SettingsContent({
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
         >
           Save text setting
+        </button>
+      </form>
+      <form action={saveSupportContact} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Support contact</h2>
+        <p className="text-base text-muted">
+          Shown on the support page. Leave blank until you have a number or email.
+        </p>
+        <label className="block text-base font-semibold" htmlFor="supportPhone">
+          Support phone (+1 and 10 digits)
+          <input
+            id="supportPhone"
+            name="supportPhone"
+            defaultValue={settings.support_phone ?? ""}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="supportEmail">
+          Support email
+          <input
+            id="supportEmail"
+            name="supportEmail"
+            defaultValue={settings.support_email ?? ""}
+            className={controlClass}
+          />
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save support contact
         </button>
       </form>
     </main>

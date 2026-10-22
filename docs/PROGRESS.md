@@ -325,6 +325,7 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0014_sms_consent.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Optional SMS consent is a separate unchecked checkbox. A phone number is not consent. |
 | `supabase/migrations/0015_job_tracker.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Customers see only the assigned driver's first name, profile photo, and vehicle. Notifications move to 0016. |
 | `supabase/migrations/0016_notifications.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Texting stays off until an admin enables it. |
+| `supabase/migrations/0017_messages.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Messages cannot contain a phone number or email. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -414,3 +415,9 @@ The request page, each active account card, and the assigned driver's job page s
 Each person gets an in-app alert list with an unread count in the header. A database trigger writes the alert when a request, quote, offer, assignment, payment, or job step changes. Online drivers in the job's zone are told about a new open job. Admins are told about new requests, driver applications, no offers after 20 minutes, and a missed payment deadline. The 20-minute and payment checks run from `/api/cron/notifications` every five minutes and require `CRON_SECRET`. Push uses a service worker and VAPID keys. Email uses Resend when `RESEND_API_KEY` and `RESEND_FROM` are set. Texting has a Twilio path, but `sms_enabled` defaults to off and an admin has to turn it on. The copy-ready admin text on a request is unchanged. No-show alerts are not part of this step.
 
 `0016_notifications.sql` is local only.
+
+## Step 6c — messages (2026-10-22)
+
+A job conversation opens when a driver is assigned and closes 24 hours after the job is completed. The customer, the assigned driver, and an admin can read and post. The screen checks for a phone number or email and will not send one. Drivers get four quick replies. Contact support on a job, the account page, and the driver job page opens one support thread and shows the support phone and email from settings when those are saved. The admin dashboard lists open threads with unread counts. New messages create an in-app alert that does not include the message text.
+
+`0017_messages.sql` is local only. Proof and reports are planned as `0018`.

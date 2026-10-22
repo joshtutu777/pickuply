@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
+import { JobMessages } from "@/components/messages/job-messages";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
@@ -76,6 +78,14 @@ async function JobEntry({
         })}
         driver={driver}
       />
+      <div className="mx-auto w-full max-w-xl px-4">
+        <JobMessages jobId={id} />
+        <p className="mt-4">
+          <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Contact support
+          </Link>
+        </p>
+      </div>
       {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
     </>
   );

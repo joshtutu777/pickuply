@@ -36,6 +36,9 @@ async function AccountContent({
         <Link href="/account/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Alerts
         </Link>
+        <Link href="/support" className="ml-4 inline-flex min-h-12 items-center font-semibold text-brand">
+          Contact support
+        </Link>
       </p>
       {singleQuery(params.error) === "forbidden" ? (
         <p role="alert" className="mt-4 text-base font-medium text-danger">

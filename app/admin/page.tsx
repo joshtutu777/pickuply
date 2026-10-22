@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { RefreshButton } from "@/components/admin/admin-refresh";
+import { AdminMessageList } from "@/components/admin/admin-messages";
 import { BadgeChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
 import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
@@ -142,6 +143,8 @@ async function Overview() {
             </ul>
           )}
         </section>
+
+        <AdminMessageList />
 
         <section className="order-2 md:order-1" aria-labelledby="summary-heading">
           <h2 id="summary-heading" className="font-display text-3xl font-semibold text-ink">

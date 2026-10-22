@@ -14,3 +14,15 @@ export async function saveSmsSetting(formData: FormData) {
   revalidatePath("/admin/settings");
   redirect(error ? "/admin/settings?error=Could%20not%20save%20text%20messages" : "/admin/settings?saved=1");
 }
+
+export async function saveSupportContact(formData: FormData) {
+  await requireAdmin("/admin/settings");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_support_contact", {
+    phone: String(formData.get("supportPhone") ?? ""),
+    email: String(formData.get("supportEmail") ?? ""),
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/support");
+  redirect(error ? "/admin/settings?error=Could%20not%20save%20support%20contact" : "/admin/settings?saved=1");
+}

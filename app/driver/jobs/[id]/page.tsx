@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { advanceJob } from "@/app/driver/jobs/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { JobTrackerView } from "@/components/request/job-tracker";
+import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
 import { buildJobTracker, nextDriverAction } from "@/lib/jobs/tracker";
@@ -121,6 +122,12 @@ async function DriverJob({
           </button>
         </form>
       ) : null}
+      <JobMessages jobId={job.id} showQuickReplies />
+      <p className="mt-4">
+        <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Contact support
+        </Link>
+      </p>
       <Link href="/driver" className="mt-6 inline-flex min-h-12 items-center font-semibold text-brand">
         Driver home
       </Link>
