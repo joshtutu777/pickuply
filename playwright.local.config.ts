@@ -90,5 +90,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /signup-flow\.spec\.ts/,
     },
+    {
+      name: "local-quote",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /quote-workflow\.spec\.ts/,
+    },
   ],
 });

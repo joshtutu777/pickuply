@@ -206,7 +206,12 @@ async function signIn(page: Page, phone: string, otp: string) {
 }
 
 async function signInOnPage(page: Page, phone: string, otp: string) {
-  await page.getByLabel("Mobile number").fill(phone);
+  await page.waitForFunction(() =>
+    Object.keys(document.querySelector("#phone") ?? {}).some((key) => key.startsWith("__react")),
+  );
+  const phoneInput = page.locator("#phone");
+  await phoneInput.fill(phone);
+  await expect(phoneInput).toHaveValue(phone);
   await waitForCodeWindow();
   await page.getByRole("button", { name: "Text me a code" }).click();
   await expect(page.getByText(/Enter the 6-digit code for \(•••\) •••-\d{4}\./)).toBeVisible();

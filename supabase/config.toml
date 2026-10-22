@@ -265,7 +265,9 @@ template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
 max_frequency = "5s"
 
-# Local only. These numbers never send a text. 5555550199 is the dedicated driver signup test.
+# Local only. These numbers never send a text.
+# 5555550199 is the dedicated driver signup test.
+# 5555550177 is Robin Returning. 5555550188 is Nova Customer.
 [auth.sms.test_otp]
 5555550123 = "101123"
 15555550123 = "101123"
@@ -275,6 +277,10 @@ max_frequency = "5s"
 15555550125 = "101125"
 5555550126 = "101126"
 15555550126 = "101126"
+5555550177 = "101177"
+15555550177 = "101177"
+5555550188 = "101188"
+15555550188 = "101188"
 5555550199 = "101199"
 15555550199 = "101199"
 
