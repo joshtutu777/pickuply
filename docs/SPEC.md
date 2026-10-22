@@ -178,7 +178,7 @@ Job cards show structured fields only: service, size, pieces, approximate pickup
 - **Admin-priced jobs** (Get a quote): **Accept** calls a single database function that atomically assigns the job only if it is still `open` and the driver is eligible and Online. Anyone else gets "Job already taken."
 - **Fixed-price jobs:** driver taps **Accept $X**, which creates an offer at that price, or **Counter** with a new amount and a required reason (for example, "3 flights of stairs not mentioned"). Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
 - **Budget-range jobs:** driver taps **Offer** with an amount inside the range, or **Counter** outside it with a required reason. Offers outside the range are stored with `outside_range`. The customer chooses the offer.
-- Drivers enter **their own earnings**; the customer sees that amount plus the platform fee. Drivers always see exactly what they'll earn.
+- Drivers enter **their own earnings** on a counter or range offer. The app adds the platform fee and the service fee and shows the customer total. A Fixed Accept keeps the posted total and shows the driver their earnings before they accept. Drivers always see exactly what they'll earn.
 - Limits: one active offer per driver per job (they can withdraw and resubmit once); counters can't exceed 2× the customer's fixed price or range max; offers expire after 2 hours.
 - Only **Online**, eligible drivers can accept or offer. Final assignment uses the same atomic database function, so only one driver can be assigned.
 - After booking, any price change requires a request in the app and the other party's approval. Drivers can never charge unilaterally.

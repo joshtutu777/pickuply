@@ -474,10 +474,10 @@ begin
   if job_row.pricing_method <> 'quote' or job_row.status <> 'quoted' then
     raise exception 'this job is not waiting for quote acceptance';
   end if;
-  if job_row.price_cents is null or job_row.driver_pay_cents is null or job_row.service_fee_cents is null then
+  if job_row.price_cents is null or job_row.driver_pay_cents is null then
     raise exception 'the admin quote is incomplete';
   end if;
-  if job_row.quote_expires_at is null or job_row.quote_expires_at <= now() then
+  if job_row.quote_expires_at is not null and job_row.quote_expires_at <= now() then
     raise exception 'this quote has expired';
   end if;
 

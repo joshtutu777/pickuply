@@ -414,9 +414,9 @@ select is(
   'a quoted job is not in the feed'
 );
 select is(
-  (select count(*)::int from storage.objects where bucket_id = 'job-photos'),
+  (select count(*)::int from storage.objects where bucket_id = 'job-photos' and name like '%/pickup/%'),
   0,
-  'a browsing driver cannot read request or pickup photos'
+  'a browsing driver cannot read pickup photos'
 );
 select lives_ok(
   $$insert into public.job_offers (job_id, driver_id, kind, driver_amount_cents, platform_fee_cents, customer_total_cents, outside_range)

@@ -28,19 +28,17 @@ export function ReviewRequestForm({
   needsConfirm: boolean;
 }) {
   const [driverPay, setDriverPay] = useState("");
-  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
   const cents = parseDollarsToCents(driverPay);
+  const shown = breakdown && breakdown.cents === cents ? breakdown.body : null;
 
   useEffect(() => {
-    if (!cents || cents <= 0) {
-      setBreakdown(null);
-      return;
-    }
+    if (!cents || cents <= 0) return;
     let cancelled = false;
     void createClient()
       .rpc("price_breakdown", { mode: "forward", amount_cents: cents })
       .then(({ data }) => {
-        if (!cancelled) setBreakdown((data as Breakdown | null) ?? null);
+        if (!cancelled && data) setBreakdown({ cents, body: data as Breakdown });
       });
     return () => {
       cancelled = true;
@@ -101,13 +99,13 @@ export function ReviewRequestForm({
               className={controlClass}
             />
           </label>
-          {breakdown ? (
+          {shown ? (
             <div className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
-              <p>Driver pay {formatCents(breakdown.driver_earnings_cents)}</p>
-              <p>Platform fee {formatCents(breakdown.platform_fee_cents)}</p>
-              <p>Subtotal {formatCents(breakdown.subtotal_cents)}</p>
-              <p>Service fee {formatCents(breakdown.service_fee_cents)}</p>
-              <p className="font-semibold">Customer total {formatCents(breakdown.customer_total_cents)}</p>
+              <p>Driver pay {formatCents(shown.driver_earnings_cents)}</p>
+              <p>Platform fee {formatCents(shown.platform_fee_cents)}</p>
+              <p>Subtotal {formatCents(shown.subtotal_cents)}</p>
+              <p>Service fee {formatCents(shown.service_fee_cents)}</p>
+              <p className="font-semibold">Customer total {formatCents(shown.customer_total_cents)}</p>
             </div>
           ) : null}
           <label className="block text-base font-semibold text-ink" htmlFor="preferredDate">

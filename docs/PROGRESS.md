@@ -356,3 +356,13 @@ Signed-in people can apply at `/driver/onboarding`. The save stays on their acco
 ## Step 4c — driver feed (2026-10-22)
 
 Approved drivers use `/driver` to go Online or Offline and to browse `driver_job_feed`. Online requires an approved status, unexpired license and insurance, and an approved vehicle. Browsing works while Offline. `approved_new` drivers only see invited jobs. Request-stage photos are readable only when `driver_is_eligible_for_job` is true. An admin can invite a driver from the open request. Local migration only.
+
+## Step 4d — claims, offers, and payment status (2026-10-22)
+
+A driver claims an open quote job, or a customer chooses one fixed or range offer. Either step assigns one driver and sets `payment_status` to `awaiting_payment` with `payment_due_at`. Nothing is charged. The original posted price or range stays. Stored cents are driver earnings, platform fee, service fee, and customer total, and they add up to the total. Work cannot move to `en_route` until payment is `authorized` or `paid`. The assigned driver can open the street address. Everyone else cannot.
+
+**This workflow is not launch-ready until Step 5 payments.** Step 5 still has to collect the card, release an unpaid assignment when `payment_due_at` passes, and capture after delivery. Service-fee wording and card-surcharge rules need a review before launch.
+
+Local pgTAP: `0001` 68, `0006` 51, `0010_step4` 32. Files=3, Tests=151, Result: PASS. The old pickup-photo assertion now checks pickup photos only, because eligible drivers can read request-stage photos. Migrations `0007` through `0012` are local only. They were not applied to the hosted project.
+
+One cent on the written $35 example: half-up rounding of 2.9% of 3500 cents is 102, not 101. The posted $35 stays $35. Driver earnings are $23.68, the platform fee is $10.00, and the service fee is $1.32. The $150, $60, and $120 examples match the written figures.
