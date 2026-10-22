@@ -31,7 +31,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-# .env* ignores .env.local. The example file is committed on purpose.
+# .env* ignores .env.local and .env.test. The example file is committed on purpose.
 .env*
 !.env.local.example
 

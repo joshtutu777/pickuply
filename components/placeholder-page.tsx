@@ -1,13 +1,17 @@
+import { ForbiddenAlert } from "@/components/forbidden-alert";
+
 type PlaceholderPageProps = {
   eyebrow: string;
   title: string;
   description: string;
+  forbidden?: boolean;
 };
 
 export function PlaceholderPage({
   eyebrow,
   title,
   description,
+  forbidden = false,
 }: PlaceholderPageProps) {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -18,6 +22,7 @@ export function PlaceholderPage({
         {title}
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">{description}</p>
+      {forbidden ? <ForbiddenAlert /> : null}
     </main>
   );
 }

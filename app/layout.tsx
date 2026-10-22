@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import { Suspense } from "react";
+import { HeaderSession } from "@/components/header-session";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -44,7 +46,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
-        <SiteHeader />
+        <Suspense fallback={<SiteHeader state={{ status: "signed-out" }} />}>
+          <HeaderSession />
+        </Suspense>
         {children}
         <SiteFooter />
       </body>

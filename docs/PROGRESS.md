@@ -192,3 +192,54 @@ Nothing is applied on the hosted project, so there is nothing to roll back there
 - The $15 / $25 / $250 wording still needs business and legal review.
 - Cursor rules remain in `docs/.cursor/rules/`, so Cursor may not apply them automatically.
 - `npm install` reported 5 high severity vulnerabilities. They were not changed.
+
+## Step 3b — Phone sign-in, profiles, and protected pages (2026-10-21)
+
+Phone sign-in uses the browser anon client only. There is still no service-role client. Migrations `0001` and `0002` were not edited. The request form, pricing copy, and demo job page were not changed. Nothing was committed, pushed, or applied. The admin promotion SQL was not run.
+
+### What was built
+
+- Safe return paths accept one internal path that starts with a single `/`. After decoding, `//`, `\`, `:`, hosts, whitespace, control characters, `@`, and double-encoding are rejected.
+- Access decisions are pure. Customers land on `/account`, drivers on `/driver`, admins on `/admin`. Protected routes are `/account`, `/driver`, `/admin`, and `/login/name` (exact or a trailing subpath; `/administrator` is not `/admin`). Signed-out visitors go to `/login?next=`. A signed-in user with a blank name stays on `/login/name` until the name is saved. `/admin` is admins only. Anyone else is sent to their role home with `?error=forbidden`. `/driver` and `/driver/onboarding` stay open to any signed-in user who has a name. A missing profile fails closed.
+- The session helper reads `getUser()`, then `profiles.role` and `full_name` for that id. Role never comes from user metadata. Missing env returns null so the public form still loads.
+- The proxy skips static files, `sw.js`, the web manifest, and `icons/`. After the session refresh it applies the access decision and copies Supabase cookie options onto redirects. It does not log.
+- `/login` texts a code with `signInWithOtp` (`channel: 'sms'`) and checks it with `verifyOtp` (`type: 'sms'`). Every number gets the same copy. After a successful send the page says exactly `Enter the 6-digit code for (•••) •••-1234`. Provider errors are mapped and never echoed. Resend waits 30 seconds. A good code does a full navigation to `/auth/continue`.
+- `/login/name` requires a full name (1–80 characters: letters, spaces, apostrophes, periods, hyphens). The server action updates only `full_name` on the signed-in user's own profile row.
+- The header shows Log in when signed out. When signed in it shows the first name (omitted when blank) and Sign out. Sign out clears the browser session and the server cookies, then lands on `/`. Get a price and Drive with us stay. Drive with us still points at `/driver/onboarding`.
+- `/account` still says the customer dashboard is not built, and shows “You don't have access to that page.” when `error=forbidden`. `/admin` stays a placeholder for admins. Drivers see the existing driver-home placeholder. Other signed-in roles see a Become a driver message and a link to `/driver/onboarding`.
+- `supabase/manual/promote-admin.sql` is a manual script, not a migration. The placeholder `+1XXXXXXXXXX` fails closed. It matches `auth.users.phone` by digits inside a transaction, updates that one profile to `admin`, and raises unless both the user match and the profile update are exactly one row.
+
+### Files
+
+- `lib/auth/safe-return-path.ts`, `lib/auth/access.ts`, `lib/auth/session.ts`, `lib/auth/actions.ts`, `lib/auth/name.ts`, `lib/auth/otp-errors.ts`, `lib/auth/query.ts`
+- `lib/phone.test.ts`, `lib/auth/safe-return-path.test.ts`, `lib/auth/access.test.ts`, `lib/auth/otp-errors.test.ts`, `lib/auth/name.test.ts`
+- `lib/phone.ts`, `lib/supabase/proxy.ts`, `proxy.ts`
+- `app/login/page.tsx`, `app/login/login-form.tsx`, `app/login/name/page.tsx`, `app/login/name/name-form.tsx`, `app/auth/continue/route.ts`
+- `app/account/page.tsx`, `app/admin/page.tsx`, `app/driver/page.tsx`, `app/driver/onboarding/page.tsx`, `app/layout.tsx`
+- `components/site-header.tsx`, `components/header-session.tsx`, `components/sign-out-button.tsx`, `components/forbidden-alert.tsx`, `components/loading-main.tsx`, `components/placeholder-page.tsx`
+- `e2e/auth.spec.ts`, `playwright.config.ts`, `package.json`, `.gitignore`, `.env.local.example`
+- `supabase/manual/promote-admin.sql`
+
+### Manual Supabase status
+
+- Hosted public schema from `0001` is already applied. `0002` storage is already applied (private `job-photos` bucket and six policies). Those were not reapplied.
+- Still needed: after the admin phone has signed in once, the user runs `supabase/manual/promote-admin.sql` themselves in the SQL editor. This step did not run it and did not connect to the hosted database.
+- Local Docker and pgTAP (68 assertions) still have not run. Do not point them at the hosted project.
+- Twilio is not the test SMS path. Dashboard test numbers belong only in `.env.local` or `.env.test`.
+- Cursor rules now live at `.cursor/rules/` (`project.mdc` and `database.mdc`). Cursor only loads that path. Those files were not edited.
+
+### Checked on 2026-10-21
+
+- `git check-ignore -v .env.local .env.test` matches `.gitignore` rule `.env*`. The gitignore comment names `.env.test`. `.env.local.example` is not ignored. The example file has empty `TEST_PHONE`, `TEST_OTP`, `TEST_ADMIN_PHONE`, and `TEST_ADMIN_OTP` placeholders only.
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run test:unit` passed (38 tests). That keeps the pricing, request validation, and split-job tests and adds phone normalize, mask, return URLs, OTP error mapping, name validation, and access decisions.
+- `npm run build` passed. `/auth/continue` and `/api/health` are dynamic. The proxy is registered.
+- `npm run test:e2e` passed with 14 tests and skipped 8 (one worker, about 59s). Homepage, all 9 iPhone request tests, and the unsigned auth checks passed: login form, invalid phone, signed-out redirects, and PWA files (`/sw.js` may 404; the manifest is 200 and is not sent to login).
+- Skipped because `TEST_PHONE` and `TEST_OTP` are unset: wrong code, resend cooldown, sign-in and sign-out, session reload, return through login, external `next`, and the direct profile role update. Skipped because `TEST_ADMIN_PHONE` and `TEST_ADMIN_OTP` are unset: admin browser login. `.env.test` is not present. No test values were printed.
+- Browser check while signed out: `/login` shows the phone form. An invalid number shows “Enter a valid US phone number.” and does not claim a text was sent. `/account` redirects to `/login?next=%2Faccount`. `/manifest.webmanifest` loads. No real OTP was typed.
+
+### Not verified
+
+- A real text, a correct code, the name step, sign-out, a surviving reload, the forbidden-admin sentence, the Become a driver pitch, and the role-update rejection were not exercised in a browser. Those tests skip until the dashboard test numbers are in `.env.local` or `.env.test`.
+- The admin SQL was not executed.
