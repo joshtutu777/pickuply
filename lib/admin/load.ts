@@ -47,7 +47,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
         supabase
           .from("jobs")
           .select(
-            "id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items",
+            "id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items, detail_request",
           )
           .order("created_at", { ascending: false })
           .limit(2000),
@@ -149,6 +149,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
       hasRequestPhotos: photoJobs.has(job.id),
       overThousand: isOverThousand(job.item_value_cents),
       specialty: isSpecialty(job.description, job.junk_special_items),
+      detailsOpen: detailRequestOpen(job.detail_request),
     }));
 
     const drivers: AdminDriver[] = (driversResult.data ?? []).map((driver) => ({
@@ -181,6 +182,11 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
     return { error: true };
   }
 });
+
+function detailRequestOpen(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  return (value as { answered_at?: unknown }).answered_at == null;
+}
 
 function buildActivity(
   events: {

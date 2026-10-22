@@ -70,7 +70,8 @@ export type AdminJob = {
   quoteExpiresAt: string | null;
   assignedDriverId: string | null;
   preferredDate: string;
-  itemValueCents: number;
+  itemValueCents: number | null;
+  detailsOpen?: boolean;
   offerCents: number | null;
   budgetMinCents: number | null;
   budgetMaxCents: number | null;
@@ -209,8 +210,8 @@ export function readableTime(iso: string, now: number, timeZone = "America/New_Y
   return `${datePart}, ${time}`;
 }
 
-export function isOverThousand(itemValueCents: number): boolean {
-  return itemValueCents > fees.itemValueCapCents;
+export function isOverThousand(itemValueCents: number | null): boolean {
+  return (itemValueCents ?? 0) > fees.itemValueCapCents;
 }
 
 export function isSpecialty(description: string, specialItems: unknown): boolean {
@@ -257,7 +258,7 @@ export function jobBadges(job: AdminJob): string[] {
 export function needsAction(jobs: AdminJob[], drivers: AdminDriver[], now: number): NeedsActionItem[] {
   const items: NeedsActionItem[] = [];
   for (const job of jobs) {
-    if (isNewRequest(job)) {
+    if (isNewRequest(job) && !job.detailsOpen) {
       items.push(actionItem(job, "request", job.createdAt, "Review request"));
     }
     if (openWithoutOffers(job, now)) {
@@ -444,6 +445,8 @@ export function jobEventLabel(type: string, data: unknown): string {
   const body = record(data);
   const to = allowed(body?.to, knownStatuses);
   const from = allowed(body?.from, knownStatuses);
+  if (type === "details_requested") return "Details requested";
+  if (type === "details_answered") return "Details answered";
   if (type === "quote_accepted") return "Quote accepted";
   if (type === "claimed" || type === "offer_chosen") return "Driver assigned";
   if (type === "status" && to === "requested") return "Request submitted";
@@ -463,6 +466,7 @@ export function auditLabel(action: string, data: unknown): string {
   if (action === "review_request" && review === "quote") return "Quote sent";
   if (action === "review_request" && review === "changes") return "Changes requested";
   if (action === "review_request" && review === "decline") return "Request declined";
+  if (action === "ask_for_details") return "Details requested";
   if (action === "review_driver" && (decision === "approve_new" || decision === "approve_active")) return "Driver approved";
   if (action === "review_driver" && decision === "pause") return "Driver paused";
   if (action === "review_driver") return "Driver reviewed";

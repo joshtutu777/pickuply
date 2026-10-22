@@ -64,6 +64,16 @@ function driver(overrides: Partial<AdminDriver> = {}): AdminDriver {
   };
 }
 
+test("a request waiting on customer details leaves the review queue", () => {
+  const waiting = job({ detailsOpen: true });
+  const ready = job({ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" });
+  const items = needsAction([waiting, ready], [], now);
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ["request-eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"],
+  );
+});
+
 test("the tab title shows the action count", () => {
   assert.equal(adminTabTitle(0), "Pickuply Admin");
   assert.equal(adminTabTitle(3), "(3) Pickuply Admin");
@@ -165,6 +175,9 @@ test("activity labels stay free of private fields", () => {
   assert.equal(jobEventLabel("status", { from: null, to: "requested", pickup_address: "1 Secret St" }), "Request submitted");
   assert.equal(jobEventLabel("status", { from: "quoted", to: "open" }), "Quote accepted");
   assert.equal(jobEventLabel("quote_accepted", { phone: "+15555550100" }), "Quote accepted");
+  assert.equal(jobEventLabel("details_requested", { items: ["size"] }), "Details requested");
+  assert.equal(jobEventLabel("details_answered", {}), "Details answered");
+  assert.equal(auditLabel("ask_for_details", { items: ["size"], note: "How big is it?" }), "Details requested");
   assert.equal(
     auditLabel("review_driver", { decision: "approve_active", note: "call 555-0100" }),
     "Driver approved",

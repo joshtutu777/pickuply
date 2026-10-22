@@ -2,6 +2,7 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { parseDollarsToCents } from "@/lib/money";
 import { captureReadyPayment, releaseCustomerAuthorization } from "@/lib/payments/capture";
 import { createClient } from "@/lib/supabase/server";
 
@@ -92,4 +93,34 @@ export async function cancelAssignedJob(formData: FormData) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(text)}`);
   }
   redirect(`/jobs/${jobId}`);
+}
+
+export async function answerDetailRequest(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const answers: Record<string, string | number> = {};
+  const stairs = String(formData.get("stairsPickup") ?? "");
+  const dropoff = String(formData.get("stairsDropoff") ?? "");
+  const size = String(formData.get("size") ?? "");
+  const pieces = Number(formData.get("pieces"));
+  const value = parseDollarsToCents(String(formData.get("itemValue") ?? ""));
+  const access = String(formData.get("accessNotes") ?? "").trim();
+
+  if (/^[0-3]$/.test(stairs)) answers.stairs_pickup = Number(stairs);
+  if (/^[0-3]$/.test(dropoff)) answers.stairs_dropoff = Number(dropoff);
+  if (["small", "medium", "large", "xl"].includes(size)) answers.size = size;
+  if (Number.isInteger(pieces) && pieces >= 1 && pieces <= 100) answers.pieces = pieces;
+  if (value != null) answers.item_value_cents = value;
+  if (access) answers.access_notes = access;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("answer_detail_request", {
+    target_job: jobId,
+    answers,
+    message_body: String(formData.get("message") ?? ""),
+  });
+  if (error) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/jobs/${jobId}?saved=1`);
 }

@@ -42,7 +42,7 @@ async function RequestDetail({
   const [{ data: extra }, { data: zones }] = await Promise.all([
     supabase
       .from("jobs")
-      .select("item_value_cents, needs_value_approval, description, service, pricing_method, status")
+      .select("item_value_cents, needs_value_approval, description, service, pricing_method, status, detail_request")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("zones").select("id, name").eq("active", true).order("name"),
@@ -76,7 +76,9 @@ async function RequestDetail({
       <section className="mt-6 space-y-2 text-base text-ink">
         <p>{job.description}</p>
         <p>
-          {job.pieces} pieces · {job.size}
+          {job.pieces != null ? `${job.pieces} pieces` : "Pieces not provided"}
+          {" · "}
+          {job.size ?? "Size not provided"}
           {extra?.item_value_cents != null ? ` · value ${formatCents(extra.item_value_cents)}` : ""}
         </p>
         <p>
@@ -155,6 +157,10 @@ async function RequestDetail({
           zones={zones ?? []}
           pricingMethod={job.pricing_method}
           needsConfirm={needsConfirm}
+          detailsOpen={
+            extra?.detail_request != null &&
+            (extra.detail_request as { answered_at?: string | null }).answered_at == null
+          }
         />
       ) : (
         <p className="mt-6 text-base text-muted">This request is not waiting for a first review.</p>

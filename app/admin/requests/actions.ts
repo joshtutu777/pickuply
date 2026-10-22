@@ -6,6 +6,30 @@ import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { createClient } from "@/lib/supabase/server";
 
+const detailItems = ["stairs", "size", "pieces", "item_value", "access_notes", "photos"] as const;
+
+export async function askForDetails(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const note = String(formData.get("note") ?? "");
+  const items = formData
+    .getAll("item")
+    .map(String)
+    .filter((item): item is (typeof detailItems)[number] =>
+      detailItems.includes(item as (typeof detailItems)[number]),
+    );
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ask_for_details", {
+    target_job: jobId,
+    items,
+    note,
+  });
+  if (error) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
 export async function reviewRequest(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");

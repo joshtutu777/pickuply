@@ -8,6 +8,7 @@ import { ConfirmDelivery, ItemDecision } from "@/components/request/item-decisio
 import { JobReceipt } from "@/components/request/job-receipt";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
+import { DetailReply } from "@/components/request/detail-reply";
 import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReportForm } from "@/components/request/report-form";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -53,11 +54,20 @@ async function JobEntry({
     job.assigned_driver_id ? getAssignedDriverCard(id) : Promise.resolve(null),
   ]);
   let offers: OfferSummary[] = [];
+  let detailRequest: { items: string[]; note: string } | null = null;
   if (session?.role === "customer") {
     try {
       const supabase = await createClient();
       const { data } = await supabase.rpc("offer_summaries", { target_job: id });
       offers = (data ?? []) as OfferSummary[];
+      const details = await supabase.rpc("open_detail_request", { target_job: id });
+      if (details.data && typeof details.data === "object") {
+        const body = details.data as { items?: unknown; note?: unknown };
+        detailRequest = {
+          items: Array.isArray(body.items) ? body.items.filter((item): item is string => typeof item === "string") : [],
+          note: typeof body.note === "string" ? body.note : "",
+        };
+      }
     } catch {
       offers = [];
     }
@@ -85,6 +95,12 @@ async function JobEntry({
         })}
         driver={driver}
       />
+      {query.saved === "1" ? (
+        <p className="mx-auto mt-4 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
+      ) : null}
+      {detailRequest && detailRequest.items.length > 0 ? (
+        <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
+      ) : null}
       <div className="mx-auto w-full max-w-xl px-4">
         <JobMessages jobId={id} />
         <ProofGallery jobId={id} />

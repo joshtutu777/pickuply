@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { reviewRequest } from "@/app/admin/requests/actions";
+import { askForDetails, reviewRequest } from "@/app/admin/requests/actions";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,16 +16,27 @@ type Breakdown = {
 const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
 
+const detailChoices = [
+  ["stairs", "Stairs"],
+  ["size", "Item size"],
+  ["pieces", "Number of pieces"],
+  ["item_value", "Item value"],
+  ["access_notes", "Access notes"],
+  ["photos", "More photos"],
+] as const;
+
 export function ReviewRequestForm({
   jobId,
   zones,
   pricingMethod,
   needsConfirm,
+  detailsOpen = false,
 }: {
   jobId: string;
   zones: { id: string; name: string }[];
   pricingMethod: string;
   needsConfirm: boolean;
+  detailsOpen?: boolean;
 }) {
   const [driverPay, setDriverPay] = useState("");
   const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
@@ -46,6 +57,7 @@ export function ReviewRequestForm({
   }, [cents]);
 
   return (
+    <>
     <form action={reviewRequest} className="mt-8 space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
       <label className="block text-base font-semibold text-ink" htmlFor="zoneId">
@@ -126,20 +138,49 @@ export function ReviewRequestForm({
           </label>
         </>
       ) : null}
-      <label className="block text-base font-semibold text-ink" htmlFor="note">
-        Note for the customer
-        <textarea id="note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3" />
+      <label className="block text-base font-semibold text-ink" htmlFor="decline-note">
+        Reason if you decline
+        <textarea id="decline-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3" />
       </label>
-      <div className="grid gap-3">
-        {pricingMethod === "quote" ? (
-          <SubmitButton action="quote" label="Send quote" />
-        ) : (
-          <SubmitButton action="publish" label="Approve and publish" />
-        )}
-        <SubmitButton action="changes" label="Request changes" />
-        <SubmitButton action="decline" label="Decline" />
-      </div>
+      {detailsOpen ? (
+        <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
+          Waiting on the customer. Quoting and publishing stay blocked until they answer.
+        </p>
+      ) : (
+        <div className="grid gap-3">
+          {pricingMethod === "quote" ? (
+            <SubmitButton action="quote" label="Send quote" />
+          ) : (
+            <SubmitButton action="publish" label="Approve and publish" />
+          )}
+        </div>
+      )}
+      <SubmitButton action="decline" label="Decline" />
     </form>
+    <form action={askForDetails} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      <h2 className="text-lg font-semibold text-ink">Ask for details</h2>
+      <input type="hidden" name="jobId" value={jobId} />
+      <fieldset className="space-y-2">
+        <legend className="text-base font-semibold text-ink">What do you need?</legend>
+        {detailChoices.map(([value, label]) => (
+          <label key={value} className="flex min-h-12 items-center gap-3 text-base">
+            <input type="checkbox" name="item" value={value} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <label className="block text-base font-semibold text-ink" htmlFor="detail-note">
+        Note for the customer
+        <textarea id="detail-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />
+      </label>
+      <button
+        type="submit"
+        className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+      >
+        Ask for details
+      </button>
+    </form>
+    </>
   );
 }
 
