@@ -57,7 +57,7 @@ function OfferActions({
   const previewTotal = preview && preview.cents === earningsCents ? preview.total : null;
 
   useEffect(() => {
-    if (job.pricing_method === "quote" || earningsCents <= 0) return;
+    if (earningsCents <= 0) return;
     let cancelled = false;
     void createClient()
       .rpc("price_breakdown", { mode: "forward", amount_cents: earningsCents })
@@ -70,7 +70,7 @@ function OfferActions({
     };
   }, [earningsCents, job.pricing_method]);
 
-  async function send(kind: "accept" | "counter" | "claim") {
+  async function send(kind: "accept" | "counter" | "claim" | "offer") {
     setMessage(null);
     const supabase = createClient();
     const result =
@@ -99,7 +99,7 @@ function OfferActions({
 
   return (
     <div className="mt-3 grid gap-3">
-      {job.pricing_method === "quote" ? (
+      {job.pricing_method === "quote" && job.driver_pay_cents != null ? (
         <button
           type="button"
           disabled={!canAct}
@@ -108,6 +108,28 @@ function OfferActions({
         >
           Claim this job
         </button>
+      ) : null}
+      {job.pricing_method === "quote" && job.driver_pay_cents == null ? (
+        <>
+          <label className="text-base font-semibold text-ink">
+            Your earnings (dollars)
+            <input
+              value={earnings}
+              onChange={(event) => setEarnings(event.target.value)}
+              inputMode="decimal"
+              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
+            />
+          </label>
+          {previewTotal != null ? <p>Customer total {formatCents(previewTotal)}</p> : null}
+          <button
+            type="button"
+            disabled={!canAct}
+            onClick={() => void send("offer")}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+          >
+            Send offer
+          </button>
+        </>
       ) : null}
       {job.pricing_method === "fixed" ? (
         <button

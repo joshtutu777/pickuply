@@ -31,6 +31,21 @@ export async function askForDetails(formData: FormData) {
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 
+export async function pauseRequest(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const shouldPause = String(formData.get("paused") ?? "") !== "no";
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("pause_request", {
+    target_job: jobId,
+    should_pause: shouldPause,
+  });
+  if (error) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
 export async function reviewRequest(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");

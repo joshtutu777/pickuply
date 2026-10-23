@@ -216,7 +216,7 @@ reset role;
 select pg_temp.as_user('c9999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is(
-  (select count(*)::int from public.driver_job_feed()),
+  (select count(*)::int from public.driver_job_feed() where id::text like 'caaaaaaa-aaaa-4aaa-8aaa-%'),
   2,
   'a paused driver still sees open jobs'
 );
@@ -235,7 +235,7 @@ select is(
   'an unassigned driver cannot read the private address'
 );
 select is(
-  (select count(*)::int from storage.objects where name like '%/request/%'),
+  (select count(*)::int from storage.objects where name like 'caaaaaaa-aaaa-4aaa-8aaa-%/request/%'),
   1,
   'an eligible driver can read the request photo'
 );
@@ -250,10 +250,9 @@ select throws_ok(
   null,
   'the feed has no description column'
 );
-select throws_ok(
+select lives_ok(
   $$select public.submit_offer('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'offer', 6000, 'stairs')$$,
-  'offers are only allowed on open fixed or range jobs',
-  'offers are rejected on quote jobs'
+  'a driver can offer on an open Get Offers job'
 );
 
 reset role;

@@ -177,7 +177,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "We'll review your request and send a custom price. This is not an instant guaranteed quote. Nothing is charged until you accept.";
+  "Drivers set the price and you choose who to book. Nothing is charged until you accept an offer.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
@@ -185,7 +185,7 @@ export const driverPricingCopy =
 export const pricingMethods = [
   {
     id: "quote",
-    label: "Get a quote",
+    label: "Get Offers",
     hint: quotePricingCopy,
   },
   {

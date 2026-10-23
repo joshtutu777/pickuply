@@ -67,7 +67,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
     <main className="px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{title}</h1>
-      <FilterForm filters={filters} zones={data.zones} />
+      <FilterForm filters={filters} />
       {jobs.length === 0 ? (
         <p className="mt-6 rounded-3xl bg-paper-raised p-5 text-base text-muted ring-1 ring-line">
           {filters.status === "new" ? "No new requests" : "No requests match these filters."}
@@ -163,7 +163,7 @@ function ReviewLink({ id }: { id: string }) {
   );
 }
 
-function FilterForm({ filters, zones }: { filters: RequestFilters; zones: { id: string; name: string }[] }) {
+function FilterForm({ filters }: { filters: RequestFilters }) {
   return (
     <form method="get" className="mt-6 grid gap-3 sm:grid-cols-2">
       {filters.stage ? <input type="hidden" name="stage" value={filters.stage} /> : null}
@@ -187,12 +187,6 @@ function FilterForm({ filters, zones }: { filters: RequestFilters; zones: { id: 
         label="Pricing method"
         value={filters.pricing}
         options={[["", "All pricing"], ...pricingMethods.map((method) => [method.id, method.label] as const)]}
-      />
-      <Select
-        name="zone"
-        label="Zone"
-        value={filters.zone}
-        options={[["", "All zones"], ...zones.map((zone) => [zone.id, zone.name] as const)]}
       />
       <Select
         name="payment"

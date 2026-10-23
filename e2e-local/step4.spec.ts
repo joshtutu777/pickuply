@@ -322,18 +322,18 @@ async function accessToken(context: BrowserContext) {
 }
 
 async function publish(page: Page, jobId: string, kind: "fixed" | "quote") {
+  if (kind === "fixed") {
+    const status = localSql(`select status from public.jobs where id = '${jobId}'`).trim();
+    expect(status).toBe("open");
+    return;
+  }
   await page.goto(`/admin/requests/${jobId}`);
-  await page.locator("#zoneId").selectOption({ label: "West Metro" });
   await page.locator("#serviceLevel").selectOption("light");
   await page.locator("#requiredVehicle").selectOption("pickup");
-  if (kind === "quote") {
-    await page.locator("#driverPay").fill("60");
-    await page.locator("#preferredDate").fill("2026-10-30");
-    await page.locator("#timeWindow").selectOption("morning");
-    await page.getByRole("button", { name: "Send quote" }).click();
-  } else {
-    await page.getByRole("button", { name: "Approve and publish" }).click();
-  }
+  await page.locator("#driverPay").fill("60");
+  await page.locator("#preferredDate").fill("2026-10-30");
+  await page.locator("#timeWindow").selectOption("morning");
+  await page.getByRole("button", { name: "Send quote" }).click();
   await page.waitForURL(/saved=1|error=/);
   await expect(page).not.toHaveURL(/error=/);
 }

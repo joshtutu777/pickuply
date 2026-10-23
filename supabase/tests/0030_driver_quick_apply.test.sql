@@ -78,6 +78,16 @@ insert into public.jobs (
   'quote', null, 'light', 'pickup'
 );
 
+select set_config('pickuply.offer_chosen', 'yes', true);
+update public.jobs
+set
+  driver_pay_cents = (fees.breakdown->>'driver_earnings_cents')::integer,
+  platform_fee_cents = (fees.breakdown->>'platform_fee_cents')::integer,
+  service_fee_cents = (fees.breakdown->>'service_fee_cents')::integer,
+  price_cents = (fees.breakdown->>'customer_total_cents')::integer
+from (select public.price_breakdown('forward', 6000) as breakdown) fees
+where id = 'd3000000-0000-4000-8000-000000000010';
+
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select lives_ok(
   $$select public.submit_quick_application(jsonb_build_object(
@@ -127,7 +137,7 @@ set is_online = false
 where profile_id = 'd3000000-0000-4000-8000-000000000001';
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select is(
-  (select count(*)::int from public.driver_job_feed()),
+  (select count(*)::int from public.driver_job_feed() where id::text like 'd3000000-0000-4000-8000-%'),
   1,
   'an approved driver sees open jobs before going online'
 );
@@ -188,6 +198,16 @@ insert into public.jobs (
   0, 0, 0, false, false, 'asap',
   'quote', null, 'light', 'pickup'
 );
+
+select set_config('pickuply.offer_chosen', 'yes', true);
+update public.jobs
+set
+  driver_pay_cents = (fees.breakdown->>'driver_earnings_cents')::integer,
+  platform_fee_cents = (fees.breakdown->>'platform_fee_cents')::integer,
+  service_fee_cents = (fees.breakdown->>'service_fee_cents')::integer,
+  price_cents = (fees.breakdown->>'customer_total_cents')::integer
+from (select public.price_breakdown('forward', 6000) as breakdown) fees
+where id = 'd3000000-0000-4000-8000-000000000011';
 
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select throws_ok(

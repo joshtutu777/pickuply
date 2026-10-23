@@ -168,6 +168,15 @@ test("quick apply cannot go online until the checklist is finished, then can cla
     cross join public.zones z
     where u.phone in ('15555550177', '+15555550177')
       and z.slug = 'west_metro';
+    select set_config('pickuply.offer_chosen', 'yes', true);
+    update public.jobs
+    set
+      driver_pay_cents = (fees.breakdown->>'driver_earnings_cents')::integer,
+      platform_fee_cents = (fees.breakdown->>'platform_fee_cents')::integer,
+      service_fee_cents = (fees.breakdown->>'service_fee_cents')::integer,
+      price_cents = (fees.breakdown->>'customer_total_cents')::integer
+    from (select public.price_breakdown('forward', 6000) as breakdown) fees
+    where id = '${claimJob}';
     commit;
   `);
 

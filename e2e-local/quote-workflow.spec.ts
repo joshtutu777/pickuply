@@ -57,7 +57,6 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await signIn(adminPage, admin);
   await expect(adminPage).toHaveURL(new RegExp(`/admin/requests/${quoteJobId}`));
   await expect(adminPage.getByText("Austell, 30106")).toBeVisible();
-  await adminPage.locator("#zoneId").selectOption({ label: "West Metro" });
   await adminPage.locator("#serviceLevel").selectOption("light");
   await adminPage.locator("#requiredVehicle").selectOption("pickup");
   await adminPage.locator("#driverPay").fill("60");

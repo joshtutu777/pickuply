@@ -30,7 +30,7 @@ async function fillWhere(page: Page, service: "delivery" | "junk" | "free_item" 
 
 async function fillPrice(page: Page, pricing: "quote" | "fixed" | "range") {
   const label =
-    pricing === "quote" ? "Get a quote" : pricing === "fixed" ? "Name your price" : "Set a budget range";
+    pricing === "quote" ? "Get Offers" : pricing === "fixed" ? "Name your price" : "Set a budget range";
   await page.getByRole("radio", { name: new RegExp(label) }).check();
   if (pricing === "fixed") {
     await page.getByRole("textbox", { name: "Your price" }).fill("40");
@@ -107,7 +107,7 @@ test("review shows the request and requires the terms checkbox", async ({ page }
   await fillPrice(page, "quote");
   await expect(page.getByRole("heading", { name: "Check and send" })).toBeVisible();
   await expect(page.getByText("Oak dresser from Marketplace")).toBeVisible();
-  await expect(page.getByText("Get a quote")).toBeVisible();
+  await expect(page.getByText("Get Offers")).toBeVisible();
   await expect(page.getByRole("link", { name: "Terms, fees, and prohibited items" })).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Agree to the terms to submit.")).toBeVisible();
@@ -180,14 +180,14 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await expect(page.getByText("$35–$90")).toBeVisible();
   await page.getByRole("button", { name: "Edit Your price" }).click();
 
-  await page.getByRole("radio", { name: /Get a quote/ }).check();
+  await page.getByRole("radio", { name: /Get Offers/ }).check();
   await expect(
     page.getByRole("paragraph").filter({ hasText: "This is not an instant guaranteed quote." }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Your price" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /^Minimum/ })).toHaveCount(0);
   await next(page);
-  await expect(page.getByText("Get a quote", { exact: true })).toBeVisible();
+  await expect(page.getByText("Get Offers", { exact: true })).toBeVisible();
 });
 
 test("each service reaches phone confirmation without saving a job", async ({ page }) => {

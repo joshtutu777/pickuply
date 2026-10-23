@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { assignCoveringDriver, inviteDriver, refundJob } from "@/app/admin/requests/actions";
+import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob } from "@/app/admin/requests/actions";
 import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
@@ -42,14 +42,11 @@ async function RequestDetail({
   const job = await getJobDetail(id);
   if (!job) notFound();
   const supabase = await createClient();
-  const [{ data: extra }, { data: zones }] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select("item_value_cents, needs_value_approval, description, service, pricing_method, status, detail_request")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("zones").select("id, name").eq("active", true).order("name"),
-  ]);
+  const { data: extra } = await supabase
+    .from("jobs")
+    .select("item_value_cents, needs_value_approval, description, service, pricing_method, status, detail_request, paused_at")
+    .eq("id", id)
+    .maybeSingle();
   const headerList = await headers();
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
   const proto = headerList.get("x-forwarded-proto") ?? "http";
@@ -220,18 +217,33 @@ async function RequestDetail({
           Refund
         </button>
       </form>
-      {job.status === "requested" || job.status === "in_review" ? (
+      {extra?.status === "open" ? (
+        <form action={pauseRequest} className="mt-6">
+          <input type="hidden" name="jobId" value={id} />
+          <input type="hidden" name="paused" value={extra.paused_at ? "no" : "yes"} />
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white"
+          >
+            {extra.paused_at ? "Resume for drivers" : "Pause"}
+          </button>
+          {extra.paused_at ? (
+            <p className="mt-3 text-base text-muted">Drivers cannot see this request while it is paused.</p>
+          ) : null}
+        </form>
+      ) : null}
+      {extra?.status === "requested" || extra?.status === "in_review" || (extra?.status === "open" && extra.pricing_method === "quote") ? (
         <ReviewRequestForm
           jobId={id}
-          zones={zones ?? []}
           pricingMethod={job.pricing_method}
           needsConfirm={needsConfirm}
+          alreadyOpen={extra.status === "open"}
           detailsOpen={
             extra?.detail_request != null &&
             (extra.detail_request as { answered_at?: string | null }).answered_at == null
           }
         />
-      ) : (
+      ) : extra?.status === "open" ? null : (
         <p className="mt-6 text-base text-muted">This request is not waiting for a first review.</p>
       )}
     </main>

@@ -239,7 +239,7 @@ async function fillRequest(
   await page.getByRole("radio", { name: "ASAP" }).check();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   const pricingLabel =
-    input.pricing === "quote" ? "Get a quote" : input.pricing === "fixed" ? "Name your price" : "Set a budget range";
+    input.pricing === "quote" ? "Get Offers" : input.pricing === "fixed" ? "Name your price" : "Set a budget range";
   await page.getByRole("radio", { name: new RegExp(pricingLabel) }).check();
   if (input.pricing === "fixed") await page.getByRole("textbox", { name: "Your price" }).fill("40");
   if (input.pricing === "range") {

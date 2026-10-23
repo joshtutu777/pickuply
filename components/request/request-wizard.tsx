@@ -9,7 +9,6 @@ import {
   maxPhotos,
   driverPricingCopy,
   pricingMethods,
-  quotePricingCopy,
   privacyAreaNote,
   requestSteps,
   serviceById,
@@ -407,7 +406,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Request sent</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">
-          We&apos;ll review this request. Nothing is booked, and drivers cannot see it until it is published.
+          Drivers can see this request. Nothing is booked until you choose an offer.
         </p>
         <Link href={`/jobs/${sentId}`} className={`${primaryButton} mt-8`}>
           View your request
@@ -475,7 +474,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
             </h1>
             <p className="text-lg leading-relaxed text-muted">
               {signedIn
-                ? "You're signed in. Saving keeps this request on your account. It is not booked, and drivers cannot see it yet."
+                ? "You're signed in. Saving publishes this request for drivers. It is not booked until you choose an offer."
                 : "We'll text a 6-digit code to the number on this request. The rest of the form stays on this page."}
             </p>
             {!signedIn ? (
@@ -800,7 +799,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
         {!verifying && step.id === "price" ? (
           <section className="grid gap-5">
             <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Your price</h1>
-            <p className="text-base leading-relaxed text-muted">{quotePricingCopy}</p>
+            <p className="text-base leading-relaxed text-muted">
+              Drivers see this request as soon as you send it. Nothing is booked until you choose an offer.
+            </p>
             <RadioCards
               legend="Pricing method"
               name="pricingMethod"

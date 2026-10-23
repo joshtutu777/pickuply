@@ -511,14 +511,9 @@ async function accessToken(context: BrowserContext) {
   return session.access_token;
 }
 
-async function publish(page: Page, jobId: string) {
-  await page.goto(`/admin/requests/${jobId}`);
-  await page.locator("#zoneId").selectOption({ label: "West Metro" });
-  await page.locator("#serviceLevel").selectOption("light");
-  await page.locator("#requiredVehicle").selectOption("pickup");
-  await page.getByRole("button", { name: "Approve and publish" }).click();
-  await page.waitForURL(/saved=1|error=/);
-  await expect(page).not.toHaveURL(/error=/);
+async function publish(_page: Page, jobId: string) {
+  const status = localSql(`select status from public.jobs where id = '${jobId}'`).trim();
+  expect(status).toBe("open");
 }
 
 async function goOnline(page: Page) {

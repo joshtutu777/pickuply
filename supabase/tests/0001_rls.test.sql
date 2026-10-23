@@ -519,7 +519,7 @@ reset role;
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is(
-  (select count(*)::int from public.driver_job_feed()),
+  (select count(*)::int from public.driver_job_feed() where id::text like 'aaaaaaaa-aaaa-4aaa-8aaa-%'),
   2,
   'a paused driver still sees open jobs'
 );
@@ -536,20 +536,20 @@ select pg_temp.clear_auth();
 update public.drivers set status = 'pending_review' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
-select is((select count(*)::int from public.driver_job_feed()), 2, 'a pending driver sees open jobs');
+select is((select count(*)::int from public.driver_job_feed() where id::text like 'aaaaaaaa-aaaa-4aaa-8aaa-%'), 2, 'a pending driver sees open jobs');
 reset role;
 select pg_temp.clear_auth();
 
 update public.drivers set status = 'applied' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
-select is((select count(*)::int from public.driver_job_feed()), 2, 'an applied driver sees open jobs');
+select is((select count(*)::int from public.driver_job_feed() where id::text like 'aaaaaaaa-aaaa-4aaa-8aaa-%'), 2, 'an applied driver sees open jobs');
 reset role;
 
 select pg_temp.as_user('88888888-8888-4888-8888-888888888888');
 set local role authenticated;
 select is(
-  (select count(*)::int from public.driver_job_feed()),
+  (select count(*)::int from public.driver_job_feed() where id::text like 'aaaaaaaa-aaaa-4aaa-8aaa-%'),
   2,
   'an approved new driver sees open jobs before an invitation'
 );

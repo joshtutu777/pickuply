@@ -27,16 +27,16 @@ const detailChoices = [
 
 export function ReviewRequestForm({
   jobId,
-  zones,
   pricingMethod,
   needsConfirm,
   detailsOpen = false,
+  alreadyOpen = false,
 }: {
   jobId: string;
-  zones: { id: string; name: string }[];
   pricingMethod: string;
   needsConfirm: boolean;
   detailsOpen?: boolean;
+  alreadyOpen?: boolean;
 }) {
   const [driverPay, setDriverPay] = useState("");
   const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
@@ -60,16 +60,6 @@ export function ReviewRequestForm({
     <>
     <form action={reviewRequest} className="mt-8 space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
-      <label className="block text-base font-semibold text-ink" htmlFor="zoneId">
-        Zone
-        <select id="zoneId" name="zoneId" className={controlClass} required>
-          {zones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {zone.name}
-            </option>
-          ))}
-        </select>
-      </label>
       <label className="block text-base font-semibold text-ink" htmlFor="serviceLevel">
         Service level
         <select id="serviceLevel" name="serviceLevel" className={controlClass}>
@@ -146,17 +136,14 @@ export function ReviewRequestForm({
         <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
           Waiting on the customer. Quoting and publishing stay blocked until they answer.
         </p>
-      ) : (
+      ) : pricingMethod === "quote" ? (
         <div className="grid gap-3">
-          {pricingMethod === "quote" ? (
-            <SubmitButton action="quote" label="Send quote" />
-          ) : (
-            <SubmitButton action="publish" label="Approve and publish" />
-          )}
+          <SubmitButton action="quote" label="Send quote" />
         </div>
-      )}
+      ) : null}
       <SubmitButton action="decline" label="Decline" />
     </form>
+    {alreadyOpen ? null : (
     <form action={askForDetails} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Ask for details</h2>
       <input type="hidden" name="jobId" value={jobId} />
@@ -180,6 +167,7 @@ export function ReviewRequestForm({
         Ask for details
       </button>
     </form>
+    )}
     </>
   );
 }
