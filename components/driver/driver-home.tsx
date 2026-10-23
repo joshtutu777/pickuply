@@ -194,6 +194,7 @@ export function DriverHome({
   showAllJobs,
   feedServices,
   vehicleFit,
+  offlineAlerts,
 }: {
   isOnline: boolean;
   userId: string;
@@ -207,8 +208,10 @@ export function DriverHome({
   showAllJobs: boolean;
   feedServices: string;
   vehicleFit: boolean;
+  offlineAlerts: boolean;
 }) {
   const [online, setOnline] = useState(isOnline);
+  const [offlineAlertsOn, setOfflineAlertsOn] = useState(offlineAlerts);
   const [jobs, setJobs] = useState<FeedCard[]>([]);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -350,6 +353,18 @@ export function DriverHome({
         </span>
         {online ? "Online" : "Offline"}
       </button>
+      <label className="mt-4 flex min-h-12 items-center gap-3 text-base font-semibold text-ink">
+        <input
+          type="checkbox"
+          checked={offlineAlertsOn}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setOfflineAlertsOn(next);
+            void createClient().rpc("set_offline_job_alerts", { enabled: next });
+          }}
+        />
+        Job alerts while Offline
+      </label>
       {approved && !online && !everOnline && !promptDismissed ? (
         <div className="mt-3">
           <p className="text-base text-ink">You&apos;re ready to drive! Switch Online whenever you&apos;re ready to start accepting jobs.</p>

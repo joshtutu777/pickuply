@@ -511,7 +511,7 @@ export function auditLabel(action: string, data: unknown): string {
   if (action === "set_disposal_receipt") return "Disposal receipt requirement changed";
   if (action === "set_support_contact") return "Support contact changed";
   if (action === "set_sms_enabled") return "Text message setting changed";
-  if (action === "update_platform_settings") return "Settings changed";
+  if (action === "update_platform_settings" || action === "set_waves_enabled") return "Settings changed";
   if (action === "invite_driver") return "Driver invited";
   if (action === "set_payment_status") return "Payment status changed";
   if (action === "approve_vehicle") return "Vehicle approved";

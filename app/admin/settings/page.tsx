@@ -1,7 +1,7 @@
 import { BackLink } from "@/components/back-link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
-import { saveSmsSetting, saveSupportContact, saveProofLocation } from "@/app/admin/settings/actions";
+import { saveSmsSetting, saveSupportContact, saveProofLocation, saveWavesSetting } from "@/app/admin/settings/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +36,7 @@ async function SettingsContent({
     support_phone: null,
     support_email: null,
     proof_location_enabled: false,
+    waves_enabled: false,
   };
 
   return (
@@ -94,6 +95,28 @@ async function SettingsContent({
           className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand font-semibold text-white"
         >
           Save settings
+        </button>
+      </form>
+      <form action={saveWavesSetting} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Waves</h2>
+        <p className="text-base text-muted">
+          Leave this off for the pilot. Every open request stays visible to every eligible driver.
+          Turn it on to use the three-wave release.
+        </p>
+        <label className="flex min-h-12 items-center gap-3 text-base font-semibold" htmlFor="wavesEnabled">
+          <input
+            id="wavesEnabled"
+            name="wavesEnabled"
+            type="checkbox"
+            defaultChecked={Boolean(settings.waves_enabled)}
+          />
+          Waves enabled
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save waves
         </button>
       </form>
       <form action={saveSmsSetting} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
