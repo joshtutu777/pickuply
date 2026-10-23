@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Address search (2026-10-23)
+
+The Duluth house was dropped because MapTiler ZIP context ids do not start with `postal`, and “Use this address anyway” did not keep a typed street. Search now uses Google Places when `GOOGLE_PLACES_API_KEY` is set. A typed Georgia street, city, and ZIP can be saved without a match. Unverified addresses store no coordinates. ZIP 30097 is in the Georgia table.
+
 ## Driver signup terms (2026-10-23)
 
 Quick Apply no longer asks for a service area. The home ZIP picks the nearest zone. The driver must check the Driver Terms box. The accepted version is `driver-terms-v1`, stored with the time. The box starts unchecked. Signup icons sit beside the text labels.

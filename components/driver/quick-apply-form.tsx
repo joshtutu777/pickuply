@@ -8,6 +8,7 @@ import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { emptyPlace, PlaceField, type PlaceValue } from "@/components/maps/place-field";
 import { TextField } from "@/components/request/fields";
 import { saveDriverPlace } from "@/lib/maps/save-places";
+import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
 import { recordFunnel } from "@/lib/funnel";
@@ -71,8 +72,9 @@ export function QuickApplyForm({
       setError("Enter your full name.");
       return;
     }
-    if (!home.line1.trim() || !/^[0-9]{5}$/.test(home.zip.trim())) {
-      setError("Enter a Georgia home address.");
+    const addressError = manualAddressError(home);
+    if (addressError) {
+      setError(addressError);
       return;
     }
     if (coverage.cities.length === 0 && coverage.zips.length === 0 && coverage.radius == null) {

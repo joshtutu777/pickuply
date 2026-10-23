@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PlaceSuggestion } from "@/app/api/places/suggest/route";
+import type { PlaceSuggestion } from "@/lib/maps/address";
 
 export type PlaceValue = {
   line1: string;
@@ -27,6 +27,7 @@ export function AddressLookup({
 }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [session] = useState(() => crypto.randomUUID());
 
   async function search(next: string) {
     setQuery(next);
@@ -34,7 +35,7 @@ export function AddressLookup({
       setSuggestions([]);
       return;
     }
-    const response = await fetch(`/api/places/suggest?q=${encodeURIComponent(next.trim())}`);
+    const response = await fetch(`/api/places/suggest?q=${encodeURIComponent(next.trim())}&session=${session}`);
     if (!response.ok) {
       setSuggestions([]);
       return;
@@ -57,14 +58,36 @@ export function AddressLookup({
       {suggestions.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl ring-1 ring-line">
           {suggestions.map((suggestion) => (
-            <li key={`${suggestion.zip}-${suggestion.label}`}>
+            <li key={suggestion.placeId ?? `${suggestion.label}-${suggestion.zip}`}>
               <button
                 type="button"
                 className="min-h-12 w-full px-4 text-left text-base hover:bg-brand-soft"
                 onClick={() => {
-                  onPick(suggestion);
-                  setQuery(suggestion.label);
-                  setSuggestions([]);
+                  void (async () => {
+                    if (!suggestion.placeId) {
+                      onPick({ ...suggestion, lat: null, lng: null });
+                    } else {
+                      const response = await fetch(`/api/places/details?id=${encodeURIComponent(suggestion.placeId)}&session=${session}`);
+                      const body = (await response.json()) as {
+                        place?: PlaceSuggestion & { verified?: boolean };
+                      };
+                      const place = body.place;
+                      onPick(
+                        place
+                          ? {
+                              label: suggestion.label,
+                              line1: place.line1,
+                              city: place.city,
+                              zip: place.zip,
+                              lat: place.verified ? place.lat : null,
+                              lng: place.verified ? place.lng : null,
+                            }
+                          : { ...suggestion, lat: null, lng: null },
+                      );
+                    }
+                    setQuery(suggestion.label);
+                    setSuggestions([]);
+                  })();
                 }}
               >
                 {suggestion.label}
@@ -89,6 +112,7 @@ export function PlaceField({
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [note, setNote] = useState<string | null>(null);
+  const [session] = useState(() => crypto.randomUUID());
 
   async function search(next: string) {
     setQuery(next);
@@ -96,7 +120,7 @@ export function PlaceField({
       setSuggestions([]);
       return;
     }
-    const response = await fetch(`/api/places/suggest?q=${encodeURIComponent(next.trim())}`);
+    const response = await fetch(`/api/places/suggest?q=${encodeURIComponent(next.trim())}&session=${session}`);
     if (!response.ok) {
       setSuggestions([]);
       return;
@@ -105,20 +129,37 @@ export function PlaceField({
     setSuggestions(body.suggestions ?? []);
   }
 
-  function choose(suggestion: PlaceSuggestion) {
-    const hasStreet = suggestion.line1.trim().length > 0;
+  async function choose(suggestion: PlaceSuggestion) {
+    setSuggestions([]);
+    setQuery(suggestion.label);
+    if (suggestion.placeId) {
+      const response = await fetch(`/api/places/details?id=${encodeURIComponent(suggestion.placeId)}&session=${session}`);
+      const body = (await response.json()) as {
+        place?: { line1: string; city: string; zip: string; lat: number | null; lng: number | null; verified?: boolean };
+      };
+      if (body.place?.line1 && body.place.zip) {
+        onChange({
+          ...value,
+          line1: body.place.line1,
+          city: body.place.city,
+          zip: body.place.zip,
+          lat: body.place.verified ? body.place.lat : null,
+          lng: body.place.verified ? body.place.lng : null,
+          verified: Boolean(body.place.verified),
+        });
+        setNote(body.place.verified ? null : "This match has no confirmed house location. You can still use it.");
+        return;
+      }
+    }
     onChange({
       ...value,
-      line1: hasStreet ? suggestion.line1 : value.line1,
-      city: suggestion.city,
-      zip: suggestion.zip,
-      lat: hasStreet ? suggestion.lat : null,
-      lng: hasStreet ? suggestion.lng : null,
-      verified: hasStreet,
+      city: suggestion.city || value.city,
+      zip: suggestion.zip || value.zip,
+      lat: null,
+      lng: null,
+      verified: false,
     });
-    setQuery(suggestion.label);
-    setSuggestions([]);
-    setNote(hasStreet ? null : "Pick a street, or use the address you typed.");
+    setNote("Pick a street, or type the address below and use it anyway.");
   }
 
   return (
@@ -136,7 +177,7 @@ export function PlaceField({
       {suggestions.length > 0 ? (
         <ul className="overflow-hidden rounded-2xl ring-1 ring-line">
           {suggestions.map((suggestion) => (
-            <li key={`${suggestion.zip}-${suggestion.label}`}>
+            <li key={suggestion.placeId ?? `${suggestion.label}-${suggestion.zip}`}>
               <button
                 type="button"
                 className="min-h-12 w-full px-4 text-left text-base hover:bg-brand-soft"
@@ -175,6 +216,10 @@ export function PlaceField({
           />
         </label>
         <label className="block text-base font-semibold text-ink">
+          State
+          <input value="Georgia" readOnly className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4" />
+        </label>
+        <label className="block text-base font-semibold text-ink">
           ZIP
           <input
             value={value.zip}
@@ -197,7 +242,7 @@ export function PlaceField({
         className="min-h-12 text-base font-semibold text-brand"
         onClick={() => {
           onChange({ ...value, verified: false, lat: null, lng: null });
-          setNote("We'll use this address anyway. An admin will see that it was not verified.");
+          setNote("We'll use the street, city, and ZIP you typed. An admin will see that it was not verified.");
         }}
       >
         Use this address anyway
