@@ -336,8 +336,8 @@ async function publish(page: Page, jobId: string, kind: "fixed" | "quote") {
 
 async function goOnline(page: Page) {
   await page.goto("/driver");
-  await page.getByRole("button", { name: "You are Offline" }).click();
-  await expect(page.getByRole("button", { name: "You are Online" })).toBeVisible();
+  await page.getByRole("switch", { name: "You are Offline" }).click();
+  await expect(page.getByRole("switch", { name: "You are Online" })).toBeVisible();
 }
 
 function jobPayment(jobId: string) {

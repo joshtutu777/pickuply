@@ -170,8 +170,8 @@ test("quick apply cannot go online until the checklist is finished, then can cla
   await page.context().clearCookies();
   await signIn(page, driver, "/driver");
   await expect(page.getByText("An approved vehicle is required before going Online.")).toHaveCount(0);
-  await page.getByRole("button", { name: "You are Offline" }).click();
-  await expect(page.getByRole("button", { name: "You are Online" })).toBeVisible();
+  await page.getByRole("switch", { name: "You are Offline" }).click();
+  await expect(page.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const card = page.locator("li").filter({ hasText: "Marietta, 30064" });
   await card.getByRole("button", { name: "Claim this job" }).click();
   await expect(page.locator(`a[href="/driver/jobs/${claimJob}"]`)).toBeVisible();

@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Online switch (2026-10-23)
+
+The Driver home control is a switch. It stays Offline or Online until the server confirms the change. A failed check is written under the switch and links to the checklist. A newly approved driver sees the approval prompt until the first time they go Online, or until they dismiss it. After that, Offline says they will not get new job alerts.
+
 ## Help requests (2026-10-23)
 
 Customers use `/help` instead of starting a chat with admin. A request gets a case number (HR-####), a status of Open, Waiting on you, or Resolved, and an optional private photo. The person sees their own requests. An admin sees the queue at `/admin/help`, replies, changes the status, and can open the related job. Replies and status changes are audit-logged. Drivers also get driver topics and still have Pickuply Support.

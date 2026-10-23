@@ -115,14 +115,14 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
 
   const first = await open(browser, "/driver");
   await signIn(first, pat);
-  await expect(first.getByRole("button", { name: "You are Online" })).toBeVisible();
+  await expect(first.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const firstCard = quoteCard(first);
   await expect(firstCard).toBeVisible();
   await expect(firstCard.getByText(street)).toHaveCount(0);
 
   const second = await open(browser, "/driver");
   await signIn(second, bea);
-  await expect(second.getByRole("button", { name: "You are Online" })).toBeVisible();
+  await expect(second.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const secondCard = quoteCard(second);
   await expect(secondCard).toBeVisible();
   await expect(secondCard.getByText(street)).toHaveCount(0);

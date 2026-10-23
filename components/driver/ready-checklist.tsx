@@ -61,13 +61,18 @@ export function ReadyChecklist({
       </ul>
     </section>
   );
-  if (!collapsed) return body;
   return (
-    <details className="mt-6">
-      <summary className="inline-flex min-h-12 cursor-pointer items-center font-semibold text-brand">
-        Profile complete
-      </summary>
-      {body}
-    </details>
+    <div id="checklist">
+      {collapsed ? (
+        <details className="mt-6">
+          <summary className="inline-flex min-h-12 cursor-pointer items-center font-semibold text-brand">
+            Profile complete
+          </summary>
+          {body}
+        </details>
+      ) : (
+        body
+      )}
+    </div>
   );
 }

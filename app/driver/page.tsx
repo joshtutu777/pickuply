@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 import { DriverHome } from "@/components/driver/driver-home";
@@ -63,7 +64,7 @@ async function DriverContent({
   const { data: application } = await supabase
     .from("drivers")
     .select(
-      "status, review_note, is_online, license_url, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
+      "status, review_note, is_online, first_online_at, license_url, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
     )
     .eq("profile_id", session.userId)
     .maybeSingle();
@@ -124,6 +125,9 @@ async function DriverContent({
           isOnline={Boolean(application?.is_online)}
           userId={session.userId}
           showFeed={Boolean(approved)}
+          approved={Boolean(approved)}
+          everOnline={Boolean(application?.first_online_at)}
+          promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
