@@ -17,6 +17,20 @@ export type JobTracker = {
   lastUpdate: string | null;
 };
 
+export type CustomerProgress = {
+  milestones: TrackStep[];
+  next: string;
+};
+
+const milestoneOrder = ["request", "driver", "pickup", "delivered"] as const;
+
+const milestoneLabels: Record<(typeof milestoneOrder)[number], string> = {
+  request: "Request & Price",
+  driver: "Driver Confirmed",
+  pickup: "Pickup",
+  delivered: "Delivered",
+};
+
 const workRank: Record<string, number> = {
   requested: 0,
   in_review: 0,
@@ -164,6 +178,79 @@ export function buildJobTracker(input: {
     banner,
     lastUpdate: latest(input.events) ?? input.createdAt,
   };
+}
+
+/** Four customer milestones. Driver Confirmed stays current until the job is assigned and the card is authorized. */
+export function customerProgress(input: {
+  status: string;
+  paymentStatus: string | null;
+  service: string;
+  pricingMethod: string;
+  events?: TrackEvent[];
+}): CustomerProgress {
+  const place = milestoneIndex(progressStatus(input.status, input.events ?? []), input.paymentStatus);
+  const milestones: TrackStep[] = milestoneOrder.map((id, index) => ({
+    id,
+    label: milestoneLabels[id],
+    state: index < place ? "done" : index === place ? "current" : "upcoming",
+    at: null,
+  }));
+  return { milestones, next: nextForCustomer(input) };
+}
+
+function progressStatus(status: string, events: TrackEvent[]): string {
+  if (status !== "cancelled" && status !== "disputed") return status;
+  let best = "requested";
+  let bestRank = 0;
+  for (const event of events) {
+    if (event.type !== "status" || !event.toStatus) continue;
+    const rank = workRank[event.toStatus];
+    if (rank != null && rank >= bestRank) {
+      best = event.toStatus;
+      bestRank = rank;
+    }
+  }
+  return best;
+}
+
+function milestoneIndex(status: string, paymentStatus: string | null): number {
+  if (status === "completed") return milestoneOrder.length;
+  const rank = workRank[status] ?? 0;
+  if (rank >= 8) return 3;
+  if (rank >= 4 || (status === "assigned" && paid.has(paymentStatus ?? ""))) return 2;
+  if (status === "assigned") return 1;
+  return 0;
+}
+
+function nextForCustomer(input: {
+  status: string;
+  paymentStatus: string | null;
+  service: string;
+  pricingMethod: string;
+}): string {
+  if (input.status === "cancelled") return "This request was cancelled.";
+  if (input.status === "disputed") return "This request is paused while the problem is reviewed.";
+  if (input.status === "completed") return "This request is finished.";
+  if (input.status === "delivered") return "Confirm delivery to finish this request.";
+  if (input.status === "in_transit") {
+    return input.service === "junk"
+      ? "The load is on the way to disposal."
+      : "The item is on the way to the drop-off.";
+  }
+  if (input.status === "item_check") return "Review the pickup photos before the driver leaves.";
+  if (input.status === "arrived") return "The driver is at the pickup.";
+  if (input.status === "en_route") return "The driver is heading to the pickup.";
+  if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) {
+    return "Pay to confirm this driver. Work starts after the card is authorized.";
+  }
+  if (input.status === "assigned") return "The driver is confirmed and can head to the pickup.";
+  if (input.status === "open" && input.pricingMethod === "quote") {
+    return "Drivers can see this request. Nothing is booked until one is assigned.";
+  }
+  if (input.status === "open") return "Choose an offer. Nothing is booked until you do.";
+  if (input.status === "quoted") return "Review the price. Drivers see this only after you accept.";
+  if (input.status === "in_review") return "We're reviewing the request before a price is sent.";
+  return "We'll confirm the price next. Drivers cannot see this yet.";
 }
 
 export function nextDriverAction(input: {

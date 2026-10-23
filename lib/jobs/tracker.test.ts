@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildJobTracker, nextDriverAction } from "./tracker";
+import { buildJobTracker, customerProgress, nextDriverAction } from "./tracker";
 
 const created = "2026-10-22T15:00:00.000Z";
 
@@ -105,6 +105,67 @@ test("an assigned job says awaiting payment until the card is authorized", () =>
   });
   assert.equal(authorized.steps.find((step) => step.id === "payment")?.label, "Payment confirmed");
   assert.equal(authorized.steps.find((step) => step.id === "payment")?.state, "done");
+});
+
+test("customer tracking uses four milestones", () => {
+  const requested = customerProgress({
+    status: "requested",
+    paymentStatus: null,
+    service: "delivery",
+    pricingMethod: "quote",
+  });
+  assert.deepEqual(
+    requested.milestones.map((step) => step.state),
+    ["current", "upcoming", "upcoming", "upcoming"],
+  );
+  assert.equal(requested.milestones[0]?.label, "Request & Price");
+  assert.match(requested.next, /Drivers cannot see this yet/);
+
+  const awaiting = customerProgress({
+    status: "assigned",
+    paymentStatus: "awaiting_payment",
+    service: "delivery",
+    pricingMethod: "fixed",
+  });
+  assert.equal(awaiting.milestones.find((step) => step.id === "driver")?.state, "current");
+  assert.equal(awaiting.milestones.find((step) => step.id === "pickup")?.state, "upcoming");
+  assert.match(awaiting.next, /card is authorized/);
+
+  const failed = customerProgress({
+    status: "assigned",
+    paymentStatus: "failed",
+    service: "delivery",
+    pricingMethod: "fixed",
+  });
+  assert.equal(failed.milestones.find((step) => step.id === "driver")?.state, "current");
+
+  const pickup = customerProgress({
+    status: "en_route",
+    paymentStatus: "authorized",
+    service: "delivery",
+    pricingMethod: "fixed",
+  });
+  assert.equal(pickup.milestones.find((step) => step.id === "driver")?.state, "done");
+  assert.equal(pickup.milestones.find((step) => step.id === "pickup")?.state, "current");
+  assert.equal(pickup.milestones.find((step) => step.id === "delivered")?.state, "upcoming");
+
+  const paidAndAssigned = customerProgress({
+    status: "assigned",
+    paymentStatus: "authorized",
+    service: "delivery",
+    pricingMethod: "fixed",
+  });
+  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "driver")?.state, "done");
+  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "pickup")?.state, "current");
+
+  const completed = customerProgress({
+    status: "completed",
+    paymentStatus: "captured",
+    service: "junk",
+    pricingMethod: "quote",
+  });
+  assert.equal(completed.milestones.every((step) => step.state === "done"), true);
+  assert.equal(completed.next, "This request is finished.");
 });
 
 test("the next driver button waits for payment and for the item check", () => {

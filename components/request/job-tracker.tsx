@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { DottedStepper } from "@/components/mobile/dotted-stepper";
 import { LastUpdate } from "@/components/request/last-update";
-import type { JobTracker } from "@/lib/jobs/tracker";
+import type { CustomerProgress, JobTracker } from "@/lib/jobs/tracker";
 
 export function JobTrackerView({
   tracker,
   driver,
   compact = false,
   chatHref,
+  progress,
 }: {
   tracker: JobTracker;
   driver?: { firstName: string; photoUrl: string | null; vehicle: string } | null;
   compact?: boolean;
   chatHref?: string;
+  progress?: CustomerProgress;
 }) {
   const current = tracker.steps.find((step) => step.state === "current");
   return (
@@ -44,10 +46,14 @@ export function JobTrackerView({
           ) : null}
         </div>
       ) : null}
+      {tracker.lastUpdate ? <LastUpdate iso={tracker.lastUpdate} /> : null}
+      {progress ? (
+        <CustomerMilestones progress={progress} history={tracker.steps.filter((step) => step.state !== "upcoming")} />
+      ) : (
+        <>
       <div className="mt-3">
         <DottedStepper steps={tracker.steps} />
       </div>
-      {tracker.lastUpdate ? <LastUpdate iso={tracker.lastUpdate} /> : null}
       {compact ? (
         <p className="text-base font-semibold text-ink">{current?.label ?? tracker.steps.at(-1)?.label}</p>
       ) : (
@@ -74,6 +80,64 @@ export function JobTrackerView({
           ))}
         </ol>
       )}
+        </>
+      )}
     </section>
+  );
+}
+
+function CustomerMilestones({
+  progress,
+  history,
+}: {
+  progress: CustomerProgress;
+  history: JobTracker["steps"];
+}) {
+  return (
+    <div className="mt-3">
+      <ol className="grid grid-cols-4 gap-1">
+        {progress.milestones.map((step) => (
+          <li
+            key={step.id}
+            aria-current={step.state === "current" ? "step" : undefined}
+            className="min-w-0 text-center"
+          >
+            <span
+              aria-hidden="true"
+              className={`mx-auto block size-2.5 rounded-full ${
+                step.state === "upcoming" ? "bg-line" : "bg-brand"
+              } ${step.state === "current" ? "ring-2 ring-brand/30 ring-offset-2 ring-offset-paper" : ""}`}
+            />
+            <span
+              className={`mt-2 block text-[0.7rem] leading-tight font-semibold ${
+                step.state === "upcoming" ? "text-muted" : "text-ink"
+              }`}
+            >
+              {step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-sm leading-snug text-ink">{progress.next}</p>
+      {history.length > 0 ? (
+        <details className="mt-2">
+          <summary className="flex min-h-12 cursor-pointer items-center text-sm font-semibold text-brand">
+            View activity history
+          </summary>
+          <ul className="grid gap-2 pb-1">
+            {history.map((step) => (
+              <li key={step.id} className="rounded-2xl bg-paper-raised px-3 py-2 text-sm ring-1 ring-line">
+                <span className="font-semibold text-ink">{step.label}</span>
+                {step.at ? (
+                  <time className="mt-0.5 block text-muted" dateTime={step.at}>
+                    {new Date(step.at).toLocaleString()}
+                  </time>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }

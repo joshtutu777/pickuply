@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Customer tracking (2026-10-22)
+
+Local UI only. The customer job page shows four milestones: Request & Price, Driver Confirmed, Pickup, and Delivered. Driver Confirmed stays incomplete until the job is assigned and the card is authorized. The old ten-step list is under View activity history. Driver screens still use the detailed tracker.
+
 ## Untested after Step 5
 
 - A transfer that Stripe actually creates, and the driver's bank payout after that. This sandbox cannot finish Express terms without a person passing the captcha.

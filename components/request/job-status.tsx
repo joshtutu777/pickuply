@@ -19,7 +19,7 @@ import type { DriverCard } from "@/lib/data/driver-card";
 import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { shortJobId } from "@/lib/jobs/next-action";
-import type { JobTracker } from "@/lib/jobs/tracker";
+import { customerProgress, type JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
@@ -76,13 +76,22 @@ export function JobStatus({
         {statusLabel(job.status)}
       </h1>
       <p className="mt-2 text-lg text-ink">{service.name}</p>
-      {job.status === "requested" ? (
-        <p className="mt-2 text-base leading-relaxed text-muted">
-          Drivers cannot see this yet. Nothing is booked or assigned. A quote waits for a price and
-          your acceptance. A named price or budget waits for confirmation before a driver is chosen.
-        </p>
-      ) : null}
-      <JobTrackerView tracker={tracker} driver={driver} chatHref={driver ? "#messages" : undefined} />
+      <JobTrackerView
+        tracker={tracker}
+        driver={driver}
+        chatHref={driver ? "#messages" : undefined}
+        progress={customerProgress({
+          status: job.status,
+          paymentStatus: job.payment_status,
+          service: job.service,
+          pricingMethod: job.pricing_method,
+          events: job.events.map((event) => ({
+            type: event.type,
+            createdAt: event.created_at,
+            toStatus: event.to_status,
+          })),
+        })}
+      />
       <section className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Request</h2>
         <p>{job.description}</p>
@@ -126,21 +135,6 @@ export function JobStatus({
           <p>Pickup: {job.private.pickup_address}</p>
           {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
           {job.private.access_notes ? <p>{job.private.access_notes}</p> : null}
-        </section>
-      ) : null}
-      {job.events.length > 0 ? (
-        <section className="mt-4 grid gap-2">
-          <h2 className="text-lg font-semibold text-ink">Updates</h2>
-          <ul className="grid gap-2">
-            {job.events.map((event) => (
-              <li key={event.id} className="rounded-2xl bg-paper-raised px-4 py-3 ring-1 ring-line">
-                <p className="font-semibold text-ink">
-                  {event.to_status ? statusLabel(event.to_status) : event.type}
-                </p>
-                <p className="text-sm text-muted">{new Date(event.created_at).toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
         </section>
       ) : null}
       {job.photos.length > 0 ? (
