@@ -9,6 +9,7 @@ const items = [
   { id: "requests", href: "/admin/requests", label: "Requests & Quotes" },
   { id: "jobs", href: "/admin/requests?stage=jobs", label: "Jobs & Assignments" },
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
+  { id: "funnel", href: "/admin/funnel", label: "Funnel" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
 ] as const;
 
@@ -22,7 +23,7 @@ function NavLinks({
   return (
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
-        const count = item.id === "settings" ? 0 : badges[item.id];
+        const count = item.id === "settings" || item.id === "funnel" ? 0 : badges[item.id];
         const active = current === item.id;
         return (
           <li key={item.id}>

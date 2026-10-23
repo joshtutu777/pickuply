@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { QuoteViewed } from "@/components/request/quote-viewed";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import {
   fees,
@@ -151,6 +152,7 @@ export function JobStatus({
       ) : null}
       {notice?.quote && canRespond ? (
         <section className="mt-4 space-y-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <QuoteViewed service={job.service} />
           <h2 className="text-lg font-semibold text-ink">Your quote</h2>
           <p>Subtotal {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
           <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>

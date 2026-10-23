@@ -23,6 +23,7 @@ import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
+import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
@@ -85,6 +86,21 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const photoIdsRef = useRef(photoIds);
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
+  const funnelStarted = useRef(false);
+  useEffect(() => {
+    const service = draft.service || null;
+    const pricing = draft.pricingMethod || null;
+    if (!funnelStarted.current) {
+      funnelStarted.current = true;
+      void recordFunnel({ event: "request_started", step: "1", service, pricing });
+      return;
+    }
+    if (stepIndex >= requestSteps.length) {
+      void recordFunnel({ event: "request_verified", step: "verified", service, pricing });
+      return;
+    }
+    void recordFunnel({ event: "request_screen", step: String(stepIndex + 1), service, pricing });
+  }, [draft.pricingMethod, draft.service, stepIndex]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(boot.formError);
@@ -364,6 +380,12 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       clearStoredDraft();
       clearSubmissionId();
       await Promise.all(photoIds.map((id) => deletePhoto(id).catch(() => undefined)));
+      void recordFunnel({
+        event: "request_submitted",
+        step: "submitted",
+        service: draft.service || null,
+        pricing: draft.pricingMethod || null,
+      });
       setSentId(job.id);
       setSubmitting(false);
     } catch (error) {
@@ -383,7 +405,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Request sent</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">
-          We'll review this request. Nothing is booked, and drivers cannot see it until it is published.
+          We&apos;ll review this request. Nothing is booked, and drivers cannot see it until it is published.
         </p>
         <Link href={`/jobs/${sentId}`} className={`${primaryButton} mt-8`}>
           View your request

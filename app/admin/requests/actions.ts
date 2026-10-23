@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
+import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
 const detailItems = ["stairs", "size", "pieces", "item_value", "access_notes", "photos"] as const;
@@ -56,6 +57,9 @@ export async function reviewRequest(formData: FormData) {
   });
   if (error) {
     redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  if (action === "quote") {
+    await recordFunnelServer({ event: "quote_sent", step: "sent", pricing: "quote" });
   }
   redirect(`/admin/requests/${jobId}?saved=1`);
 }

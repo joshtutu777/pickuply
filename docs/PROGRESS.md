@@ -480,6 +480,16 @@ Checkout's hosted pay button was covered by a verification modal. The test opens
 
 Full local pgTAP: 8 files, 230 tests, pass. Lint, typecheck, 77 unit tests, and the production build passed. Playwright against the local database passed 12 payment tests, including the three crons called with `CRON_SECRET`.
 
+## Shorter request and driver application (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0028` through `0031` are on the local database.
+
+A customer request is four screens. Size, pieces, item value, purchase questions, junk materials, and store info are optional. Junk load size is shown and optional; without it the estimate says the price is confirmed after review. The estimate sentence ends with "Final price confirmed after review." A signed-in customer skips name, phone, and the code. The draft still omits phone, email, and street addresses.
+
+An admin can ask for a checklist of missing details. Quote and publish stay blocked until the customer answers and the request returns to review.
+
+A driver can submit a short application. Approval does not allow Online, a claim, an offer, or an invited job until insurance, an approved vehicle, services, the agreement, and training are done. Payout setup stays optional for claiming. `/admin/funnel` counts those steps. Raw events are deleted after 90 days and do not store names, phones, emails, or addresses.
+
 ## Untested after Step 5
 
 - A transfer that Stripe actually creates, and the driver's bank payout after that. This sandbox cannot finish Express terms without a person passing the captcha.

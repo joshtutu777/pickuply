@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
 import { captureReadyPayment, releaseCustomerAuthorization } from "@/lib/payments/capture";
+import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function respondToQuote(formData: FormData) {
@@ -17,6 +18,9 @@ export async function respondToQuote(formData: FormData) {
       : await supabase.rpc("accept_admin_quote", { target_job: jobId });
   if (error) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  if (decision !== "decline") {
+    await recordFunnelServer({ event: "quote_accepted", step: "accepted", pricing: "quote" });
   }
   redirect(`/jobs/${jobId}`);
 }
