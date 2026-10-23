@@ -188,6 +188,7 @@ function driverOpenToAnyRole(pathname: string): boolean {
   return (
     pathname === "/driver" ||
     matches(pathname, "/driver/onboarding") ||
+    matches(pathname, "/driver/ready") ||
     matches(pathname, "/driver/training")
   );
 }

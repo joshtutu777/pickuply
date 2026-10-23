@@ -17,9 +17,17 @@ export function onlineGaps(input: {
 }): OnlineGap[] {
   const gaps: OnlineGap[] = [];
   if (!input.status || !["active", "approved_new"].includes(input.status)) {
+    const waiting = input.status === "pending_review" || input.status === "applied";
     gaps.push({
-      label: "Your driver account is not approved for jobs.",
-      href: "/driver/onboarding",
+      label:
+        input.status === "paused"
+          ? "Driving is paused. You cannot take jobs until Pickuply turns it back on."
+          : input.status === "removed"
+            ? "This application was closed."
+            : waiting
+              ? "Your application is in review. You cannot take jobs yet."
+              : "Your driver account is not approved for jobs.",
+      href: input.status === "removed" ? "/driver/onboarding" : "/driver",
     });
   }
   if (!input.licenseExpires || input.licenseExpires < input.today) {

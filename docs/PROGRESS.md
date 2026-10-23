@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Pending driver mode (2026-10-23)
+
+Local only. The profile mode button already calls the server action directly in 19d773f. A pending applicant who switches to driving stays on driver home and sees the application status plus the Get Ready to Drive checklist. Checklist steps under `/driver/ready` stay open to that applicant. Paused and removed drivers see that status in plain language. Earnings, alerts, and payout setup stay limited to the driver role, so a pending or removed applicant does not get them.
+
 ## Profile, mode, and four-step job actions (2026-10-22)
 
 Local only. Profile keeps Sign out and adds the masked phone, mode switch, Help, Terms, and Privacy. The Online switch is the first control on driver home and follows the server result. A cookie remembers customer or driver mode and does not change the role. New signups enter a first name. Fresh local phones 555-555-0201 through 0205 stay unused by tests. Their codes are gitignored. The customer and driver job screens share four milestones, and Driver Confirmed stays current until the trip starts.

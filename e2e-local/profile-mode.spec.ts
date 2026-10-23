@@ -58,7 +58,7 @@ test("the Online switch is the first control on driver home", async ({ page }) =
 test("a customer can open Quick Apply and still has no driver permission", async ({ page }) => {
   await page.goto("/login?next=/account/profile");
   await signIn(page, robin);
-  await page.getByRole("button", { name: "Become a driver" }).click();
+  await page.getByRole("button", { name: "Become a driver" }).tap();
   await expect(page).toHaveURL(/\/driver\/onboarding/);
   await expect(page.getByRole("button", { name: "Submit application" })).toBeVisible();
   await page.screenshot({ path: "test-results/profile-mode/quick-apply.png" });
@@ -68,12 +68,74 @@ test("a customer can open Quick Apply and still has no driver permission", async
   await expect(page).not.toHaveURL(/\/driver\/earnings$/);
 });
 
+test("a pending driver lands on the checklist, and paused or removed status is plain", async ({ page }) => {
+  const robinId = sql(
+    "select p.id from public.profiles p join auth.users u on u.id = p.id where u.phone in ('15555550177', '+15555550177')",
+  );
+  expect(robinId).toMatch(/^[0-9a-f-]{36}$/);
+  const restore = () => {
+    sql(`delete from public.vehicles where driver_id = '${robinId}'`);
+    sql(`delete from public.drivers where profile_id = '${robinId}'`);
+    sql(`update public.profiles set role = 'customer' where id = '${robinId}'`);
+  };
+  restore();
+  try {
+    sql(
+      `insert into public.drivers (profile_id, status, home_city, checklist_required) values ('${robinId}', 'pending_review', 'Austell', true)`,
+    );
+    const size = page.viewportSize();
+    expect(size && size.width <= 430).toBe(true);
+    await page.goto("/login?next=/account/profile");
+    await signIn(page, robin);
+    const switchToDriving = page.getByRole("button", { name: "Switch to driving" });
+    await expect(switchToDriving).toBeVisible();
+    await expect(switchToDriving).toHaveAttribute("type", "button");
+    await expect(switchToDriving.locator("xpath=ancestor::form")).toHaveCount(0);
+    await switchToDriving.tap();
+    await expect(page).toHaveURL(/\/driver$/);
+    await expect(page).not.toHaveURL(/error=forbidden/);
+    await expect(page.getByRole("heading", { name: "Application submitted" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Get Ready to Drive" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Set up payouts" })).toHaveCount(0);
+    await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
+    await page.getByRole("link", { name: /Insurance and expiry/ }).click();
+    await expect(page).toHaveURL(/\/driver\/ready\/insurance/);
+    await expect(page.getByRole("heading", { name: "Insurance" })).toBeVisible();
+    await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
+
+    sql(
+      `update public.drivers set status = 'paused', review_note = 'Paused for a manual check' where profile_id = '${robinId}'`,
+    );
+    sql(`update public.profiles set role = 'driver' where id = '${robinId}'`);
+    await page.goto("/account/profile");
+    await page.getByRole("button", { name: "Switch to driving" }).tap();
+    await expect(page).toHaveURL(/\/driver$/);
+    await expect(page.getByRole("heading", { name: "Driving is paused" })).toBeVisible();
+    await expect(page.getByText("Paused for a manual check")).toBeVisible();
+    await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
+
+    sql(
+      `update public.drivers set status = 'removed', review_note = 'Removed for a manual check' where profile_id = '${robinId}'`,
+    );
+    sql(`update public.profiles set role = 'customer' where id = '${robinId}'`);
+    await page.goto("/account/profile");
+    await page.getByRole("button", { name: "Switch to driving" }).tap();
+    await expect(page).toHaveURL(/\/driver$/);
+    await expect(page.getByRole("heading", { name: "Application closed" })).toBeVisible();
+    await expect(page.getByText("Removed for a manual check")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Submit application again" })).toBeVisible();
+    await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
+  } finally {
+    restore();
+  }
+});
+
 test("an approved driver can switch to the customer account", async ({ page }) => {
   await page.goto("/login?next=/driver/profile");
   await signIn(page, pat);
   await expect(page.getByRole("button", { name: "Switch to customer" })).toBeVisible();
   await page.screenshot({ path: "test-results/profile-mode/driver-profile.png" });
-  await page.getByRole("button", { name: "Switch to customer" }).click();
+  await page.getByRole("button", { name: "Switch to customer" }).tap();
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole("navigation", { name: "Customer" })).toBeVisible();
   await page.goto("/account/profile");

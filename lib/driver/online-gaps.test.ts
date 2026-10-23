@@ -30,6 +30,11 @@ test("an unready driver gets a link for each missing item", () => {
     serviceCount: 0,
   });
   assert.equal(gaps.length, 6);
-  assert.equal(gaps[0]?.href, "/driver/onboarding");
+  assert.match(gaps[0]?.label ?? "", /in review/);
+  assert.equal(gaps[0]?.href, "/driver");
   assert.equal(gaps.find((gap) => gap.href === "/driver/ready/insurance")?.label.includes("insurance"), true);
+  const paused = onlineGaps({ ...ready, status: "paused" });
+  assert.match(paused[0]?.label ?? "", /Driving is paused/);
+  const removed = onlineGaps({ ...ready, status: "removed" });
+  assert.match(removed[0]?.label ?? "", /closed/);
 });

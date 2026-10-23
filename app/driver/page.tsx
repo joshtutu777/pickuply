@@ -8,6 +8,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
+import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { onlineGaps } from "@/lib/driver/online-gaps";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +62,7 @@ async function DriverContent({
   const { data: application } = await supabase
     .from("drivers")
     .select(
-      "status, is_online, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
+      "status, review_note, is_online, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
     )
     .eq("profile_id", session.userId)
     .maybeSingle();
@@ -78,54 +79,60 @@ async function DriverContent({
     .eq("driver_id", session.userId)
     .maybeSingle();
 
+  const statusCopy = applicationStatusCopy(application?.status ?? null);
+  const checklistItems = application
+    ? [
+        {
+          id: "insurance",
+          label: "Insurance and expiry",
+          href: "/driver/ready/insurance",
+          done: Boolean(application.insurance_url && application.insurance_expires),
+        },
+        {
+          id: "vehicle",
+          label: "Vehicle details and photo",
+          href: "/driver/ready/vehicle",
+          done: Boolean(vehicle?.make && vehicle.photo_url),
+        },
+        {
+          id: "equipment",
+          label: "Equipment and helper",
+          href: "/driver/ready/equipment",
+          done: Boolean(application.kit_saved_at),
+        },
+        {
+          id: "services",
+          label: "Services offered",
+          href: "/driver/ready/services",
+          done: (application.services ?? []).length > 0,
+        },
+        {
+          id: "agreement",
+          label: "Driver agreement",
+          href: "/driver/ready/agreement",
+          done: Boolean(application.agreement_signed_at),
+        },
+        {
+          id: "training",
+          label: "Training",
+          href: "/driver/ready/training",
+          done: Boolean(application.training_completed_at),
+        },
+        ...(session.role === "driver"
+          ? [
+              {
+                id: "payout",
+                label: "Stripe payout setup",
+                href: "/driver/earnings",
+                done: Boolean(payout?.details_submitted),
+              },
+            ]
+          : []),
+      ]
+    : [];
   const checklist =
-    application?.checklist_required ? (
-      <ReadyChecklist
-        items={[
-          {
-            id: "insurance",
-            label: "Insurance and expiry",
-            href: "/driver/ready/insurance",
-            done: Boolean(application.insurance_url && application.insurance_expires),
-          },
-          {
-            id: "vehicle",
-            label: "Vehicle details and photo",
-            href: "/driver/ready/vehicle",
-            done: Boolean(vehicle?.make && vehicle.photo_url),
-          },
-          {
-            id: "equipment",
-            label: "Equipment and helper",
-            href: "/driver/ready/equipment",
-            done: Boolean(application.kit_saved_at),
-          },
-          {
-            id: "services",
-            label: "Services offered",
-            href: "/driver/ready/services",
-            done: (application.services ?? []).length > 0,
-          },
-          {
-            id: "agreement",
-            label: "Driver agreement",
-            href: "/driver/ready/agreement",
-            done: Boolean(application.agreement_signed_at),
-          },
-          {
-            id: "training",
-            label: "Training",
-            href: "/driver/ready/training",
-            done: Boolean(application.training_completed_at),
-          },
-          {
-            id: "payout",
-            label: "Stripe payout setup",
-            href: "/driver/earnings",
-            done: Boolean(payout?.details_submitted),
-          },
-        ]}
-      />
+    application?.checklist_required && application.status !== "removed" ? (
+      <ReadyChecklist items={checklistItems} />
     ) : null;
 
   if (session.role === "driver" || application) {
@@ -161,21 +168,36 @@ async function DriverContent({
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
-        <p className="mt-3">
-          <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Alerts
-          </Link>
-        </p>
-        <p>
-          <Link href="/driver/earnings" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Set up payouts
-          </Link>
-        </p>
-        {application?.status === "pending_review" ? (
-          <p className="mt-4 text-base leading-relaxed text-ink">
-            Application submitted. We&apos;ll review it and contact you.
-          </p>
+        {statusCopy ? (
+          <section className="mt-4" aria-label="Application status">
+            <h2 className="font-display text-2xl font-semibold text-ink">{statusCopy.title}</h2>
+            <p className="mt-2 text-base leading-relaxed text-ink">{statusCopy.body}</p>
+            {application?.review_note ? (
+              <p className="mt-2 text-base text-ink">Note from Pickuply: {application.review_note}</p>
+            ) : null}
+            {application?.status === "removed" ? (
+              <Link href="/driver/onboarding" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
+                Submit application again
+              </Link>
+            ) : null}
+          </section>
         ) : null}
+        {session.role === "driver" ? (
+          <>
+            <p className="mt-3">
+              <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
+                Alerts
+              </Link>
+            </p>
+            <p>
+              <Link href="/driver/earnings" className="inline-flex min-h-12 items-center font-semibold text-brand">
+                Set up payouts
+              </Link>
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-base text-muted">Payout setup opens after you are approved.</p>
+        )}
         {application?.status === "approved_new" ? (
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.
