@@ -95,5 +95,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /quote-workflow\.spec\.ts/,
     },
+    {
+      name: "local-ready",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /quick-apply\.spec\.ts/,
+    },
   ],
 });

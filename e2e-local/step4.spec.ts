@@ -33,6 +33,8 @@ test("local marketplace assignment does not charge or reveal the address", async
   await admin.page.getByRole("link", { name: /Bea Driver/ }).click();
   await admin.page.getByRole("button", { name: "Approve as active" }).click();
   await admin.page.waitForURL(/saved=1/);
+  finishChecklist(people.driver.phone);
+  finishChecklist(people.driver2.phone);
 
   const fixedId = await createRequest(customer.context, {
     description: "TEST fixed desk",
@@ -183,31 +185,36 @@ async function onboard(page: Page, name: string) {
   await page.locator("#fullName").fill(name);
   await page.getByLabel("Home city").fill("Austell");
   await page.locator("#zone").selectOption({ label: "West Metro" });
-  await page.getByLabel("Make").fill("Ford");
-  await page.getByLabel("Model").fill("F150");
-  await page.getByLabel("Year").fill("2018");
-  await page.getByLabel("Plate").fill("TEST123");
-  await page.getByLabel("Cargo length (inches)").fill("72");
-  await page.getByLabel("License expiration").fill("2027-12-31");
-  await page.getByLabel("Insurance expiration").fill("2027-12-31");
-  await page.locator("#payoutHandle").fill("$test-driver");
-  const files = page.locator("input[type=file]");
+  await page.locator("#vehicleType").selectOption("pickup");
+  await page.getByRole("radio", { name: "Light load" }).check();
+  await page.locator("#licenseExpires").fill("2027-12-31");
   const photo = { name: "photo.png", mimeType: "image/png", buffer: png };
-  await files.nth(0).setInputFiles(photo);
-  await files.nth(1).setInputFiles(photo);
-  await files.nth(2).setInputFiles(photo);
-  await files.nth(3).setInputFiles(photo);
-  for (const label of [
-    "I am an independent contractor, not an employee of Pickuply.",
-    "I will follow the locked price, photograph pickup and drop-off, and refuse prohibited items.",
-    "The documents and vehicle details I submit are accurate.",
-    "Pay me at the Zelle or Cash App handle above. I will not take payment from the customer.",
-  ]) {
-    await page.getByRole("checkbox", { name: label }).check();
-  }
-  await page.locator("#signature").fill(name);
+  await page.locator("#profilePhoto").setInputFiles(photo);
+  await page.locator("#licensePhoto").setInputFiles(photo);
+  await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
   await page.waitForURL(/submitted=1/);
+}
+
+function finishChecklist(phone: string) {
+  localSql(`
+    update public.drivers as drivers
+    set insurance_url = drivers.profile_id::text || '/insurance.jpg',
+        insurance_expires = '2027-12-31',
+        agreement_signed_at = now(),
+        agreement_signature = 'signed',
+        agreement_version = '2026-10',
+        training_completed_at = now(),
+        services = '{delivery}',
+        kit_saved_at = now()
+    from auth.users
+    where drivers.profile_id = auth.users.id
+      and auth.users.phone in ('1${phone}', '+1${phone}');
+    update public.vehicles
+    set make = 'Ford', model = 'F150', year = 2018, plate = 'TEST123',
+        cargo_length_in = 72, photo_url = driver_id::text || '/vehicle.jpg', approved = true
+    where driver_id in (select id from auth.users where phone in ('1${phone}', '+1${phone}'));
+  `);
 }
 
 function promoteAdmin() {

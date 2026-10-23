@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { OnboardingForm } from "@/components/driver/onboarding-form";
+import { QuickApplyForm } from "@/components/driver/quick-apply-form";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -57,9 +57,10 @@ async function OnboardingContent({
       </h1>
       {waiting ? (
         <div className="mt-6 space-y-4 text-base leading-relaxed text-ink">
+          <p>Application submitted. We&apos;ll review it and contact you.</p>
           <p>Your application is in for review. We will look at your documents before you can take jobs.</p>
-          <Link href="/driver/training" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Read the short training
+          <Link href="/driver" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Get ready to drive
           </Link>
         </div>
       ) : null}
@@ -69,11 +70,12 @@ async function OnboardingContent({
         </p>
       ) : null}
       {!waiting ? (
-        <OnboardingForm
-          userId={session.userId}
-          zones={zones ?? []}
-          reviewNote={driver?.status === "pending_review" ? driver.review_note : null}
-        />
+        <>
+          <QuickApplyForm userId={session.userId} zones={zones ?? []} />
+          {driver?.review_note ? (
+            <p className="mt-4 text-base text-ink">Note from Pickuply: {driver.review_note}</p>
+          ) : null}
+        </>
       ) : null}
     </main>
   );

@@ -134,7 +134,7 @@ test("E a returning customer adds a second request an admin can see", async ({ b
     description: "Returning customer yard debris",
     person: returning,
   });
-  await customerPage.getByRole("button", { name: "Save request" }).click();
+  await customerPage.getByRole("link", { name: "View your request" }).click();
   await customerPage.waitForURL(/\/jobs\/[0-9a-f-]+$/);
   const junkPath = new URL(customerPage.url()).pathname;
   await expect(customerPage.getByText("Returning customer yard debris")).toBeVisible();
@@ -245,11 +245,18 @@ async function fillRequest(
     await page.getByRole("textbox", { name: /^Maximum/ }).fill("80");
   }
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.getByLabel("Your name").fill(input.person.name);
-  await page.getByLabel("Phone number").fill(input.person.phone);
+  const name = page.getByLabel("Your name");
+  if (await name.isVisible()) {
+    await name.fill(input.person.name);
+    await page.getByLabel("Phone number").fill(input.person.phone);
+    await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();
+    return;
+  }
   await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();
+  await page.getByRole("button", { name: "Send request" }).click();
+  await expect(page.getByRole("heading", { name: "Request sent" })).toBeVisible();
 }
 
 async function submitApplication(page: Page, name: string) {
@@ -257,29 +264,13 @@ async function submitApplication(page: Page, name: string) {
   await form.locator("#fullName").fill(name);
   await form.getByLabel("Home city").fill("Austell");
   await form.locator("#zone").selectOption({ label: "West Metro" });
-  await form.getByLabel("Make").fill("Ford");
-  await form.getByLabel("Model").fill("F150");
-  await form.getByLabel("Year").fill("2018");
-  await form.getByLabel("Plate").fill("TEST199");
-  await form.getByLabel("Cargo length (inches)").fill("72");
-  await form.getByLabel("License expiration").fill("2027-12-31");
-  await form.getByLabel("Insurance expiration").fill("2027-12-31");
-  await form.locator("#payoutHandle").fill("$test-driver");
+  await form.locator("#vehicleType").selectOption("pickup");
+  await form.getByRole("radio", { name: "Light load" }).check();
+  await form.locator("#licenseExpires").fill("2027-12-31");
   const photo = { name: "photo.png", mimeType: "image/png", buffer: png };
-  const files = form.locator("input[type=file]");
-  await files.nth(0).setInputFiles(photo);
-  await files.nth(1).setInputFiles(photo);
-  await files.nth(2).setInputFiles(photo);
-  await files.nth(3).setInputFiles(photo);
-  for (const label of [
-    "I am an independent contractor, not an employee of Pickuply.",
-    "I will follow the locked price, photograph pickup and drop-off, and refuse prohibited items.",
-    "The documents and vehicle details I submit are accurate.",
-    "Pay me at the Zelle or Cash App handle above. I will not take payment from the customer.",
-  ]) {
-    await form.getByRole("checkbox", { name: label }).check();
-  }
-  await form.locator("#signature").fill(name);
+  await form.locator("#profilePhoto").setInputFiles(photo);
+  await form.locator("#licensePhoto").setInputFiles(photo);
+  await form.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
   await form.getByRole("button", { name: "Submit application" }).click();
   await page.waitForURL(/submitted=1/);
 }

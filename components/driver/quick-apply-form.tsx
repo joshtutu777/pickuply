@@ -1,0 +1,163 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { TextField } from "@/components/request/fields";
+import { validateFullName } from "@/lib/auth/name";
+import { recordFunnel } from "@/lib/funnel";
+import { createClient } from "@/lib/supabase/client";
+
+const vehicles = [
+  { id: "pickup", label: "Pickup" },
+  { id: "van", label: "Van" },
+  { id: "suv", label: "SUV" },
+  { id: "car", label: "Car" },
+  { id: "box_truck", label: "Box truck" },
+  { id: "trailer", label: "Trailer" },
+] as const;
+
+const controlClass =
+  "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
+
+async function uploadDoc(userId: string, name: "profile" | "license", file: File): Promise<string> {
+  if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
+  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const path = `${userId}/${name}.${ext}`;
+  const supabase = createClient();
+  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
+    upsert: true,
+    contentType: file.type || "image/jpeg",
+  });
+  if (error) throw new Error("We couldn't upload that photo. Try again.");
+  return path;
+}
+
+export function QuickApplyForm({
+  userId,
+  zones,
+}: {
+  userId: string;
+  zones: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [homeCity, setHomeCity] = useState("");
+  const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
+  const [vehicleType, setVehicleType] = useState("pickup");
+  const [serviceLevel, setServiceLevel] = useState("light");
+  const [licenseExpires, setLicenseExpires] = useState("");
+  const [contactOk, setContactOk] = useState(false);
+  const [profileFile, setProfileFile] = useState<File | null>(null);
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    void recordFunnel({ event: "driver_apply_started", step: "apply" });
+  }, []);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!validateFullName(fullName)) {
+      setError("Enter your full name.");
+      return;
+    }
+    if (!profileFile || !licenseFile) {
+      setError("Add a profile photo and a photo of your license.");
+      return;
+    }
+    if (!contactOk) {
+      setError("Agree to be contacted about this application.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      const [photoPath, licensePath] = await Promise.all([
+        uploadDoc(userId, "profile", profileFile),
+        uploadDoc(userId, "license", licenseFile),
+      ]);
+      const { error: saveError } = await createClient().rpc("submit_quick_application", {
+        payload: {
+          full_name: fullName.trim(),
+          home_city: homeCity.trim(),
+          zone_id: zoneId,
+          vehicle_type: vehicleType,
+          service_level: serviceLevel,
+          photo_path: photoPath,
+          license_path: licensePath,
+          license_expires: licenseExpires,
+          contact_ok: "true",
+        },
+      });
+      if (saveError) throw new Error(saveError.message);
+      void recordFunnel({ event: "driver_submitted", step: "submitted" });
+      router.push("/driver/onboarding?submitted=1");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We couldn't submit the application.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
+      <TextField name="homeCity" label="Home city" value={homeCity} onChange={setHomeCity} />
+      <label className="block text-base font-semibold text-ink" htmlFor="zone">
+        Service area
+        <select id="zone" className={controlClass} value={zoneId} onChange={(event) => setZoneId(event.target.value)}>
+          {zones.map((zone) => (
+            <option key={zone.id} value={zone.id}>
+              {zone.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block text-base font-semibold text-ink" htmlFor="vehicleType">
+        Vehicle type
+        <select id="vehicleType" className={controlClass} value={vehicleType} onChange={(event) => setVehicleType(event.target.value)}>
+          {vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {vehicle.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <fieldset>
+        <legend className="text-base font-semibold text-ink">What can you haul?</legend>
+        <label className="mt-2 flex min-h-12 items-center gap-3">
+          <input type="radio" name="serviceLevel" value="light" checked={serviceLevel === "light"} onChange={() => setServiceLevel("light")} />
+          Light load
+        </label>
+        <label className="flex min-h-12 items-center gap-3">
+          <input type="radio" name="serviceLevel" value="full" checked={serviceLevel === "full"} onChange={() => setServiceLevel("full")} />
+          Full service
+        </label>
+      </fieldset>
+      <label className="block text-base font-semibold text-ink" htmlFor="profilePhoto">
+        Profile photo
+        <input id="profilePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => setProfileFile(event.target.files?.[0] ?? null)} />
+      </label>
+      <label className="block text-base font-semibold text-ink" htmlFor="licensePhoto">
+        Driver license photo
+        <input id="licensePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => setLicenseFile(event.target.files?.[0] ?? null)} />
+      </label>
+      <label className="block text-base font-semibold text-ink" htmlFor="licenseExpires">
+        License expiration
+        <input id="licenseExpires" type="date" required value={licenseExpires} onChange={(event) => setLicenseExpires(event.target.value)} className={controlClass} />
+      </label>
+      <label className="flex min-h-12 items-start gap-3 text-base">
+        <input type="checkbox" checked={contactOk} onChange={(event) => setContactOk(event.target.checked)} />
+        Pickuply can contact me about this application.
+      </label>
+      {error ? (
+        <p role="alert" className="text-base text-danger">
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+        Submit application
+      </button>
+    </form>
+  );
+}

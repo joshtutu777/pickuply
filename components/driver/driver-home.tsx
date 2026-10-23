@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
+import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 
 type FeedJob = {
@@ -76,6 +77,9 @@ function OfferActions({
       return;
     }
     setMessage(kind === "claim" ? "You are assigned. Payment is still due." : "Offer sent. The customer chooses.");
+    if (kind === "claim" || kind === "accept") {
+      void recordFunnel({ event: "driver_claim", step: kind, service: job.service, pricing: job.pricing_method });
+    }
     if (kind === "claim") router.refresh();
     onDone();
   }
@@ -212,6 +216,7 @@ export function DriverHome({
       setError(onlineError.message);
       return;
     }
+    if (!online) void recordFunnel({ event: "driver_online", step: "online" });
     setOnline(!online);
   }
 

@@ -182,7 +182,7 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
 
   await page.getByRole("radio", { name: /Get a quote/ }).check();
   await expect(
-    page.getByText("This is not an instant guaranteed quote."),
+    page.getByRole("paragraph").filter({ hasText: "This is not an instant guaranteed quote." }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Your price" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /^Minimum/ })).toHaveCount(0);

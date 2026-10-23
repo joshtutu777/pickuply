@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { reviewDriver } from "@/app/admin/drivers/actions";
+import { approveVehicle, reviewDriver } from "@/app/admin/drivers/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -103,12 +103,16 @@ async function DriverDetail({
         <div>Services: {(driver.services ?? []).join(", ") || "None"}</div>
         <div>License expires: {driver.license_expires || "Missing"}</div>
         <div>Insurance expires: {driver.insurance_expires || "Missing"}</div>
+        <div>Contact consent: {driver.contact_consent_at ? "Yes" : "No"}</div>
+        <div>Agreement: {driver.agreement_signed_at ? `Signed ${driver.agreement_signed_at.slice(0, 10)}` : "Not signed"}</div>
+        <div>Training: {driver.training_completed_at ? "Complete" : "Not complete"}</div>
+        <div>Equipment saved: {driver.kit_saved_at ? "Yes" : "No"}</div>
         <div>
           Payout: {driver.payout_method} {driver.payout_handle}
         </div>
         <div>
-          Vehicle: {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.plate})` : "Missing"}
-          {vehicle?.approved ? " · approved" : ""}
+          Vehicle: {vehicle ? `${vehicle.type} ${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} (${vehicle.plate ?? "no plate"})` : "Missing"}
+          {vehicle?.approved ? " · approved" : " · not approved"}
         </div>
         {driver.review_note ? <div>Last note: {driver.review_note}</div> : null}
         {driver.agreement_signature ? <div>Signed: {driver.agreement_signature}</div> : null}
@@ -119,6 +123,14 @@ async function DriverDetail({
         {insuranceUrl ? <DocLink href={insuranceUrl} label="Insurance" /> : null}
         {vehicleUrl ? <DocLink href={vehicleUrl} label="Vehicle photo" /> : null}
       </div>
+      {vehicle && !vehicle.approved ? (
+        <form action={approveVehicle} className="mt-6">
+          <input type="hidden" name="driverId" value={id} />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white">
+            Approve vehicle
+          </button>
+        </form>
+      ) : null}
       <form action={reviewDriver} className="mt-8 space-y-4">
         <input type="hidden" name="driverId" value={id} />
         <label className="block text-base font-semibold text-ink" htmlFor="note">

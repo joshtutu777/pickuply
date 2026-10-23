@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { DriverHome } from "@/components/driver/driver-home";
+import { ReadyChecklist } from "@/components/driver/ready-checklist";
 import { ForbiddenAlert } from "@/components/forbidden-alert";
 import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
@@ -50,31 +51,100 @@ async function DriverContent({
   const params = await searchParams;
   const forbidden = singleQuery(params.error) === "forbidden";
 
-  if (session.role === "driver") {
-    const supabase = await createClient();
-    const { data: driver } = await supabase
-      .from("drivers")
-      .select("status, is_online, license_expires, insurance_expires, insurance_url")
-      .eq("profile_id", session.userId)
-      .maybeSingle();
-    const { data: vehicle } = await supabase
-      .from("vehicles")
-      .select("approved")
-      .eq("driver_id", session.userId)
-      .eq("approved", true)
-      .limit(1)
-      .maybeSingle();
+  const supabase = await createClient();
+  const { data: application } = await supabase
+    .from("drivers")
+    .select(
+      "status, is_online, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
+    )
+    .eq("profile_id", session.userId)
+    .maybeSingle();
+  const { data: vehicle } = await supabase
+    .from("vehicles")
+    .select("approved, make, photo_url")
+    .eq("driver_id", session.userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { data: payout } = await supabase
+    .from("driver_connect_accounts")
+    .select("details_submitted")
+    .eq("driver_id", session.userId)
+    .maybeSingle();
+
+  const checklist =
+    application?.checklist_required ? (
+      <ReadyChecklist
+        items={[
+          {
+            id: "insurance",
+            label: "Insurance and expiry",
+            href: "/driver/ready/insurance",
+            done: Boolean(application.insurance_url && application.insurance_expires),
+          },
+          {
+            id: "vehicle",
+            label: "Vehicle details and photo",
+            href: "/driver/ready/vehicle",
+            done: Boolean(vehicle?.make && vehicle.photo_url),
+          },
+          {
+            id: "equipment",
+            label: "Equipment and helper",
+            href: "/driver/ready/equipment",
+            done: Boolean(application.kit_saved_at),
+          },
+          {
+            id: "services",
+            label: "Services offered",
+            href: "/driver/ready/services",
+            done: (application.services ?? []).length > 0,
+          },
+          {
+            id: "agreement",
+            label: "Driver agreement",
+            href: "/driver/ready/agreement",
+            done: Boolean(application.agreement_signed_at),
+          },
+          {
+            id: "training",
+            label: "Training",
+            href: "/driver/ready/training",
+            done: Boolean(application.training_completed_at),
+          },
+          {
+            id: "payout",
+            label: "Stripe payout setup",
+            href: "/driver/earnings",
+            done: Boolean(payout?.details_submitted),
+          },
+        ]}
+      />
+    ) : null;
+
+  if (session.role === "driver" || application) {
+    const today = new Date().toISOString().slice(0, 10);
     const missing: string[] = [];
-    if (!driver || !["active", "approved_new"].includes(driver.status)) {
+    if (!application || !["active", "approved_new"].includes(application.status)) {
       missing.push("Your driver account is not approved for jobs.");
     }
-    if (!driver?.license_expires || driver.license_expires < new Date().toISOString().slice(0, 10)) {
+    if (!application?.license_expires || application.license_expires < today) {
       missing.push("Add an unexpired driver license before going Online.");
     }
-    if (!driver?.insurance_url || !driver.insurance_expires || driver.insurance_expires < new Date().toISOString().slice(0, 10)) {
+    if (!application?.insurance_url || !application.insurance_expires || application.insurance_expires < today) {
       missing.push("Add unexpired insurance before going Online.");
     }
-    if (!vehicle) missing.push("An approved vehicle is required before going Online.");
+    if (!vehicle?.approved) missing.push("An approved vehicle is required before going Online.");
+    if (application?.checklist_required && !application.agreement_signed_at) {
+      missing.push("Sign the driver agreement before going Online.");
+    }
+    if (application?.checklist_required && !application.training_completed_at) {
+      missing.push("Finish the short training before going Online.");
+    }
+    if (application?.checklist_required && (application.services ?? []).length < 1) {
+      missing.push("Choose the services you offer before going Online.");
+    }
+    const approved = application && ["active", "approved_new"].includes(application.status);
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
@@ -89,14 +159,20 @@ async function DriverContent({
             Set up payouts
           </Link>
         </p>
-        {driver?.status === "approved_new" ? (
+        {application?.status === "pending_review" ? (
+          <p className="mt-4 text-base leading-relaxed text-ink">
+            Application submitted. We&apos;ll review it and contact you.
+          </p>
+        ) : null}
+        {application?.status === "approved_new" ? (
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.
           </p>
         ) : null}
+        {checklist}
         {forbidden ? <ForbiddenAlert /> : null}
-        <AssignedLinks userId={session.userId} />
-        <DriverHome isOnline={Boolean(driver?.is_online)} missing={missing} />
+        {approved ? <AssignedLinks userId={session.userId} /> : null}
+        {approved ? <DriverHome isOnline={Boolean(application?.is_online)} missing={missing} /> : null}
       </main>
     );
   }
