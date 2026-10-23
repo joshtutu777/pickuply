@@ -11,6 +11,7 @@ const items = [
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
   { id: "funnel", href: "/admin/funnel", label: "Funnel" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
+  { id: "help", href: "/admin/help", label: "Help" },
 ] as const;
 
 function NavLinks({
@@ -23,7 +24,7 @@ function NavLinks({
   return (
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
-        const count = item.id === "settings" || item.id === "funnel" ? 0 : badges[item.id];
+        const count = item.id === "settings" || item.id === "funnel" || item.id === "help" ? 0 : badges[item.id];
         const active = current === item.id;
         return (
           <li key={item.id}>

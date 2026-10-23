@@ -197,6 +197,9 @@ If the customer rejects the item: job ends, $25 trip fee captured, driver paid t
 ### 5.7 Earnings
 Completed jobs, pending payouts, paid payouts, totals by week.
 
+### 5.8 Help
+Customers do not start a chat with admin. They use `/help`. Answers come from the written rules in this spec. A request gets a case number (HR-####), a status of Open, Waiting on you, or Resolved, and an optional private photo. The customer sees only their own requests. An admin sees every request, replies, changes the status, and can open the related job. An active job links to Report a problem. Drivers have their own topics and keep the driver support thread.
+
 ---
 
 ## 6. Job lifecycle

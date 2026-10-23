@@ -60,7 +60,7 @@ export function ProfileMenu({
           </li>
         ) : null}
         <li>
-          <Link href="/support" className={row}>
+          <Link href="/help" className={row}>
             Help
           </Link>
         </li>

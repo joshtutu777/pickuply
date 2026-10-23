@@ -135,6 +135,8 @@ test("a named person leaves login and is limited to their role", () => {
   assert.equal(redirectTo("/driver/onboarding-extra", ready("customer")), "/account?error=forbidden");
   assertAllowed("/driver/jobs", ready("driver"));
 
+  assert.equal(redirectTo("/help", { status: "anonymous" }), "/login?next=%2Fhelp");
+  assertAllowed("/help", ready("customer"));
   assertAllowed("/account", ready("customer"));
   assertAllowed("/account", ready("driver"));
   assertAllowed("/account", ready("admin"));

@@ -110,8 +110,8 @@ async function JobEntry({
           <ReportForm jobId={id} />
         ) : null}
         <p className="mt-4">
-          <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Contact support
+          <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Help
           </Link>
         </p>
       </div>

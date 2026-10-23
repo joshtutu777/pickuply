@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Help requests (2026-10-23)
+
+Customers use `/help` instead of starting a chat with admin. A request gets a case number (HR-####), a status of Open, Waiting on you, or Resolved, and an optional private photo. The person sees their own requests. An admin sees the queue at `/admin/help`, replies, changes the status, and can open the related job. Replies and status changes are audit-logged. Drivers also get driver topics and still have Pickuply Support.
+
 ## Driver review and messages (2026-10-23)
 
 Local only. Approve driver marks the vehicle eligible, leaves the driver Offline, and sends an in-app notice. Request documents flags checklist items and posts the note in Pickuply Support. Customers cannot start that thread. Job chat closes when the job is completed or cancelled. The original chat text stays available to admin; everyone else sees phone numbers and emails replaced.
