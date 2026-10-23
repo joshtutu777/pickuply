@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Current Driver Terms (2026-10-23)
+
+Online now requires `driver-terms-v1`, not an older agreement timestamp. Driver home shows a review-and-accept card. The Online error links to Review. Accepting stores the version and the time and does not happen automatically.
+
 ## Messages inbox (2026-10-23)
 
 An admin document request was posted on the support thread, but Messages only listed job chats and the alert opened Driver home. The inbox now includes Pickuply Support. The alert opens that conversation. Admin Messages shows unread counts, driver and customer chats, and open help cases. Upload now opens the matching document page. A saved document notifies admin. Chat files stay private.

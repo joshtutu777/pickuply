@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { dismissOnlinePrompt } from "@/app/driver/actions";
+import { acceptDriverTerms, dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
@@ -167,6 +167,7 @@ export function DriverHome({
   vehicleType,
   everOnline,
   promptDismissed,
+  termsAccepted,
   coverage,
   showAllJobs,
   feedServices,
@@ -179,6 +180,7 @@ export function DriverHome({
   vehicleType: string | null;
   everOnline: boolean;
   promptDismissed: boolean;
+  termsAccepted: boolean;
   coverage: CoverageDraft;
   showAllJobs: boolean;
   feedServices: string;
@@ -290,8 +292,25 @@ export function DriverHome({
     void load();
   }
 
+  const termsError = switchError?.includes("Driver Terms") ?? false;
+
   return (
     <>
+    {termsAccepted ? null : (
+      <section id="driver-terms" className="mb-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Driver Terms</h2>
+        <p className="mt-2 text-base text-ink">
+          <a href="/terms/driver" className="font-semibold text-brand">
+            Review the Driver Terms
+          </a>
+        </p>
+        <form action={acceptDriverTerms} className="mt-3">
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white">
+            Review and accept the updated Driver Terms
+          </button>
+        </form>
+      </section>
+    )}
     <section aria-label="Availability">
       <button
         type="button"
@@ -324,9 +343,9 @@ export function DriverHome({
       ) : null}
       {switchError ? (
         <p role="alert" className="mt-3 text-base text-danger">
-          {switchError}{" "}
-          <a href="#checklist" className="font-semibold underline">
-            See steps
+          {termsError ? "Accept the Driver Terms to go Online" : switchError}{" "}
+          <a href={termsError ? "#driver-terms" : "#checklist"} className="font-semibold underline">
+            {termsError ? "Review" : "See steps"}
           </a>
         </p>
       ) : null}

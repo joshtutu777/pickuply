@@ -11,6 +11,7 @@ export function onlineGaps(input: {
   vehicleApproved: boolean;
   checklistRequired: boolean;
   agreementSigned: boolean;
+  termsVersion: string | null;
   trainingDone: boolean;
   serviceCount: number;
   today: string;
@@ -42,9 +43,9 @@ export function onlineGaps(input: {
       href: "/driver/ready/insurance",
     });
   }
-  if (input.checklistRequired && !input.agreementSigned) {
+  if (input.checklistRequired && input.termsVersion !== "driver-terms-v1") {
     gaps.push({
-      label: "Agree to the Driver Terms before going Online.",
+      label: "Accept the Driver Terms to go Online.",
       href: "/terms/driver",
     });
   }

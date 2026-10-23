@@ -65,7 +65,7 @@ async function DriverContent({
   const { data: application } = await supabase
     .from("drivers")
     .select(
-      "status, review_note, is_online, first_online_at, license_url, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
+      "status, review_note, is_online, first_online_at, license_url, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, terms_version, training_completed_at, services, kit_saved_at",
     )
     .eq("profile_id", session.userId)
     .maybeSingle();
@@ -139,6 +139,7 @@ async function DriverContent({
           vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
+          termsAccepted={application?.terms_version === "driver-terms-v1"}
           coverage={coverage}
           showAllJobs={Boolean(coverageRow?.show_all)}
           feedServices={(coverageRow?.services ?? []).join(", ")}
