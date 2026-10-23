@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { approveVehicle, reopenDriver, reviewDriver } from "@/app/admin/drivers/actions";
+import { reopenDriver, requestDocuments, reviewDriver } from "@/app/admin/drivers/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 const actions = [
-  ["approve_new", "Approve as new"],
-  ["approve_active", "Approve as active"],
-  ["request_changes", "Request changes"],
+  ["approve_active", "Approve driver"],
   ["decline", "Decline"],
   ["pause", "Pause"],
   ["remove", "Remove"],
 ] as const;
+
+const documentItems = ["license", "vehicle", "insurance", "services", "equipment", "agreement", "training"] as const;
 
 export default function AdminDriverPage({
   searchParams,
@@ -126,20 +126,29 @@ async function DriverDetail({
         {driver.review_note ? <div>Last note: {driver.review_note}</div> : null}
         {driver.agreement_signature ? <div>Signed: {driver.agreement_signature}</div> : null}
       </dl>
-      <div className="mt-4 space-y-2 text-base">
-        {profileUrl ? <DocLink href={profileUrl} label="Profile photo" /> : null}
-        {licenseUrl ? <DocLink href={licenseUrl} label="License" /> : null}
-        {insuranceUrl ? <DocLink href={insuranceUrl} label="Insurance" /> : null}
-        {vehicleUrl ? <DocLink href={vehicleUrl} label="Vehicle photo" /> : null}
+      <div className="mt-4 grid grid-cols-2 gap-3 text-base">
+        <DocThumb href={licenseUrl} label="License" status={driver.license_url ? "Uploaded" : "Missing"} />
+        <DocThumb href={insuranceUrl} label="Insurance" status={driver.insurance_url ? "Uploaded" : "Missing"} />
+        <DocThumb href={vehicleUrl} label="Vehicle" status={vehicle ? "Uploaded" : "Missing"} />
+        <DocThumb href={profileUrl} label="Profile" status={profileUrl ? "Uploaded" : "Missing"} />
       </div>
-      {vehicle && !vehicle.approved ? (
-        <form action={approveVehicle} className="mt-6">
-          <input type="hidden" name="driverId" value={id} />
-          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white">
-            Approve vehicle
-          </button>
-        </form>
-      ) : null}
+      <form action={requestDocuments} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="font-display text-2xl font-semibold text-ink">Request documents</h2>
+        {documentItems.map((item) => (
+          <label key={item} className="flex min-h-12 items-center gap-3 capitalize">
+            <input type="checkbox" name="item" value={item} />
+            {item}
+          </label>
+        ))}
+        <label className="block text-base font-semibold text-ink" htmlFor="request-note">
+          Note for the driver
+          <textarea id="request-note" name="note" required className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />
+        </label>
+        <input type="hidden" name="driverId" value={id} />
+        <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white">
+          Request documents
+        </button>
+      </form>
       <form action={reviewDriver} className="mt-8 space-y-4">
         <input type="hidden" name="driverId" value={id} />
         <label className="block text-base font-semibold text-ink" htmlFor="note">
@@ -168,10 +177,15 @@ async function DriverDetail({
   );
 }
 
-function DocLink({ href, label }: { href: string; label: string }) {
+function DocThumb({ href, label, status }: { href: string | null; label: string; status: string }) {
   return (
-    <a className="block font-semibold text-brand" href={href}>
-      {label}
-    </a>
+    <div className="rounded-2xl bg-paper-raised p-3 ring-1 ring-line">
+      <p className="font-semibold text-ink">{label}</p>
+      <p className="text-sm text-muted">{status}</p>
+      {href ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={href} alt="" className="mt-2 aspect-square w-full rounded-xl object-cover" />
+      ) : null}
+    </div>
   );
 }

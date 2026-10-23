@@ -106,8 +106,8 @@ select lives_ok(
 
 select is(
   (select approved from public.vehicles where driver_id = 'd3000000-0000-4000-8000-000000000001'),
-  false,
-  'approval does not approve the vehicle by itself'
+  true,
+  'approval marks the signup vehicle eligible'
 );
 
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');

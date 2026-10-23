@@ -94,6 +94,7 @@ export type AdminDriver = {
   insuranceExpires: string | null;
   createdAt: string;
   name: string | null;
+  needsChanges?: boolean;
 };
 
 export type NeedsActionItem = {
@@ -391,6 +392,32 @@ export function filterJobs(jobs: AdminJob[], filters: RequestFilters): AdminJob[
   });
   const direction = filters.sort === "oldest" ? 1 : -1;
   return filtered.sort((left, right) => left.createdAt.localeCompare(right.createdAt) * direction || left.id.localeCompare(right.id));
+}
+
+export function driverQueueLabel(driver: AdminDriver): string {
+  if (driver.status === "removed") return "Removed";
+  if (driver.status === "paused") return "Paused";
+  if (driver.status === "active" || driver.status === "approved_new") return "Active";
+  if (driver.needsChanges) return "Needs changes";
+  if (!driver.licenseExpires || !driver.insuranceExpires) return "Pending documents";
+  return "New application";
+}
+
+export function sortDriverQueue(drivers: AdminDriver[]): AdminDriver[] {
+  const pending = (driver: AdminDriver) => driver.status === "pending_review" || driver.status === "applied";
+  return [...drivers].sort((left, right) => {
+    const rank = Number(pending(right)) - Number(pending(left));
+    if (rank !== 0) return rank;
+    return right.createdAt.localeCompare(left.createdAt);
+  });
+}
+
+export function waitLabel(createdAt: string, now: number): string {
+  const minutes = Math.max(0, Math.round((now - Date.parse(createdAt)) / 60000));
+  if (minutes < 60) return `Waiting ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `Waiting ${hours} hr`;
+  return `Waiting ${Math.round(hours / 24)} days`;
 }
 
 export function filterDrivers(

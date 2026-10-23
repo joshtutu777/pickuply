@@ -18,11 +18,14 @@ export async function JobMessages({
     supabase.from("message_threads").select("closes_at").eq("id", threadId).maybeSingle(),
   ]);
   return (
+    <>
+    <p className="mt-4 text-base text-muted">Phone numbers and emails are hidden. This chat closes when the job is complete.</p>
     <MessagePanel
       threadId={threadId}
       initial={(data ?? []) as ChatMessage[]}
       closesAt={thread?.closes_at ?? null}
       showQuickReplies={showQuickReplies}
     />
+    </>
   );
 }

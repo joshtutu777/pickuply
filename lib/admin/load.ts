@@ -42,7 +42,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
   const now = Date.now();
   try {
     const supabase = await createClient();
-    const [jobsResult, driversResult, zonesResult, offersResult, photosResult, openedResult, eventsResult, auditResult] =
+    const [jobsResult, driversResult, reviewsResult, zonesResult, offersResult, photosResult, openedResult, eventsResult, auditResult] =
       await Promise.all([
         supabase
           .from("jobs")
@@ -56,6 +56,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
           .select("profile_id, status, home_city, zone_id, is_online, license_expires, insurance_expires, created_at")
           .order("created_at", { ascending: true })
           .limit(2000),
+        supabase.from("driver_item_reviews").select("driver_id").limit(2000),
         supabase.from("zones").select("id, name").order("name"),
         supabase.from("job_offers").select("job_id").limit(5000),
         supabase.from("job_photos").select("job_id").eq("stage", "request").limit(5000),
@@ -80,6 +81,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
     if (
       jobsResult.error ||
       driversResult.error ||
+      reviewsResult.error ||
       zonesResult.error ||
       offersResult.error ||
       photosResult.error ||
@@ -152,6 +154,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
       detailsOpen: detailRequestOpen(job.detail_request),
     }));
 
+    const changedDrivers = new Set((reviewsResult.data ?? []).map((row) => row.driver_id));
     const drivers: AdminDriver[] = (driversResult.data ?? []).map((driver) => ({
       id: driver.profile_id,
       status: driver.status,
@@ -162,6 +165,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
       insuranceExpires: driver.insurance_expires,
       createdAt: driver.created_at,
       name: profiles.get(driver.profile_id)?.full_name ?? null,
+      needsChanges: changedDrivers.has(driver.profile_id),
     }));
 
     const zones = (zonesResult.data ?? []).map((zone) => ({ id: zone.id, name: zone.name }));

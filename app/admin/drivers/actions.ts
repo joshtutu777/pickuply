@@ -38,6 +38,23 @@ export async function reviewDriver(formData: FormData) {
   redirect(`/admin/drivers/${driverId}?saved=1`);
 }
 
+export async function requestDocuments(formData: FormData) {
+  await connection();
+  const driverId = String(formData.get("driverId") ?? "");
+  const note = String(formData.get("note") ?? "");
+  const items = formData.getAll("item").map(String);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_driver_documents", {
+    target_driver: driverId,
+    items,
+    note,
+  });
+  if (error) {
+    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/drivers/${driverId}?saved=1`);
+}
+
 export async function reopenDriver(formData: FormData) {
   await connection();
   const driverId = String(formData.get("driverId") ?? "");

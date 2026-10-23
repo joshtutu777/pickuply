@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { StatusChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
 import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
-import { documentExpiresSoon, filterDrivers, onlineByZone, type AdminDriver } from "@/lib/admin/ops";
+import { documentExpiresSoon, driverQueueLabel, filterDrivers, onlineByZone, sortDriverQueue, waitLabel, type AdminDriver } from "@/lib/admin/ops";
 import { requireAdmin } from "@/lib/auth/session";
 
 export default function AdminDriversPage({ searchParams }: PageProps<"/admin/drivers">) {
@@ -32,7 +32,7 @@ async function DriversContent({ searchParams }: { searchParams: PageProps<"/admi
         </p>
       ) : (
         <DriverList
-          drivers={filterDrivers(data.drivers, { status, online, zone })}
+          drivers={sortDriverQueue(filterDrivers(data.drivers, { status, online, zone }))}
           everyone={data.drivers}
           zones={data.zones}
           now={data.now}
@@ -127,11 +127,13 @@ function DriverList({
                   <span className="block text-lg font-semibold text-ink">{driver.name || "Applicant"}</span>
                   <span className="mt-1 block text-base text-muted">
                     {driver.homeCity || "No city"}
-                    {driver.zoneId ? ` · ${zoneNames.get(driver.zoneId) ?? "Zone"}` : ""}
-                    {driver.online ? " · Online" : ""}
+                    {" · "}
+                    {new Date(driver.createdAt).toLocaleDateString()}
+                    {" · "}
+                    {waitLabel(driver.createdAt, now)}
                   </span>
                   <span className="mt-2 inline-flex">
-                    <StatusChip value={driver.status} kind="driver" />
+                    <StatusChip value={driverQueueLabel(driver).toLowerCase().replaceAll(" ", "_")} kind="driver" />
                   </span>
                   {licenseSoon || insuranceSoon ? (
                     <span className="mt-2 block text-base font-semibold text-danger">

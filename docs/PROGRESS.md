@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Driver review and messages (2026-10-23)
+
+Local only. Approve driver marks the vehicle eligible, leaves the driver Offline, and sends an in-app notice. Request documents flags checklist items and posts the note in Pickuply Support. Customers cannot start that thread. Job chat closes when the job is completed or cancelled. The original chat text stays available to admin; everyone else sees phone numbers and emails replaced.
+
 ## Driver readiness (2026-10-23)
 
 Local only. Quick Apply already stored the license photo and vehicle type, but the checklist ignored both and Online still demanded a separately approved vehicle. The checklist now reads those same rows. License is its own line. Payout setup is a card, not a step. A removed driver contacts support. Only an admin can reopen that application. Existing local `approved_new` drivers were moved to `active` and left Offline, with an audit row.

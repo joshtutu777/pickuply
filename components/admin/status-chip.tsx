@@ -21,6 +21,9 @@ const tones: Record<string, string> = {
   failed: "bg-rose-100 text-rose-950",
   refunded: "bg-stone-200 text-stone-700",
   pending_review: "bg-amber-100 text-amber-950",
+  new_application: "bg-amber-100 text-amber-950",
+  pending_documents: "bg-amber-100 text-amber-950",
+  needs_changes: "bg-rose-100 text-rose-950",
   approved_new: "bg-emerald-100 text-emerald-950",
   active: "bg-emerald-100 text-emerald-950",
   paused: "bg-rose-100 text-rose-950",
@@ -49,8 +52,10 @@ export function BadgeChip({ label }: { label: string }) {
 }
 
 function driverLabel(status: string | null): string {
-  if (status === "pending_review") return "Pending review";
-  if (status === "approved_new") return "Approved, new";
+  if (status === "new_application" || status === "pending_review") return "New application";
+  if (status === "pending_documents") return "Pending documents";
+  if (status === "needs_changes") return "Needs changes";
+  if (status === "approved_new") return "Active";
   if (status === "active") return "Active";
   if (status === "paused") return "Paused";
   if (status === "applied") return "Applied";
