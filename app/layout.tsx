@@ -50,8 +50,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={<SiteHeader state={{ status: "signed-out" }} />}>
           <HeaderSession />
         </Suspense>
-        {children}
-        <SiteFooter />
+        <div data-app-scroll className="flex min-h-0 w-full flex-1 flex-col">
+          {children}
+          <SiteFooter />
+        </div>
         <Suspense fallback={null}>
           <MobileFrame />
         </Suspense>

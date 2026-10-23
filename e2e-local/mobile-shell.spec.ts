@@ -56,19 +56,32 @@ async function signIn(page: Page, person: { phone: string; otp: string; name: st
 async function clearOfNav(page: Page, navName: string) {
   const nav = page.getByRole("navigation", { name: navName });
   await expect(nav).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const links = nav.getByRole("link");
-  const count = await links.count();
-  let top = Number.POSITIVE_INFINITY;
-  for (let index = 0; index < count; index += 1) {
-    const box = await links.nth(index).boundingBox();
-    if (box) top = Math.min(top, box.y);
-  }
-  const mainBox = await page.locator("main").boundingBox();
-  expect(mainBox).not.toBeNull();
-  expect(mainBox!.y + mainBox!.height).toBeLessThanOrEqual(top + 1);
   const padding = await nav.evaluate((node) => getComputedStyle(node).paddingBottom);
   expect(Number.parseFloat(padding)).toBeGreaterThanOrEqual(12);
+  const scroll = page.locator("[data-app-scroll]");
+  for (const top of [0, 99999]) {
+    await scroll.evaluate((node, next) => {
+      node.scrollTop = next;
+    }, top);
+    const covered = await page.evaluate((label) => {
+      const bar = document.querySelector(`nav[aria-label="${label}"]`);
+      const root = document.querySelector("[data-app-scroll]");
+      if (!bar || !root) return ["missing bar"];
+      const linkTops = [...bar.querySelectorAll("a")].map((link) => link.getBoundingClientRect().top);
+      const limit = Math.min(bar.getBoundingClientRect().top, ...linkTops) + 1;
+      const rootRect = root.getBoundingClientRect();
+      const hits: string[] = [];
+      for (const node of root.querySelectorAll("a, button, input, textarea, p, h1, h2, h3")) {
+        const rect = node.getBoundingClientRect();
+        const top = Math.max(rect.top, rootRect.top);
+        const bottom = Math.min(rect.bottom, rootRect.bottom);
+        if (bottom - top < 2) continue;
+        if (bottom > limit && top < limit) hits.push((node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60));
+      }
+      return hits;
+    }, navName);
+    expect(covered, `content under the bar at scroll ${top}`).toEqual([]);
+  }
 }
 
 const robinState = "test-results/robin-mobile.json";
@@ -121,13 +134,17 @@ test("customer home, all jobs, messages, and safe area", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Alerts" }).first()).toBeVisible();
 
   await page.goto("/account");
-  await page.screenshot({ path: "test-results/mobile-ui/customer-home.png", fullPage: true });
+  await page.screenshot({ path: "test-results/mobile-ui/customer-home.png" });
   await clearOfNav(page, "Customer");
+  await page.setViewportSize({ width: 375, height: 667 });
+  await clearOfNav(page, "Customer");
+  await page.screenshot({ path: "test-results/mobile-ui/bottom-nav-se.png" });
   await page.setViewportSize({ width: 393, height: 851 });
   await clearOfNav(page, "Customer");
   await page.screenshot({ path: "test-results/mobile-ui/bottom-nav-android.png" });
   await page.goto(`/jobs/${quoteJobId}`);
-  await page.screenshot({ path: "test-results/mobile-ui/job-details.png", fullPage: true });
+  await page.screenshot({ path: "test-results/mobile-ui/job-details.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/account");
   await page.screenshot({ path: "test-results/mobile-ui/bottom-nav.png" });
 });
@@ -181,7 +198,7 @@ test("an assigned job shows the real next step, chat, and no phone link", async 
     await expect(page).toHaveURL(new RegExp(`/jobs/${quoteJobId}`));
     await expect(page.locator("#messages")).toBeVisible();
 
-    await page.screenshot({ path: "test-results/mobile-ui/current-job.png", fullPage: true });
+    await page.screenshot({ path: "test-results/mobile-ui/current-job.png" });
   } finally {
     sql(`
       update public.jobs
@@ -262,10 +279,12 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     await otherContext.close();
 
     await page.goto("/driver");
-    await page.screenshot({ path: "test-results/mobile-ui/driver-home.png", fullPage: true });
-    await page.screenshot({ path: "test-results/mobile-ui/available-jobs.png", fullPage: true });
+    await page.screenshot({ path: "test-results/mobile-ui/driver-home.png" });
+    await page.screenshot({ path: "test-results/mobile-ui/available-jobs.png" });
     await page.goto(`/driver/jobs/${junkJobId}`);
-    await page.screenshot({ path: "test-results/mobile-ui/active-job.png", fullPage: true });
+    await page.screenshot({ path: "test-results/mobile-ui/active-job.png" });
+    await clearOfNav(page, "Driver");
+    await page.setViewportSize({ width: 375, height: 667 });
     await clearOfNav(page, "Driver");
     await page.setViewportSize({ width: 393, height: 851 });
     await clearOfNav(page, "Driver");

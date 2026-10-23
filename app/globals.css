@@ -38,7 +38,14 @@ body {
 
 @media (max-width: 767px) {
   body:has([data-mobile-nav]) {
-    padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:has([data-mobile-nav]) [data-app-scroll] {
+    overflow-y: auto;
+    padding-bottom: 0.75rem;
   }
 }
 

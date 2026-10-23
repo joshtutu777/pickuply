@@ -36,13 +36,28 @@ export function CustomerJobCard({
         <StatusPill status={job.status} />
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
       </div>
+      {featured ? (
+        <div className="mt-4" aria-hidden="true">
+          <div className="flex items-center gap-2">
+            <span className="size-3 shrink-0 rounded-full bg-ink" />
+            <span className="h-0 flex-1 border-t-2 border-dashed border-brand" />
+            <span className="size-3 shrink-0 rounded-full bg-brand" />
+          </div>
+          <p className="mt-2 text-sm font-semibold text-ink">
+            {job.pickup_area}
+            {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
+          </p>
+        </div>
+      ) : null}
       <Link href={`/jobs/${job.id}`} className="mt-3 block min-h-12">
         <p className="text-lg font-semibold text-ink">{service.name}</p>
         {job.description ? <p className="mt-1 text-base text-ink">{job.description}</p> : null}
-        <p className="mt-1 text-sm text-muted">
-          {job.pickup_area}
-          {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
-        </p>
+        {featured ? null : (
+          <p className="mt-1 text-sm text-muted">
+            {job.pickup_area}
+            {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
+          </p>
+        )}
         <p className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">{action.label}</p>
       </Link>
       <div className="mt-3">

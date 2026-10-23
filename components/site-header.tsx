@@ -50,7 +50,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           {state.status === "signed-in" ? (
             <>
               {state.firstName ? (
-                <span className="col-span-2 inline-flex min-h-12 flex-col justify-center px-1 text-base font-semibold text-ink sm:col-auto">
+                <span className={`col-span-2 inline-flex min-h-12 flex-col justify-center px-1 text-base font-semibold text-ink sm:col-auto ${state.appNav ? "max-sm:hidden" : ""}`}>
                   {state.firstName}
                   {state.area ? <span className="text-xs font-medium text-muted">{state.area}</span> : null}
                 </span>
@@ -58,12 +58,16 @@ export function SiteHeader({ state }: { state: HeaderState }) {
               <Link
                 href={state.alertsHref}
                 aria-label={state.unread > 0 ? `Alerts, ${state.unread} unread` : "Alerts"}
-                className={`${navLink} relative`}
+                className={`${navLink} relative ${state.appNav ? "max-sm:size-12 max-sm:px-0" : ""}`}
               >
-                Alerts
+                <span className={state.appNav ? "max-sm:sr-only" : ""}>Alerts</span>
                 {state.unread > 0 ? (
-                  <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-brand px-1 text-xs text-white">
+                  <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-brand px-1 text-xs text-white max-sm:ml-0">
                     {state.unread > 9 ? "9+" : state.unread}
+                  </span>
+                ) : state.appNav ? (
+                  <span className="sm:hidden" aria-hidden="true">
+                    ⌁
                   </span>
                 ) : null}
               </Link>
