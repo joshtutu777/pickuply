@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
+import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -51,6 +52,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </Suspense>
         {children}
         <SiteFooter />
+        <Suspense fallback={null}>
+          <MobileFrame />
+        </Suspense>
       </body>
     </html>
   );

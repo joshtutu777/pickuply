@@ -36,6 +36,12 @@ body {
   color: var(--ink);
 }
 
+@media (max-width: 767px) {
+  body:has([data-mobile-nav]) {
+    padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 3px;

@@ -9,7 +9,14 @@ const navLink =
 
 export type HeaderState =
   | { status: "signed-out" }
-  | { status: "signed-in"; firstName: string | null; alertsHref: string; unread: number };
+  | {
+      status: "signed-in";
+      firstName: string | null;
+      alertsHref: string;
+      unread: number;
+      area: string | null;
+      appNav: boolean;
+    };
 
 export function SiteHeader({ state }: { state: HeaderState }) {
   return (
@@ -30,9 +37,11 @@ export function SiteHeader({ state }: { state: HeaderState }) {
               Pickuply
             </span>
           </Link>
-          <Link href="/request" className={`inline-flex shrink-0 sm:hidden ${primaryLink}`}>
-            Get a price
-          </Link>
+          {state.status === "signed-in" && state.appNav ? null : (
+            <Link href="/request" className={`inline-flex shrink-0 sm:hidden ${primaryLink}`}>
+              Get a price
+            </Link>
+          )}
         </div>
         <nav aria-label="Primary" className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
           <Link href="/request" className={`hidden sm:inline-flex ${primaryLink}`}>
@@ -41,12 +50,22 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           {state.status === "signed-in" ? (
             <>
               {state.firstName ? (
-                <span className="col-span-2 inline-flex min-h-12 items-center px-1 text-base font-semibold text-ink sm:col-auto">
+                <span className="col-span-2 inline-flex min-h-12 flex-col justify-center px-1 text-base font-semibold text-ink sm:col-auto">
                   {state.firstName}
+                  {state.area ? <span className="text-xs font-medium text-muted">{state.area}</span> : null}
                 </span>
               ) : null}
-              <Link href={state.alertsHref} className={navLink}>
-                Alerts{state.unread > 0 ? ` (${state.unread})` : ""}
+              <Link
+                href={state.alertsHref}
+                aria-label={state.unread > 0 ? `Alerts, ${state.unread} unread` : "Alerts"}
+                className={`${navLink} relative`}
+              >
+                Alerts
+                {state.unread > 0 ? (
+                  <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-brand px-1 text-xs text-white">
+                    {state.unread > 9 ? "9+" : state.unread}
+                  </span>
+                ) : null}
               </Link>
               <SignOutButton />
             </>
@@ -55,7 +74,10 @@ export function SiteHeader({ state }: { state: HeaderState }) {
               Log in
             </Link>
           )}
-          <Link href="/drive" className={navLink}>
+          <Link
+            href="/drive"
+            className={`${navLink}${state.status === "signed-in" && state.appNav ? " max-sm:hidden" : ""}`}
+          >
             Drive with us
           </Link>
         </nav>
