@@ -95,6 +95,7 @@ export type AdminDriver = {
   createdAt: string;
   name: string | null;
   needsChanges?: boolean;
+  coverage?: string | null;
 };
 
 export type NeedsActionItem = {

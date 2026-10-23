@@ -5,6 +5,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
 import { documentExpiresSoon, driverQueueLabel, filterDrivers, onlineByZone, sortDriverQueue, waitLabel, type AdminDriver } from "@/lib/admin/ops";
 import { requireAdmin } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
 export default function AdminDriversPage({ searchParams }: PageProps<"/admin/drivers">) {
   return (
@@ -20,25 +21,39 @@ async function DriversContent({ searchParams }: { searchParams: PageProps<"/admi
   const status = one(params.status);
   const online = one(params.online);
   const zone = one(params.zone);
+  const covers = one(params.covers).trim();
   const data = await loadAdminDashboard();
+  if (data.error) {
+    return (
+      <main className="px-4 py-8">
+        <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
+        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Drivers</h1>
+        <p role="alert" className="mt-6 text-lg text-danger">
+          We couldn&apos;t load drivers. Try again.
+        </p>
+      </main>
+    );
+  }
+  let drivers = data.drivers;
+  if (covers) {
+    const supabase = await createClient();
+    const { data: covered } = await supabase.rpc("drivers_covering_pickup", { pickup_area: covers });
+    const allowed = new Set((covered ?? []).map((row: { profile_id: string }) => row.profile_id));
+    drivers = drivers.filter((driver) => allowed.has(driver.id));
+  }
 
   return (
     <main className="px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Drivers</h1>
-      {data.error ? (
-        <p role="alert" className="mt-6 text-lg text-danger">
-          We couldn&apos;t load drivers. Try again.
-        </p>
-      ) : (
-        <DriverList
-          drivers={sortDriverQueue(filterDrivers(data.drivers, { status, online, zone }))}
-          everyone={data.drivers}
-          zones={data.zones}
-          now={data.now}
-          status={status}
-        />
-      )}
+      <DriverList
+        drivers={sortDriverQueue(filterDrivers(drivers, { status, online, zone }))}
+        covers={covers}
+        everyone={data.drivers}
+        zones={data.zones}
+        now={data.now}
+        status={status}
+      />
     </main>
   );
 }
@@ -49,12 +64,14 @@ function DriverList({
   zones,
   now,
   status,
+  covers,
 }: {
   drivers: AdminDriver[];
   everyone: AdminDriver[];
   zones: { id: string; name: string }[];
   now: number;
   status: string;
+  covers: string;
 }) {
   const zoneNames = new Map(zones.map((zone) => [zone.id, zone.name]));
   const online = onlineByZone(everyone, zoneNames);
@@ -83,6 +100,20 @@ function DriverList({
           </Link>
         ))}
       </div>
+      <form className="mt-6" action="/admin/drivers">
+        <label className="block text-base font-semibold text-ink" htmlFor="covers">
+          Coverage includes this pickup city or ZIP
+          <input
+            id="covers"
+            name="covers"
+            defaultValue={covers}
+            className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4"
+          />
+        </label>
+        <button type="submit" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
+          Filter drivers
+        </button>
+      </form>
       <h2 className="mt-8 text-xl font-semibold text-ink">Online right now</h2>
       {online.length === 0 ? (
         <p className="mt-2 text-base text-muted">No drivers are online.</p>
@@ -127,6 +158,7 @@ function DriverList({
                   <span className="block text-lg font-semibold text-ink">{driver.name || "Applicant"}</span>
                   <span className="mt-1 block text-base text-muted">
                     {driver.homeCity || "No city"}
+                    {driver.coverage ? ` · ${driver.coverage}` : ""}
                     {" · "}
                     {new Date(driver.createdAt).toLocaleDateString()}
                     {" · "}

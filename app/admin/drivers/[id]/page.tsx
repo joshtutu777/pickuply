@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { reopenDriver, requestDocuments, reviewDriver } from "@/app/admin/drivers/actions";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
+import { coverageSummary } from "@/lib/driver/coverage";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -48,7 +49,7 @@ async function DriverDetail({
   const supabase = await createClient();
   const { data: driver } = await supabase.from("drivers").select("*").eq("profile_id", id).maybeSingle();
   if (!driver) notFound();
-  const [{ data: profile }, { data: vehicle }, { data: payout }] = await Promise.all([
+  const [{ data: profile }, { data: vehicle }, { data: payout }, { data: coverage }] = await Promise.all([
     supabase.from("profiles").select("full_name, role, photo_url").eq("id", id).maybeSingle(),
     supabase
       .from("vehicles")
@@ -62,7 +63,19 @@ async function DriverDetail({
       .select("payouts_enabled, details_submitted, requirements_due, disabled_reason")
       .eq("driver_id", id)
       .maybeSingle(),
+    supabase
+      .from("driver_feed_filters")
+      .select("cities, zips, radius_miles")
+      .eq("profile_id", id)
+      .maybeSingle(),
   ]);
+  const areas = coverage
+    ? coverageSummary({
+        cities: coverage.cities ?? [],
+        zips: coverage.zips ?? [],
+        radiusMiles: coverage.radius_miles,
+      })
+    : "";
   const [licenseUrl, insuranceUrl, profileUrl, vehicleUrl] = await Promise.all([
     signed(driver.license_url),
     signed(driver.insurance_url),
@@ -110,6 +123,7 @@ async function DriverDetail({
       ) : null}
       <dl className="mt-6 space-y-2 text-base text-ink">
         <div>City: {driver.home_city}</div>
+        <div>Areas I cover: {areas || "Not set"}</div>
         <div>Service level: {driver.service_level}</div>
         <div>Services: {(driver.services ?? []).join(", ") || "None"}</div>
         <div>License expires: {driver.license_expires || "Missing"}</div>

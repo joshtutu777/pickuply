@@ -79,7 +79,21 @@ async function ReadyContent({
     services: driver?.services ?? [],
     serviceLevel: driver?.service_level ?? null,
     fullName: session.fullName,
+    coverage: { cities: [], zips: [], radius: null, radiusZip: "" },
   };
+  const { data: coverageRow } = await supabase
+    .from("driver_feed_filters")
+    .select("cities, zips, radius_miles, radius_zip")
+    .eq("profile_id", session.userId)
+    .maybeSingle();
+  if (coverageRow) {
+    existing.coverage = {
+      cities: coverageRow.cities ?? [],
+      zips: coverageRow.zips ?? [],
+      radius: coverageRow.radius_miles,
+      radiusZip: coverageRow.radius_zip ?? "",
+    };
+  }
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 pb-24">
       <BackLink href="/driver" label="Get Ready to Drive" />

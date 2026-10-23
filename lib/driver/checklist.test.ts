@@ -5,6 +5,7 @@ import { checklistItems, checklistProgress } from "./checklist";
 test("signup license and vehicle type count before the other steps", () => {
   const items = checklistItems({
     services: 0,
+    coverageSaved: true,
     vehicleType: "pickup",
     licenseUrl: "driver/license.jpg",
     kitSaved: false,
@@ -23,4 +24,32 @@ test("signup license and vehicle type count before the other steps", () => {
   assert.equal(items.find((item) => item.id === "services")?.mark, "todo");
   assert.equal(checklistProgress(items).done, 2);
   assert.equal(checklistProgress(items).total, 7);
+});
+
+test("services stay to do until coverage is saved, and the checklist stays seven items", () => {
+  const missing = checklistItems({
+    services: 2,
+    coverageSaved: false,
+    vehicleType: null,
+    licenseUrl: null,
+    kitSaved: false,
+    insuranceUrl: null,
+    agreementSigned: false,
+    trainingDone: false,
+    notes: {},
+  });
+  assert.equal(missing.find((item) => item.id === "services")?.mark, "todo");
+  const ready = checklistItems({
+    services: 2,
+    coverageSaved: true,
+    vehicleType: null,
+    licenseUrl: null,
+    kitSaved: false,
+    insuranceUrl: null,
+    agreementSigned: false,
+    trainingDone: false,
+    notes: {},
+  });
+  assert.equal(ready.find((item) => item.id === "services")?.mark, "done");
+  assert.equal(checklistProgress(ready).total, 7);
 });

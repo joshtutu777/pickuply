@@ -11,6 +11,7 @@ import { requireSignedIn } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
 import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
+import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,6 +69,25 @@ async function DriverContent({
     )
     .eq("profile_id", session.userId)
     .maybeSingle();
+  const { data: coverageRow } = await supabase
+    .from("driver_feed_filters")
+    .select("cities, zips, radius_miles, radius_zip, show_all, services, vehicle_fit")
+    .eq("profile_id", session.userId)
+    .maybeSingle();
+  const coverage: CoverageDraft = coverageRow
+    ? {
+        cities: coverageRow.cities ?? [],
+        zips: coverageRow.zips ?? [],
+        radius: coverageRow.radius_miles,
+        radiusZip: coverageRow.radius_zip ?? "",
+      }
+    : { cities: [], zips: [], radius: null, radiusZip: "" };
+  const coverageSaved = Boolean(
+    coverageRow &&
+      ((coverageRow.cities?.length ?? 0) > 0 ||
+        (coverageRow.zips?.length ?? 0) > 0 ||
+        coverageRow.radius_miles != null),
+  );
   const { data: vehicle } = await supabase
     .from("vehicles")
     .select("type, approved, make, photo_url")
@@ -83,6 +103,7 @@ async function DriverContent({
   const items = application
     ? checklistItems({
         services: application.services?.length ?? 0,
+        coverageSaved,
         vehicleType: vehicle?.type ?? null,
         licenseUrl: application.license_url ?? null,
         kitSaved: Boolean(application.kit_saved_at),
@@ -129,6 +150,10 @@ async function DriverContent({
           vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
+          coverage={coverage}
+          showAllJobs={Boolean(coverageRow?.show_all)}
+          feedServices={(coverageRow?.services ?? []).join(", ")}
+          vehicleFit={Boolean(coverageRow?.vehicle_fit)}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>

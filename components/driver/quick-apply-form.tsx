@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { TextField } from "@/components/request/fields";
+import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
@@ -45,6 +47,7 @@ export function QuickApplyForm({
   const [fullName, setFullName] = useState(defaultName);
   const [homeCity, setHomeCity] = useState("");
   const [homeZip, setHomeZip] = useState("");
+  const [coverage, setCoverage] = useState<CoverageDraft>(defaultCoverage);
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [vehicleType, setVehicleType] = useState("pickup");
   const [serviceLevel, setServiceLevel] = useState("light");
@@ -68,6 +71,10 @@ export function QuickApplyForm({
       setError("Enter a Georgia home ZIP code.");
       return;
     }
+    if (coverage.cities.length === 0 && coverage.zips.length === 0 && coverage.radius == null) {
+      setError("Choose at least one area you cover.");
+      return;
+    }
     if (!profileFile || !licenseFile) {
       setError("Add a profile photo and a photo of your license.");
       return;
@@ -88,6 +95,12 @@ export function QuickApplyForm({
           full_name: fullName.trim(),
           home_city: homeCity.trim(),
           home_zip: homeZip.trim(),
+          coverage: {
+            cities: coverage.cities,
+            zips: coverage.zips,
+            radius: coverage.radius,
+            radius_zip: coverage.radius && coverage.radiusZip ? coverage.radiusZip : null,
+          },
           zone_id: zoneId,
           vehicle_type: vehicleType,
           service_level: serviceLevel,
@@ -112,6 +125,10 @@ export function QuickApplyForm({
       <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
       <TextField name="homeCity" label="Home city" value={homeCity} onChange={setHomeCity} />
       <TextField name="homeZip" label="Home ZIP" value={homeZip} onChange={setHomeZip} inputMode="numeric" />
+      <fieldset className="space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <legend className="text-base font-semibold text-ink">Areas I cover</legend>
+        <CoverageEditor value={coverage} onChange={setCoverage} />
+      </fieldset>
       <label className="block text-base font-semibold text-ink" htmlFor="zone">
         Service area
         <select id="zone" className={controlClass} value={zoneId} onChange={(event) => setZoneId(event.target.value)}>

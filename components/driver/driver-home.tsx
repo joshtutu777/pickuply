@@ -5,6 +5,8 @@ import { dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
+import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { createClient } from "@/lib/supabase/client";
 
@@ -164,6 +166,10 @@ export function DriverHome({
   vehicleType,
   everOnline,
   promptDismissed,
+  coverage,
+  showAllJobs,
+  feedServices,
+  vehicleFit,
 }: {
   isOnline: boolean;
   userId: string;
@@ -172,20 +178,23 @@ export function DriverHome({
   vehicleType: string | null;
   everOnline: boolean;
   promptDismissed: boolean;
+  coverage: CoverageDraft;
+  showAllJobs: boolean;
+  feedServices: string;
+  vehicleFit: boolean;
 }) {
   const [online, setOnline] = useState(isOnline);
   const [jobs, setJobs] = useState<FeedCard[]>([]);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [filterCities, setFilterCities] = useState("");
-  const [filterZips, setFilterZips] = useState("");
-  const [filterRadius, setFilterRadius] = useState("");
-  const [filterServices, setFilterServices] = useState("");
-  const [filterFit, setFilterFit] = useState(false);
+  const [areas, setAreas] = useState(coverage);
+  const [showAll, setShowAll] = useState(showAllJobs);
+  const [editingAreas, setEditingAreas] = useState(false);
+  const [filterServices, setFilterServices] = useState(feedServices);
+  const [filterFit, setFilterFit] = useState(vehicleFit);
   const [filterNote, setFilterNote] = useState<string | null>(null);
-  const filterCount =
-    [filterCities, filterZips, filterRadius, filterServices].filter((value) => value.trim()).length + (filterFit ? 1 : 0);
+  const summary = coverageSummary({ cities: areas.cities, zips: areas.zips, radiusMiles: areas.radius });
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -258,25 +267,24 @@ export function DriverHome({
     if (goingOnline && nowOnline) void recordFunnel({ event: "driver_online", step: "online" });
   }
 
-  async function saveFilters(clear: boolean) {
+  async function saveOptions(services: string, fit: boolean) {
     const supabase = createClient();
-    const result = clear
-      ? await supabase.rpc("clear_driver_feed_filters")
-      : await supabase.rpc("save_driver_feed_filters", {
-          cities: filterCities.split(",").map((item) => item.trim()).filter(Boolean),
-          zips: filterZips.split(",").map((item) => item.trim()).filter(Boolean),
-          radius: filterRadius ? Number(filterRadius) : null,
-          service_names: filterServices.split(",").map((item) => item.trim()).filter(Boolean),
-          fit_vehicle: filterFit,
-        });
-    if (clear) {
-      setFilterCities("");
-      setFilterZips("");
-      setFilterRadius("");
-      setFilterServices("");
-      setFilterFit(false);
-    }
+    const result = await supabase.rpc("save_driver_feed_options", {
+      service_names: services.split(",").map((item) => item.trim()).filter(Boolean),
+      fit_vehicle: fit,
+    });
     setFilterNote(result.error ? result.error.message : "Saved");
+    void load();
+  }
+
+  async function toggleShowAll() {
+    const next = !showAll;
+    const { error } = await createClient().rpc("set_show_all_jobs", { enabled: next });
+    if (error) {
+      setFilterNote(error.message);
+      return;
+    }
+    setShowAll(next);
     void load();
   }
 
@@ -326,53 +334,75 @@ export function DriverHome({
       <p className="mt-4 text-base text-muted">
         You can browse while Offline. Claiming or offering requires Online.
       </p>
+      <div className="mt-4">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showAll}
+          aria-label="Show all Georgia jobs"
+          onClick={() => void toggleShowAll()}
+          className="inline-flex min-h-12 items-center gap-3 text-base font-semibold text-ink"
+        >
+          <span className="relative h-8 w-14 rounded-full bg-line" aria-hidden="true">
+            <span className={`absolute top-1 h-6 w-6 rounded-full bg-brand ${showAll ? "left-7" : "left-1"}`} />
+          </span>
+          Show all Georgia jobs
+        </button>
+        <p className="mt-3 text-base text-ink">
+          Showing jobs in: {summary || "your areas"}{" "}
+          <button type="button" onClick={() => setEditingAreas((open) => !open)} className="font-semibold text-brand">
+            Edit
+          </button>
+        </p>
+        {editingAreas ? (
+          <div className="mt-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            <CoverageEditor
+              value={areas}
+              persist
+              onChange={(next) => {
+                setAreas(next);
+                void load();
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
       <form
         className="mt-4 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line"
         onSubmit={(event) => {
           event.preventDefault();
-          void saveFilters(false);
+          void saveOptions(filterServices, filterFit);
         }}
       >
-        <p className="font-semibold text-ink">Filters ({filterCount})</p>
-        <label className="block text-base font-semibold text-ink">
-          Cities
-          <input value={filterCities} onChange={(event) => setFilterCities(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
-        </label>
-        <label className="block text-base font-semibold text-ink">
-          ZIP codes
-          <input value={filterZips} onChange={(event) => setFilterZips(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
-        </label>
-        <label className="block text-base font-semibold text-ink">
-          Radius
-          <select value={filterRadius} onChange={(event) => setFilterRadius(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4">
-            <option value="">Any</option>
-            <option value="10">10 miles</option>
-            <option value="25">25 miles</option>
-            <option value="50">50 miles</option>
-            <option value="100">100 miles</option>
-          </select>
-        </label>
+        <p className="font-semibold text-ink">Optional filters</p>
         <label className="block text-base font-semibold text-ink">
           Services
-          <input value={filterServices} onChange={(event) => setFilterServices(event.target.value)} placeholder="delivery, junk" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+          <input
+            value={filterServices}
+            onChange={(event) => setFilterServices(event.target.value)}
+            onBlur={(event) => void saveOptions(event.target.value, filterFit)}
+            placeholder="delivery, junk"
+            className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4"
+          />
         </label>
         <label className="flex min-h-12 items-center gap-3 text-base">
-          <input type="checkbox" checked={filterFit} onChange={(event) => setFilterFit(event.target.checked)} />
-          Only jobs that fit my vehicle
+          <input
+            type="checkbox"
+            checked={filterFit}
+            onChange={(event) => {
+              setFilterFit(event.target.checked);
+              void saveOptions(filterServices, event.target.checked);
+            }}
+          />
+          Only jobs my vehicle fits
         </label>
-        <div className="flex flex-wrap gap-3">
-          <button type="submit" className="inline-flex min-h-12 items-center rounded-full bg-brand px-5 font-semibold text-white">
-            Save filters
-          </button>
-          <button type="button" onClick={() => void saveFilters(true)} className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Clear filters
-          </button>
-        </div>
         {filterNote ? <p className="text-base text-ink">{filterNote}</p> : null}
       </form>
       {feedError ? <p role="alert" className="mt-3 text-base text-danger">{feedError}</p> : null}
       {jobs.length === 0 ? (
-        <p className="mt-6 text-base text-muted">No open jobs right now.</p>
+        <p className="mt-6 text-base text-muted">
+          {showAll ? "No open jobs right now." : "No jobs in your areas right now — Show all Georgia jobs or Edit areas."}
+        </p>
       ) : (
         <ul className="mt-6 space-y-4">
           {jobs.map((job) => (
@@ -383,7 +413,7 @@ export function DriverHome({
                 {job.pickup_area}
                 {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
                 {job.distance_miles != null ? ` · ${job.distance_miles} mi trip` : ""}
-                {job.miles_from_you != null ? ` · ${Number(job.miles_from_you).toFixed(1)} mi from you` : ""}
+                {job.miles_from_you != null ? ` · ~${Math.round(Number(job.miles_from_you))} mi from you` : ""}
               </p>
               <p>
                 {job.required_vehicle?.replaceAll("_", " ") ?? "Any vehicle"} · {job.help_loading ? "2 people" : "1 person"} · Stairs {job.stairs_pickup}

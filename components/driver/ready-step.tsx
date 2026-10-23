@@ -10,7 +10,9 @@ import {
   saveVehicle,
   signAgreement,
 } from "@/app/driver/ready/actions";
+import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { createClient } from "@/lib/supabase/client";
+import type { CoverageDraft } from "@/lib/driver/coverage";
 
 const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
@@ -34,6 +36,7 @@ export type ReadyExisting = {
   services: string[];
   serviceLevel: string | null;
   fullName: string | null;
+  coverage: CoverageDraft;
 };
 
 async function upload(userId: string, name: "insurance" | "vehicle" | "license", file: File): Promise<string> {
@@ -168,6 +171,7 @@ export function ReadyStep({
       ) : null}
       {step === "services" ? (
         <form action={saveServices} className="space-y-3">
+          <CoverageEditor value={existing.coverage} persist onChange={() => undefined} />
           {[
             ["delivery", "Pickup and delivery"],
             ["junk", "Junk removal"],

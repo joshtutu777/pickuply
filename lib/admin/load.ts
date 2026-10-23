@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { coverageSummary } from "@/lib/driver/coverage";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -42,7 +43,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
   const now = Date.now();
   try {
     const supabase = await createClient();
-    const [jobsResult, driversResult, reviewsResult, zonesResult, offersResult, photosResult, openedResult, eventsResult, auditResult] =
+    const [jobsResult, driversResult, coverageResult, reviewsResult, zonesResult, offersResult, photosResult, openedResult, eventsResult, auditResult] =
       await Promise.all([
         supabase
           .from("jobs")
@@ -56,6 +57,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
           .select("profile_id, status, home_city, zone_id, is_online, license_expires, insurance_expires, created_at")
           .order("created_at", { ascending: true })
           .limit(2000),
+        supabase.from("driver_feed_filters").select("profile_id, cities, zips, radius_miles").limit(2000),
         supabase.from("driver_item_reviews").select("driver_id").limit(2000),
         supabase.from("zones").select("id, name").order("name"),
         supabase.from("job_offers").select("job_id").limit(5000),
@@ -81,6 +83,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
     if (
       jobsResult.error ||
       driversResult.error ||
+      coverageResult.error ||
       reviewsResult.error ||
       zonesResult.error ||
       offersResult.error ||
@@ -155,6 +158,16 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
     }));
 
     const changedDrivers = new Set((reviewsResult.data ?? []).map((row) => row.driver_id));
+    const coverageByDriver = new Map(
+      (coverageResult.data ?? []).map((row) => [
+        row.profile_id,
+        coverageSummary({
+          cities: row.cities ?? [],
+          zips: row.zips ?? [],
+          radiusMiles: row.radius_miles,
+        }),
+      ]),
+    );
     const drivers: AdminDriver[] = (driversResult.data ?? []).map((driver) => ({
       id: driver.profile_id,
       status: driver.status,
@@ -166,6 +179,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
       createdAt: driver.created_at,
       name: profiles.get(driver.profile_id)?.full_name ?? null,
       needsChanges: changedDrivers.has(driver.profile_id),
+      coverage: coverageByDriver.get(driver.profile_id) || null,
     }));
 
     const zones = (zonesResult.data ?? []).map((zone) => ({ id: zone.id, name: zone.name }));

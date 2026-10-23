@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Areas I cover (2026-10-23)
+
+Drivers save one coverage preference: Georgia cities, ZIP codes, and a radius, combined with OR. The feed uses it unless Show all Georgia jobs is on. Alerts ignore that switch and follow coverage only. Unassigned distances are ZIP-centroid miles, rounded to the nearest mile. Existing local drivers were backfilled to 25 miles from home, or from the zone center when they had no home ZIP.
+
 ## Claim race (2026-10-23)
 
 A second claim said the driver could not claim because eligibility ran before the job was checked. The driver was still eligible; the job was already assigned. `claim_job` now locks the job and reports it taken before eligibility. The driver home shows “Sorry, another driver just took this job.” The database test uses two eligible drivers: one wins, the other gets “job already taken.”

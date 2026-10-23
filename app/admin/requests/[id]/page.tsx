@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { inviteDriver, refundJob } from "@/app/admin/requests/actions";
+import { assignCoveringDriver, inviteDriver, refundJob } from "@/app/admin/requests/actions";
 import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
@@ -57,6 +57,17 @@ async function RequestDetail({
       /piano|gun safe|pool table|hot tub|\bsafe\b/i.test(job.description),
   );
   const service = serviceById(job.service as ServiceId);
+  const coveringResult =
+    job.status === "open"
+      ? await supabase.rpc("drivers_covering_pickup", { pickup_area: job.pickup_area })
+      : { data: [] as { profile_id: string; summary: string }[] };
+  const covering = (coveringResult.data ?? []) as { profile_id: string; summary: string }[];
+  const coveringIds = covering.map((row) => row.profile_id);
+  const { data: coveringNames } =
+    coveringIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", coveringIds)
+      : { data: [] as { id: string; full_name: string | null }[] };
+  const coveringName = new Map((coveringNames ?? []).map((row) => [row.id, row.full_name]));
   const { count: waitingWithoutDriver } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
@@ -121,6 +132,30 @@ async function RequestDetail({
       <CopyMessage
         message={`Your Pickuply request is ready: ${link}`}
       />
+      {job.status === "open" ? (
+        <section className="mt-6">
+          <h2 className="text-lg font-semibold text-ink">Drivers who cover this pickup</h2>
+          {covering.length === 0 ? (
+            <p className="mt-2 text-base text-muted">No active driver covers this city or ZIP.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {covering.map((row) => (
+                <li key={row.profile_id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+                  <p className="font-semibold text-ink">{coveringName.get(row.profile_id) || "Driver"}</p>
+                  <p className="text-base text-muted">{row.summary}</p>
+                  <form action={assignCoveringDriver} className="mt-2">
+                    <input type="hidden" name="jobId" value={id} />
+                    <input type="hidden" name="driverId" value={row.profile_id} />
+                    <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-brand">
+                      Assign
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
       {job.status === "open" ? (
         <form action={inviteDriver} className="mt-6 space-y-3">
           <input type="hidden" name="jobId" value={id} />

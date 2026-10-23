@@ -114,7 +114,22 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   }
 
   const first = await open(browser, "/driver");
+  const feedResponse = first.waitForResponse(
+    (response) => response.url().includes("/rpc/driver_job_feed") && response.request().method() === "POST",
+  );
   await signIn(first, pat);
+  const feedPayload: unknown = await (await feedResponse).json();
+  const feedRows = Array.isArray(feedPayload) ? feedPayload : [];
+  for (const row of feedRows) {
+    const record = row as Record<string, unknown>;
+    expect(record.lat).toBeUndefined();
+    expect(record.lng).toBeUndefined();
+    expect(record.pickup_address).toBeUndefined();
+    expect(record.home_zip).toBeUndefined();
+    if (record.miles_from_you != null) {
+      expect(record.miles_from_you).toBe(Math.round(Number(record.miles_from_you)));
+    }
+  }
   await expect(first.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const firstCard = quoteCard(first);
   await expect(firstCard).toBeVisible();

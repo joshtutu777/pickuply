@@ -54,6 +54,13 @@ export function ProfileMenu({
         </li>
         {surface === "driver" ? (
           <li>
+            <Link href="/driver/areas" className={row}>
+              Areas I cover
+            </Link>
+          </li>
+        ) : null}
+        {surface === "driver" ? (
+          <li>
             <Link href="/driver/earnings" className={row}>
               Earnings and payouts
             </Link>

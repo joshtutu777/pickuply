@@ -31,6 +31,7 @@ const labels: Record<ChecklistId, string> = {
 
 export function checklistItems(input: {
   services: number;
+  coverageSaved: boolean;
   vehicleType: string | null;
   licenseUrl: string | null;
   kitSaved: boolean;
@@ -40,7 +41,7 @@ export function checklistItems(input: {
   notes: Partial<Record<ChecklistId, string | null>>;
 }): ChecklistItem[] {
   const uploaded: Record<ChecklistId, boolean> = {
-    services: input.services > 0,
+    services: input.services > 0 && input.coverageSaved,
     vehicle: Boolean(input.vehicleType),
     license: Boolean(input.licenseUrl),
     equipment: input.kitSaved,
