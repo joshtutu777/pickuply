@@ -82,12 +82,6 @@ async function DriverContent({
         radiusZip: coverageRow.radius_zip ?? "",
       }
     : { cities: [], zips: [], radius: null, radiusZip: "" };
-  const coverageSaved = Boolean(
-    coverageRow &&
-      ((coverageRow.cities?.length ?? 0) > 0 ||
-        (coverageRow.zips?.length ?? 0) > 0 ||
-        coverageRow.radius_miles != null),
-  );
   const { data: vehicle } = await supabase
     .from("vehicles")
     .select("type, approved, make, photo_url")
@@ -102,13 +96,8 @@ async function DriverContent({
   const noteMap = Object.fromEntries((notes ?? []).map((row) => [row.item, row.note]));
   const items = application
     ? checklistItems({
-        services: application.services?.length ?? 0,
-        coverageSaved,
         vehicleType: vehicle?.type ?? null,
-        licenseUrl: application.license_url ?? null,
-        kitSaved: Boolean(application.kit_saved_at),
         insuranceUrl: application.insurance_url ?? null,
-        agreementSigned: Boolean(application.agreement_signed_at),
         trainingDone: Boolean(application.training_completed_at),
         notes: noteMap,
       })

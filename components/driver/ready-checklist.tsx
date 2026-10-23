@@ -30,7 +30,7 @@ export function ReadyChecklist({
     <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line" aria-label="Get Ready to Drive">
       <h2 className="font-display text-2xl font-semibold text-ink">Get Ready to Drive</h2>
       <p className="mt-2 text-base font-semibold text-ink">
-        {done} of {total} done
+        {done} of {total} completed
       </p>
       <div
         className="mt-3 h-2 overflow-hidden rounded-full bg-line"
