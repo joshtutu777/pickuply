@@ -15,6 +15,14 @@ export function toStoredDraft(draft: RequestDraft, photoIds: string[], savedAt: 
   for (const field of sensitiveDraftFields) {
     copy[field] = "";
   }
+  copy.pickupUnit = "";
+  copy.dropoffUnit = "";
+  copy.pickupLat = null;
+  copy.pickupLng = null;
+  copy.dropoffLat = null;
+  copy.dropoffLng = null;
+  copy.pickupVerified = false;
+  copy.dropoffVerified = false;
   return { draft: copy, photoIds, savedAt };
 }
 

@@ -19,6 +19,7 @@ import {
   type RequestStepId,
   type ServiceId,
 } from "@/lib/constants";
+import { AddressLookup } from "@/components/maps/place-field";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
@@ -569,13 +570,35 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
           <section className="grid gap-5">
             <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Where and when?</h1>
             <p className="text-base leading-relaxed text-muted">{privacyAreaNote}</p>
+            <AddressLookup
+              label="Search pickup address"
+              onPick={(place) => {
+                if (place.line1) update("pickupStreet", place.line1);
+                update("pickupCity", place.city);
+                update("pickupZip", place.zip);
+                update("pickupLat", place.line1 ? place.lat : null);
+                update("pickupLng", place.line1 ? place.lng : null);
+                update("pickupVerified", Boolean(place.line1));
+              }}
+            />
             <TextField
               label="Pickup street address"
               name="pickupStreet"
               autoComplete="street-address"
               value={draft.pickupStreet}
               error={errors.pickupStreet}
-              onChange={(value) => update("pickupStreet", value)}
+              onChange={(value) => {
+                update("pickupStreet", value);
+                update("pickupVerified", false);
+                update("pickupLat", null);
+                update("pickupLng", null);
+              }}
+            />
+            <TextField
+              label="Pickup apt or unit"
+              name="pickupUnit"
+              value={draft.pickupUnit}
+              onChange={(value) => update("pickupUnit", value)}
             />
             <TextField
               label="Pickup city"
@@ -592,17 +615,55 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               autoComplete="postal-code"
               value={draft.pickupZip}
               error={errors.pickupZip}
-              onChange={(value) => update("pickupZip", value)}
+              onChange={(value) => {
+                update("pickupZip", value);
+                update("pickupVerified", false);
+                update("pickupLat", null);
+                update("pickupLng", null);
+              }}
             />
+            <button
+              type="button"
+              className="min-h-12 text-left text-base font-semibold text-brand"
+              onClick={() => {
+                update("pickupVerified", false);
+                update("pickupLat", null);
+                update("pickupLng", null);
+              }}
+            >
+              Use this address anyway
+            </button>
             {draft.service !== "junk" ? (
               <>
+                <AddressLookup
+                  label="Search drop-off address"
+                  onPick={(place) => {
+                    if (place.line1) update("dropoffStreet", place.line1);
+                    update("dropoffCity", place.city);
+                    update("dropoffZip", place.zip);
+                    update("dropoffLat", place.line1 ? place.lat : null);
+                    update("dropoffLng", place.line1 ? place.lng : null);
+                    update("dropoffVerified", Boolean(place.line1));
+                  }}
+                />
                 <TextField
                   label="Drop-off street address"
                   name="dropoffStreet"
                   autoComplete="street-address"
                   value={draft.dropoffStreet}
                   error={errors.dropoffStreet}
-                  onChange={(value) => update("dropoffStreet", value)}
+                  onChange={(value) => {
+                    update("dropoffStreet", value);
+                    update("dropoffVerified", false);
+                    update("dropoffLat", null);
+                    update("dropoffLng", null);
+                  }}
+                />
+                <TextField
+                  label="Drop-off apt or unit"
+                  name="dropoffUnit"
+                  value={draft.dropoffUnit}
+                  onChange={(value) => update("dropoffUnit", value)}
                 />
                 <TextField
                   label="Drop-off city"

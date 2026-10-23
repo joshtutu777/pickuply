@@ -2,6 +2,7 @@ import { photoMaxBytes } from "../constants";
 import { loadPhoto } from "../photo-store";
 import { createClient } from "../supabase/client";
 import type { RequestDraft } from "../types";
+import { saveJobPlaces } from "../maps/save-places";
 import { requestPayload } from "./request-payload";
 
 const submissionKey = "pickuply.submission-id";
@@ -70,6 +71,18 @@ export async function createRequest(
     request_id: id,
     payload,
   });
+  if (!created.error && created.data) {
+    await saveJobPlaces(id, {
+      pickupUnit: draft.pickupUnit,
+      dropoffUnit: draft.dropoffUnit,
+      pickupLat: draft.pickupLat,
+      pickupLng: draft.pickupLng,
+      dropoffLat: draft.dropoffLat,
+      dropoffLng: draft.dropoffLng,
+      pickupVerified: draft.pickupVerified,
+      dropoffVerified: draft.dropoffVerified,
+    });
+  }
   if (created.error || !created.data) {
     const message = created.error?.message ?? "";
     if (/sign in required|jwt|session/i.test(message)) {

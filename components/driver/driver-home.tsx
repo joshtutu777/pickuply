@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { createClient } from "@/lib/supabase/client";
@@ -194,6 +195,7 @@ export function DriverHome({
   const [filterServices, setFilterServices] = useState(feedServices);
   const [filterFit, setFilterFit] = useState(vehicleFit);
   const [filterNote, setFilterNote] = useState<string | null>(null);
+  const [mapView, setMapView] = useState(false);
   const summary = coverageSummary({ cities: areas.cities, zips: areas.zips, radiusMiles: areas.radius });
 
   const load = useCallback(async () => {
@@ -399,6 +401,15 @@ export function DriverHome({
         {filterNote ? <p className="text-base text-ink">{filterNote}</p> : null}
       </form>
       {feedError ? <p role="alert" className="mt-3 text-base text-danger">{feedError}</p> : null}
+      <div className="mt-4 flex gap-2">
+        <button type="button" className="min-h-12 rounded-full bg-ink px-4 font-semibold text-white" aria-pressed={!mapView} onClick={() => setMapView(false)}>
+          List
+        </button>
+        <button type="button" className="min-h-12 rounded-full bg-paper-raised px-4 font-semibold text-ink ring-1 ring-line" aria-pressed={mapView} onClick={() => setMapView(true)}>
+          Map
+        </button>
+      </div>
+      {mapView ? <div className="mt-4"><FeedMap jobs={jobs} /></div> : null}
       {jobs.length === 0 ? (
         <p className="mt-6 text-base text-muted">
           {showAll ? "No open jobs right now." : "No jobs in your areas right now — Show all Georgia jobs or Edit areas."}

@@ -8,7 +8,9 @@ import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
 import { AdminOverride } from "@/components/admin/admin-override";
+import { AreaMap } from "@/components/maps/area-map";
 import { statusLabel } from "@/components/request/job-status";
+import { tripLabel } from "@/lib/maps/miles";
 import { requireAdmin } from "@/lib/auth/session";
 import { noDriverCutoffIso } from "@/lib/admin/ops";
 import { serviceById, type ServiceId } from "@/lib/constants";
@@ -109,6 +111,31 @@ async function RequestDetail({
             <p>{job.private.customer_phone}</p>
             {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
             <p>Pickup: {job.private.pickup_address}</p>
+            {job.private.pickup_verified === false || job.private.dropoff_verified === false ? (
+              <p>Address not verified</p>
+            ) : null}
+            <p>Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
+            {job.private.pickup_lat != null && job.private.pickup_lng != null ? (
+              <AreaMap
+                caption={job.private.pickup_verified === false ? "Address not verified" : "Route"}
+                pins={[
+                  { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
+                  ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                    ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
+                    : []),
+                ]}
+                line={
+                  job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                    ? [
+                        [job.private.pickup_lng, job.private.pickup_lat],
+                        [job.private.dropoff_lng, job.private.dropoff_lat],
+                      ]
+                    : []
+                }
+              />
+            ) : (
+              <p>Trip map: —</p>
+            )}
             {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
             {job.private.access_notes ? <p>Access: {job.private.access_notes}</p> : null}
           </>

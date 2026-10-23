@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
+import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -21,9 +22,10 @@ export default function ProfilePage() {
 async function ProfileContent() {
   const session = await requireSignedIn("/account/profile");
   const supabase = await createClient();
-  const [{ data: profile }, { data: driver }] = await Promise.all([
+  const [{ data: profile }, { data: driver }, { data: places }] = await Promise.all([
     supabase.from("profiles").select("phone").eq("id", session.userId).maybeSingle(),
     supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
+    supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
   ]);
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -32,6 +34,18 @@ async function ProfileContent() {
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Your profile"}
       </h1>
+      <section className="mt-6">
+        <h2 className="text-lg font-semibold text-ink">Saved addresses</h2>
+        {(places ?? []).length === 0 ? <p className="mt-2 text-base text-muted">No saved addresses yet.</p> : null}
+        <ul className="mt-2 space-y-2">
+          {(places ?? []).map((place) => (
+            <li key={place.id} className="text-base text-ink">
+              {place.label}: {place.city} {place.zip}
+            </li>
+          ))}
+        </ul>
+        <PlaceEditor kind="customer" />
+      </section>
       <ProfileMenu
         phone={profile?.phone ?? null}
         role={session.role}

@@ -3,7 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { emptyPlace, PlaceField, type PlaceValue } from "@/components/maps/place-field";
 import { TextField } from "@/components/request/fields";
+import { saveDriverPlace } from "@/lib/maps/save-places";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
 import { recordFunnel } from "@/lib/funnel";
@@ -45,8 +47,7 @@ export function QuickApplyForm({
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
-  const [homeCity, setHomeCity] = useState("");
-  const [homeZip, setHomeZip] = useState("");
+  const [home, setHome] = useState<PlaceValue>(emptyPlace);
   const [coverage, setCoverage] = useState<CoverageDraft>(defaultCoverage);
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [vehicleType, setVehicleType] = useState("pickup");
@@ -67,8 +68,8 @@ export function QuickApplyForm({
       setError("Enter your full name.");
       return;
     }
-    if (!/^[0-9]{5}$/.test(homeZip.trim())) {
-      setError("Enter a Georgia home ZIP code.");
+    if (!home.line1.trim() || !/^[0-9]{5}$/.test(home.zip.trim())) {
+      setError("Enter a Georgia home address.");
       return;
     }
     if (coverage.cities.length === 0 && coverage.zips.length === 0 && coverage.radius == null) {
@@ -93,8 +94,8 @@ export function QuickApplyForm({
       const { error: saveError } = await createClient().rpc("submit_quick_application", {
         payload: {
           full_name: fullName.trim(),
-          home_city: homeCity.trim(),
-          home_zip: homeZip.trim(),
+          home_city: home.city.trim(),
+          home_zip: home.zip.trim(),
           coverage: {
             cities: coverage.cities,
             zips: coverage.zips,
@@ -111,6 +112,8 @@ export function QuickApplyForm({
         },
       });
       if (saveError) throw new Error(saveError.message);
+      const placeError = await saveDriverPlace(home);
+      if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
       router.push("/driver/onboarding?submitted=1");
       router.refresh();
@@ -123,8 +126,7 @@ export function QuickApplyForm({
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
-      <TextField name="homeCity" label="Home city" value={homeCity} onChange={setHomeCity} />
-      <TextField name="homeZip" label="Home ZIP" value={homeZip} onChange={setHomeZip} inputMode="numeric" />
+      <PlaceField label="Home address" value={home} onChange={setHome} />
       <fieldset className="space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <legend className="text-base font-semibold text-ink">Areas I cover</legend>
         <CoverageEditor value={coverage} onChange={setCoverage} />

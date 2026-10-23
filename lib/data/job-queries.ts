@@ -63,6 +63,8 @@ export type JobDetail = {
   payment_status: string | null;
   dump_fee_cents: number | null;
   assigned_driver_id: string | null;
+  distance_miles: number | null;
+  distance_source: string | null;
   updated_at: string;
   has_dump_receipt: boolean;
   private: {
@@ -72,6 +74,14 @@ export type JobDetail = {
     pickup_address: string;
     dropoff_address: string | null;
     access_notes: string | null;
+    pickup_unit: string | null;
+    dropoff_unit: string | null;
+    pickup_lat: number | null;
+    pickup_lng: number | null;
+    dropoff_lat: number | null;
+    dropoff_lng: number | null;
+    pickup_verified: boolean | null;
+    dropoff_verified: boolean | null;
   } | null;
   events: JobEvent[];
   photos: JobPhoto[];
@@ -109,7 +119,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id",
+        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id, distance_miles, distance_source",
       )
       .eq("id", id)
       .maybeSingle();
@@ -118,7 +128,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const [privateResult, eventResult, photoResult] = await Promise.all([
       supabase
         .from("job_private")
-        .select("customer_name, customer_phone, customer_email, pickup_address, dropoff_address, access_notes")
+        .select("customer_name, customer_phone, customer_email, pickup_address, dropoff_address, access_notes, pickup_unit, dropoff_unit, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_verified, dropoff_verified")
         .eq("job_id", id)
         .maybeSingle(),
       supabase

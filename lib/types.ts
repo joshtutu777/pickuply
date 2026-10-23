@@ -21,11 +21,19 @@ export type RequestDraft = {
   sellerHolding: "" | "yes" | "no";
   wantsItemCheck: "" | "yes" | "no";
   pickupStreet: string;
+  pickupUnit: string;
   pickupCity: string;
   pickupZip: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
+  pickupVerified: boolean;
   dropoffStreet: string;
+  dropoffUnit: string;
   dropoffCity: string;
   dropoffZip: string;
+  dropoffLat: number | null;
+  dropoffLng: number | null;
+  dropoffVerified: boolean;
   accessNotes: string;
   stairsPickup: StairChoice | "";
   stairsDropoff: StairChoice | "";
@@ -133,11 +141,19 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     sellerHolding: "",
     wantsItemCheck: "",
     pickupStreet: "",
+    pickupUnit: "",
     pickupCity: "",
     pickupZip: "",
+    pickupLat: null,
+    pickupLng: null,
+    pickupVerified: false,
     dropoffStreet: "",
+    dropoffUnit: "",
     dropoffCity: "",
     dropoffZip: "",
+    dropoffLat: null,
+    dropoffLng: null,
+    dropoffVerified: false,
     accessNotes: "",
     stairsPickup: "0",
     stairsDropoff: "0",

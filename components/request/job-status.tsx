@@ -2,7 +2,9 @@ import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { QuoteViewed } from "@/components/request/quote-viewed";
+import { AreaMap } from "@/components/maps/area-map";
 import { RouteSketch } from "@/components/mobile/route-sketch";
+import { tripLabel } from "@/lib/maps/miles";
 import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import {
@@ -50,6 +52,7 @@ export function JobStatus({
   error,
   tracker,
   driver,
+  routeLine,
 }: {
   job: JobDetail;
   notice?: QuoteNotice | null;
@@ -57,6 +60,7 @@ export function JobStatus({
   error?: string;
   tracker: JobTracker;
   driver?: DriverCard | null;
+  routeLine?: [number, number][];
 }) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
@@ -68,7 +72,34 @@ export function JobStatus({
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
       </div>
       <div className="mt-3">
-        <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+        {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
+          <AreaMap
+            caption={
+              job.private.pickup_verified === false || job.private.dropoff_verified === false
+                ? "Address not verified"
+                : "Route"
+            }
+            pins={[
+              { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
+              ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
+                : []),
+            ]}
+            line={
+              routeLine && routeLine.length > 1
+                ? routeLine
+                : job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                  ? [
+                      [job.private.pickup_lng, job.private.pickup_lat],
+                      [job.private.dropoff_lng, job.private.dropoff_lat],
+                    ]
+                  : []
+            }
+          />
+        ) : (
+          <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+        )}
+        <p className="mt-2 text-base text-ink">Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
       </div>
       <div className="mt-4">
         <StatusPill status={job.status} />

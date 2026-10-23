@@ -15,6 +15,7 @@ import { ReportForm } from "@/components/request/report-form";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
+import { measureTrip } from "@/lib/maps/route";
 import { getQuoteNotice } from "@/lib/data/quote";
 import { buildJobTracker } from "@/lib/jobs/tracker";
 import { createClient } from "@/lib/supabase/server";
@@ -73,6 +74,15 @@ async function JobEntry({
       offers = [];
     }
   }
+  const pickup =
+    job.private?.pickup_lat != null && job.private.pickup_lng != null
+      ? { lat: job.private.pickup_lat, lng: job.private.pickup_lng }
+      : null;
+  const dropoff =
+    job.private?.dropoff_lat != null && job.private.dropoff_lng != null
+      ? { lat: job.private.dropoff_lat, lng: job.private.dropoff_lng }
+      : null;
+  const route = await measureTrip(pickup, dropoff);
   return (
     <>
       <div className="mx-auto w-full max-w-xl px-4 pt-8">
@@ -80,6 +90,7 @@ async function JobEntry({
       </div>
       <JobStatus
         job={job}
+        routeLine={route.line}
         notice={notice}
         canRespond={session?.role === "customer"}
         error={typeof query.error === "string" ? query.error : undefined}
