@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## West Metro fallback (2026-10-23)
+
+Drivers with no home ZIP are measured from Austell 30106 in West Metro, and from Lawrenceville 30043 in East Gwinnett. Five local drivers had no home ZIP. Each got an audit row for that fallback. Their saved 25-mile coverage was left in place.
+
 ## Areas I cover (2026-10-23)
 
 Drivers save one coverage preference: Georgia cities, ZIP codes, and a radius, combined with OR. The feed uses it unless Show all Georgia jobs is on. Alerts ignore that switch and follow coverage only. Unassigned distances are ZIP-centroid miles, rounded to the nearest mile. Existing local drivers were backfilled to 25 miles from home, or from the zone center when they had no home ZIP.
