@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ReadyStep } from "@/components/driver/ready-step";
+import { ReadyStep, type ReadyExisting } from "@/components/driver/ready-step";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
-const steps = new Set(["insurance", "vehicle", "equipment", "services", "agreement", "training"]);
+const steps = new Set(["license", "insurance", "vehicle", "equipment", "services", "agreement", "training"]);
 
 const titles: Record<string, string> = {
+  license: "License",
   insurance: "Insurance",
   vehicle: "Vehicle details",
   equipment: "Equipment and helper",
@@ -43,6 +45,41 @@ async function ReadyContent({
   if (!steps.has(step)) notFound();
   const session = await requireSignedIn(`/driver/ready/${step}`);
   const query = await searchParams;
+  const supabase = await createClient();
+  const [{ data: driver }, { data: vehicle }] = await Promise.all([
+    supabase
+      .from("drivers")
+      .select(
+        "license_url, license_expires, insurance_url, insurance_expires, equipment, helper_name, services, service_level",
+      )
+      .eq("profile_id", session.userId)
+      .maybeSingle(),
+    supabase
+      .from("vehicles")
+      .select("type, make, model, year, plate, cargo_length_in, photo_url")
+      .eq("driver_id", session.userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const existing: ReadyExisting = {
+    licenseUrl: driver?.license_url ?? null,
+    licenseExpires: driver?.license_expires ?? null,
+    insuranceUrl: driver?.insurance_url ?? null,
+    insuranceExpires: driver?.insurance_expires ?? null,
+    vehicleType: vehicle?.type ?? null,
+    make: vehicle?.make ?? null,
+    model: vehicle?.model ?? null,
+    year: vehicle?.year ?? null,
+    plate: vehicle?.plate ?? null,
+    cargo: vehicle?.cargo_length_in ?? null,
+    vehiclePhoto: vehicle?.photo_url ?? null,
+    equipment: driver?.equipment ?? [],
+    helperName: driver?.helper_name ?? null,
+    services: driver?.services ?? [],
+    serviceLevel: driver?.service_level ?? null,
+    fullName: session.fullName,
+  };
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
@@ -50,7 +87,12 @@ async function ReadyContent({
       <Link href="/driver" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
         Back to the checklist
       </Link>
-      <ReadyStep step={step} userId={session.userId} error={typeof query.error === "string" ? query.error : undefined} />
+      <ReadyStep
+        step={step}
+        userId={session.userId}
+        existing={existing}
+        error={typeof query.error === "string" ? query.error : undefined}
+      />
     </main>
   );
 }

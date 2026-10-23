@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
-import type { OnlineGap } from "@/lib/driver/online-gaps";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 
@@ -144,17 +143,14 @@ function OfferActions({
 
 export function DriverHome({
   isOnline,
-  gaps,
   userId,
   showFeed,
 }: {
   isOnline: boolean;
-  gaps: OnlineGap[];
   userId: string;
   showFeed: boolean;
 }) {
   const [online, setOnline] = useState(isOnline);
-  const [showGaps, setShowGaps] = useState(gaps.length > 0 && !isOnline);
   const [jobs, setJobs] = useState<FeedCard[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -224,11 +220,9 @@ export function DriverHome({
     const nowOnline = Boolean(confirmed.data?.is_online);
     setOnline(nowOnline);
     if (onlineError || (goingOnline && !nowOnline)) {
-      setShowGaps(true);
       setError(onlineError?.message ?? "You are still Offline.");
       return;
     }
-    setShowGaps(gaps.length > 0 && !nowOnline);
     if (goingOnline && nowOnline) void recordFunnel({ event: "driver_online", step: "online" });
   }
 
@@ -243,20 +237,6 @@ export function DriverHome({
       >
         {online ? "You are Online" : "You are Offline"}
       </button>
-      {showGaps && gaps.length > 0 ? (
-        <ul className="mt-4 grid gap-2">
-          {gaps.map((item) => (
-            <li key={item.label} className="rounded-2xl bg-paper-raised px-4 py-3 text-base text-ink ring-1 ring-line">
-              <p>{item.label}</p>
-              {item.href ? (
-                <a href={item.href} className="mt-1 inline-flex min-h-12 items-center font-semibold text-brand">
-                  Fix this
-                </a>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
       {error ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {error}

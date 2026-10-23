@@ -148,14 +148,14 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 |---|---|
 | `applied` | Profile started |
 | `pending_review` | Documents submitted |
-| `approved_new` | Can take admin-assigned jobs only |
+| `approved_new` | Legacy invite-only stage. New approvals use `active` and stay Offline until the driver switches Online. The enum and invitation checks remain for old rows. |
 | `active` | Sees and accepts live jobs |
 | `paused` | Expired documents, strikes, low rating, or admin action |
 | `removed` | Permanently removed |
 
 ### 5.3 Availability
 - **Online/Offline toggle** at the top of Driver Home, status visible everywhere in the driver app (also on the Jobs tab).
-- Going **Online** checks: status is `active` (or `approved_new` for assigned jobs), license and insurance not expired, at least one approved vehicle. If a check fails, show what's missing.
+- Going **Online** checks: status is `active` (legacy `approved_new` rows still pass), an unexpired driver license, unexpired insurance, and a signed driver agreement. Approval makes the driver eligible and leaves them Offline. The driver turns Online. A failed check names the item, including the license or insurance date. Stripe payout setup does not block Online or accepting a job. Earnings stay held until payouts are set up. Uploading a document counts on the checklist as Uploaded until an admin reviews it. There is no separate vehicle approval after Approve driver.
 - **Offline:** stops new job alerts; accepted jobs stay active.
 - Drivers may **browse** eligible jobs while Offline but can only **accept** while Online.
 - Weekly schedule (time blocks) + optional "unavailable until" date.

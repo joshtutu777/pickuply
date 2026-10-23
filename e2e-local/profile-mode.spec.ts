@@ -94,11 +94,12 @@ test("a pending driver lands on the checklist, and paused or removed status is p
     await switchToDriving.tap();
     await expect(page).toHaveURL(/\/driver$/);
     await expect(page).not.toHaveURL(/error=forbidden/);
-    await expect(page.getByRole("heading", { name: "Application submitted" })).toBeVisible();
+    await expect(page.getByText("Application in review")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Get Ready to Drive" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /License/ })).toBeVisible();
     await expect(page.getByRole("link", { name: "Set up payouts" })).toHaveCount(0);
     await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
-    await page.getByRole("link", { name: /Insurance and expiry/ }).click();
+    await page.getByRole("link", { name: /Insurance/ }).click();
     await expect(page).toHaveURL(/\/driver\/ready\/insurance/);
     await expect(page.getByRole("heading", { name: "Insurance" })).toBeVisible();
     await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
@@ -123,7 +124,7 @@ test("a pending driver lands on the checklist, and paused or removed status is p
     await expect(page).toHaveURL(/\/driver$/);
     await expect(page.getByRole("heading", { name: "Application closed" })).toBeVisible();
     await expect(page.getByText("Removed for a manual check")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Submit application again" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Contact support" })).toBeVisible();
     await expect(page.getByText("You don't have access to that page.")).toHaveCount(0);
   } finally {
     restore();

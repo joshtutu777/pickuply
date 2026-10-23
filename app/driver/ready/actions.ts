@@ -9,6 +9,18 @@ function fail(step: string, message: string): never {
   redirect(`/driver/ready/${step}?error=${encodeURIComponent(message)}`);
 }
 
+export async function saveLicense(formData: FormData) {
+  await connection();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_driver_license", {
+    doc_path: String(formData.get("path") ?? ""),
+    expires: String(formData.get("expires") ?? ""),
+  });
+  if (error) fail("license", error.message);
+  await recordFunnelServer({ event: "driver_checklist", step: "license" });
+  redirect("/driver?saved=license");
+}
+
 export async function saveInsurance(formData: FormData) {
   await connection();
   const supabase = await createClient();
@@ -31,6 +43,7 @@ export async function saveVehicle(formData: FormData) {
     plate: String(formData.get("plate") ?? ""),
     cargo_length: Number(formData.get("cargo")),
     photo_path: String(formData.get("path") ?? ""),
+    vehicle_type: String(formData.get("vehicleType") ?? ""),
   });
   if (error) fail("vehicle", error.message);
   await recordFunnelServer({ event: "driver_checklist", step: "vehicle" });

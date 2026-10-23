@@ -9,7 +9,7 @@ import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
 import { applicationStatusCopy } from "@/lib/driver/application-status";
-import { onlineGaps } from "@/lib/driver/online-gaps";
+import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,99 +57,59 @@ async function DriverContent({
   const session = await requireSignedIn("/driver");
   const params = await searchParams;
   const forbidden = singleQuery(params.error) === "forbidden";
+  const saved = singleQuery(params.saved);
 
   const supabase = await createClient();
   const { data: application } = await supabase
     .from("drivers")
     .select(
-      "status, review_note, is_online, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
+      "status, review_note, is_online, license_url, license_expires, insurance_expires, insurance_url, checklist_required, agreement_signed_at, training_completed_at, services, kit_saved_at",
     )
     .eq("profile_id", session.userId)
     .maybeSingle();
   const { data: vehicle } = await supabase
     .from("vehicles")
-    .select("approved, make, photo_url")
+    .select("type, approved, make, photo_url")
     .eq("driver_id", session.userId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const { data: payout } = await supabase
-    .from("driver_connect_accounts")
-    .select("details_submitted")
-    .eq("driver_id", session.userId)
-    .maybeSingle();
 
-  const statusCopy = applicationStatusCopy(application?.status ?? null);
-  const checklistItems = application
-    ? [
-        {
-          id: "insurance",
-          label: "Insurance and expiry",
-          href: "/driver/ready/insurance",
-          done: Boolean(application.insurance_url && application.insurance_expires),
-        },
-        {
-          id: "vehicle",
-          label: "Vehicle details and photo",
-          href: "/driver/ready/vehicle",
-          done: Boolean(vehicle?.make && vehicle.photo_url),
-        },
-        {
-          id: "equipment",
-          label: "Equipment and helper",
-          href: "/driver/ready/equipment",
-          done: Boolean(application.kit_saved_at),
-        },
-        {
-          id: "services",
-          label: "Services offered",
-          href: "/driver/ready/services",
-          done: (application.services ?? []).length > 0,
-        },
-        {
-          id: "agreement",
-          label: "Driver agreement",
-          href: "/driver/ready/agreement",
-          done: Boolean(application.agreement_signed_at),
-        },
-        {
-          id: "training",
-          label: "Training",
-          href: "/driver/ready/training",
-          done: Boolean(application.training_completed_at),
-        },
-        ...(session.role === "driver"
-          ? [
-              {
-                id: "payout",
-                label: "Stripe payout setup",
-                href: "/driver/earnings",
-                done: Boolean(payout?.details_submitted),
-              },
-            ]
-          : []),
-      ]
+  const { data: notes } = application
+    ? await supabase.from("driver_item_reviews").select("item, note").eq("driver_id", session.userId)
+    : { data: null };
+  const noteMap = Object.fromEntries((notes ?? []).map((row) => [row.item, row.note]));
+  const items = application
+    ? checklistItems({
+        services: application.services?.length ?? 0,
+        vehicleType: vehicle?.type ?? null,
+        licenseUrl: application.license_url ?? null,
+        kitSaved: Boolean(application.kit_saved_at),
+        insuranceUrl: application.insurance_url ?? null,
+        agreementSigned: Boolean(application.agreement_signed_at),
+        trainingDone: Boolean(application.training_completed_at),
+        notes: noteMap,
+      })
     : [];
+  const statusCopy = applicationStatusCopy(application?.status ?? null);
+  const approved = application && ["active", "approved_new"].includes(application.status);
+  const statusLine =
+    application?.status === "pending_review" || application?.status === "applied"
+      ? "⏳ Application in review"
+      : approved
+        ? "✅ Approved"
+        : null;
+  const progress = checklistProgress(items);
   const checklist =
-    application?.checklist_required && application.status !== "removed" ? (
-      <ReadyChecklist items={checklistItems} />
+    application && application.status !== "removed" ? (
+      <ReadyChecklist
+        items={items}
+        statusLine={statusLine}
+        collapsed={Boolean(approved && progress.done === progress.total)}
+      />
     ) : null;
 
   if (session.role === "driver" || application) {
-    const today = new Date().toISOString().slice(0, 10);
-    const gaps = onlineGaps({
-      status: application?.status ?? null,
-      licenseExpires: application?.license_expires ?? null,
-      insuranceUrl: application?.insurance_url ?? null,
-      insuranceExpires: application?.insurance_expires ?? null,
-      vehicleApproved: Boolean(vehicle?.approved),
-      checklistRequired: Boolean(application?.checklist_required),
-      agreementSigned: Boolean(application?.agreement_signed_at),
-      trainingDone: Boolean(application?.training_completed_at),
-      serviceCount: application?.services?.length ?? 0,
-      today,
-    });
-    const approved = application && ["active", "approved_new"].includes(application.status);
     let earnings: ReturnType<typeof ledgerBuckets> | null = null;
     if (approved) {
       const { data: ledger } = await supabase
@@ -162,13 +122,17 @@ async function DriverContent({
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <DriverHome
           isOnline={Boolean(application?.is_online)}
-          gaps={gaps}
           userId={session.userId}
           showFeed={Boolean(approved)}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
-        {statusCopy ? (
+        {saved ? (
+          <p role="status" className="mt-3 text-base font-semibold text-ink">
+            Saved
+          </p>
+        ) : null}
+        {statusCopy && application?.status !== "pending_review" && application?.status !== "applied" ? (
           <section className="mt-4" aria-label="Application status">
             <h2 className="font-display text-2xl font-semibold text-ink">{statusCopy.title}</h2>
             <p className="mt-2 text-base leading-relaxed text-ink">{statusCopy.body}</p>
@@ -176,28 +140,30 @@ async function DriverContent({
               <p className="mt-2 text-base text-ink">Note from Pickuply: {application.review_note}</p>
             ) : null}
             {application?.status === "removed" ? (
-              <Link href="/driver/onboarding" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
-                Submit application again
+              <Link href="/support" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
+                Contact support
               </Link>
             ) : null}
           </section>
         ) : null}
         {session.role === "driver" ? (
-          <>
-            <p className="mt-3">
-              <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
-                Alerts
-              </Link>
-            </p>
-            <p>
-              <Link href="/driver/earnings" className="inline-flex min-h-12 items-center font-semibold text-brand">
-                Set up payouts
-              </Link>
-            </p>
-          </>
+          <p className="mt-3">
+            <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
+              Alerts
+            </Link>
+          </p>
         ) : (
           <p className="mt-3 text-base text-muted">Payout setup opens after you are approved.</p>
         )}
+        {approved && session.role === "driver" ? (
+          <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            <h2 className="font-display text-2xl font-semibold text-ink">Set up payouts to get paid</h2>
+            <p className="mt-2 text-base text-ink">Earnings stay held until payouts are set up. This does not block going Online.</p>
+            <Link href="/driver/earnings" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
+              Set up payouts
+            </Link>
+          </section>
+        ) : null}
         {application?.status === "approved_new" ? (
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.

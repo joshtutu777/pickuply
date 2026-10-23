@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { approveVehicle, reviewDriver } from "@/app/admin/drivers/actions";
+import { approveVehicle, reopenDriver, reviewDriver } from "@/app/admin/drivers/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -78,6 +78,15 @@ async function DriverDetail({
       <p className="mt-2 text-base text-muted">
         {driver.status.replaceAll("_", " ")} · role {profile?.role}
       </p>
+      {driver.license_url ? <p className="mt-2 text-base text-ink">License on file</p> : null}
+      {driver.status === "removed" ? (
+        <form action={reopenDriver} className="mt-4">
+          <input type="hidden" name="driverId" value={id} />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+            Reopen application
+          </button>
+        </form>
+      ) : null}
       <p className="mt-2 text-base text-ink">
         Payout setup:{" "}
         {payout?.payouts_enabled

@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --import tsx --test lib/pricing.test.ts lib/fees.test.ts lib/validation/request.test.ts lib/data/split-job.test.ts lib/data/request-payload.test.ts lib/phone.test.ts lib/auth/safe-return-path.test.ts lib/auth/access.test.ts lib/auth/otp-errors.test.ts lib/auth/name.test.ts lib/auth/mode.test.ts lib/driver/online-gaps.test.ts lib/driver/application-status.test.ts lib/test-reset.test.ts lib/supabase/project-url.test.ts lib/admin/ops.test.ts lib/jobs/tracker.test.ts lib/jobs/next-action.test.ts lib/payments/ledger-summary.test.ts lib/notifications/channels.test.ts lib/messages/contact.test.ts lib/payments/requirements.test.ts lib/payments/checkout-expiry.test.ts lib/payments/receipt.test.ts lib/payments/earnings.test.ts lib/payments/ledger-rules.test.ts",
+    "test:unit": "node --import tsx --test lib/pricing.test.ts lib/fees.test.ts lib/validation/request.test.ts lib/data/split-job.test.ts lib/data/request-payload.test.ts lib/phone.test.ts lib/auth/safe-return-path.test.ts lib/auth/access.test.ts lib/auth/otp-errors.test.ts lib/auth/name.test.ts lib/auth/mode.test.ts lib/driver/online-gaps.test.ts lib/driver/application-status.test.ts lib/driver/checklist.test.ts lib/test-reset.test.ts lib/supabase/project-url.test.ts lib/admin/ops.test.ts lib/jobs/tracker.test.ts lib/jobs/next-action.test.ts lib/payments/ledger-summary.test.ts lib/notifications/channels.test.ts lib/messages/contact.test.ts lib/payments/requirements.test.ts lib/payments/checkout-expiry.test.ts lib/payments/receipt.test.ts lib/payments/earnings.test.ts lib/payments/ledger-rules.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

@@ -113,7 +113,7 @@ select is(
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select throws_ok(
   $$select public.set_driver_online(true)$$,
-  'add unexpired insurance before going online',
+  'Add your insurance card before going Online.',
   'an approved quick applicant cannot go online yet'
 );
 select is(
