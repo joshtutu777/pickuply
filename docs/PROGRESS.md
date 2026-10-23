@@ -500,7 +500,7 @@ Online now requires `driver-terms-v1`, not an older agreement timestamp. Driver 
 
 ## Messages inbox (2026-10-23)
 
-An admin document request was posted on the support thread, but Messages only listed job chats and the alert opened Driver home. The inbox now includes Pickuply Support. The alert opens that conversation. Admin Messages shows unread counts, driver and customer chats, and open help cases. Upload now opens the matching document page. A saved document notifies admin. Chat files stay private.
+An admin document request was posted on the support thread, but Messages only listed job chats and the alert opened Driver home. The inbox now includes Pickuply Support. The alert opens that conversation. Admin, driver, and customer lists use a bold title and an unread dot. Seen appears on the sender's last message after the other person opens the thread. Admin Messages shows unread counts, driver and customer chats, and open help cases. Upload now opens the matching document page. A saved document notifies admin. Chat files stay private.
 
 ## Approve anyway (2026-10-23)
 

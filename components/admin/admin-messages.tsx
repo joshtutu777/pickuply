@@ -26,11 +26,16 @@ export async function AdminMessageList() {
         <ul className="mt-4 space-y-3">
           {threads.map((thread) => (
             <li key={thread.thread_id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-              <Link href={`/admin/messages/${thread.thread_id}`} className="block min-h-12">
-                <p className="text-lg font-semibold text-ink">{thread.label}</p>
-                <p className="text-base text-muted">
-                  {thread.unread === 1 ? "1 unread" : `${thread.unread} unread`}
-                </p>
+              <Link href={`/admin/messages/${thread.thread_id}`} className="flex min-h-12 items-center justify-between gap-3">
+                <span>
+                  <span className={`block text-lg text-ink ${thread.unread > 0 ? "font-bold" : "font-semibold"}`}>
+                    {thread.label}
+                  </span>
+                  <span className="text-base text-muted">
+                    {thread.unread > 0 ? (thread.unread === 1 ? "1 unread" : `${thread.unread} unread`) : "Read"}
+                  </span>
+                </span>
+                {thread.unread > 0 ? <span className="size-3 shrink-0 rounded-full bg-brand" aria-hidden="true" /> : null}
               </Link>
             </li>
           ))}
