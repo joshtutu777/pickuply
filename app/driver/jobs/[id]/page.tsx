@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { AdvanceButton } from "@/components/driver/advance-button";
 import { LoadingMain } from "@/components/loading-main";
 import { RouteSketch } from "@/components/mobile/route-sketch";
@@ -97,6 +98,7 @@ async function DriverJob({
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/driver" label="Driver home" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Assigned job</p>
       <div className="mt-3">
         <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />

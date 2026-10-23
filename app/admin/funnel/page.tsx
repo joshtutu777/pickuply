@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -57,6 +58,7 @@ async function FunnelContent({
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/admin" label="Admin" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Funnel</h1>
       <p className="mt-2 text-base text-muted">Counts are distinct sessions. Raw events are kept for 90 days.</p>

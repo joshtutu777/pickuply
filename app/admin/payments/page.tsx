@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
@@ -34,6 +35,7 @@ async function Payments() {
 
   return (
     <main className="px-4 py-8">
+      <BackLink href="/admin" label="Admin" />
       <h1 className="font-display text-4xl font-semibold text-ink">Payments</h1>
       <p className="mt-2 text-base text-muted">Card holds, captures, and refunds. A shortfall means the Stripe fee was higher than the service fee.</p>
       {(jobs ?? []).length === 0 ? <p className="mt-6">No card payments yet.</p> : null}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CustomerJobCard } from "@/components/account/job-card";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { listOwnJobs } from "@/lib/data/job-queries";
@@ -24,6 +25,7 @@ async function JobsContent() {
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/account" label="Account" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Jobs</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Your requests</h1>
       <p className="mt-2 text-base text-muted">Every request on your account, including finished ones.</p>

@@ -154,6 +154,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 | `removed` | Permanently removed |
 
 ### 5.3 Availability
+- Get Ready to Drive steps show “← Get Ready to Drive” at the top and in a bottom bar. Saving a step returns to the checklist and shows Saved.
 - **Online/Offline switch** at the top of Driver Home (`role="switch"`). The knob moves only after the server confirms. A failed check is named under the switch, with a link to the checklist. A newly approved driver who is still Offline sees “You're approved! Switch Online whenever you're ready to see and accept jobs.” until they go Online once or dismiss it. After that, Offline says they will not get new job alerts.
 - Going **Online** checks: status is `active` (legacy `approved_new` rows still pass), an unexpired driver license, unexpired insurance, and a signed driver agreement. Approval makes the driver eligible and leaves them Offline. The driver turns Online. A failed check names the item, including the license or insurance date. Stripe payout setup does not block Online or accepting a job. Earnings stay held until payouts are set up. Uploading a document counts on the checklist as Uploaded until an admin reviews it. There is no separate vehicle approval after Approve driver.
 - **Offline:** stops new job alerts; accepted jobs stay active.

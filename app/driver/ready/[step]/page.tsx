@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { ReadyStep, type ReadyExisting } from "@/components/driver/ready-step";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -81,18 +81,19 @@ async function ReadyContent({
     fullName: session.fullName,
   };
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 pb-24">
+      <BackLink href="/driver" label="Get Ready to Drive" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{titles[step]}</h1>
-      <Link href="/driver" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
-        Back to the checklist
-      </Link>
       <ReadyStep
         step={step}
         userId={session.userId}
         existing={existing}
         error={typeof query.error === "string" ? query.error : undefined}
       />
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper px-4 py-2" aria-label="Back">
+        <BackLink href="/driver" label="Get Ready to Drive" />
+      </nav>
     </main>
   );
 }

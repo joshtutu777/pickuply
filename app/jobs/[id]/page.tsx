@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { BackLink } from "@/components/back-link";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { PayPanel } from "@/components/request/pay-panel";
 import { ConfirmDelivery, ItemDecision } from "@/components/request/item-decision";
@@ -74,6 +75,9 @@ async function JobEntry({
   }
   return (
     <>
+      <div className="mx-auto w-full max-w-xl px-4 pt-8">
+        <BackLink href="/account/jobs" label="Jobs" />
+      </div>
       <JobStatus
         job={job}
         notice={notice}

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { inviteDriver, refundJob } from "@/app/admin/requests/actions";
+import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
@@ -64,9 +64,7 @@ async function RequestDetail({
       <p className="mt-2 text-base text-muted">
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
-      <Link href="/admin/requests" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
-        All requests
-      </Link>
+      <BackLink href="/admin/requests" label="Requests" />
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">

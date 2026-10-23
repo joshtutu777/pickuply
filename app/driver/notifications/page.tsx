@@ -20,6 +20,6 @@ async function DriverNotifications({
 }) {
   const query = await searchParams;
   return (
-    <AlertCenter path="/driver/notifications" saved={query.saved === "1"} error={query.error === "save"} />
+    <AlertCenter path="/driver/notifications" saved={query.saved === "1"} error={query.error === "save"} backHref="/driver" backLabel="Driver home" />
   );
 }

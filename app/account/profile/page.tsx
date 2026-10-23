@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -26,6 +27,7 @@ async function ProfileContent() {
   ]);
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/account" label="Account" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Profile</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Your profile"}

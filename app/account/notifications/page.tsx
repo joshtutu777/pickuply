@@ -20,6 +20,6 @@ async function AccountNotifications({
 }) {
   const query = await searchParams;
   return (
-    <AlertCenter path="/account/notifications" saved={query.saved === "1"} error={query.error === "save"} />
+    <AlertCenter path="/account/notifications" saved={query.saved === "1"} error={query.error === "save"} backHref="/account" backLabel="Account" />
   );
 }

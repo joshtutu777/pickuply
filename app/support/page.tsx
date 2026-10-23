@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { MessagePanel, type ChatMessage } from "@/components/messages/message-panel";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -26,6 +27,7 @@ async function Support() {
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/help" label="Help" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Support</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Pickuply Support</h1>
       <p className="mt-3 text-base text-muted">Phone numbers and emails typed here are hidden. Share pickup details in the app.</p>

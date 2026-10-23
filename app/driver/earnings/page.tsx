@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { refreshPayoutSetup, startPayoutSetup } from "@/app/driver/connect/actions";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { payoutSetupLabel, requirementLabels } from "@/lib/payments/requirements";
@@ -24,6 +25,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
   if (session.role !== "driver") {
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+        <BackLink href="/driver" label="Driver home" />
         <h1 className="font-display text-4xl font-semibold text-ink">Earnings</h1>
         <p className="mt-4 text-base text-muted">Payout setup is for drivers.</p>
       </main>
@@ -74,6 +76,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/driver" label="Driver home" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold text-ink">Earnings</h1>
       <p className="mt-3 text-base text-muted">

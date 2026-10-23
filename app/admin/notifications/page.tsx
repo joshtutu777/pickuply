@@ -22,6 +22,6 @@ async function AdminNotifications({
   await requireAdmin("/admin/notifications");
   const query = await searchParams;
   return (
-    <AlertCenter path="/admin/notifications" saved={query.saved === "1"} error={query.error === "save"} />
+    <AlertCenter path="/admin/notifications" saved={query.saved === "1"} error={query.error === "save"} backHref="/admin" backLabel="Admin" />
   );
 }

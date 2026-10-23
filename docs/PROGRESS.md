@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Back navigation (2026-10-23)
+
+Every Get Ready to Drive step has “← Get Ready to Drive” at the top and in a bar at the bottom. Saving a step returns to the checklist and shows Saved. Customer, driver, admin, and help detail pages have a back link to their parent.
+
 ## Online switch (2026-10-23)
 
 The Driver home control is a switch. It stays Offline or Online until the server confirms the change. A failed check is written under the switch and links to the checklist. A newly approved driver sees the approval prompt until the first time they go Online, or until they dismiss it. After that, Offline says they will not get new job alerts.

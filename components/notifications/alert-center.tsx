@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { markAlertsRead, saveAlertPreferences } from "@/app/account/notification-actions";
+import { BackLink } from "@/components/back-link";
 import { EnablePush } from "@/components/notifications/enable-push";
 import { HomeScreenHint } from "@/components/notifications/home-screen-hint";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -9,10 +10,14 @@ export async function AlertCenter({
   path,
   saved,
   error,
+  backHref,
+  backLabel,
 }: {
   path: string;
   saved: boolean;
   error: boolean;
+  backHref: string;
+  backLabel: string;
 }) {
   await requireSignedIn(path);
   const supabase = await createClient();
@@ -31,6 +36,7 @@ export async function AlertCenter({
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href={backHref} label={backLabel} />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Alerts</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Your alerts</h1>
       <HomeScreenHint dismissed={Boolean(prefs?.home_screen_hint_dismissed)} />

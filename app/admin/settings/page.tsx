@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
 import { saveSmsSetting, saveSupportContact, saveProofLocation } from "@/app/admin/settings/actions";
@@ -46,9 +46,7 @@ async function SettingsContent({
         The service fee covers card processing. The wording and card-surcharge rules need a review
         before launch.
       </p>
-      <Link href="/admin" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
-        Back to requests
-      </Link>
+      <BackLink href="/admin" label="Admin" />
       {query.saved === "1" ? <p className="mt-4">Saved.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-danger">

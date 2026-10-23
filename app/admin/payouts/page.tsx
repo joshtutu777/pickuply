@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { recordOutsidePayment, recoverDeduction, recoverReversal } from "@/app/admin/payouts/actions";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
@@ -43,6 +44,7 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
 
   return (
     <main className="px-4 py-8">
+      <BackLink href="/admin" label="Admin" />
       <h1 className="font-display text-4xl font-semibold text-ink">Payouts</h1>
       <p className="mt-2 text-base text-muted">
         A transfer sends earnings to the driver Stripe account. It is not a deposit in their bank. Paid outside Stripe is an admin record, not a transfer.
