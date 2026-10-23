@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Google Maps (2026-10-23)
+
+Browser maps use the Maps JavaScript API. MapLibre and MapTiler are removed after tiles rendered on desktop and an iPhone-sized screen. Unassigned drivers still see one-mile circles around pickup ZIP centroids. Exact pins stay on the customer job, the assigned driver job, and the admin request. The request form previews verified pickup and drop-off pins and moves the pin when the address changes. A typed address stays unverified and does not invent a pin. Places latitude and longitude are limited to a 30-day cache by Google's current terms. Place IDs can be stored. Active jobs keep their coordinates so the map can still open. The Routes API is not enabled. OpenRouteService is unchanged and is not called from the new map. A job page can still draw a straight line between its own pins.
+
 ## Current Driver Terms (2026-10-23)
 
 Online now requires `driver-terms-v1`, not an older agreement timestamp. Driver home shows a review-and-accept card. The Online error links to Review. Accepting stores the version and the time and does not happen automatically.

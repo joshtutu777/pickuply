@@ -19,6 +19,7 @@ import {
   type RequestStepId,
   type ServiceId,
 } from "@/lib/constants";
+import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
 import { addDays, localDateISO } from "@/lib/dates";
@@ -686,6 +687,24 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
             ) : (
               <p className="text-base text-muted">Junk removal does not need a drop-off address.</p>
             )}
+            <TripPreview
+              pickup={{
+                lat: draft.pickupLat,
+                lng: draft.pickupLng,
+                verified: draft.pickupVerified,
+                text: [draft.pickupStreet, draft.pickupCity, draft.pickupZip].filter(Boolean).join(", "),
+              }}
+              dropoff={
+                draft.service === "junk"
+                  ? null
+                  : {
+                      lat: draft.dropoffLat,
+                      lng: draft.dropoffLng,
+                      verified: draft.dropoffVerified,
+                      text: [draft.dropoffStreet, draft.dropoffCity, draft.dropoffZip].filter(Boolean).join(", "),
+                    }
+              }
+            />
             <RadioCards
               legend="Stairs at pickup"
               name="stairsPickup"

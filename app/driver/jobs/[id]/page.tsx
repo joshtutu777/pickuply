@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { AdvanceButton } from "@/components/driver/advance-button";
 import { LoadingMain } from "@/components/loading-main";
+import { AreaMap } from "@/components/maps/area-map";
 import { RouteSketch } from "@/components/mobile/route-sketch";
 import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
@@ -53,7 +54,7 @@ async function DriverJob({
   const [{ data: details }, { data: events }, { data: receipts }] = await Promise.all([
     supabase
       .from("job_private")
-      .select("customer_name, pickup_address, dropoff_address, access_notes")
+      .select("customer_name, pickup_address, dropoff_address, access_notes, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng")
       .eq("job_id", id)
       .maybeSingle(),
     supabase.from("job_events").select("type, created_at, data").eq("job_id", id).order("created_at"),
@@ -101,7 +102,19 @@ async function DriverJob({
       <BackLink href="/driver" label="Driver home" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Assigned job</p>
       <div className="mt-3">
-        <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+        {details?.pickup_lat != null && details.pickup_lng != null ? (
+          <AreaMap
+            caption="Pickup and drop-off"
+            pins={[
+              { lat: details.pickup_lat, lng: details.pickup_lng, label: "Pickup" },
+              ...(details.dropoff_lat != null && details.dropoff_lng != null
+                ? [{ lat: details.dropoff_lat, lng: details.dropoff_lng, label: "Drop-off" }]
+                : []),
+            ]}
+          />
+        ) : (
+          <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+        )}
       </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <StatusPill status={job.status} />

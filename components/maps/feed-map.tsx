@@ -24,17 +24,21 @@ export function FeedMap({ jobs }: { jobs: { id: string; pickup_area: string }[] 
       .then(({ data }) => {
         if (cancelled) return;
         setCircles(
-          (data ?? []).map((row) => ({
-            lat: row.lat,
-            lng: row.lng,
-            label: `${row.city} ${row.zip}`,
-          })),
+          (data ?? []).map((row) => {
+            const job = jobs.find((item) => zipOf(item.pickup_area) === row.zip);
+            return {
+              lat: row.lat,
+              lng: row.lng,
+              label: `${row.city} ${row.zip}`,
+              href: job ? `/driver/jobs/${job.id}` : undefined,
+            };
+          }),
         );
       });
     return () => {
       cancelled = true;
     };
-  }, [zipKey]);
+  }, [jobs, zipKey]);
 
   return <AreaMap circles={zipKey ? circles : []} caption="Jobs near these pickup areas" />;
 }

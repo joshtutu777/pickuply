@@ -1,31 +1,56 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import "maplibre-gl/dist/maplibre-gl.css";
 
-type Circle = { lat: number; lng: number; label: string };
+type Circle = { lat: number; lng: number; label: string; href?: string };
 type Pin = { lat: number; lng: number; label: string };
+type Overlay = { setMap: (map: GoogleMap | null) => void };
 
-function ring(lat: number, lng: number, miles = 1): [number, number][] {
-  const earth = 3958.8;
-  const lat1 = (lat * Math.PI) / 180;
-  const lng1 = (lng * Math.PI) / 180;
-  const angular = miles / earth;
-  const points: [number, number][] = [];
-  for (let step = 0; step <= 32; step += 1) {
-    const bearing = (step / 32) * 2 * Math.PI;
-    const lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(angular) + Math.cos(lat1) * Math.sin(angular) * Math.cos(bearing),
-    );
-    const lng2 =
-      lng1 +
-      Math.atan2(
-        Math.sin(bearing) * Math.sin(angular) * Math.cos(lat1),
-        Math.cos(angular) - Math.sin(lat1) * Math.sin(lat2),
-      );
-    points.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
+type GoogleMap = {
+  fitBounds: (bounds: GoogleBounds, padding?: number) => void;
+  setCenter: (point: { lat: number; lng: number }) => void;
+  setZoom: (zoom: number) => void;
+};
+
+type GoogleBounds = {
+  extend: (point: { lat: number; lng: number }) => void;
+  isEmpty: () => boolean;
+};
+
+type GoogleMaps = {
+  Map: new (element: HTMLElement, options: object) => GoogleMap;
+  Marker: new (options: object) => Overlay;
+  Circle: new (options: object) => Overlay & { addListener: (event: string, handler: () => void) => void };
+  Polyline: new (options: object) => Overlay;
+  LatLngBounds: new () => GoogleBounds;
+};
+
+declare global {
+  interface Window {
+    google?: { maps?: GoogleMaps };
   }
-  return points;
+}
+
+let loader: Promise<GoogleMaps> | null = null;
+
+function loadMaps(key: string): Promise<GoogleMaps> {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (loader) return loader;
+  loader = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
+    script.async = true;
+    script.onload = () => {
+      if (window.google?.maps) resolve(window.google.maps);
+      else reject(new Error("Google Maps did not load"));
+    };
+    script.onerror = () => {
+      loader = null;
+      reject(new Error("Google Maps did not load"));
+    };
+    document.head.appendChild(script);
+  });
+  return loader;
 }
 
 function Fallback({
@@ -53,6 +78,8 @@ function Fallback({
   );
 }
 
+const pickupColor = "#0f6e56";
+
 export function AreaMap({
   circles = [],
   pins = [],
@@ -64,81 +91,147 @@ export function AreaMap({
   line?: [number, number][];
   caption: string;
 }) {
-  const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const holder = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  const circleKey = circles.map((circle) => circle.label).join("|");
-  const pinKey = pins.map((pin) => pin.label).join("|");
+  const [ready, setReady] = useState(false);
+  const circleKey = circles.map((circle) => `${circle.lat},${circle.lng}:${circle.label}:${circle.href ?? ""}`).join("|");
+  const pinKey = pins.map((pin) => `${pin.lat},${pin.lng}:${pin.label}`).join("|");
+  const lineKey = line.map((point) => point.join(",")).join("|");
+  const dataRef = useRef({ circles, pins, line });
+  dataRef.current = { circles, pins, line };
 
   useEffect(() => {
     if (!key || !holder.current) return;
-    let map: { remove: () => void } | null = null;
     let cancelled = false;
-    void import("maplibre-gl")
-      .then((maplibre) => {
+    let map: GoogleMap | null = null;
+    const overlays: Overlay[] = [];
+    void loadMaps(key)
+      .then((maps) => {
         if (cancelled || !holder.current) return;
-        const created = new maplibre.Map({
-          container: holder.current,
-          style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`,
-          center: pins[0] ? [pins[0].lng, pins[0].lat] : circles[0] ? [circles[0].lng, circles[0].lat] : [-83.5, 32.7],
-          zoom: pins.length > 0 ? 11 : 8,
+        const { circles: areas, pins: markers, line: route } = dataRef.current;
+        const first = markers[0] ?? areas[0];
+        map = new maps.Map(holder.current, {
+          center: first ? { lat: first.lat, lng: first.lng } : { lat: 32.7, lng: -83.5 },
+          zoom: 12,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          zoomControl: true,
+          clickableIcons: false,
+          gestureHandling: "auto",
         });
-        map = created;
-        created.on("load", () => {
-          if (circles.length > 0) {
-            created.addSource("areas", {
-              type: "geojson",
-              data: {
-                type: "FeatureCollection",
-                features: circles.map((circle) => ({
-                  type: "Feature" as const,
-                  properties: { label: circle.label },
-                  geometry: { type: "Polygon" as const, coordinates: [ring(circle.lat, circle.lng)] },
-                })),
-              },
-            });
-            created.addLayer({
-              id: "areas",
-              type: "fill",
-              source: "areas",
-              paint: { "fill-color": "#0f6e56", "fill-opacity": 0.25 },
+        const bounds = new maps.LatLngBounds();
+        for (const area of areas) {
+          const circle = new maps.Circle({
+            map,
+            center: { lat: area.lat, lng: area.lng },
+            radius: 1609,
+            strokeColor: pickupColor,
+            strokeOpacity: 0.8,
+            strokeWeight: 1,
+            fillColor: pickupColor,
+            fillOpacity: 0.25,
+            clickable: Boolean(area.href),
+          });
+          if (area.href) {
+            const href = area.href;
+            circle.addListener("click", () => {
+              window.location.assign(href);
             });
           }
-          if (line.length > 1) {
-            created.addSource("route", {
-              type: "geojson",
-              data: {
-                type: "Feature",
-                properties: {},
-                geometry: { type: "LineString", coordinates: line },
-              },
-            });
-            created.addLayer({
-              id: "route",
-              type: "line",
-              source: "route",
-              paint: { "line-color": "#0f6e56", "line-width": 4 },
-            });
+          overlays.push(circle);
+          bounds.extend({ lat: area.lat, lng: area.lng });
+          const latPad = 1609 / 111320;
+          const lngPad = 1609 / (111320 * Math.cos((area.lat * Math.PI) / 180));
+          bounds.extend({ lat: area.lat + latPad, lng: area.lng + lngPad });
+          bounds.extend({ lat: area.lat - latPad, lng: area.lng - lngPad });
+        }
+        if (route.length > 1) {
+          overlays.push(
+            new maps.Polyline({
+              map,
+              path: route.map(([lng, lat]) => ({ lat, lng })),
+              strokeColor: pickupColor,
+              strokeOpacity: 0.9,
+              strokeWeight: 4,
+              clickable: false,
+            }),
+          );
+          for (const [lng, lat] of route) bounds.extend({ lat, lng });
+        }
+        for (const pin of markers) {
+          overlays.push(
+            new maps.Marker({
+              map,
+              position: { lat: pin.lat, lng: pin.lng },
+              title: pin.label,
+              label: pin.label === "Drop-off" ? "D" : pin.label === "Pickup" ? "P" : undefined,
+            }),
+          );
+          bounds.extend({ lat: pin.lat, lng: pin.lng });
+        }
+        if (!bounds.isEmpty()) {
+          if (markers.length + areas.length > 1 || route.length > 1 || areas.length === 1) map.fitBounds(bounds, 48);
+          else if (first) {
+            map.setCenter({ lat: first.lat, lng: first.lng });
+            map.setZoom(14);
           }
-          for (const pin of pins) {
-            new maplibre.Marker({ color: "#0f6e56" }).setLngLat([pin.lng, pin.lat]).addTo(created);
-          }
-        });
-        created.on("error", () => setFailed(true));
+        }
+        if (!cancelled) setReady(true);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
     return () => {
       cancelled = true;
-      map?.remove();
+      for (const overlay of overlays) overlay.setMap(null);
+      holder.current?.replaceChildren();
     };
-  }, [circleKey, circles, key, line, pinKey, pins]);
+  }, [circleKey, key, lineKey, pinKey]);
 
   if (!key || failed) return <Fallback circles={circles} pins={pins} caption={caption} />;
 
   return (
     <section aria-label={caption}>
       <p className="mb-2 text-base font-semibold text-ink">{caption}</p>
-      <div ref={holder} className="h-64 w-full overflow-hidden rounded-3xl" />
+      {ready ? null : <p className="mb-2 text-base text-muted">Loading map…</p>}
+      <div ref={holder} className="h-64 w-full overflow-hidden rounded-3xl bg-paper-raised" />
     </section>
+  );
+}
+
+export function TripPreview({
+  pickup,
+  dropoff,
+}: {
+  pickup: { lat: number | null; lng: number | null; verified: boolean; text: string } | null;
+  dropoff: { lat: number | null; lng: number | null; verified: boolean; text: string } | null;
+}) {
+  const pins: Pin[] = [];
+  if (pickup?.verified && pickup.lat != null && pickup.lng != null) {
+    pins.push({ lat: pickup.lat, lng: pickup.lng, label: "Pickup" });
+  }
+  if (dropoff?.verified && dropoff.lat != null && dropoff.lng != null) {
+    pins.push({ lat: dropoff.lat, lng: dropoff.lng, label: "Drop-off" });
+  }
+  const unverified = [pickup, dropoff].filter((place) => place && place.text && !place.verified);
+
+  return (
+    <div className="grid gap-2">
+      {pins.length > 0 ? (
+        <AreaMap
+          caption={pins.length > 1 ? "Pickup and drop-off" : pins[0]?.label === "Drop-off" ? "Drop-off" : "Pickup"}
+          pins={pins}
+        />
+      ) : (
+        <p className="text-base text-ink">Location not verified. A matched address places the pin. A typed address does not invent one.</p>
+      )}
+      {unverified.map((place) => (
+        <p key={place?.text} className="text-base text-ink">
+          Address not verified: {place?.text}
+        </p>
+      ))}
+    </div>
   );
 }
