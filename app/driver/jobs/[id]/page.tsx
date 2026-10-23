@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { advanceJob } from "@/app/driver/jobs/actions";
+import { AdvanceButton } from "@/components/driver/advance-button";
 import { LoadingMain } from "@/components/loading-main";
-import { DottedStepper } from "@/components/mobile/dotted-stepper";
 import { RouteSketch } from "@/components/mobile/route-sketch";
 import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
@@ -14,7 +13,7 @@ import { ReportForm } from "@/components/request/report-form";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
-import { buildJobTracker, nextDriverAction } from "@/lib/jobs/tracker";
+import { buildJobTracker, customerProgress, nextDriverAction } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +44,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, payment_status, payment_due_at, dump_fee_cents",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents",
     )
     .eq("id", id)
     .maybeSingle();
@@ -59,6 +58,15 @@ async function DriverJob({
     supabase.from("job_events").select("type, created_at, data").eq("job_id", id).order("created_at"),
     supabase.from("job_photos").select("id").eq("job_id", id).eq("stage", "dump_receipt").limit(1),
   ]);
+  const { data: ledger } =
+    job.status === "completed"
+      ? await supabase
+          .from("ledger_entries")
+          .select("amount_cents, status")
+          .eq("job_id", id)
+          .eq("driver_id", session.userId)
+          .maybeSingle()
+      : { data: null };
   const tracker = buildJobTracker({
     service: job.service,
     status: job.status,
@@ -99,9 +107,6 @@ async function DriverJob({
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {statusLabel(job.status)}
       </h1>
-      <div className="mt-4">
-        <DottedStepper steps={tracker.steps} />
-      </div>
       <p className="mt-2 text-base text-muted">{job.service}</p>
       {job.driver_pay_cents != null ? <p>Your earnings {formatCents(job.driver_pay_cents)}</p> : null}
       {job.payment_status ? <p>Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
@@ -111,7 +116,7 @@ async function DriverJob({
       {job.status === "assigned" && ["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Payment confirmed: you can start</p>
       ) : null}
-      {job.payment_due_at ? (
+      {job.payment_due_at && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>
       ) : null}
       {details ? (
@@ -132,24 +137,64 @@ async function DriverJob({
       {job.service === "junk" ? (
         <p className="mt-3 text-base text-ink">Your earnings must cover disposal fees.</p>
       ) : null}
-      <JobTrackerView tracker={tracker} />
+      <JobTrackerView
+        tracker={tracker}
+        progress={customerProgress({
+          status: job.status,
+          paymentStatus: job.payment_status,
+          service: job.service,
+          pricingMethod: job.pricing_method,
+          events: tracker.steps.length
+            ? (events ?? []).map((event) => {
+                const data = event.data as { to?: string } | null;
+                return {
+                  type: event.type,
+                  createdAt: event.created_at,
+                  toStatus: typeof data?.to === "string" ? data.to : null,
+                };
+              })
+            : [],
+        })}
+      />
       {query.error === "step" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           That step is not available yet.
         </p>
       ) : null}
-      {next.waiting ? <p className="mt-4 text-base text-muted">{next.waiting}</p> : null}
+      {query.error === "photo" ? (
+        <p role="alert" className="mt-4 text-base text-danger">
+          Add the item photo before sending it to the customer.
+        </p>
+      ) : null}
+      {job.status === "cancelled" && job.rejection_reason ? (
+        <p className="mt-4 text-base text-ink">
+          The customer rejected the item. The trip fee
+          {job.trip_fee_cents != null ? ` of ${formatCents(job.trip_fee_cents)}` : ""} is recorded by the existing payment rules.
+        </p>
+      ) : null}
+      {job.status === "completed" && ledger && !["recovery_due", "recovered"].includes(ledger.status) ? (
+        <p className="mt-4 text-base font-semibold text-ink">
+          Earnings for this job {formatCents(ledger.amount_cents)}
+        </p>
+      ) : null}
       {next.nextStatus ? (
-        <form action={advanceJob} className="mt-4">
-          <input type="hidden" name="jobId" value={job.id} />
-          <input type="hidden" name="nextStatus" value={next.nextStatus} />
-          <button
-            type="submit"
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-          >
-            {next.label}
-          </button>
-        </form>
+        <div className="mt-4 grid gap-3">
+          <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
+          {job.status === "assigned" && details?.pickup_address ? (
+            <MapsLink address={details.pickup_address} label="Open in Maps" />
+          ) : null}
+          {job.status === "in_transit" && details?.dropoff_address ? (
+            <MapsLink address={details.dropoff_address} label="Open in Maps" />
+          ) : null}
+        </div>
+      ) : next.waiting ? (
+        <button
+          type="button"
+          disabled
+          className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
+        >
+          {next.label}
+        </button>
       ) : null}
       <ProofGallery jobId={job.id} />
       <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} />
@@ -161,12 +206,26 @@ async function DriverJob({
       </div>
       <p className="mt-4">
         <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
-          Contact support
+          Help
         </Link>
       </p>
       <Link href="/driver" className="mt-6 inline-flex min-h-12 items-center font-semibold text-brand">
         Driver home
       </Link>
     </main>
+  );
+}
+
+function MapsLink({ address, label }: { address: string; label: string }) {
+  const href = `https://maps.google.com/maps?q=${encodeURIComponent(address)}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper px-6 font-semibold text-ink ring-1 ring-line"
+    >
+      {label}
+    </a>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
+import type { OnlineGap } from "@/lib/driver/online-gaps";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 
@@ -143,12 +144,17 @@ function OfferActions({
 
 export function DriverHome({
   isOnline,
-  missing,
+  gaps,
+  userId,
+  showFeed,
 }: {
   isOnline: boolean;
-  missing: string[];
+  gaps: OnlineGap[];
+  userId: string;
+  showFeed: boolean;
 }) {
   const [online, setOnline] = useState(isOnline);
+  const [showGaps, setShowGaps] = useState(gaps.length > 0 && !isOnline);
   const [jobs, setJobs] = useState<FeedCard[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -194,6 +200,7 @@ export function DriverHome({
   }, []);
 
   useEffect(() => {
+    if (!showFeed) return;
     const start = window.setTimeout(() => {
       void load();
     }, 0);
@@ -204,36 +211,49 @@ export function DriverHome({
       window.clearTimeout(start);
       window.clearInterval(timer);
     };
-  }, [load]);
+  }, [load, showFeed]);
 
   async function toggleOnline() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { error: onlineError } = await supabase.rpc("set_driver_online", { go_online: !online });
+    const goingOnline = !online;
+    const { error: onlineError } = await supabase.rpc("set_driver_online", { go_online: goingOnline });
+    const confirmed = await supabase.from("drivers").select("is_online").eq("profile_id", userId).maybeSingle();
     setBusy(false);
-    if (onlineError) {
-      setError(onlineError.message);
+    const nowOnline = Boolean(confirmed.data?.is_online);
+    setOnline(nowOnline);
+    if (onlineError || (goingOnline && !nowOnline)) {
+      setShowGaps(true);
+      setError(onlineError?.message ?? "You are still Offline.");
       return;
     }
-    if (!online) void recordFunnel({ event: "driver_online", step: "online" });
-    setOnline(!online);
+    setShowGaps(gaps.length > 0 && !nowOnline);
+    if (goingOnline && nowOnline) void recordFunnel({ event: "driver_online", step: "online" });
   }
 
   return (
-    <div id="jobs" className="mt-6">
+    <>
+    <section aria-label="Availability">
       <button
         type="button"
         disabled={busy}
         onClick={() => void toggleOnline()}
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
+        className="inline-flex min-h-16 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
       >
         {online ? "You are Online" : "You are Offline"}
       </button>
-      {missing.length > 0 ? (
-        <ul className="mt-4 list-disc space-y-1 pl-5 text-base text-ink">
-          {missing.map((item) => (
-            <li key={item}>{item}</li>
+      {showGaps && gaps.length > 0 ? (
+        <ul className="mt-4 grid gap-2">
+          {gaps.map((item) => (
+            <li key={item.label} className="rounded-2xl bg-paper-raised px-4 py-3 text-base text-ink ring-1 ring-line">
+              <p>{item.label}</p>
+              {item.href ? (
+                <a href={item.href} className="mt-1 inline-flex min-h-12 items-center font-semibold text-brand">
+                  Fix this
+                </a>
+              ) : null}
+            </li>
           ))}
         </ul>
       ) : null}
@@ -242,6 +262,9 @@ export function DriverHome({
           {error}
         </p>
       ) : null}
+    </section>
+    {showFeed ? (
+    <div id="jobs" className="mt-6">
       <p className="mt-4 text-base text-muted">
         You can browse while Offline. Claiming or offering requires Online.
       </p>
@@ -295,5 +318,7 @@ export function DriverHome({
         </ul>
       )}
     </div>
+    ) : null}
+    </>
   );
 }

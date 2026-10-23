@@ -97,13 +97,14 @@ export function BottomNav({ role }: { role: "customer" | "driver" | "admin" | nu
   }, [pathname]);
   if (!ready || (role !== "customer" && role !== "driver")) return null;
   if (hidden.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
-  const items = role === "driver" ? driver : customer;
+  const customerArea = pathname === "/account" || pathname.startsWith("/account/");
+  const items = role === "driver" && !customerArea ? driver : customer;
   const raised = items.some((item) => item.center);
 
   return (
     <nav
       data-mobile-nav=""
-      aria-label={role === "driver" ? "Driver" : "Customer"}
+      aria-label={items === driver ? "Driver" : "Customer"}
       className={`z-30 shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden ${raised ? "pt-8" : "pt-2"}`}
     >
       <ul className="mx-auto flex max-w-md items-end justify-between rounded-full bg-ink px-2 py-2 text-white shadow-lg">

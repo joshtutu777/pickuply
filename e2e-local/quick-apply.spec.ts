@@ -195,7 +195,8 @@ async function signIn(page: Page, person: { phone: string; code: string; name: s
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(person.name);
+    await page.getByLabel("First name").fill(person.name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
   }
   await page.waitForURL((url) => url.pathname !== "/login" && !url.pathname.startsWith("/auth") && !url.pathname.includes("/login/name"), {

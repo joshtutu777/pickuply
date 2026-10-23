@@ -2,7 +2,9 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { continueDestination, isRole, safeIntent } from "@/lib/auth/access";
+import { isRole, safeIntent } from "@/lib/auth/access";
+import { preferredHome } from "@/lib/auth/mode";
+import { readMode } from "@/lib/auth/mode-cookie";
 import { validateFullName } from "@/lib/auth/name";
 import { safeReturnPath } from "@/lib/auth/safe-return-path";
 import { createClient } from "@/lib/supabase/server";
@@ -17,9 +19,12 @@ export async function saveFullName(
   const name = validateFullName(String(formData.get("fullName") ?? ""));
   const next = safeReturnPath(String(formData.get("next") ?? ""));
   const intent = safeIntent(String(formData.get("intent") ?? ""));
+  if (formData.get("consent") !== "yes") {
+    return { error: "Agree to the Terms and Privacy Policy to continue." };
+  }
   if (!name) {
     return {
-      error: "Enter your full name using letters, spaces, apostrophes, periods, or hyphens.",
+      error: "Enter your first name using letters, spaces, apostrophes, periods, or hyphens.",
     };
   }
 
@@ -54,7 +59,17 @@ export async function saveFullName(
     return { error: "We couldn't save your name. Try again." };
   }
 
-  redirect(continueDestination(data.role, next, intent));
+  const mode = await readMode();
+  let hasDriver = data.role === "driver";
+  if (!hasDriver) {
+    const { data: driver } = await supabase
+      .from("drivers")
+      .select("profile_id")
+      .eq("profile_id", userData.user.id)
+      .maybeSingle();
+    hasDriver = Boolean(driver);
+  }
+  redirect(preferredHome({ role: data.role, mode, hasDriver, next, intent }));
 }
 
 /** Clears the server session cookies, then the browser clears its own copy. */

@@ -36,7 +36,8 @@ async function signIn(page: Page, person: { phone: string; otp: string }) {
     { timeout: 30_000 },
   );
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill("Local Tester");
+    await page.getByLabel("First name").fill("Local Tester");
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.startsWith("/login") && !url.pathname.startsWith("/auth"));
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { photoMaxBytes } from "@/lib/constants";
 import { compressImage, prepareProofVideo } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +13,7 @@ export function ProofForm({
   jobId: string;
   locationEnabled: boolean;
 }) {
+  const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -66,6 +68,7 @@ export function ProofForm({
       });
       if (recorded.error) throw new Error("The proof could not be recorded.");
       form.reset();
+      router.refresh();
       setMessage("Proof saved. It cannot be replaced.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The proof could not be saved.");

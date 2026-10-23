@@ -120,9 +120,9 @@ test("local marketplace assignment does not charge or reveal the address", async
 
   await customer.page.goto(`/jobs/${fixedId}`);
   const progress = customer.page.getByRole("region", { name: "Job progress" });
-  await expect(progress.locator("[aria-current=step]")).toContainText("Driver Confirmed");
+  await expect(progress.getByLabel("Step 2 of 4: Driver Confirmed")).toBeVisible();
   await expect(progress.getByText("Pay to confirm this driver. Work starts after the card is authorized.")).toBeVisible();
-  await progress.getByText("View activity history").click();
+  await progress.getByText("See full history").click();
   await expect(progress.getByRole("listitem").filter({ hasText: "Request received" })).toBeVisible();
 
   const messages = customer.page.getByRole("region", { name: "Messages" });
@@ -175,7 +175,8 @@ async function signedIn(
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(person.name);
+    await page.getByLabel("First name").fill(person.name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"));
   }

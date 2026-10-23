@@ -112,10 +112,10 @@ test("a card approved after the job reopens is released", async ({ browser }) =>
 test("rejecting the item captures only the trip fee", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driver.page.goto(`/driver/jobs/${jobId}`);
-  await driver.page.getByRole("button", { name: "I'm on the way" }).click();
+  await driver.page.getByRole("button", { name: "Start trip to pickup" }).click();
   await driver.page.getByRole("button", { name: "I've arrived" }).click();
   await saveProof(driver.page, "pickup");
-  await driver.page.getByRole("button", { name: "Start the item check" }).click();
+  await driver.page.getByRole("button", { name: "Send for item check" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.locator("#reject-reason").fill("The item is the wrong size.");
@@ -325,12 +325,12 @@ async function connectDriver(page: Page) {
 
 async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await driver.goto(`/driver/jobs/${jobId}`);
-  await expect(driver.getByRole("button", { name: "I'm on the way" })).toBeVisible();
-  await driver.getByRole("button", { name: "I'm on the way" }).click();
+  await expect(driver.getByRole("button", { name: "Start trip to pickup" })).toBeVisible();
+  await driver.getByRole("button", { name: "Start trip to pickup" }).click();
   await expect(driver.getByRole("button", { name: "I've arrived" })).toBeVisible();
   await driver.getByRole("button", { name: "I've arrived" }).click();
   await saveProof(driver, "pickup");
-  await driver.getByRole("button", { name: "Start the item check" }).click();
+  await driver.getByRole("button", { name: "Send for item check" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.goto(`/jobs/${jobId}`);
   await customer.getByRole("button", { name: "Approve item" }).click();
@@ -414,7 +414,8 @@ async function signedIn(browser: Browser, person: { phone: string; code: string;
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(person.name);
+    await page.getByLabel("First name").fill(person.name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"));
   }

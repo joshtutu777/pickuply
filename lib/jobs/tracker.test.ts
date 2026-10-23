@@ -155,8 +155,10 @@ test("customer tracking uses four milestones", () => {
     service: "delivery",
     pricingMethod: "fixed",
   });
-  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "driver")?.state, "done");
-  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "pickup")?.state, "current");
+  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "driver")?.state, "current");
+  assert.equal(paidAndAssigned.milestones.find((step) => step.id === "pickup")?.state, "upcoming");
+  assert.equal(paidAndAssigned.action, null);
+  assert.equal(awaiting.action, "Add card");
 
   const completed = customerProgress({
     status: "completed",
@@ -171,7 +173,7 @@ test("customer tracking uses four milestones", () => {
 test("the next driver button waits for payment and for the item check", () => {
   assert.equal(
     nextDriverAction({ status: "assigned", paymentStatus: "awaiting_payment", service: "delivery" }).waiting,
-    "Waiting for payment",
+    "Waiting for customer to add card",
   );
   assert.equal(
     nextDriverAction({ status: "assigned", paymentStatus: "authorized", service: "delivery" }).nextStatus,
@@ -179,6 +181,6 @@ test("the next driver button waits for payment and for the item check", () => {
   );
   assert.equal(
     nextDriverAction({ status: "item_check", paymentStatus: "authorized", service: "junk" }).waiting,
-    "Waiting for the customer to approve the item",
+    "Waiting for customer to approve",
   );
 });

@@ -94,16 +94,11 @@ function CustomerMilestones({
   history: JobTracker["steps"];
 }) {
   return (
-    <div className="mt-3">
-      <ol className="grid grid-cols-4 gap-1">
+    <div className="mt-3" aria-label={`Step ${progress.stepNumber} of 4: ${progress.stepName}`}>
+      <div aria-hidden="true" className="grid grid-cols-4 gap-1">
         {progress.milestones.map((step) => (
-          <li
-            key={step.id}
-            aria-current={step.state === "current" ? "step" : undefined}
-            className="min-w-0 text-center"
-          >
+          <div key={step.id} className="min-w-0 text-center">
             <span
-              aria-hidden="true"
               className={`mx-auto block size-2.5 rounded-full ${
                 step.state === "upcoming" ? "bg-line" : "bg-brand"
               } ${step.state === "current" ? "ring-2 ring-brand/30 ring-offset-2 ring-offset-paper" : ""}`}
@@ -115,14 +110,15 @@ function CustomerMilestones({
             >
               {step.label}
             </span>
-          </li>
+          </div>
         ))}
-      </ol>
-      <p className="mt-3 text-sm leading-snug text-ink">{progress.next}</p>
+      </div>
+      <p className="mt-3 text-sm leading-snug text-ink">Right now: {progress.next}</p>
+      {progress.action ? <p className="mt-1 text-sm font-semibold text-ink">{progress.action}</p> : null}
       {history.length > 0 ? (
         <details className="mt-2">
           <summary className="flex min-h-12 cursor-pointer items-center text-sm font-semibold text-brand">
-            View activity history
+            See full history
           </summary>
           <ul className="grid gap-2 pb-1">
             {history.map((step) => (

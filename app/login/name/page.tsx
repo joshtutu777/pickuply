@@ -41,7 +41,7 @@ async function NameContent({
         Your name
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        Enter your full name. We&apos;ll ask again the next time you sign in until it is saved.
+        Enter your first name. We&apos;ll ask again the next time you sign in until it is saved.
       </p>
       <NameForm next={next ?? ""} intent={intent ?? ""} />
     </main>

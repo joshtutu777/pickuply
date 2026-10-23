@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { saveFullName, type NameFormState } from "@/lib/auth/actions";
 
@@ -18,7 +19,7 @@ export function NameForm({ next, intent }: { next: string; intent: string }) {
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="intent" value={intent} />
       <label className="block" htmlFor="fullName">
-        <span className="text-base font-semibold text-ink">Full name</span>
+        <span className="text-base font-semibold text-ink">First name</span>
         <input
           id="fullName"
           name="fullName"
@@ -26,12 +27,25 @@ export function NameForm({ next, intent }: { next: string; intent: string }) {
           required
           minLength={1}
           maxLength={80}
-          autoComplete="name"
+          autoComplete="given-name"
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? "fullName-error" : undefined}
           className={inputClass}
         />
       </label>
+      <label className="flex min-h-12 items-start gap-3 text-base text-ink">
+        <input className="mt-1 size-5" type="checkbox" name="consent" value="yes" required />
+        <span>I agree to the Terms and Privacy Policy.</span>
+      </label>
+      <p className="text-sm text-muted">
+        <Link href="/terms" className="font-semibold text-brand">
+          Terms
+        </Link>
+        {" · "}
+        <Link href="/privacy" className="font-semibold text-brand">
+          Privacy
+        </Link>
+      </p>
       {state.error ? (
         <p id="fullName-error" role="alert" className="text-sm font-medium text-danger">
           {state.error}

@@ -19,7 +19,10 @@ export type JobTracker = {
 
 export type CustomerProgress = {
   milestones: TrackStep[];
+  stepNumber: number;
+  stepName: string;
   next: string;
+  action: string | null;
 };
 
 const milestoneOrder = ["request", "driver", "pickup", "delivered"] as const;
@@ -180,7 +183,7 @@ export function buildJobTracker(input: {
   };
 }
 
-/** Four customer milestones. Driver Confirmed stays current until the job is assigned and the card is authorized. */
+/** Four milestones. Payment authorization stays inside Driver Confirmed until the trip starts. */
 export function customerProgress(input: {
   status: string;
   paymentStatus: string | null;
@@ -188,14 +191,16 @@ export function customerProgress(input: {
   pricingMethod: string;
   events?: TrackEvent[];
 }): CustomerProgress {
-  const place = milestoneIndex(progressStatus(input.status, input.events ?? []), input.paymentStatus);
+  const place = milestoneIndex(progressStatus(input.status, input.events ?? []));
   const milestones: TrackStep[] = milestoneOrder.map((id, index) => ({
     id,
     label: milestoneLabels[id],
     state: index < place ? "done" : index === place ? "current" : "upcoming",
     at: null,
   }));
-  return { milestones, next: nextForCustomer(input) };
+  const stepNumber = place >= milestoneOrder.length ? milestoneOrder.length : place + 1;
+  const stepName = milestoneLabels[milestoneOrder[Math.min(place, milestoneOrder.length - 1)]];
+  return { milestones, stepNumber, stepName, next: nextForCustomer(input), action: customerAction(input) };
 }
 
 function progressStatus(status: string, events: TrackEvent[]): string {
@@ -213,13 +218,26 @@ function progressStatus(status: string, events: TrackEvent[]): string {
   return best;
 }
 
-function milestoneIndex(status: string, paymentStatus: string | null): number {
+function milestoneIndex(status: string): number {
   if (status === "completed") return milestoneOrder.length;
   const rank = workRank[status] ?? 0;
   if (rank >= 8) return 3;
-  if (rank >= 4 || (status === "assigned" && paid.has(paymentStatus ?? ""))) return 2;
+  if (rank >= 4) return 2;
   if (status === "assigned") return 1;
   return 0;
+}
+
+function customerAction(input: {
+  status: string;
+  paymentStatus: string | null;
+  pricingMethod: string;
+}): string | null {
+  if (input.status === "quoted") return "Accept quote";
+  if (input.status === "open" && input.pricingMethod !== "quote") return "Choose driver";
+  if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) return "Add card";
+  if (input.status === "item_check") return "Approve item";
+  if (input.status === "delivered") return "Got it";
+  return null;
 }
 
 function nextForCustomer(input: {
@@ -260,29 +278,41 @@ export function nextDriverAction(input: {
 }): { label: string; nextStatus: string | null; waiting: string | null } {
   const paymentReady = paid.has(input.paymentStatus ?? "");
   if (input.status === "assigned" && !paymentReady) {
-    return { label: "I'm on the way", nextStatus: null, waiting: "Waiting for payment" };
+    return {
+      label: "Waiting for customer to add card",
+      nextStatus: null,
+      waiting: "Waiting for customer to add card",
+    };
   }
   if (input.status === "assigned") {
-    return { label: "I'm on the way", nextStatus: "en_route", waiting: null };
+    return { label: "Start trip to pickup", nextStatus: "en_route", waiting: null };
   }
   if (input.status === "en_route") {
-    return { label: "I've arrived", nextStatus: "arrived", waiting: null };
+    return { label: "I've arrived at pickup", nextStatus: "arrived", waiting: null };
   }
   if (input.status === "arrived") {
-    return { label: "Start the item check", nextStatus: "item_check", waiting: null };
+    return { label: "Send for item check", nextStatus: "item_check", waiting: null };
   }
   if (input.status === "item_check") {
-    return { label: "Item picked up", nextStatus: null, waiting: "Waiting for the customer to approve the item" };
+    return {
+      label: "Waiting for customer to approve",
+      nextStatus: null,
+      waiting: "Waiting for customer to approve",
+    };
   }
   if (input.status === "in_transit") {
     return {
-      label: input.service === "junk" ? "Mark hauled away" : "Mark delivered",
+      label: input.service === "junk" ? "Mark delivered" : "Mark delivered",
       nextStatus: "delivered",
       waiting: null,
     };
   }
   if (input.status === "delivered") {
-    return { label: "Completed", nextStatus: null, waiting: "Waiting for the customer to confirm" };
+    return {
+      label: "Waiting for customer to confirm",
+      nextStatus: null,
+      waiting: "Waiting for customer to confirm. If they don't, this finishes 24 hours after delivery.",
+    };
   }
   return { label: "Update", nextStatus: null, waiting: null };
 }

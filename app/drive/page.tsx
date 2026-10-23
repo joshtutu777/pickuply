@@ -58,7 +58,7 @@ export default function DrivePage() {
             href={applyHref}
             className="mt-8 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-center text-lg font-semibold text-white transition-colors hover:bg-brand-dark sm:w-auto"
           >
-            Start your application
+            Get started
           </Link>
         </div>
       </section>

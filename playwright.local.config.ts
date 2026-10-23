@@ -105,5 +105,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /mobile-shell\.spec\.ts/,
     },
+    {
+      name: "local-profile",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /profile-mode\.spec\.ts/,
+    },
   ],
 });

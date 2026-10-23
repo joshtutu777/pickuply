@@ -35,12 +35,14 @@ async function uploadDoc(userId: string, name: "profile" | "license", file: File
 export function QuickApplyForm({
   userId,
   zones,
+  defaultName = "",
 }: {
   userId: string;
   zones: { id: string; name: string }[];
+  defaultName?: string;
 }) {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
+  const [fullName, setFullName] = useState(defaultName);
   const [homeCity, setHomeCity] = useState("");
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [vehicleType, setVehicleType] = useState("pickup");

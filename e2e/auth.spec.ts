@@ -86,7 +86,7 @@ test.describe("phone sign-in", () => {
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect.poll(() => new URL(page.url()).pathname).toBe("/");
-    await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign up / Sign in" })).toBeVisible();
     await page.goto("/account");
     await expect(page).toHaveURL(/\/login\?/);
   });
@@ -224,7 +224,8 @@ async function signInOnPage(page: Page, phone: string, otp: string) {
     { timeout: 20_000 },
   );
   if (new URL(page.url()).pathname === "/login/name") {
-    await page.getByLabel("Full name").fill("Test Customer");
+    await page.getByLabel("First name").fill("Test Customer");
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname !== "/login/name" && !url.pathname.startsWith("/auth"));
   }

@@ -69,10 +69,16 @@ async function AccountContent({
         </p>
       ) : jobs.length === 0 ? (
         <section className="mt-8 rounded-3xl bg-paper-raised p-5 ring-1 ring-line">
-          <h2 className="text-xl font-semibold text-ink">Your requests</h2>
+          <h2 className="text-xl font-semibold text-ink">No pickups yet</h2>
           <p className="mt-2 text-base leading-relaxed text-muted">
-            When you submit a request, it shows up here. Drivers do not see it until it is confirmed.
+            When you request a pickup, it shows up here.
           </p>
+          <Link
+            href="/request"
+            className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white"
+          >
+            Request a pickup
+          </Link>
         </section>
       ) : (
         <>

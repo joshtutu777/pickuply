@@ -75,7 +75,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             </>
           ) : (
             <Link href="/login" className={navLink}>
-              Log in
+              Sign up / Sign in
             </Link>
           )}
           <Link

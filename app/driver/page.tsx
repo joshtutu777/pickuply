@@ -8,6 +8,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
+import { onlineGaps } from "@/lib/driver/online-gaps";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
 
@@ -129,26 +130,18 @@ async function DriverContent({
 
   if (session.role === "driver" || application) {
     const today = new Date().toISOString().slice(0, 10);
-    const missing: string[] = [];
-    if (!application || !["active", "approved_new"].includes(application.status)) {
-      missing.push("Your driver account is not approved for jobs.");
-    }
-    if (!application?.license_expires || application.license_expires < today) {
-      missing.push("Add an unexpired driver license before going Online.");
-    }
-    if (!application?.insurance_url || !application.insurance_expires || application.insurance_expires < today) {
-      missing.push("Add unexpired insurance before going Online.");
-    }
-    if (!vehicle?.approved) missing.push("An approved vehicle is required before going Online.");
-    if (application?.checklist_required && !application.agreement_signed_at) {
-      missing.push("Sign the driver agreement before going Online.");
-    }
-    if (application?.checklist_required && !application.training_completed_at) {
-      missing.push("Finish the short training before going Online.");
-    }
-    if (application?.checklist_required && (application.services ?? []).length < 1) {
-      missing.push("Choose the services you offer before going Online.");
-    }
+    const gaps = onlineGaps({
+      status: application?.status ?? null,
+      licenseExpires: application?.license_expires ?? null,
+      insuranceUrl: application?.insurance_url ?? null,
+      insuranceExpires: application?.insurance_expires ?? null,
+      vehicleApproved: Boolean(vehicle?.approved),
+      checklistRequired: Boolean(application?.checklist_required),
+      agreementSigned: Boolean(application?.agreement_signed_at),
+      trainingDone: Boolean(application?.training_completed_at),
+      serviceCount: application?.services?.length ?? 0,
+      today,
+    });
     const approved = application && ["active", "approved_new"].includes(application.status);
     let earnings: ReturnType<typeof ledgerBuckets> | null = null;
     if (approved) {
@@ -160,7 +153,13 @@ async function DriverContent({
     }
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
-        <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
+        <DriverHome
+          isOnline={Boolean(application?.is_online)}
+          gaps={gaps}
+          userId={session.userId}
+          showFeed={Boolean(approved)}
+        />
+        <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
         <p className="mt-3">
           <Link href="/driver/notifications" className="inline-flex min-h-12 items-center font-semibold text-brand">
@@ -201,7 +200,6 @@ async function DriverContent({
         {checklist}
         {forbidden ? <ForbiddenAlert /> : null}
         {approved ? <AssignedLinks userId={session.userId} /> : null}
-        {approved ? <DriverHome isOnline={Boolean(application?.is_online)} missing={missing} /> : null}
       </main>
     );
   }

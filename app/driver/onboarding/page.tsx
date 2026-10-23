@@ -71,7 +71,7 @@ async function OnboardingContent({
       ) : null}
       {!waiting ? (
         <>
-          <QuickApplyForm userId={session.userId} zones={zones ?? []} />
+          <QuickApplyForm userId={session.userId} zones={zones ?? []} defaultName={session.fullName ?? ""} />
           {driver?.review_note ? (
             <p className="mt-4 text-base text-ink">Note from Pickuply: {driver.review_note}</p>
           ) : null}

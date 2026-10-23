@@ -12,6 +12,15 @@ export async function advanceJob(formData: FormData) {
   const nextStatus = String(formData.get("nextStatus") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(jobId)) redirect("/driver");
   const supabase = await createClient();
+  if (nextStatus === "item_check") {
+    const { count } = await supabase
+      .from("job_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId)
+      .eq("stage", "pickup")
+      .is("report_id", null);
+    if (!count) redirect(`/driver/jobs/${jobId}?error=photo`);
+  }
   const { error } = await supabase.rpc("advance_job", {
     target_job: jobId,
     next_status: nextStatus,

@@ -56,7 +56,7 @@ test("B existing customer can apply to drive on the same account", async ({ page
   await signOut(page);
 
   await page.goto("/drive");
-  await page.getByRole("link", { name: "Start your application" }).first().click();
+  await page.getByRole("link", { name: "Get started" }).first().click();
   await expect(page).toHaveURL(/intent=driver/);
   await expect(page).toHaveURL(/next=%2Fdriver%2Fonboarding|next=\/driver\/onboarding/);
   await expect(page.getByRole("heading", { name: "Sign up to drive with Pickuply" })).toBeVisible();
@@ -74,7 +74,7 @@ test("A a new driver applies from the public drive page", async ({ page }) => {
   await page.getByRole("link", { name: "Drive with us" }).first().click();
   await expect(page).toHaveURL(/\/drive$/);
   await expect(page.getByRole("heading", { name: "Earn with your truck, van, or SUV" })).toBeVisible();
-  await page.getByRole("link", { name: "Start your application" }).first().click();
+  await page.getByRole("link", { name: "Get started" }).first().click();
   await expect(page.getByRole("heading", { name: "Sign up to drive with Pickuply" })).toBeVisible();
   await signInFromLogin(page, driver);
   await expect(page).toHaveURL(/\/driver\/onboarding$/);
@@ -172,7 +172,8 @@ async function signInFromLogin(page: Page, person: { phone: string; code: string
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(person.name);
+    await page.getByLabel("First name").fill(person.name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login") && !url.pathname.startsWith("/auth"));
   }
@@ -181,7 +182,8 @@ async function signInFromLogin(page: Page, person: { phone: string; code: string
 async function openAccount(page: Page, name: string) {
   await page.goto("/account");
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(name);
+    await page.getByLabel("First name").fill(name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname === "/account");
   }
@@ -190,7 +192,7 @@ async function openAccount(page: Page, name: string) {
 
 async function signOut(page: Page) {
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign up / Sign in" })).toBeVisible();
 }
 
 async function submitRequest(

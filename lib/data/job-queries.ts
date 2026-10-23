@@ -80,11 +80,14 @@ export type JobDetail = {
 export async function listOwnJobs(): Promise<{ jobs: JobSummary[]; error: boolean }> {
   try {
     const supabase = await createClient();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return { jobs: [], error: true };
     const { data, error } = await supabase
       .from("jobs")
       .select(
         "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents",
       )
+      .eq("customer_id", auth.user.id)
       .order("created_at", { ascending: false });
     if (error) return { jobs: [], error: true };
     return { jobs: data ?? [], error: false };
