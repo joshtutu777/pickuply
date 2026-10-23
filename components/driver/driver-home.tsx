@@ -5,6 +5,7 @@ import { dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
+import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { createClient } from "@/lib/supabase/client";
 
 type FeedJob = {
@@ -79,7 +80,7 @@ function OfferActions({
             reason,
           });
     if (result.error) {
-      setMessage({ text: result.error.message, alert: true });
+      setMessage({ text: takenJobMessage(result.error.message), alert: true });
       return;
     }
     setMessage({

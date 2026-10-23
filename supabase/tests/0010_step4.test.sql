@@ -277,8 +277,8 @@ select lives_ok(
 );
 select throws_ok(
   $$select public.claim_job('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1')$$,
-  'this driver cannot claim this job',
-  'a second claim does not win'
+  'job already taken',
+  'a second claim is told the job is already taken'
 );
 reset role;
 select pg_temp.clear_auth();

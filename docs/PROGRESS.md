@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Claim race (2026-10-23)
+
+A second claim said the driver could not claim because eligibility ran before the job was checked. The driver was still eligible; the job was already assigned. `claim_job` now locks the job and reports it taken before eligibility. The driver home shows “Sorry, another driver just took this job.” The database test uses two eligible drivers: one wins, the other gets “job already taken.”
+
 ## Georgia feed (2026-10-23)
 
 Pickup and drop-off ZIP codes must be in the Georgia centroid table. Drivers see every open job, including outside their zone, and can filter the feed. Accepting requires an active driver, Online, and a matching vehicle. A job that has been open for 20 minutes with no driver is marked for admin.

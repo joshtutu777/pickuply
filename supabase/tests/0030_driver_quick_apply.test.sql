@@ -4,7 +4,7 @@ begin;
 
 set local search_path to public, extensions;
 
-select plan(11);
+select plan(15);
 
 do $$
 declare
@@ -162,9 +162,26 @@ select public.complete_driver_training();
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000002');
 select public.approve_driver_vehicle('d3000000-0000-4000-8000-000000000001');
 
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select set_config('role', 'postgres', true);
+insert into public.jobs (
+  id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
+  item_value_cents, stairs_pickup, stairs_dropoff, elevator, help_loading, preferred_date,
+  pricing_method, offer_cents, service_level, required_vehicle
+) values (
+  'd3000000-0000-4000-8000-000000000011',
+  'd3000000-0000-4000-8000-000000000003',
+  'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
+  'Austell, 30106', 'Smyrna, 30080', 'Race desk', 1, 'medium',
+  0, 0, 0, false, false, 'asap',
+  'quote', null, 'light', 'pickup'
+);
+
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select throws_ok(
-  $$select public.claim_job('d3000000-0000-4000-8000-000000000010')$$,
+  $$select public.claim_job('d3000000-0000-4000-8000-000000000011')$$,
   'go online before claiming a job',
   'a finished checklist still cannot claim while offline'
 );
@@ -174,8 +191,88 @@ select lives_ok(
 );
 select throws_ok(
   $$select public.claim_job('d3000000-0000-4000-8000-000000000010')$$,
-  'this driver cannot claim this job',
-  'the same open job cannot be claimed twice'
+  'job already taken',
+  'an eligible driver is told a taken job is already taken'
+);
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select set_config('role', 'postgres', true);
+
+select pg_temp.make_user('d3000000-0000-4000-8000-000000000004', 'quick-driver-two@pickuply.test');
+update public.profiles
+set role = 'driver', full_name = 'Second Driver'
+where id = 'd3000000-0000-4000-8000-000000000004';
+insert into public.drivers (
+  profile_id, status, zone_id, home_city, service_level, services, is_online,
+  license_url, license_expires, insurance_url, insurance_expires, agreement_signed_at
+) values (
+  'd3000000-0000-4000-8000-000000000004',
+  'active',
+  (select id from public.zones where slug = 'west_metro'),
+  'Austell',
+  'light',
+  array['delivery']::public.job_service[],
+  true,
+  'd3000000-0000-4000-8000-000000000004/license.jpg',
+  '2027-12-31',
+  'd3000000-0000-4000-8000-000000000004/insurance.jpg',
+  '2027-12-31',
+  now()
+);
+insert into public.vehicles (driver_id, type, approved, make, model, year, plate)
+values (
+  'd3000000-0000-4000-8000-000000000004',
+  'pickup', true, 'Ford', 'F150', 2019, 'RACE123'
+);
+
+select is(
+  (
+    select count(*)::int
+    from public.drivers d
+    where d.profile_id in (
+      'd3000000-0000-4000-8000-000000000001',
+      'd3000000-0000-4000-8000-000000000004'
+    )
+      and d.status = 'active'
+      and d.is_online
+      and d.license_url is not null
+      and d.license_expires >= current_date
+      and d.insurance_url is not null
+      and d.insurance_expires >= current_date
+      and d.agreement_signed_at is not null
+      and exists (
+        select 1
+        from public.vehicles v
+        where v.driver_id = d.profile_id
+          and v.approved
+          and v.type = 'pickup'
+      )
+  ),
+  2,
+  'both race drivers are active, approved, licensed, insured, agreed, and online'
+);
+
+select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
+select lives_ok(
+  $$select public.claim_job('d3000000-0000-4000-8000-000000000011')$$,
+  'the first eligible driver claims the open job'
+);
+select pg_temp.as_user('d3000000-0000-4000-8000-000000000004');
+select throws_ok(
+  $$select public.claim_job('d3000000-0000-4000-8000-000000000011')$$,
+  'job already taken',
+  'the second eligible driver is told the job is already taken'
+);
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select set_config('role', 'postgres', true);
+select is(
+  (select assigned_driver_id from public.jobs where id = 'd3000000-0000-4000-8000-000000000011'),
+  'd3000000-0000-4000-8000-000000000001'::uuid,
+  'exactly one eligible driver wins the race'
 );
 
 select * from finish();

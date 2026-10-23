@@ -131,7 +131,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(first.locator(`a[href="/driver/jobs/${quoteJobId}"]`)).toBeVisible();
 
   await secondCard.getByRole("button", { name: "Claim this job" }).click();
-  await expect(second.getByText("this driver cannot claim this job")).toBeVisible();
+  await expect(second.getByText("Sorry, another driver just took this job")).toBeVisible();
   expect(sql(`select right(profiles.phone, 4) from public.jobs join public.profiles on profiles.id = jobs.assigned_driver_id where jobs.id = '${quoteJobId}'`)).toBe(
     "0124",
   );

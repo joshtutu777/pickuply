@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { QuoteViewed } from "@/components/request/quote-viewed";
 import { RouteSketch } from "@/components/mobile/route-sketch";
 import { StatusPill } from "@/components/mobile/status-pill";
@@ -150,7 +151,7 @@ export function JobStatus({
       ) : null}
       {error ? (
         <p role="alert" className="mt-4 text-base text-danger">
-          {error}
+          {takenJobMessage(error)}
         </p>
       ) : null}
       {notice?.adminNote ? (
