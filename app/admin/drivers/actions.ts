@@ -28,9 +28,13 @@ export async function reviewDriver(formData: FormData) {
     target_driver: driverId,
     decision,
     note,
+    approve_anyway: formData.get("approveAnyway") === "on",
   });
   if (error) {
-    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(error.message)}`);
+    const message = error.message.includes("confirm approve anyway")
+      ? "Check Approve anyway to approve this driver with a missing document."
+      : error.message;
+    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(message)}`);
   }
   if (decision === "approve_new" || decision === "approve_active") {
     await recordFunnelServer({ event: "driver_approved", step: decision });

@@ -311,7 +311,7 @@ export function DriverHome({
       </button>
       {approved && !online && !everOnline && !promptDismissed ? (
         <div className="mt-3">
-          <p className="text-base text-ink">You&apos;re approved! Switch Online whenever you&apos;re ready to see and accept jobs.</p>
+          <p className="text-base text-ink">You&apos;re ready to drive! Switch Online whenever you&apos;re ready to start accepting jobs.</p>
           <form action={dismissOnlinePrompt} className="mt-2">
             <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-brand">
               Dismiss

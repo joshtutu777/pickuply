@@ -146,6 +146,9 @@ async function DriverContent({
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
+        {approved && !application?.insurance_url ? (
+          <p className="mt-3 text-base text-ink">Add your insurance card.</p>
+        ) : null}
         {saved ? (
           <p role="status" className="mt-3 text-base font-semibold text-ink">
             Saved

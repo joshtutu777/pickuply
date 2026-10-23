@@ -25,14 +25,16 @@ test("local marketplace assignment does not charge or reveal the address", async
   await onboard(driver2.page, people.driver2.name);
   promoteAdmin();
 
-  await admin.page.goto("/admin/drivers");
-  await admin.page.getByRole("link", { name: /Pat Driver/ }).click();
-  await admin.page.getByRole("button", { name: "Approve as active" }).click();
-  await admin.page.waitForURL(/saved=1/);
-  await admin.page.goto("/admin/drivers");
-  await admin.page.getByRole("link", { name: /Bea Driver/ }).click();
-  await admin.page.getByRole("button", { name: "Approve as active" }).click();
-  await admin.page.waitForURL(/saved=1/);
+  async function approveDriver(name: RegExp) {
+    await admin.page.goto("/admin/drivers");
+    await admin.page.getByRole("link", { name }).click();
+    const approveAnyway = admin.page.getByRole("checkbox", { name: "Approve anyway" });
+    if (await approveAnyway.isVisible()) await approveAnyway.check();
+    await admin.page.getByRole("button", { name: "Approve driver" }).click();
+    await admin.page.waitForURL(/saved=1/);
+  }
+  await approveDriver(/Pat Driver/);
+  await approveDriver(/Bea Driver/);
   finishChecklist(people.driver.phone);
   finishChecklist(people.driver2.phone);
 

@@ -101,7 +101,8 @@ select lives_ok(
   $$select public.review_driver(
     'd3000000-0000-4000-8000-000000000001',
     'approve_active',
-    ''
+    '',
+    true
   )$$,
   'an admin can approve the short application'
 );
@@ -113,11 +114,18 @@ select is(
 );
 
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
-select throws_ok(
+select lives_ok(
   $$select public.set_driver_online(true)$$,
-  'Add your insurance card before going Online.',
-  'an approved quick applicant cannot go online yet'
+  'an approved driver can go online without an insurance upload'
 );
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select set_config('role', 'postgres', true);
+update public.drivers
+set is_online = false
+where profile_id = 'd3000000-0000-4000-8000-000000000001';
+select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
 select is(
   (select count(*)::int from public.driver_job_feed()),
   1,

@@ -19,7 +19,14 @@ test("an approved driver with the checklist done has nothing missing", () => {
   assert.deepEqual(onlineGaps(ready), []);
 });
 
-test("an unready driver gets a link for each missing item", () => {
+test("a missing insurance upload is not an Online block, and an expired policy is", () => {
+  const missing = onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null });
+  assert.equal(missing.find((gap) => gap.href === "/driver/ready/insurance"), undefined);
+  const expired = onlineGaps({ ...ready, insuranceExpires: "2020-01-01" });
+  assert.match(expired[0]?.label ?? "", /insurance expired/);
+});
+
+test("an unready driver is told the application is still in review", () => {
   const gaps = onlineGaps({
     ...ready,
     status: "pending_review",
@@ -29,10 +36,9 @@ test("an unready driver gets a link for each missing item", () => {
     trainingDone: false,
     serviceCount: 0,
   });
-  assert.equal(gaps.length, 6);
+  assert.equal(gaps.length, 2);
   assert.match(gaps[0]?.label ?? "", /in review/);
   assert.equal(gaps[0]?.href, "/driver");
-  assert.equal(gaps.find((gap) => gap.href === "/driver/ready/insurance")?.label.includes("insurance"), true);
   const paused = onlineGaps({ ...ready, status: "paused" });
   assert.match(paused[0]?.label ?? "", /Driving is paused/);
   const removed = onlineGaps({ ...ready, status: "removed" });

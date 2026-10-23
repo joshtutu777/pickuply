@@ -100,7 +100,9 @@ test("quick apply cannot go online until the checklist is finished, then can cla
   ).trim();
   await page.context().clearCookies();
   await signIn(page, admin, `/admin/drivers/${driverId}`);
-  await page.getByRole("button", { name: "Approve as active" }).click();
+  const approveAnyway = page.getByRole("checkbox", { name: "Approve anyway" });
+  if (await approveAnyway.isVisible()) await approveAnyway.check();
+  await page.getByRole("button", { name: "Approve driver" }).click();
   await expect(page.getByText(/active · role driver/)).toBeVisible();
 
   await page.context().clearCookies();

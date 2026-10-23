@@ -175,6 +175,20 @@ async function DriverDetail({
             className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3 text-base"
           />
         </label>
+        {!driver.insurance_url || !driver.license_url || !vehicle ? (
+          <p className="text-base text-ink">
+            Approving with a missing document lets this driver go Online and accept paid jobs. Paid hauling without verified insurance can leave the driver uninsured for hire.
+          </p>
+        ) : null}
+        {driver.insurance_url ? null : <p className="text-base font-semibold text-danger">No insurance on file.</p>}
+        {driver.license_url ? null : <p className="text-base font-semibold text-danger">No license on file.</p>}
+        {vehicle ? null : <p className="text-base font-semibold text-danger">No vehicle on file.</p>}
+        {!driver.insurance_url || !driver.license_url || !vehicle ? (
+          <label className="flex min-h-12 items-center gap-3 text-base font-semibold text-ink">
+            <input type="checkbox" name="approveAnyway" />
+            Approve anyway
+          </label>
+        ) : null}
         <div className="grid gap-3">
           {actions.map(([decision, label]) => (
             <button

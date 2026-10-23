@@ -295,7 +295,9 @@ async function assignedJob(browser: Browser, who: "driver" | "driver2" = "driver
   promoteAdmin();
   await admin.page.goto("/admin/drivers");
   await admin.page.getByRole("link", { name: new RegExp(driverPerson.name) }).click();
-  await admin.page.getByRole("button", { name: "Approve as active" }).click();
+  const approveAnyway = admin.page.getByRole("checkbox", { name: "Approve anyway" });
+  if (await approveAnyway.isVisible()) await approveAnyway.check();
+  await admin.page.getByRole("button", { name: "Approve driver" }).click();
   await admin.page.waitForURL(/saved=1/);
   if (who === "driver") await connectDriver(driver.page);
   const jobId = await createRequest(customer.context);

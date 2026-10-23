@@ -36,34 +36,16 @@ export function onlineGaps(input: {
       href: "/driver/onboarding",
     });
   }
-  if (!input.insuranceUrl || !input.insuranceExpires || input.insuranceExpires < input.today) {
+  if (input.insuranceExpires && input.insuranceExpires < input.today) {
     gaps.push({
-      label: "Add unexpired insurance before going Online.",
+      label: "Your insurance expired. Upload a new card to go Online.",
       href: "/driver/ready/insurance",
-    });
-  }
-  if (!input.vehicleApproved) {
-    gaps.push({
-      label: "An approved vehicle is required before going Online.",
-      href: "/driver/ready/vehicle",
     });
   }
   if (input.checklistRequired && !input.agreementSigned) {
     gaps.push({
-      label: "Sign the driver agreement before going Online.",
-      href: "/driver/ready/agreement",
-    });
-  }
-  if (input.checklistRequired && !input.trainingDone) {
-    gaps.push({
-      label: "Finish the short training before going Online.",
-      href: "/driver/ready/training",
-    });
-  }
-  if (input.checklistRequired && input.serviceCount < 1) {
-    gaps.push({
-      label: "Choose the services you offer before going Online.",
-      href: "/driver/ready/services",
+      label: "Agree to the Driver Terms before going Online.",
+      href: "/terms/driver",
     });
   }
   return gaps;
