@@ -100,5 +100,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /quick-apply\.spec\.ts/,
     },
+    {
+      name: "local-mobile",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /mobile-shell\.spec\.ts/,
+    },
   ],
 });

@@ -383,6 +383,13 @@ function resetLocalPeople() {
     delete from public.jobs
     where customer_id in (select id from auth.users where phone in ${phones})
       or assigned_driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.messages
+    where sender_id in (select id from auth.users where phone in ${phones});
+    delete from public.message_reads
+    where profile_id in (select id from auth.users where phone in ${phones});
+    delete from public.message_threads
+    where requester_id in (select id from auth.users where phone in ${phones})
+      or driver_id in (select id from auth.users where phone in ${phones});
     delete from public.audit_log
     where actor_id in (select id from auth.users where phone in ${phones})
       or target_id in (select id from auth.users where phone in ${phones});

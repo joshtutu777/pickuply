@@ -52,7 +52,7 @@ test("B existing customer can apply to drive on the same account", async ({ page
   await expect(page).toHaveURL(/\/jobs\/[0-9a-f-]+$/);
   const firstJob = page.url();
   await openAccount(page, returning.name);
-  await expect(page.getByRole("link", { name: /Pickup & Delivery/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Returning customer dresser/ })).toBeVisible();
   await signOut(page);
 
   await page.goto("/drive");
@@ -65,7 +65,7 @@ test("B existing customer can apply to drive on the same account", async ({ page
   await expect(page.getByRole("button", { name: "Submit application" })).toBeVisible();
   expect(userCount(returning.phone)).toBe(1);
   await page.goto("/account");
-  await expect(page.getByRole("link", { name: /Pickup & Delivery/ })).toHaveAttribute("href", new URL(firstJob).pathname);
+  await expect(page.getByRole("link", { name: /Returning customer dresser/ })).toHaveAttribute("href", new URL(firstJob).pathname);
   await signOut(page);
 });
 
@@ -109,7 +109,7 @@ test("D a new customer signs up at the end of a request", async ({ page }) => {
   await expect(page).toHaveURL(/\/jobs\/[0-9a-f-]+$/);
   await expect(page.getByText("New customer side table")).toBeVisible();
   await openAccount(page, fresh.name);
-  await expect(page.getByRole("link", { name: /Pickup & Delivery/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /New customer side table/ })).toBeVisible();
   expect(userCount(fresh.phone)).toBe(1);
 });
 
@@ -119,7 +119,7 @@ test("E a returning customer adds a second request an admin can see", async ({ b
   await customerPage.goto("/login");
   await signInFromLogin(customerPage, returning);
   await expect(customerPage).toHaveURL(/\/account$/);
-  await expect(customerPage.getByRole("link", { name: /Pickup & Delivery/ })).toBeVisible();
+  await expect(customerPage.getByRole("link", { name: /Returning customer dresser/ })).toBeVisible();
   const price = customerPage.getByRole("main").getByRole("link", { name: "Get a price" });
   await price.scrollIntoViewIfNeeded();
   await price.click();
@@ -139,8 +139,8 @@ test("E a returning customer adds a second request an admin can see", async ({ b
   const junkPath = new URL(customerPage.url()).pathname;
   await expect(customerPage.getByText("Returning customer yard debris")).toBeVisible();
   await customerPage.goto("/account");
-  await expect(customerPage.getByRole("link", { name: /Pickup & Delivery/ })).toBeVisible();
-  await expect(customerPage.getByRole("link", { name: /Junk Removal & Hauling/ })).toBeVisible();
+  await expect(customerPage.getByRole("link", { name: /Returning customer dresser/ })).toBeVisible();
+  await expect(customerPage.getByRole("link", { name: /Returning customer yard debris/ })).toBeVisible();
 
   const adminContext = await browser.newContext();
   const adminPage = await adminContext.newPage();
