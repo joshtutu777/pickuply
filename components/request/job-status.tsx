@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { QuoteViewed } from "@/components/request/quote-viewed";
+import { RouteSketch } from "@/components/mobile/route-sketch";
+import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import {
   fees,
@@ -16,6 +18,7 @@ import {
 import type { DriverCard } from "@/lib/data/driver-card";
 import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
+import { shortJobId } from "@/lib/jobs/next-action";
 import type { JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
@@ -59,7 +62,16 @@ export function JobStatus({
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
-      <p className="text-sm font-semibold tracking-wide text-brand uppercase">Your request</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold tracking-wide text-brand uppercase">Your request</p>
+        <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
+      </div>
+      <div className="mt-3">
+        <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+      </div>
+      <div className="mt-4">
+        <StatusPill status={job.status} />
+      </div>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {statusLabel(job.status)}
       </h1>
@@ -70,7 +82,7 @@ export function JobStatus({
           your acceptance. A named price or budget waits for confirmation before a driver is chosen.
         </p>
       ) : null}
-      <JobTrackerView tracker={tracker} driver={driver} />
+      <JobTrackerView tracker={tracker} driver={driver} chatHref={driver ? "#messages" : undefined} />
       <section className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Request</h2>
         <p>{job.description}</p>

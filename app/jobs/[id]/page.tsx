@@ -102,7 +102,9 @@ async function JobEntry({
         <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
       ) : null}
       <div className="mx-auto w-full max-w-xl px-4">
-        <JobMessages jobId={id} />
+        <div id="messages">
+          <JobMessages jobId={id} />
+        </div>
         <ProofGallery jobId={id} />
         {["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
           <ReportForm jobId={id} />

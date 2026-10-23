@@ -12,6 +12,10 @@ export type JobSummary = {
   updated_at: string;
   pricing_method: string;
   pickup_area: string;
+  dropoff_area: string | null;
+  description: string;
+  preferred_date: string;
+  time_window: string | null;
   payment_status: string | null;
   dump_fee_cents: number | null;
 };
@@ -79,7 +83,7 @@ export async function listOwnJobs(): Promise<{ jobs: JobSummary[]; error: boolea
     const { data, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, updated_at, pricing_method, pickup_area, payment_status, dump_fee_cents",
+        "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents",
       )
       .order("created_at", { ascending: false });
     if (error) return { jobs: [], error: true };

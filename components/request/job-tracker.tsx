@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { DottedStepper } from "@/components/mobile/dotted-stepper";
 import { LastUpdate } from "@/components/request/last-update";
 import type { JobTracker } from "@/lib/jobs/tracker";
 
@@ -5,10 +7,12 @@ export function JobTrackerView({
   tracker,
   driver,
   compact = false,
+  chatHref,
 }: {
   tracker: JobTracker;
   driver?: { firstName: string; photoUrl: string | null; vehicle: string } | null;
   compact?: boolean;
+  chatHref?: string;
 }) {
   const current = tracker.steps.find((step) => step.state === "current");
   return (
@@ -29,17 +33,25 @@ export function JobTrackerView({
               {driver.firstName.slice(0, 1)}
             </span>
           )}
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-lg font-semibold text-ink">{driver.firstName}</p>
             {driver.vehicle ? <p className="text-sm text-muted">{driver.vehicle}</p> : null}
           </div>
+          {chatHref ? (
+            <Link href={chatHref} className="inline-flex min-h-12 items-center rounded-full bg-brand px-4 font-semibold text-white">
+              Chat
+            </Link>
+          ) : null}
         </div>
       ) : null}
+      <div className="mt-3">
+        <DottedStepper steps={tracker.steps} />
+      </div>
       {tracker.lastUpdate ? <LastUpdate iso={tracker.lastUpdate} /> : null}
       {compact ? (
         <p className="text-base font-semibold text-ink">{current?.label ?? tracker.steps.at(-1)?.label}</p>
       ) : (
-        <ol className="grid gap-2">
+        <ol className="mt-3 grid gap-2">
           {tracker.steps.map((step) => (
             <li
               key={step.id}
