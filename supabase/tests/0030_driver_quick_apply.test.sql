@@ -83,7 +83,9 @@ select lives_ok(
   $$select public.submit_quick_application(jsonb_build_object(
     'full_name', 'Quick Driver',
     'home_city', 'Austell',
+    'home_zip', '30106',
     'zone_id', (select id from public.zones where slug = 'west_metro'),
+    'terms_ok', 'true',
     'service_level', 'light',
     'vehicle_type', 'pickup',
     'photo_path', 'd3000000-0000-4000-8000-000000000001/profile.jpg',

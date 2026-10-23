@@ -127,7 +127,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 5.1 Onboarding
 1. **Sign in** with phone + code
-2. **Profile:** full name, profile photo (shown to customers), home city, zone, max distance (10/15/25 miles)
+2. **Profile:** full name, profile photo (shown to customers), Georgia home address, and Areas I Cover. Quick Apply does not ask for a separate service area. The home ZIP selects the stored zone. The driver checks “I agree to the Pickuply Driver Terms” (`driver-terms-v1`). The box is never pre-checked.
 3. **Vehicle(s):** type (car, SUV, pickup, van, box truck, trailer), make/model/year, plate, bed/cargo length, photo. Can add more than one
 4. **Capabilities:** service level `light` (no heavy lifting, no stairs) or `full` (heavy items, stairs); helper name + phone (optional); equipment (blankets, straps, dolly, ramp)
 5. **Services offered:** delivery / junk / free_item / construction

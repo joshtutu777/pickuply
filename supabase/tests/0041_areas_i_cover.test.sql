@@ -77,6 +77,7 @@ select lives_ok(
     'license_path', 'a4100000-0000-4000-8000-000000000001/license.jpg',
     'license_expires', '2027-12-31',
     'contact_ok', 'true',
+    'terms_ok', 'true',
     'coverage', jsonb_build_object(
       'cities', jsonb_build_array('Smyrna', 'Savannah'),
       'zips', '[]'::jsonb,

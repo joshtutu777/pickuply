@@ -264,9 +264,9 @@ async function fillRequest(
 async function submitApplication(page: Page, name: string) {
   const form = page.locator("form", { has: page.getByRole("button", { name: "Submit application" }) });
   await form.locator("#fullName").fill(name);
-  await form.getByLabel("Home city").fill("Austell");
-  await form.getByLabel("Home ZIP").fill("30106");
-  await form.locator("#zone").selectOption({ label: "West Metro" });
+  await form.getByLabel("Street").fill("10 Test Street");
+  await form.getByLabel("City").fill("Austell");
+  await form.getByLabel("ZIP").fill("30106");
   await form.locator("#vehicleType").selectOption("pickup");
   await form.getByRole("radio", { name: "Light load" }).check();
   await form.locator("#licenseExpires").fill("2027-12-31");
@@ -274,6 +274,7 @@ async function submitApplication(page: Page, name: string) {
   await form.locator("#profilePhoto").setInputFiles(photo);
   await form.locator("#licensePhoto").setInputFiles(photo);
   await form.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
+  await form.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await form.getByRole("button", { name: "Submit application" }).click();
   await page.waitForURL(/submitted=1/);
 }

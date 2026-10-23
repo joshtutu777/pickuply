@@ -425,32 +425,17 @@ async function signedIn(browser: Browser, person: { phone: string; code: string;
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
   await page.locator("#fullName").fill(name);
-  await page.getByLabel("Home city").fill("Austell");
-  await page.getByLabel("Home ZIP").fill("30106");
-  await page.locator("#zone").selectOption({ label: "West Metro" });
-  await page.getByLabel("Make").fill("Ford");
-  await page.getByLabel("Model").fill("F150");
-  await page.getByLabel("Year").fill("2018");
-  await page.getByLabel("Plate").fill("TEST123");
-  await page.getByLabel("Cargo length (inches)").fill("72");
-  await page.getByLabel("License expiration").fill("2027-12-31");
-  await page.getByLabel("Insurance expiration").fill("2027-12-31");
-  await page.locator("#payoutHandle").fill("$test-driver");
-  const files = page.locator("input[type=file]");
+  await page.getByLabel("Street").fill("10 Test Street");
+  await page.getByLabel("City").fill("Austell");
+  await page.getByLabel("ZIP").fill("30106");
+  await page.locator("#vehicleType").selectOption("pickup");
+  await page.getByRole("radio", { name: "Light load" }).check();
+  await page.locator("#licenseExpires").fill("2027-12-31");
   const photo = { name: "photo.png", mimeType: "image/png", buffer: png };
-  await files.nth(0).setInputFiles(photo);
-  await files.nth(1).setInputFiles(photo);
-  await files.nth(2).setInputFiles(photo);
-  await files.nth(3).setInputFiles(photo);
-  for (const label of [
-    "I am an independent contractor, not an employee of Pickuply.",
-    "I will follow the locked price, photograph pickup and drop-off, and refuse prohibited items.",
-    "The documents and vehicle details I submit are accurate.",
-    "Pay me at the Zelle or Cash App handle above. I will not take payment from the customer.",
-  ]) {
-    await page.getByRole("checkbox", { name: label }).check();
-  }
-  await page.locator("#signature").fill(name);
+  await page.locator("#profilePhoto").setInputFiles(photo);
+  await page.locator("#licensePhoto").setInputFiles(photo);
+  await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
+  await page.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
   await page.waitForURL(/submitted=1/);
 }

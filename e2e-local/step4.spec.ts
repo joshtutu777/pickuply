@@ -186,9 +186,9 @@ async function signedIn(
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
   await page.locator("#fullName").fill(name);
-  await page.getByLabel("Home city").fill("Austell");
-  await page.getByLabel("Home ZIP").fill("30106");
-  await page.locator("#zone").selectOption({ label: "West Metro" });
+  await page.getByLabel("Street").fill("10 Test Street");
+  await page.getByLabel("City").fill("Austell");
+  await page.getByLabel("ZIP").fill("30106");
   await page.locator("#vehicleType").selectOption("pickup");
   await page.getByRole("radio", { name: "Light load" }).check();
   await page.locator("#licenseExpires").fill("2027-12-31");
@@ -196,6 +196,7 @@ async function onboard(page: Page, name: string) {
   await page.locator("#profilePhoto").setInputFiles(photo);
   await page.locator("#licensePhoto").setInputFiles(photo);
   await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
+  await page.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
   await page.waitForURL(/submitted=1/);
 }

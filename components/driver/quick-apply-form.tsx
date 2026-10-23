@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertCircle, Camera, CheckCircle, IdCard, Map, MapPin, Truck, Upload, User } from "lucide-react";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { emptyPlace, PlaceField, type PlaceValue } from "@/components/maps/place-field";
 import { TextField } from "@/components/request/fields";
@@ -38,24 +40,25 @@ async function uploadDoc(userId: string, name: "profile" | "license", file: File
 
 export function QuickApplyForm({
   userId,
-  zones,
   defaultName = "",
 }: {
   userId: string;
-  zones: { id: string; name: string }[];
   defaultName?: string;
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
   const [home, setHome] = useState<PlaceValue>(emptyPlace);
   const [coverage, setCoverage] = useState<CoverageDraft>(defaultCoverage);
-  const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [vehicleType, setVehicleType] = useState("pickup");
   const [serviceLevel, setServiceLevel] = useState("light");
   const [licenseExpires, setLicenseExpires] = useState("");
   const [contactOk, setContactOk] = useState(false);
+  const [termsOk, setTermsOk] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+  const [licensePreview, setLicensePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   useEffect(() => {
@@ -84,13 +87,18 @@ export function QuickApplyForm({
       setError("Agree to be contacted about this application.");
       return;
     }
+    if (!termsOk) {
+      setError("Agree to the Pickuply Driver Terms.");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
-      const [photoPath, licensePath] = await Promise.all([
-        uploadDoc(userId, "profile", profileFile),
-        uploadDoc(userId, "license", licenseFile),
-      ]);
+      setProgress("Uploading profile photo");
+      const photoPath = await uploadDoc(userId, "profile", profileFile);
+      setProgress("Uploading license photo");
+      const licensePath = await uploadDoc(userId, "license", licenseFile);
+      setProgress("Saving application");
       const { error: saveError } = await createClient().rpc("submit_quick_application", {
         payload: {
           full_name: fullName.trim(),
@@ -102,13 +110,13 @@ export function QuickApplyForm({
             radius: coverage.radius,
             radius_zip: coverage.radius && coverage.radiusZip ? coverage.radiusZip : null,
           },
-          zone_id: zoneId,
           vehicle_type: vehicleType,
           service_level: serviceLevel,
           photo_path: photoPath,
           license_path: licensePath,
           license_expires: licenseExpires,
           contact_ok: "true",
+          terms_ok: "true",
         },
       });
       if (saveError) throw new Error(saveError.message);
@@ -119,6 +127,7 @@ export function QuickApplyForm({
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "We couldn't submit the application.");
+      setProgress(null);
       setPending(false);
     }
   }
@@ -126,23 +135,23 @@ export function QuickApplyForm({
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
+      <div className="flex items-center gap-2 text-base font-semibold text-ink">
+        <MapPin aria-hidden="true" className="size-5 text-brand" />
+        Home address
+      </div>
       <PlaceField label="Home address" value={home} onChange={setHome} />
       <fieldset className="space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-        <legend className="text-base font-semibold text-ink">Areas I cover</legend>
+        <legend className="flex items-center gap-2 text-base font-semibold text-ink">
+          <Map aria-hidden="true" className="size-5 text-brand" />
+          Areas I cover
+        </legend>
         <CoverageEditor value={coverage} onChange={setCoverage} />
       </fieldset>
-      <label className="block text-base font-semibold text-ink" htmlFor="zone">
-        Service area
-        <select id="zone" className={controlClass} value={zoneId} onChange={(event) => setZoneId(event.target.value)}>
-          {zones.map((zone) => (
-            <option key={zone.id} value={zone.id}>
-              {zone.name}
-            </option>
-          ))}
-        </select>
-      </label>
       <label className="block text-base font-semibold text-ink" htmlFor="vehicleType">
-        Vehicle type
+        <span className="inline-flex items-center gap-2">
+          <Truck aria-hidden="true" className="size-5 text-brand" />
+          Vehicle type
+        </span>
         <select id="vehicleType" className={controlClass} value={vehicleType} onChange={(event) => setVehicleType(event.target.value)}>
           {vehicles.map((vehicle) => (
             <option key={vehicle.id} value={vehicle.id}>
@@ -163,12 +172,43 @@ export function QuickApplyForm({
         </label>
       </fieldset>
       <label className="block text-base font-semibold text-ink" htmlFor="profilePhoto">
-        Profile photo
-        <input id="profilePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => setProfileFile(event.target.files?.[0] ?? null)} />
+        <span className="inline-flex items-center gap-2">
+          <User aria-hidden="true" className="size-5 text-brand" />
+          <Camera aria-hidden="true" className="size-5 text-brand" />
+          Profile photo
+        </span>
+        <input id="profilePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          setProfileFile(file);
+          setProfilePreview((current) => {
+            if (current) URL.revokeObjectURL(current);
+            return file ? URL.createObjectURL(file) : null;
+          });
+        }} />
+        {profilePreview ? (
+          // Local preview of a file that has not been uploaded yet.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profilePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
+        ) : null}
       </label>
       <label className="block text-base font-semibold text-ink" htmlFor="licensePhoto">
-        Driver license photo
-        <input id="licensePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => setLicenseFile(event.target.files?.[0] ?? null)} />
+        <span className="inline-flex items-center gap-2">
+          <IdCard aria-hidden="true" className="size-5 text-brand" />
+          <Camera aria-hidden="true" className="size-5 text-brand" />
+          Driver license photo
+        </span>
+        <input id="licensePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          setLicenseFile(file);
+          setLicensePreview((current) => {
+            if (current) URL.revokeObjectURL(current);
+            return file ? URL.createObjectURL(file) : null;
+          });
+        }} />
+        {licensePreview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={licensePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
+        ) : null}
       </label>
       <label className="block text-base font-semibold text-ink" htmlFor="licenseExpires">
         License expiration
@@ -178,9 +218,28 @@ export function QuickApplyForm({
         <input type="checkbox" checked={contactOk} onChange={(event) => setContactOk(event.target.checked)} />
         Pickuply can contact me about this application.
       </label>
+      <label className="flex min-h-12 items-start gap-3 text-base">
+        <input type="checkbox" checked={termsOk} onChange={(event) => setTermsOk(event.target.checked)} />
+        <span>
+          I agree to the <Link href="/terms/driver" className="font-semibold text-brand">Pickuply Driver Terms</Link>.
+        </span>
+      </label>
+      {progress ? (
+        <p className="inline-flex items-center gap-2 text-base text-ink">
+          <Upload aria-hidden="true" className="size-5 text-brand" />
+          {progress}
+        </p>
+      ) : null}
       {error ? (
-        <p role="alert" className="text-base text-danger">
+        <p role="alert" className="inline-flex items-center gap-2 text-base text-danger">
+          <AlertCircle aria-hidden="true" className="size-5" />
           {error}
+        </p>
+      ) : null}
+      {termsOk && contactOk && profileFile && licenseFile ? (
+        <p className="inline-flex items-center gap-2 text-sm text-muted">
+          <CheckCircle aria-hidden="true" className="size-5 text-brand" />
+          Required photos and terms are ready.
         </p>
       ) : null}
       <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">

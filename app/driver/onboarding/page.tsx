@@ -31,14 +31,11 @@ async function OnboardingContent({
   const params = await searchParams;
   const submitted = params.submitted === "1";
   const supabase = await createClient();
-  const [{ data: zones }, { data: driver }] = await Promise.all([
-    supabase.from("zones").select("id, name").eq("active", true).order("name"),
-    supabase
-      .from("drivers")
-      .select("status, review_note")
-      .eq("profile_id", session.userId)
-      .maybeSingle(),
-  ]);
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("status, review_note")
+    .eq("profile_id", session.userId)
+    .maybeSingle();
 
   const approved =
     session.role === "driver" ||
@@ -73,7 +70,7 @@ async function OnboardingContent({
       ) : null}
       {!waiting ? (
         <>
-          <QuickApplyForm userId={session.userId} zones={zones ?? []} defaultName={session.fullName ?? ""} />
+          <QuickApplyForm userId={session.userId} defaultName={session.fullName ?? ""} />
           {driver?.review_note ? (
             <p className="mt-4 text-base text-ink">Note from Pickuply: {driver.review_note}</p>
           ) : null}
