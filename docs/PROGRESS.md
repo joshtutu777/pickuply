@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Messages inbox (2026-10-23)
+
+An admin document request was posted on the support thread, but Messages only listed job chats and the alert opened Driver home. The inbox now includes Pickuply Support. The alert opens that conversation. Admin Messages shows unread counts, driver and customer chats, and open help cases. Upload now opens the matching document page. A saved document notifies admin. Chat files stay private.
+
 ## Approve anyway (2026-10-23)
 
 An admin who approves a driver with a missing license, insurance file, or vehicle sees the missing item, an insurance warning, and must check Approve anyway. The audit row stores the admin, the time, the missing list, and the confirmation. Approval still leaves the driver Offline. A missing insurance upload does not block Online. An insurance date that is already past does. Paid work without verified coverage can conflict with the driver's own policy and with commercial auto or cargo insurance. This override does not make that coverage optional under those rules.

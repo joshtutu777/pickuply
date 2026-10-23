@@ -23,16 +23,16 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
   const supabase = await createClient();
   const { data: thread } = await supabase
     .from("message_threads")
-    .select("id, closes_at")
+    .select("id, closes_at, resolved_at")
     .eq("id", id)
     .maybeSingle();
   if (!thread) notFound();
   const { data } = await supabase.rpc("thread_messages", { target_thread: id });
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
-      <BackLink href="/admin" label="Admin" />
+      <BackLink href="/admin/messages" label="Messages" />
       <h1 className="font-display text-4xl font-semibold text-ink">Message</h1>
-      <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closesAt={thread.closes_at} />
+      <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closesAt={thread.resolved_at ?? thread.closes_at} />
     </main>
   );
 }

@@ -17,6 +17,7 @@ export async function saveLicense(formData: FormData) {
     expires: String(formData.get("expires") ?? ""),
   });
   if (error) fail("license", error.message);
+  await supabase.rpc("notify_document_uploaded", { item: "license" });
   await recordFunnelServer({ event: "driver_checklist", step: "license" });
   redirect("/driver?saved=license");
 }
@@ -29,6 +30,7 @@ export async function saveInsurance(formData: FormData) {
     expires: String(formData.get("expires") ?? ""),
   });
   if (error) fail("insurance", error.message);
+  await supabase.rpc("notify_document_uploaded", { item: "insurance" });
   await recordFunnelServer({ event: "driver_checklist", step: "insurance" });
   redirect("/driver?saved=insurance");
 }
@@ -46,6 +48,7 @@ export async function saveVehicle(formData: FormData) {
     vehicle_type: String(formData.get("vehicleType") ?? ""),
   });
   if (error) fail("vehicle", error.message);
+  await supabase.rpc("notify_document_uploaded", { item: "vehicle" });
   await recordFunnelServer({ event: "driver_checklist", step: "vehicle" });
   redirect("/driver?saved=vehicle");
 }

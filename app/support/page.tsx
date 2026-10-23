@@ -24,6 +24,9 @@ async function Support() {
   const { data: messages } = threadId
     ? await supabase.rpc("thread_messages", { target_thread: threadId })
     : { data: [] };
+  const { data: thread } = threadId
+    ? await supabase.from("message_threads").select("resolved_at, closes_at").eq("id", threadId).maybeSingle()
+    : { data: null };
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -39,7 +42,11 @@ async function Support() {
           </Link>
         </p>
       ) : (
-        <MessagePanel threadId={threadId} initial={(messages ?? []) as ChatMessage[]} closesAt={null} />
+        <MessagePanel
+          threadId={threadId}
+          initial={(messages ?? []) as ChatMessage[]}
+          closesAt={thread?.resolved_at ?? thread?.closes_at ?? null}
+        />
       )}
     </main>
   );

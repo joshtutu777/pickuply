@@ -453,8 +453,9 @@ export function onlineByZone(drivers: AdminDriver[], zoneNames: Map<string, stri
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function adminNavCurrent(pathname: string, search: string): "overview" | "requests" | "jobs" | "drivers" | "settings" | "payments" | "payouts" | "funnel" | "help" {
+export function adminNavCurrent(pathname: string, search: string): "overview" | "requests" | "jobs" | "drivers" | "settings" | "payments" | "payouts" | "funnel" | "help" | "messages" {
   if (pathname === "/admin") return "overview";
+  if (pathname.startsWith("/admin/messages")) return "messages";
   if (pathname.startsWith("/admin/help")) return "help";
   if (pathname.startsWith("/admin/funnel")) return "funnel";
   if (pathname.startsWith("/admin/drivers")) return "drivers";

@@ -376,6 +376,8 @@ All admin actions are permission-checked on the server and audit-logged.
 
 ## 11. Notifications
 
+A new message appears in the recipient's Messages inbox and as a bell alert. The alert opens that conversation. Opening the conversation marks it read. Seen shows on the sender's last message after the other person opens it. Customers reply to an admin message or use Help. They cannot start an admin chat. A resolved support thread stays read-only. Document requests include Upload now for the matching profile field, and a successful upload notifies admin. Photos and PDFs in an admin conversation stay in a private bucket.
+
 Built locally on 2026-10-22. Alerts are stored in the app, push is ready when VAPID keys are set, and email is ready when Resend is set. Texting is wired and stays off until an admin turns it on after Twilio approval. The one-time iPhone Home Screen note is on the alerts page. Job messages open at assignment and close 24 hours after completion. Proof photos are private, locked after upload, and any optional location is rounded and visible only to an admin.
 
 | Event | Customer | Driver | Admin |

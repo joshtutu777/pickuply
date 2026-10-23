@@ -5,6 +5,7 @@ import { AdminAutoRefresh, AdminDocumentTitle } from "@/components/admin/admin-r
 import { LoadingMain } from "@/components/loading-main";
 import { adminTabTitle } from "@/lib/admin/ops";
 import { loadAdminDashboard } from "@/lib/admin/load";
+import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const data = await loadAdminDashboard();
@@ -24,11 +25,18 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
   const data = await loadAdminDashboard();
   const needs = data.error ? [] : data.needs;
   const title = adminTabTitle(needs.length);
+  const supabase = await createClient();
+  const { data: threads } = await supabase.rpc("admin_open_threads");
+  const messageUnread = ((threads ?? []) as { unread?: number }[]).reduce(
+    (sum, thread) => sum + Number(thread.unread ?? 0),
+    0,
+  );
   const badges = {
     overview: needs.length,
     requests: needs.filter((item) => item.kind === "request" || item.kind === "quote").length,
     jobs: needs.filter((item) => item.kind === "open" || item.kind === "payment").length,
     drivers: needs.filter((item) => item.kind === "driver").length,
+    messages: messageUnread,
   };
 
   return (

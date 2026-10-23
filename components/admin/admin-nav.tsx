@@ -9,6 +9,7 @@ const items = [
   { id: "requests", href: "/admin/requests", label: "Requests & Quotes" },
   { id: "jobs", href: "/admin/requests?stage=jobs", label: "Jobs & Assignments" },
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
+  { id: "messages", href: "/admin/messages", label: "Messages" },
   { id: "funnel", href: "/admin/funnel", label: "Funnel" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
   { id: "help", href: "/admin/help", label: "Help" },
@@ -18,13 +19,18 @@ function NavLinks({
   badges,
   current,
 }: {
-  badges: { overview: number; requests: number; jobs: number; drivers: number };
+  badges: { overview: number; requests: number; jobs: number; drivers: number; messages: number };
   current: ReturnType<typeof adminNavCurrent>;
 }) {
   return (
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
-        const count = item.id === "settings" || item.id === "funnel" || item.id === "help" ? 0 : badges[item.id];
+        const count =
+          item.id === "messages"
+            ? badges.messages
+            : item.id === "settings" || item.id === "funnel" || item.id === "help"
+              ? 0
+              : badges[item.id];
         const active = current === item.id;
         return (
           <li key={item.id}>
@@ -74,7 +80,7 @@ function NavLinks({
 export function AdminNav({
   badges,
 }: {
-  badges: { overview: number; requests: number; jobs: number; drivers: number };
+  badges: { overview: number; requests: number; jobs: number; drivers: number; messages: number };
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();

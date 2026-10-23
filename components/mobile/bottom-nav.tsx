@@ -17,6 +17,7 @@ const customer: Item[] = [
 const driver: Item[] = [
   { href: "/driver", label: "Home", icon: "home" },
   { href: "/driver#jobs", label: "Jobs", icon: "jobs" },
+  { href: "/driver/messages", label: "Messages", icon: "messages" },
   { href: "/driver/earnings", label: "Earnings", icon: "earnings" },
   { href: "/driver/profile", label: "Profile", icon: "profile" },
 ];
@@ -83,7 +84,13 @@ function NavIcon({ icon }: { icon: Item["icon"] }) {
   );
 }
 
-export function BottomNav({ role }: { role: "customer" | "driver" | "admin" | null }) {
+export function BottomNav({
+  role,
+  messageUnread = 0,
+}: {
+  role: "customer" | "driver" | "admin" | null;
+  messageUnread?: number;
+}) {
   const pathname = usePathname();
   const ready = useSyncExternalStore(
     () => () => {},
@@ -123,7 +130,14 @@ export function BottomNav({ role }: { role: "customer" | "driver" | "admin" | nu
                       : "text-white/80"
                 }`}
               >
-                <NavIcon icon={item.icon} />
+                <span className="relative">
+                  <NavIcon icon={item.icon} />
+                  {item.icon === "messages" && messageUnread > 0 ? (
+                    <span className="absolute -top-1 -right-2 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] text-white">
+                      {messageUnread > 9 ? "9+" : messageUnread}
+                    </span>
+                  ) : null}
+                </span>
                 <span className={item.center ? "sr-only" : "mt-0.5"}>{item.label}</span>
               </Link>
             </li>
