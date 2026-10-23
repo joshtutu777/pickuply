@@ -221,7 +221,7 @@ export function DriverHome({
   }
 
   return (
-    <div className="mt-6">
+    <div id="jobs" className="mt-6">
       <button
         type="button"
         disabled={busy}
@@ -251,7 +251,8 @@ export function DriverHome({
         <ul className="mt-6 space-y-4">
           {jobs.map((job) => (
             <li key={job.id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-              <p className="text-lg font-semibold text-ink">{job.service.replaceAll("_", " ")}</p>
+              <p className="text-sm font-semibold text-brand">Available</p>
+              <p className="mt-2 text-lg font-semibold text-ink">{job.service.replaceAll("_", " ")}</p>
               <p className="mt-1 text-base">
                 {job.pickup_area}
                 {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}

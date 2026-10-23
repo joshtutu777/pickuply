@@ -7,6 +7,7 @@ import { requireSignedIn } from "@/lib/auth/session";
 import { payoutSetupLabel, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
 import { formatCents } from "@/lib/money";
+import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
 
 export default function EarningsPage({ searchParams }: PageProps<"/driver/earnings">) {
@@ -65,6 +66,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       .limit(1)
       .maybeSingle(),
   ]);
+  const totals = ledgerBuckets(entries ?? []);
   const weekAgo = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
   const week = (entries ?? []).filter((entry) => new Date(entry.created_at).getTime() >= weekAgo);
   const weekTotal = (status: string) =>
@@ -75,8 +77,24 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold text-ink">Earnings</h1>
       <p className="mt-3 text-base text-muted">
-        Completed jobs show pending, held, and transferred earnings here after payment is captured.
+        These totals use captured earnings from your ledger. A card authorization is not earnings until the payment is captured.
       </p>
+      <section className="mt-6 grid gap-3" aria-label="Earnings summary">
+        <div className="rounded-3xl bg-brand p-4 text-white">
+          <p className="text-sm font-semibold">Completed earnings</p>
+          <p className="mt-1 font-display text-3xl font-semibold">{formatCents(totals.completedCents)}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            <p className="text-sm font-semibold text-muted">Pending transfer</p>
+            <p className="mt-1 text-xl font-semibold text-ink">{formatCents(totals.pendingCents)}</p>
+          </div>
+          <div className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            <p className="text-sm font-semibold text-muted">Transferred</p>
+            <p className="mt-1 text-xl font-semibold text-ink">{formatCents(totals.transferredCents)}</p>
+          </div>
+        </div>
+      </section>
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">{payoutSetupLabel(fresh)}</h2>
         {ready ? (

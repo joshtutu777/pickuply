@@ -7,6 +7,8 @@ import { ForbiddenAlert } from "@/components/forbidden-alert";
 import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
+import { formatCents } from "@/lib/money";
+import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -33,7 +35,10 @@ async function AssignedLinks({ userId }: { userId: string }) {
     <ul className="mt-4 space-y-2">
       {data.map((job) => (
         <li key={job.id}>
-          <Link href={`/driver/jobs/${job.id}`} className="font-semibold text-brand">
+          <Link
+            href={`/driver/jobs/${job.id}`}
+            className="block min-h-12 rounded-3xl bg-paper-raised p-4 font-semibold text-brand ring-1 ring-line"
+          >
             {job.service} · {job.status}
           </Link>
         </li>
@@ -145,6 +150,14 @@ async function DriverContent({
       missing.push("Choose the services you offer before going Online.");
     }
     const approved = application && ["active", "approved_new"].includes(application.status);
+    let earnings: ReturnType<typeof ledgerBuckets> | null = null;
+    if (approved) {
+      const { data: ledger } = await supabase
+        .from("ledger_entries")
+        .select("status, amount_cents")
+        .eq("driver_id", session.userId);
+      if (ledger) earnings = ledgerBuckets(ledger);
+    }
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
@@ -168,6 +181,22 @@ async function DriverContent({
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.
           </p>
+        ) : null}
+        {earnings ? (
+          <section className="mt-6 grid grid-cols-3 gap-2" aria-label="Earnings">
+            <div className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
+              <p className="text-xs font-semibold text-muted">Completed</p>
+              <p className="mt-1 font-semibold text-ink">{formatCents(earnings.completedCents)}</p>
+            </div>
+            <div className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
+              <p className="text-xs font-semibold text-muted">Pending</p>
+              <p className="mt-1 font-semibold text-ink">{formatCents(earnings.pendingCents)}</p>
+            </div>
+            <div className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
+              <p className="text-xs font-semibold text-muted">Transferred</p>
+              <p className="mt-1 font-semibold text-ink">{formatCents(earnings.transferredCents)}</p>
+            </div>
+          </section>
         ) : null}
         {checklist}
         {forbidden ? <ForbiddenAlert /> : null}

@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { advanceJob } from "@/app/driver/jobs/actions";
 import { LoadingMain } from "@/components/loading-main";
+import { DottedStepper } from "@/components/mobile/dotted-stepper";
+import { RouteSketch } from "@/components/mobile/route-sketch";
+import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import { ProofForm } from "@/components/driver/proof-form";
 import { ProofGallery } from "@/components/request/proof-gallery";
@@ -87,9 +90,18 @@ async function DriverJob({
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Assigned job</p>
+      <div className="mt-3">
+        <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <StatusPill status={job.status} />
+      </div>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {statusLabel(job.status)}
       </h1>
+      <div className="mt-4">
+        <DottedStepper steps={tracker.steps} />
+      </div>
       <p className="mt-2 text-base text-muted">{job.service}</p>
       {job.driver_pay_cents != null ? <p>Your earnings {formatCents(job.driver_pay_cents)}</p> : null}
       {job.payment_status ? <p>Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
@@ -144,7 +156,9 @@ async function DriverJob({
       {["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
         <ReportForm jobId={job.id} />
       ) : null}
-      <JobMessages jobId={job.id} showQuickReplies />
+      <div id="messages">
+        <JobMessages jobId={job.id} showQuickReplies />
+      </div>
       <p className="mt-4">
         <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Contact support
