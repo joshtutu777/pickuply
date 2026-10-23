@@ -426,6 +426,7 @@ async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
   await page.locator("#fullName").fill(name);
   await page.getByLabel("Home city").fill("Austell");
+  await page.getByLabel("Home ZIP").fill("30106");
   await page.locator("#zone").selectOption({ label: "West Metro" });
   await page.getByLabel("Make").fill("Ford");
   await page.getByLabel("Model").fill("F150");

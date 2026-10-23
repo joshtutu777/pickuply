@@ -10,6 +10,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { AdminOverride } from "@/components/admin/admin-override";
 import { statusLabel } from "@/components/request/job-status";
 import { requireAdmin } from "@/lib/auth/session";
+import { noDriverCutoffIso } from "@/lib/admin/ops";
 import { serviceById, type ServiceId } from "@/lib/constants";
 import { getJobDetail } from "@/lib/data/job-queries";
 import { formatCents } from "@/lib/money";
@@ -56,6 +57,13 @@ async function RequestDetail({
       /piano|gun safe|pool table|hot tub|\bsafe\b/i.test(job.description),
   );
   const service = serviceById(job.service as ServiceId);
+  const { count: waitingWithoutDriver } = await supabase
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("id", id)
+    .eq("status", "open")
+    .is("assigned_driver_id", null)
+    .lte("created_at", noDriverCutoffIso());
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -64,6 +72,7 @@ async function RequestDetail({
       <p className="mt-2 text-base text-muted">
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
+      {waitingWithoutDriver ? <p className="mt-2 text-base font-semibold text-danger">No driver yet</p> : null}
       <BackLink href="/admin/requests" label="Requests" />
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}
       {typeof query.error === "string" ? (

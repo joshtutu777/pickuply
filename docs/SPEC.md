@@ -162,16 +162,14 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - Weekly schedule (time blocks) + optional "unavailable until" date.
 - Alert preferences: push, text, or both.
 
-### 5.4 Job feed (eligibility)
-A driver sees a published job only if ALL are true:
-- The job status is `open`. Quote jobs become `open` only after the customer accepts the admin's quote. Fixed and range jobs become `open` after admin approval. `requested` and `quoted` jobs are not discoverable
-- Job zone = driver zone, and pickup is within the driver's max distance when coordinates exist. If coordinates exist but the distance cannot be checked, the job is hidden
-- Driver offers that service
-- Job service level is set and is ≤ driver level (`full` jobs → only `full` drivers)
-- The job names a required vehicle, and the driver has an approved vehicle of that type
-- Driver status is `active`. `approved_new` drivers see only open jobs that have a row in `job_driver_invitations` for them. An invitation is not an assignment and does not set `assigned_driver_id`
-- Driver is not paused, removed, pending, or globally blocked, and this customer has no `customer_driver_blocks` row for them
-- Drivers may browse while Offline. Accepting or offering requires Online
+### 5.4 Job feed
+Pickuply serves Georgia ZIP codes for pickup and drop-off. A ZIP that is not in the Georgia centroid table is rejected. The zones table stays for driver home areas.
+
+Every driver except a removed driver sees every open job. Zone, distance, service, and vehicle no longer hide a job. A customer block still hides that customer's jobs. A blocked profile sees nothing. Drivers who are not active yet see the same feed and cannot accept. The database says “Finish setup to accept jobs.” A vehicle that does not match stays on the card with its actions off, and the database rejects the accept. Active drivers can accept, offer, and counter. Legacy `approved_new` rows still need an invitation before they can accept. Drivers may browse while Offline. Accepting or offering requires Online.
+
+Cards show the service, the vehicle the job needs, one or two people, stairs, trip miles, and miles from the driver's home ZIP. Saved filters can limit cities, ZIP codes, a radius of 10, 25, 50, or 100 miles, service types, and vehicle fit. The default is every job. With no filters, every Online driver is alerted. Saved filters apply to those alerts too.
+
+An open job with no driver for 20 minutes is marked “No driver yet” for admin.
 
 Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. An eligible driver may also see request-stage item photos through a database policy and a short-lived signed URL. Cards do not show pickup, drop-off, report, or private document images, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned. This request-photo exception is intentional and is enforced in the database, not by hiding fields in the page.
 

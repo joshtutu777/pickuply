@@ -265,6 +265,7 @@ async function submitApplication(page: Page, name: string) {
   const form = page.locator("form", { has: page.getByRole("button", { name: "Submit application" }) });
   await form.locator("#fullName").fill(name);
   await form.getByLabel("Home city").fill("Austell");
+  await form.getByLabel("Home ZIP").fill("30106");
   await form.locator("#zone").selectOption({ label: "West Metro" });
   await form.locator("#vehicleType").selectOption("pickup");
   await form.getByRole("radio", { name: "Light load" }).check();

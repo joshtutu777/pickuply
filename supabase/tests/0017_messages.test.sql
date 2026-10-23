@@ -1,4 +1,4 @@
--- Local Supabase only. Phone numbers and emails are rejected in the database.
+-- Local Supabase only. Phone numbers and emails are stored for admin review and hidden in the thread.
 
 begin;
 
@@ -66,24 +66,20 @@ values (
 select pg_temp.as_user('f1717171-1717-4171-8171-171717171711');
 set local role authenticated;
 
-select throws_ok(
+select lives_ok(
   $$select public.post_message(
     'f1717171-1717-4171-8171-171717171721',
     'call me at 404-555-0100'
   )$$,
-  'P0001',
-  'remove the phone number or email',
-  'the database rejects a phone number'
+  'a phone number is stored and hidden from the thread'
 );
 
-select throws_ok(
+select lives_ok(
   $$select public.post_message(
     'f1717171-1717-4171-8171-171717171721',
     'reach me at person@example.com'
   )$$,
-  'P0001',
-  'remove the phone number or email',
-  'the database rejects an email address'
+  'an email address is stored and hidden from the thread'
 );
 
 select lives_ok(
@@ -95,9 +91,12 @@ select lives_ok(
 );
 
 select is(
-  (select count(*) from public.messages where thread_id = 'f1717171-1717-4171-8171-171717171721')::integer,
-  1,
-  'only the safe message was stored'
+  (select count(*) from public.messages
+    where thread_id = 'f1717171-1717-4171-8171-171717171721'
+      and body !~ '404-555-0100'
+      and body !~ 'person@example.com')::integer,
+  3,
+  'others see the redacted text'
 );
 
 select throws_ok(

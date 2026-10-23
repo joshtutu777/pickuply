@@ -217,8 +217,8 @@ select pg_temp.as_user('c9999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed()),
-  0,
-  'a paused driver gets an empty feed'
+  2,
+  'a paused driver still sees open jobs'
 );
 reset role;
 

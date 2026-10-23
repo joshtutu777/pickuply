@@ -223,8 +223,8 @@ select is(
 );
 select is(
   (select count(*)::int from storage.objects where name = 'daaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2/request/a.jpg'),
-  0,
-  'a driver outside the job zone cannot read request photos'
+  1,
+  'a driver outside the job zone can read a request photo'
 );
 select is(
   (select count(*)::int from public.job_private where pickup_address = '100 Market Street'),
@@ -397,8 +397,9 @@ select ok(
   'offer summaries do not return a phone or address'
 );
 select ok(
-  position('driver_is_eligible_for_job' in pg_get_functiondef('public.claim_job(uuid)'::regprocedure)) > 0
-    and position('driver_is_eligible_for_job' in pg_get_functiondef('public.submit_offer(uuid, text, integer, text)'::regprocedure)) > 0
+  position('assert_driver_can_take_job' in pg_get_functiondef('public.claim_job(uuid)'::regprocedure)) > 0
+    and position('assert_driver_can_take_job' in pg_get_functiondef('public.submit_offer(uuid, text, integer, text)'::regprocedure)) > 0
+    and position('driver_is_eligible_for_job' in pg_get_functiondef('public.assert_driver_can_take_job(uuid, text)'::regprocedure)) > 0
     and position('driver_is_eligible_for_job' in pg_get_functiondef('public.request_photo_visible(uuid)'::regprocedure)) > 0,
   'claim, offer, and request photo checks use eligibility'
 );

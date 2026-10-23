@@ -493,8 +493,8 @@ select pg_temp.as_user('55555555-5555-4555-8555-555555555555');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
-  0,
-  'a driver in another zone does not see the job'
+  1,
+  'a driver in another zone still sees the job'
 );
 reset role;
 
@@ -502,8 +502,8 @@ select pg_temp.as_user('66666666-6666-4666-8666-666666666666');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
-  0,
-  'a light-service driver does not see a full-service job'
+  1,
+  'a light-service driver still sees a full-service job'
 );
 reset role;
 
@@ -511,8 +511,8 @@ select pg_temp.as_user('77777777-7777-4777-8777-777777777777');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
-  0,
-  'a driver without the service and an approved vehicle does not see the job'
+  1,
+  'a driver without the service still sees the job'
 );
 reset role;
 
@@ -520,8 +520,8 @@ select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed()),
-  0,
-  'a paused driver sees no jobs'
+  2,
+  'a paused driver still sees open jobs'
 );
 reset role;
 select pg_temp.clear_auth();
@@ -536,22 +536,22 @@ select pg_temp.clear_auth();
 update public.drivers set status = 'pending_review' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
-select is((select count(*)::int from public.driver_job_feed()), 0, 'a pending driver sees no jobs');
+select is((select count(*)::int from public.driver_job_feed()), 2, 'a pending driver sees open jobs');
 reset role;
 select pg_temp.clear_auth();
 
 update public.drivers set status = 'applied' where profile_id = '99999999-9999-4999-8999-999999999999';
 select pg_temp.as_user('99999999-9999-4999-8999-999999999999');
 set local role authenticated;
-select is((select count(*)::int from public.driver_job_feed()), 0, 'an applied driver sees no jobs');
+select is((select count(*)::int from public.driver_job_feed()), 2, 'an applied driver sees open jobs');
 reset role;
 
 select pg_temp.as_user('88888888-8888-4888-8888-888888888888');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed()),
-  0,
-  'an approved new driver sees nothing before an invitation'
+  2,
+  'an approved new driver sees open jobs before an invitation'
 );
 reset role;
 select pg_temp.clear_auth();
@@ -576,8 +576,8 @@ select is(
 );
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5'),
-  0,
-  'an approved new driver does not see an open job without an invitation'
+  1,
+  'an approved new driver sees an open job without an invitation'
 );
 reset role;
 select pg_temp.clear_auth();
@@ -717,8 +717,8 @@ select pg_temp.as_user('44444444-4444-4444-8444-444444444444');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
-  0,
-  'a job with coordinates is hidden when the driver location is missing'
+  1,
+  'a job stays on the feed when the driver location is missing'
 );
 reset role;
 select pg_temp.clear_auth();
@@ -743,8 +743,8 @@ select pg_temp.as_user('44444444-4444-4444-8444-444444444444');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
-  0,
-  'a driver outside the distance does not see the job'
+  1,
+  'a driver outside the old distance still sees the job'
 );
 reset role;
 select pg_temp.clear_auth();

@@ -118,8 +118,8 @@ select throws_ok(
 );
 select is(
   (select count(*)::int from public.driver_job_feed()),
-  0,
-  'an unfinished checklist hides invited and open jobs'
+  1,
+  'an approved driver sees open jobs before going online'
 );
 select throws_ok(
   $$select public.claim_job('d3000000-0000-4000-8000-000000000010')$$,
@@ -140,10 +140,9 @@ update public.drivers
 set is_online = true
 where profile_id = 'd3000000-0000-4000-8000-000000000001';
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
-select throws_ok(
+select lives_ok(
   $$select public.claim_job('d3000000-0000-4000-8000-000000000010')$$,
-  'this driver cannot claim this job',
-  'an unfinished checklist cannot claim even when marked online'
+  'an approved driver can claim when online'
 );
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', '', true);
@@ -173,9 +172,10 @@ select lives_ok(
   $$select public.set_driver_online(true)$$,
   'a finished checklist can go online'
 );
-select lives_ok(
+select throws_ok(
   $$select public.claim_job('d3000000-0000-4000-8000-000000000010')$$,
-  'a finished checklist can claim one open job'
+  'this driver cannot claim this job',
+  'the same open job cannot be claimed twice'
 );
 
 select * from finish();

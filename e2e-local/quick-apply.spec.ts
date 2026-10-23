@@ -82,6 +82,7 @@ test("quick apply cannot go online until the checklist is finished, then can cla
   await page.getByLabel("Your name").fill(driver.name);
   await expect(page.getByLabel("Your name")).toHaveValue(driver.name);
   await page.getByLabel("Home city").fill("Austell");
+  await page.getByLabel("Home ZIP").fill("30106");
   await page.locator("#zone").selectOption({ label: "West Metro" });
   await page.locator("#vehicleType").selectOption("pickup");
   await page.getByRole("radio", { name: "Light load" }).check();

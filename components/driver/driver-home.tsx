@@ -17,6 +17,8 @@ type FeedJob = {
   distance_miles: number | null;
   stairs_pickup: number;
   stairs_dropoff: number | null;
+  elevator: boolean;
+  help_loading: boolean;
   preferred_date: string;
   time_window: string | null;
   pricing_method: string;
@@ -26,17 +28,20 @@ type FeedJob = {
   driver_pay_cents: number | null;
   required_vehicle: string | null;
   service_level: string | null;
+  miles_from_you: number | null;
 };
 
 type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null };
 
 function OfferActions({
   job,
-  online,
+  canAct,
+  blockedReason,
   onDone,
 }: {
   job: FeedCard;
-  online: boolean;
+  canAct: boolean;
+  blockedReason: string | null;
   onDone: () => void;
 }) {
   const [earnings, setEarnings] = useState("");
@@ -93,7 +98,7 @@ function OfferActions({
       {job.pricing_method === "quote" ? (
         <button
           type="button"
-          disabled={!online}
+          disabled={!canAct}
           onClick={() => void send("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
@@ -103,7 +108,7 @@ function OfferActions({
       {job.pricing_method === "fixed" ? (
         <button
           type="button"
-          disabled={!online}
+          disabled={!canAct}
           onClick={() => void send("accept")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
@@ -132,7 +137,7 @@ function OfferActions({
           </label>
           <button
             type="button"
-            disabled={!online}
+            disabled={!canAct}
             onClick={() => void send("counter")}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink font-semibold text-white disabled:opacity-60"
           >
@@ -140,6 +145,7 @@ function OfferActions({
           </button>
         </>
       ) : null}
+      {blockedReason ? <p className="text-base text-ink">{blockedReason}</p> : null}
       {message ? (
         <p role={message.alert ? "alert" : "status"} className={message.alert ? "text-base text-danger" : "text-base text-ink"}>
           {message.text}
@@ -154,6 +160,7 @@ export function DriverHome({
   userId,
   showFeed,
   approved,
+  vehicleType,
   everOnline,
   promptDismissed,
 }: {
@@ -161,6 +168,7 @@ export function DriverHome({
   userId: string;
   showFeed: boolean;
   approved: boolean;
+  vehicleType: string | null;
   everOnline: boolean;
   promptDismissed: boolean;
 }) {
@@ -169,6 +177,14 @@ export function DriverHome({
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filterCities, setFilterCities] = useState("");
+  const [filterZips, setFilterZips] = useState("");
+  const [filterRadius, setFilterRadius] = useState("");
+  const [filterServices, setFilterServices] = useState("");
+  const [filterFit, setFilterFit] = useState(false);
+  const [filterNote, setFilterNote] = useState<string | null>(null);
+  const filterCount =
+    [filterCities, filterZips, filterRadius, filterServices].filter((value) => value.trim()).length + (filterFit ? 1 : 0);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -241,6 +257,28 @@ export function DriverHome({
     if (goingOnline && nowOnline) void recordFunnel({ event: "driver_online", step: "online" });
   }
 
+  async function saveFilters(clear: boolean) {
+    const supabase = createClient();
+    const result = clear
+      ? await supabase.rpc("clear_driver_feed_filters")
+      : await supabase.rpc("save_driver_feed_filters", {
+          cities: filterCities.split(",").map((item) => item.trim()).filter(Boolean),
+          zips: filterZips.split(",").map((item) => item.trim()).filter(Boolean),
+          radius: filterRadius ? Number(filterRadius) : null,
+          service_names: filterServices.split(",").map((item) => item.trim()).filter(Boolean),
+          fit_vehicle: filterFit,
+        });
+    if (clear) {
+      setFilterCities("");
+      setFilterZips("");
+      setFilterRadius("");
+      setFilterServices("");
+      setFilterFit(false);
+    }
+    setFilterNote(result.error ? result.error.message : "Saved");
+    void load();
+  }
+
   return (
     <>
     <section aria-label="Availability">
@@ -287,9 +325,53 @@ export function DriverHome({
       <p className="mt-4 text-base text-muted">
         You can browse while Offline. Claiming or offering requires Online.
       </p>
+      <form
+        className="mt-4 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void saveFilters(false);
+        }}
+      >
+        <p className="font-semibold text-ink">Filters ({filterCount})</p>
+        <label className="block text-base font-semibold text-ink">
+          Cities
+          <input value={filterCities} onChange={(event) => setFilterCities(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+        </label>
+        <label className="block text-base font-semibold text-ink">
+          ZIP codes
+          <input value={filterZips} onChange={(event) => setFilterZips(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+        </label>
+        <label className="block text-base font-semibold text-ink">
+          Radius
+          <select value={filterRadius} onChange={(event) => setFilterRadius(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4">
+            <option value="">Any</option>
+            <option value="10">10 miles</option>
+            <option value="25">25 miles</option>
+            <option value="50">50 miles</option>
+            <option value="100">100 miles</option>
+          </select>
+        </label>
+        <label className="block text-base font-semibold text-ink">
+          Services
+          <input value={filterServices} onChange={(event) => setFilterServices(event.target.value)} placeholder="delivery, junk" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+        </label>
+        <label className="flex min-h-12 items-center gap-3 text-base">
+          <input type="checkbox" checked={filterFit} onChange={(event) => setFilterFit(event.target.checked)} />
+          Only jobs that fit my vehicle
+        </label>
+        <div className="flex flex-wrap gap-3">
+          <button type="submit" className="inline-flex min-h-12 items-center rounded-full bg-brand px-5 font-semibold text-white">
+            Save filters
+          </button>
+          <button type="button" onClick={() => void saveFilters(true)} className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Clear filters
+          </button>
+        </div>
+        {filterNote ? <p className="text-base text-ink">{filterNote}</p> : null}
+      </form>
       {feedError ? <p role="alert" className="mt-3 text-base text-danger">{feedError}</p> : null}
       {jobs.length === 0 ? (
-        <p className="mt-6 text-base text-muted">No open jobs match your vehicle and area right now.</p>
+        <p className="mt-6 text-base text-muted">No open jobs right now.</p>
       ) : (
         <ul className="mt-6 space-y-4">
           {jobs.map((job) => (
@@ -299,14 +381,15 @@ export function DriverHome({
               <p className="mt-1 text-base">
                 {job.pickup_area}
                 {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
-                {job.distance_miles != null ? ` · ${job.distance_miles} mi` : ""}
+                {job.distance_miles != null ? ` · ${job.distance_miles} mi trip` : ""}
+                {job.miles_from_you != null ? ` · ${Number(job.miles_from_you).toFixed(1)} mi from you` : ""}
               </p>
               <p>
-                {job.pieces} pieces · {job.size} · {job.required_vehicle} · {job.service_level}
+                {job.required_vehicle?.replaceAll("_", " ") ?? "Any vehicle"} · {job.help_loading ? "2 people" : "1 person"} · Stairs {job.stairs_pickup}
+                {job.stairs_dropoff != null ? ` / ${job.stairs_dropoff}` : ""}
               </p>
               <p>
-                Stairs {job.stairs_pickup}
-                {job.stairs_dropoff != null ? ` / ${job.stairs_dropoff}` : ""} · {job.preferred_date}
+                {job.preferred_date}
                 {job.time_window ? ` · ${job.time_window}` : ""}
               </p>
               {job.pricing_method === "fixed" && job.offer_cents != null ? (
@@ -322,7 +405,18 @@ export function DriverHome({
               ) : (
                 <p>Enter your earnings when you offer.</p>
               )}
-              <OfferActions job={job} online={online} onDone={() => void load()} />
+              <OfferActions
+                job={job}
+                canAct={online && approved && (!job.required_vehicle || job.required_vehicle === vehicleType)}
+                blockedReason={
+                  !approved
+                    ? "Finish setup to accept jobs."
+                    : job.required_vehicle && job.required_vehicle !== vehicleType
+                      ? "This job needs a different vehicle."
+                      : null
+                }
+                onDone={() => void load()}
+              />
               {job.photos.length > 0 ? (
                 <ul className="mt-3 grid grid-cols-3 gap-2">
                   {job.photos.map((url) => (

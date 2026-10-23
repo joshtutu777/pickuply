@@ -75,6 +75,9 @@ export async function createRequest(
     if (/sign in required|jwt|session/i.test(message)) {
       throw new RequestSubmitError("auth", "Sign in again before saving this request.");
     }
+    if (/Georgia ZIP/i.test(message)) {
+      throw new RequestSubmitError("rejected", "Pickuply currently serves Georgia ZIP codes only.");
+    }
     if (/already saved with different details/i.test(message)) {
       throw new RequestSubmitError(
         "rejected",

@@ -124,8 +124,9 @@ async function DriverContent({
         <DriverHome
           isOnline={Boolean(application?.is_online)}
           userId={session.userId}
-          showFeed={Boolean(approved)}
+          showFeed={Boolean(application) && application?.status !== "removed"}
           approved={Boolean(approved)}
+          vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
         />

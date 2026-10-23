@@ -412,6 +412,10 @@ export function sortDriverQueue(drivers: AdminDriver[]): AdminDriver[] {
   });
 }
 
+export function noDriverCutoffIso(): string {
+  return new Date(Date.now() - 20 * 60 * 1000).toISOString();
+}
+
 export function waitLabel(createdAt: string, now: number): string {
   const minutes = Math.max(0, Math.round((now - Date.parse(createdAt)) / 60000));
   if (minutes < 60) return `Waiting ${minutes} min`;

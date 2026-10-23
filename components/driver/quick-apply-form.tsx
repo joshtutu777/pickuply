@@ -44,6 +44,7 @@ export function QuickApplyForm({
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
   const [homeCity, setHomeCity] = useState("");
+  const [homeZip, setHomeZip] = useState("");
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [vehicleType, setVehicleType] = useState("pickup");
   const [serviceLevel, setServiceLevel] = useState("light");
@@ -61,6 +62,10 @@ export function QuickApplyForm({
     event.preventDefault();
     if (!validateFullName(fullName)) {
       setError("Enter your full name.");
+      return;
+    }
+    if (!/^[0-9]{5}$/.test(homeZip.trim())) {
+      setError("Enter a Georgia home ZIP code.");
       return;
     }
     if (!profileFile || !licenseFile) {
@@ -82,6 +87,7 @@ export function QuickApplyForm({
         payload: {
           full_name: fullName.trim(),
           home_city: homeCity.trim(),
+          home_zip: homeZip.trim(),
           zone_id: zoneId,
           vehicle_type: vehicleType,
           service_level: serviceLevel,
@@ -105,6 +111,7 @@ export function QuickApplyForm({
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
       <TextField name="homeCity" label="Home city" value={homeCity} onChange={setHomeCity} />
+      <TextField name="homeZip" label="Home ZIP" value={homeZip} onChange={setHomeZip} inputMode="numeric" />
       <label className="block text-base font-semibold text-ink" htmlFor="zone">
         Service area
         <select id="zone" className={controlClass} value={zoneId} onChange={(event) => setZoneId(event.target.value)}>

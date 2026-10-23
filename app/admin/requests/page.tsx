@@ -145,6 +145,9 @@ function RequestFacts({ job, driverName, now }: { job: AdminJob; driverName: str
         <StatusChip value={job.paymentStatus} kind="payment" />
       </div>
       <p className="text-base text-ink">{driverName ? `Driver ${driverName}` : "Unassigned"}</p>
+      {job.status === "open" && !job.assignedDriverId && now - Date.parse(job.openedAt ?? job.createdAt) >= 20 * 60 * 1000 ? (
+        <p className="text-base font-semibold text-danger">No driver yet</p>
+      ) : null}
     </div>
   );
 }
