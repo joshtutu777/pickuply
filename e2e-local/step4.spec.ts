@@ -200,7 +200,7 @@ async function onboard(page: Page, name: string) {
   await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
   await page.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
-  await page.waitForURL(/submitted=1/);
+  await page.waitForURL(/\/driver\?saved=applied/);
 }
 
 function finishChecklist(phone: string) {

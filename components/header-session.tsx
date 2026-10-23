@@ -1,4 +1,6 @@
 import { firstName } from "@/lib/auth/name";
+import { homeFor } from "@/lib/auth/mode";
+import { readMode } from "@/lib/auth/mode-cookie";
 import { getOptionalSession } from "@/lib/auth/session";
 import { cityFromArea } from "@/lib/jobs/next-action";
 import { createClient } from "@/lib/supabase/server";
@@ -12,16 +14,23 @@ export async function HeaderSession() {
     .from("notifications")
     .select("id", { count: "exact", head: true })
     .is("read_at", null);
+  const mode = await readMode();
+  const { data: driver } = await supabase
+    .from("drivers")
+    .select("home_city")
+    .eq("profile_id", session.userId)
+    .maybeSingle();
+  const hasDriver = Boolean(driver) || session.role === "driver";
+  const homeHref = homeFor({ role: session.role, mode, hasDriver });
   const alertsHref =
-    session.role === "driver"
+    homeHref === "/driver"
       ? "/driver/notifications"
-      : session.role === "admin"
+      : homeHref === "/admin"
         ? "/admin/notifications"
         : "/account/notifications";
   let area: string | null = null;
-  if (session.role === "driver") {
-    const { data } = await supabase.from("drivers").select("home_city").eq("profile_id", session.userId).maybeSingle();
-    area = data?.home_city?.trim() || null;
+  if (hasDriver) {
+    area = driver?.home_city?.trim() || null;
   } else if (session.role === "customer") {
     const { data } = await supabase
       .from("jobs")
@@ -39,7 +48,9 @@ export async function HeaderSession() {
         alertsHref,
         unread: count ?? 0,
         area,
-        appNav: session.role === "customer" || session.role === "driver",
+        appNav: homeHref === "/account" || homeHref === "/driver",
+        homeHref,
+        driveHref: hasDriver ? "/driver" : "/driver/onboarding",
       }}
     />
   );

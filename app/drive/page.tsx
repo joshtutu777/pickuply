@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getOptionalSession } from "@/lib/auth/session";
 import { zones } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Drive with Pickuply",
@@ -42,7 +45,14 @@ const faqs = [
   },
 ];
 
-export default function DrivePage() {
+export default async function DrivePage() {
+  const session = await getOptionalSession();
+  if (session?.role === "driver") redirect("/driver");
+  if (session) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle();
+    if (data) redirect("/driver");
+  }
   return (
     <main className="flex-1">
       <section className="px-4 pt-4 sm:pt-8">

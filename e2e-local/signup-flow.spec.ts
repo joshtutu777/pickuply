@@ -79,15 +79,15 @@ test("A a new driver applies from the public drive page", async ({ page }) => {
   await signInFromLogin(page, driver);
   await expect(page).toHaveURL(/\/driver\/onboarding$/);
   await submitApplication(page, driver.name);
-  await expect(page.getByText("Your application is in for review.")).toBeVisible();
+  await expect(page.getByText("Application submitted")).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit application" })).toHaveCount(0);
 });
 
-test("C a returning applicant sees the review instead of a new application", async ({ page }) => {
+test("C a returning applicant sees the driver home instead of a new application", async ({ page }) => {
   await page.goto("/login?next=/driver/onboarding&intent=driver");
   await signInFromLogin(page, driver);
-  await expect(page).toHaveURL(/\/driver\/onboarding/);
-  await expect(page.getByText("Your application is in for review.")).toBeVisible();
+  await expect(page).toHaveURL(/\/driver$/);
+  await expect(page.getByRole("heading", { name: "Driver home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit application" })).toHaveCount(0);
 
   localSql(
@@ -276,7 +276,7 @@ async function submitApplication(page: Page, name: string) {
   await form.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
   await form.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await form.getByRole("button", { name: "Submit application" }).click();
-  await page.waitForURL(/submitted=1/);
+  await page.waitForURL(/\/driver\?saved=applied/);
 }
 
 function userCount(phone: string): number {

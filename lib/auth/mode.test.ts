@@ -20,6 +20,30 @@ test("mode is navigation only and does not invent a driver home", () => {
     "/driver",
   );
   assert.equal(
+    preferredHome({ role: "customer", mode: null, hasDriver: true, next: null, intent: null }),
+    "/driver",
+  );
+  assert.equal(
+    preferredHome({
+      role: "customer",
+      mode: "customer",
+      hasDriver: true,
+      next: null,
+      intent: null,
+    }),
+    "/account",
+  );
+  assert.equal(
+    preferredHome({
+      role: "customer",
+      mode: null,
+      hasDriver: true,
+      next: "/driver/onboarding",
+      intent: "driver",
+    }),
+    "/driver",
+  );
+  assert.equal(
     preferredHome({ role: "admin", mode: "customer", hasDriver: false, next: null, intent: null }),
     "/admin",
   );

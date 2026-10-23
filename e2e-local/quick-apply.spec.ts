@@ -92,8 +92,8 @@ test("quick apply cannot go online until the checklist is finished, then can cla
   await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
   await page.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
-  await page.waitForURL(/submitted=1/);
-  await expect(page.getByText("Application submitted. We'll review it and contact you.")).toBeVisible();
+  await page.waitForURL(/\/driver\?saved=applied/);
+  await expect(page.getByText("Application submitted")).toBeVisible();
 
   const driverId = localSql(
     `select id from auth.users where phone in ('15555550199', '+15555550199') limit 1;`,

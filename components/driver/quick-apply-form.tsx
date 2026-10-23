@@ -125,7 +125,7 @@ export function QuickApplyForm({
       const placeError = await saveDriverPlace(home);
       if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
-      router.push("/driver/onboarding?submitted=1");
+      router.push("/driver?saved=applied");
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "We couldn't submit the application.");

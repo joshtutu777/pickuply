@@ -155,7 +155,7 @@ async function DriverContent({
             Saved
           </p>
         ) : null}
-        {statusCopy && application?.status !== "pending_review" && application?.status !== "applied" ? (
+        {statusCopy ? (
           <section className="mt-4" aria-label="Application status">
             <h2 className="font-display text-2xl font-semibold text-ink">{statusCopy.title}</h2>
             <p className="mt-2 text-base leading-relaxed text-ink">{statusCopy.body}</p>

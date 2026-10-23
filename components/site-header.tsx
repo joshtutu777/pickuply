@@ -16,6 +16,8 @@ export type HeaderState =
       unread: number;
       area: string | null;
       appNav: boolean;
+      homeHref: string;
+      driveHref: string;
     };
 
 export function SiteHeader({ state }: { state: HeaderState }) {
@@ -24,7 +26,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-3">
           <Link
-            href="/"
+            href={state.status === "signed-in" ? state.homeHref : "/"}
             className="inline-flex min-h-12 items-center gap-2.5 rounded-xl pr-1"
           >
             <span
@@ -79,7 +81,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             </Link>
           )}
           <Link
-            href="/drive"
+            href={state.status === "signed-in" ? state.driveHref : "/drive"}
             className={`${navLink}${state.status === "signed-in" && state.appNav ? " max-sm:hidden" : ""}`}
           >
             Drive with us

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
@@ -28,24 +27,15 @@ async function OnboardingContent({
   searchParams: PageProps<"/driver/onboarding">["searchParams"];
 }) {
   const session = await requireSignedIn("/driver/onboarding");
-  const params = await searchParams;
-  const submitted = params.submitted === "1";
+  await searchParams;
   const supabase = await createClient();
   const { data: driver } = await supabase
     .from("drivers")
-    .select("status, review_note")
+    .select("profile_id")
     .eq("profile_id", session.userId)
     .maybeSingle();
 
-  const approved =
-    session.role === "driver" ||
-    driver?.status === "active" ||
-    driver?.status === "approved_new" ||
-    driver?.status === "paused";
-  if (approved) redirect("/driver");
-
-  const waiting = driver?.status === "pending_review" && (submitted || !driver.review_note);
-  const closed = driver?.status === "removed";
+  if (driver || session.role === "driver") redirect("/driver");
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -54,28 +44,7 @@ async function OnboardingContent({
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         Drive with Pickuply
       </h1>
-      {waiting ? (
-        <div className="mt-6 space-y-4 text-base leading-relaxed text-ink">
-          <p>Application submitted. We&apos;ll review it and contact you.</p>
-          <p>Your application is in for review. We will look at your documents before you can take jobs.</p>
-          <Link href="/driver" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Get ready to drive
-          </Link>
-        </div>
-      ) : null}
-      {closed ? (
-        <p className="mt-6 text-base leading-relaxed text-ink">
-          This application was closed. You can submit it again below if something changed.
-        </p>
-      ) : null}
-      {!waiting ? (
-        <>
-          <QuickApplyForm userId={session.userId} defaultName={session.fullName ?? ""} />
-          {driver?.review_note ? (
-            <p className="mt-4 text-base text-ink">Note from Pickuply: {driver.review_note}</p>
-          ) : null}
-        </>
-      ) : null}
+      <QuickApplyForm userId={session.userId} defaultName={session.fullName ?? ""} />
     </main>
   );
 }
