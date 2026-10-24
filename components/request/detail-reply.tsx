@@ -58,7 +58,7 @@ export function DetailReply({
   }
 
   return (
-    <form action={answerDetailRequest} className="mx-auto mt-6 w-full max-w-xl space-y-4 px-4">
+    <form id="details" action={answerDetailRequest} className="mx-auto mt-6 w-full max-w-xl space-y-4 px-4">
       <h2 className="text-xl font-semibold text-ink">Pickuply needs a few details</h2>
       {note ? <p className="text-base text-ink">{note}</p> : null}
       <ul className="list-disc space-y-1 pl-5 text-base text-ink">

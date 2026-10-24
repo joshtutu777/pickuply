@@ -30,13 +30,15 @@ export function ReviewRequestForm({
   pricingMethod,
   needsConfirm,
   detailsOpen = false,
-  alreadyOpen = false,
+  paused = false,
+  askOnly = false,
 }: {
   jobId: string;
   pricingMethod: string;
   needsConfirm: boolean;
   detailsOpen?: boolean;
-  alreadyOpen?: boolean;
+  paused?: boolean;
+  askOnly?: boolean;
 }) {
   const [driverPay, setDriverPay] = useState("");
   const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
@@ -55,6 +57,58 @@ export function ReviewRequestForm({
       cancelled = true;
     };
   }, [cents]);
+
+  const waiting = detailsOpen ? (
+    <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
+      {paused
+        ? "Waiting on the customer. Drivers cannot see this request until they update it."
+        : "Waiting on the customer. Drivers can still see this request."}
+    </p>
+  ) : null;
+
+  const askForm = detailsOpen ? null : (
+    <form action={askForDetails} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      <h2 className="text-lg font-semibold text-ink">Ask for details</h2>
+      <input type="hidden" name="jobId" value={jobId} />
+      <fieldset className="space-y-2">
+        <legend className="text-base font-semibold text-ink">What do you need?</legend>
+        {detailChoices.map(([value, label]) => (
+          <label key={value} className="flex min-h-12 items-center gap-3 text-base">
+            <input type="checkbox" name="item" value={value} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <label className="block text-base font-semibold text-ink" htmlFor="detail-note">
+        Note for the customer
+        <textarea id="detail-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />
+      </label>
+      <label className="flex min-h-12 items-start gap-3 text-base">
+        <input className="mt-1" type="checkbox" name="pauseUntilUpdated" />
+        <span>
+          Pause until updated
+          <span className="mt-1 block text-sm font-normal text-muted">
+            Drivers will not see this request until the customer updates it. Leave this off to keep it visible.
+          </span>
+        </span>
+      </label>
+      <button
+        type="submit"
+        className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+      >
+        Ask for details
+      </button>
+    </form>
+  );
+
+  if (askOnly) {
+    return (
+      <>
+        {waiting}
+        {askForm}
+      </>
+    );
+  }
 
   return (
     <>
@@ -132,42 +186,14 @@ export function ReviewRequestForm({
         Reason if you decline
         <textarea id="decline-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3" />
       </label>
-      {detailsOpen ? (
-        <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
-          Waiting on the customer. Quoting and publishing stay blocked until they answer.
-        </p>
-      ) : pricingMethod === "quote" ? (
+      {detailsOpen ? waiting : pricingMethod === "quote" ? (
         <div className="grid gap-3">
           <SubmitButton action="quote" label="Send quote" />
         </div>
       ) : null}
       <SubmitButton action="decline" label="Decline" />
     </form>
-    {alreadyOpen ? null : (
-    <form action={askForDetails} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-      <h2 className="text-lg font-semibold text-ink">Ask for details</h2>
-      <input type="hidden" name="jobId" value={jobId} />
-      <fieldset className="space-y-2">
-        <legend className="text-base font-semibold text-ink">What do you need?</legend>
-        {detailChoices.map(([value, label]) => (
-          <label key={value} className="flex min-h-12 items-center gap-3 text-base">
-            <input type="checkbox" name="item" value={value} />
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      <label className="block text-base font-semibold text-ink" htmlFor="detail-note">
-        Note for the customer
-        <textarea id="detail-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />
-      </label>
-      <button
-        type="submit"
-        className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-      >
-        Ask for details
-      </button>
-    </form>
-    )}
+    {askForm}
     </>
   );
 }

@@ -24,6 +24,7 @@ export async function askForDetails(formData: FormData) {
     target_job: jobId,
     items,
     note,
+    should_pause: formData.get("pauseUntilUpdated") === "on",
   });
   if (error) {
     redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);

@@ -158,7 +158,7 @@ insert into public.job_reports (job_id, reporter_id, category, description, outc
 values (
   'c1630000-0000-4000-8000-000000000013',
   'c1630000-0000-4000-8000-000000000001',
-  'damaged',
+  'other',
   'The item was damaged',
   'refund'
 );

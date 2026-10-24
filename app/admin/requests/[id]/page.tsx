@@ -234,18 +234,19 @@ async function RequestDetail({
           ) : null}
         </form>
       ) : null}
-      {extra?.status === "requested" || extra?.status === "in_review" || (extra?.status === "open" && extra.pricing_method === "quote") ? (
+      {extra?.status === "requested" || extra?.status === "in_review" || extra?.status === "open" ? (
         <ReviewRequestForm
           jobId={id}
           pricingMethod={job.pricing_method}
           needsConfirm={needsConfirm}
-          alreadyOpen={extra.status === "open"}
+          askOnly={extra.status === "open" && extra.pricing_method !== "quote"}
+          paused={Boolean(extra.paused_at)}
           detailsOpen={
             extra?.detail_request != null &&
             (extra.detail_request as { answered_at?: string | null }).answered_at == null
           }
         />
-      ) : extra?.status === "open" ? null : (
+      ) : (
         <p className="mt-6 text-base text-muted">This request is not waiting for a first review.</p>
       )}
       {extra?.customer_id ? (

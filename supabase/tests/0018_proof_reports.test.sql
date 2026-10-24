@@ -138,7 +138,7 @@ set local role authenticated;
 
 select lives_ok(
   $$select public.file_job_report(
-    'e1818181-1818-4181-8181-181818181821', 'damaged', 'The corner is cracked.', 'repair'
+    'e1818181-1818-4181-8181-181818181821', 'other', 'The corner is cracked.', 'repair'
   )$$,
   'the customer can report a problem'
 );

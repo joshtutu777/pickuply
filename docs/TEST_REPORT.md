@@ -505,7 +505,7 @@ Checkout still returns to `/jobs/{id}?paid=return`. Connect still returns to `/d
 | Production build | READY. `npm run build` passed. |
 | Typecheck | READY. |
 | Unit tests | READY. 145 passed. |
-| Database tests | NOT READY. 31 files, 509 tests, 5 failed. All 5 are in `0029_ask_for_details.test.sql`. A new request is now `open`, and asking for details still requires the old review queue. The expectation was not changed. |
+| Database tests | READY. 31 files, 518 tests, all passed. |
 | Lint | READY. The repository lint passed after the map ref was moved out of render. |
 | Playwright, three browsers, 390px and 1280px | NOT VERIFIED. The full matrix was not run. Chromium, Firefox, and WebKit did pass the earlier customer-record check. |
 | axe | NOT VERIFIED. No axe run was executed. |
@@ -523,3 +523,7 @@ The booking window, late-cancel fee, damage policy, and those rate limits are de
 ## 44. Booking window, fees, and rate limits
 
 Pickups more than 6 days ahead are rejected in the request form and by the database. A late cancel after assignment is one $15 capture. $10 of that goes to the driver only if the driver is on the way or further along. The trip fee stays $25, with $20 for the driver and $5 for Pickuply. Finance counts both fees. Damage reports must be filed within 48 hours of delivery. The Help page and the report form say what is covered and that nothing is refunded automatically. Sign-in codes, requests, offers, messages, and help requests use the limits in the spec. The fee split tests passed. The Stripe browser walk, offer walk, message walk, and admin walk were not run again in this pass.
+
+## 45. Ask for details on a published request
+
+A new request is `open`. Asking for details no longer sends it back to the review queue. The question is posted in Pickuply Support and as an alert. Both open `/jobs/{id}/edit`, and that page is the request edit form. Pause until updated is a checkbox and is off unless the admin turns it on. A paused request stays hidden from driver feeds until the customer saves the update, and then it is visible again. Drivers who already sent an offer get “Request updated — review your offer.” The full local database suite passed: 31 files, 518 tests.

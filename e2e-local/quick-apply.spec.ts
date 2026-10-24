@@ -54,7 +54,7 @@ test("admin ask for details returns to the review queue after the customer answe
   await page.getByRole("checkbox", { name: "Stairs" }).check();
   await page.getByLabel("Note for the customer").fill("How many stairs are at the pickup?");
   await page.getByRole("button", { name: "Ask for details" }).click();
-  await expect(page.getByText("Waiting on the customer. Quoting and publishing stay blocked until they answer.")).toBeVisible();
+  await expect(page.getByText("Waiting on the customer. Drivers can still see this request.")).toBeVisible();
 
   await page.context().clearCookies();
   await signIn(page, customer, `/jobs/${detailJob}`);

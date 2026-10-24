@@ -536,6 +536,10 @@ Not verified: a Stripe transfer to a finished Connect account, a bank payout, an
 
 Paid bookings are not launch-ready. The four frequent cron routes are not scheduled. Stripe still refuses any key that is not `sk_test_`.
 
+## Ask for details on a published request (2026-10-24)
+
+A published request stays `open` when an admin asks for details. The question goes to Pickuply Support and to the customer's alerts, with an Add details button that opens `/jobs/{id}/edit`. Pause until updated is optional. A customer update publishes a paused request again and tells drivers who already offered to review the offer. Local migration `0066_published_details.sql` is not on the hosted database.
+
 ## Beta feedback (2026-10-23)
 
 The header shows a Beta badge while `NEXT_PUBLIC_BETA_MODE` is not `false`. Customers and drivers send feedback at `/feedback` from the desktop menu and from Profile. The phone bar is unchanged. The form stores type, subject, details, the signed-in user, role, route, version, and a short device string. Screenshots are deferred because there is no private attachment path yet. Local migration `0056_beta_feedback.sql` is applied here and is not on the hosted database. Admin notes are a separate table. Only an admin can list every report, change status, or read notes. Duplicate reports in a 10-minute window are rejected, and a person can send at most eight in an hour. `/admin/feedback` shows the counts and filters. No text or email is sent.

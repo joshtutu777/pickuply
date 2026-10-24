@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { containsContact } from "@/lib/messages/contact";
 import { compressImage } from "@/lib/photos";
@@ -13,6 +14,7 @@ export type ChatMessage = {
   mine: boolean;
   sender_name: string;
   seen?: boolean;
+  action_href?: string | null;
 };
 
 export type ChatFile = { id: string; url: string | null };
@@ -135,7 +137,15 @@ export function MessagePanel({
         {messages.map((message) => (
           <li key={message.id} className="rounded-2xl bg-paper-raised px-4 py-3 ring-1 ring-line">
             <p className="text-sm font-semibold text-muted">{message.sender_name}</p>
-            <p className="text-base text-ink">{message.body}</p>
+            <p className="whitespace-pre-wrap text-base text-ink">{message.body}</p>
+            {message.action_href && /^\/jobs\/[0-9a-fA-F-]{36}\/edit$/.test(message.action_href) ? (
+              <Link
+                href={message.action_href}
+                className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+              >
+                Add details
+              </Link>
+            ) : null}
             <p className="text-sm text-muted">
               {new Date(message.created_at).toLocaleString()}
               {message.id === lastMine?.id && message.seen ? " · Seen" : ""}

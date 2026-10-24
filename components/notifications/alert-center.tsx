@@ -25,7 +25,7 @@ export async function AlertCenter({
   const [{ data: alerts, error: alertError }, { data: prefs }] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id, title, body, href, read_at, created_at")
+      .select("id, kind, title, body, href, read_at, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
@@ -96,6 +96,11 @@ export async function AlertCenter({
                     {alert.read_at ? alert.title : `New · ${alert.title}`}
                   </p>
                   <p className="mt-1 text-base text-ink">{alert.body}</p>
+                  {alert.kind === "details_requested" ? (
+                    <span className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+                      Add details
+                    </span>
+                  ) : null}
                   <p className="mt-1 text-sm text-muted">{new Date(alert.created_at).toLocaleString()}</p>
                 </Link>
               </li>
