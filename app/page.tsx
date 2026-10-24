@@ -21,18 +21,18 @@ export default function HomePage() {
               home.
             </p>
             <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
-              Secure local deals before someone else does: trusted, affordable
-              transportation from neighbors with the right vehicle.
+              Early access for local pickup, store delivery, and junk hauling.
+              Drivers send offers. You choose who to book.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/request" className={primaryAction}>
                 Get a price
               </Link>
-              <Link href="/login" className={secondaryAction}>
-                Sign up / Sign in
+              <Link href="/signup" className={secondaryAction}>
+                Sign up
               </Link>
-              <Link href="/drive" className={secondaryAction}>
-                Drive with us
+              <Link href="/driver/apply" className={secondaryAction}>
+                Apply to drive
               </Link>
             </div>
           </div>

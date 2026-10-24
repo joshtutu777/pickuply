@@ -88,16 +88,16 @@ export function zoneForCity(city: string): ZoneSlug | null {
 }
 
 export const howItWorks = [
-  "Send a photo or listing",
-  "Get a locked price",
-  "A verified driver picks it up",
-  "Pay only when it arrives",
+  "Tell us what you need",
+  "Drivers send offers",
+  "You choose who to book",
+  "Your card is charged after delivery",
 ] as const;
 
 export const trustPoints = [
-  "Verified drivers",
-  "Price locked before pickup",
-  "Card charged only after delivery",
+  "You choose the driver",
+  "Price shown before you book",
+  "Card charged after delivery",
 ] as const;
 
 /** Locked v1 policies. Booking fees live in platform_settings. These defaults match that row and are not added on the request form. */
