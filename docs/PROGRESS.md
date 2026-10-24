@@ -538,7 +538,7 @@ Paid bookings are not launch-ready. The four frequent cron routes are not schedu
 
 ## Ask for details on a published request (2026-10-24)
 
-A published request stays `open` when an admin asks for details. The question goes to Pickuply Support and to the customer's alerts, with an Add details button that opens `/jobs/{id}/edit`. Pause until updated is optional. A customer update publishes a paused request again and tells drivers who already offered to review the offer. Local migration `0066_published_details.sql` is not on the hosted database.
+A published request stays `open` when an admin asks for details. Drivers can still send offers unless the admin pauses it. Only an admin quote waits for the answer. A paused request is hidden, and a new offer is rejected by the database. The question goes to Pickuply Support and to the customer's alerts, with an Add details button that opens `/jobs/{id}/edit`. Pause until updated is optional. A customer update publishes a paused request again and tells drivers who already offered to review the offer. Local migration `0066_published_details.sql` is not on the hosted database.
 
 ## Beta feedback (2026-10-23)
 

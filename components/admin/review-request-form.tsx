@@ -62,7 +62,7 @@ export function ReviewRequestForm({
     <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
       {paused
         ? "Waiting on the customer. Drivers cannot see this request until they update it."
-        : "Waiting on the customer. Drivers can still see this request."}
+        : "Waiting on the customer. Drivers can still see this request and send offers. An admin quote waits for the answer."}
     </p>
   ) : null;
 

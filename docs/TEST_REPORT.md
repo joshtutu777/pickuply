@@ -505,7 +505,7 @@ Checkout still returns to `/jobs/{id}?paid=return`. Connect still returns to `/d
 | Production build | READY. `npm run build` passed. |
 | Typecheck | READY. |
 | Unit tests | READY. 145 passed. |
-| Database tests | READY. 31 files, 518 tests, all passed. |
+| Database tests | READY. 31 files, 523 tests, all passed. |
 | Lint | READY. The repository lint passed after the map ref was moved out of render. |
 | Playwright, three browsers, 390px and 1280px | NOT VERIFIED. The full matrix was not run. Chromium, Firefox, and WebKit did pass the earlier customer-record check. |
 | axe | NOT VERIFIED. No axe run was executed. |
@@ -526,4 +526,4 @@ Pickups more than 6 days ahead are rejected in the request form and by the datab
 
 ## 45. Ask for details on a published request
 
-A new request is `open`. Asking for details no longer sends it back to the review queue. The question is posted in Pickuply Support and as an alert. Both open `/jobs/{id}/edit`, and that page is the request edit form. Pause until updated is a checkbox and is off unless the admin turns it on. A paused request stays hidden from driver feeds until the customer saves the update, and then it is visible again. Drivers who already sent an offer get “Request updated — review your offer.” The full local database suite passed: 31 files, 518 tests.
+A new request is `open`. Asking for details no longer sends it back to the review queue. The question is posted in Pickuply Support and as an alert. Both open `/jobs/{id}/edit`, and that page is the request edit form. Pause until updated is a checkbox and is off unless the admin turns it on. A paused request stays hidden from driver feeds until the customer saves the update, and then it is visible again. Drivers who already sent an offer get “Request updated — review your offer.” While the question is open and the request is not paused, drivers can still send offers. Only an admin quote waits. A paused request stays out of the driver feed, and the database rejects a new offer. The full local database suite passed: 31 files, 523 tests.

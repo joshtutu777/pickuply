@@ -5,7 +5,7 @@ begin;
 
 set local search_path to public, extensions;
 
-select plan(17);
+select plan(22);
 
 do $$
 declare
@@ -172,7 +172,7 @@ select ok(
 select throws_ok(
   $$update public.jobs set status = 'quoted' where id = 'd2900000-0000-4000-8000-000000000010'$$,
   'wait for the customer to answer before quoting or publishing',
-  'a quote is blocked while the question is open'
+  'an admin quote waits for the answer'
 );
 
 select pg_temp.as_user('d2900000-0000-4000-8000-000000000003');
@@ -279,40 +279,63 @@ insert into public.drivers (
   array['delivery']::public.job_service[],
   true
 );
-insert into public.job_offers (
-  job_id, driver_id, kind, driver_amount_cents, platform_fee_cents, service_fee_cents,
-  customer_total_cents, outside_range, status, expires_at
-) values (
-  'd2900000-0000-4000-8000-000000000011',
-  'd2900000-0000-4000-8000-000000000004',
-  'accept',
-  5000,
-  0,
-  0,
-  5000,
-  false,
-  'active',
-  now() + interval '2 hours'
-);
-
 select pg_temp.as_user('d2900000-0000-4000-8000-000000000002');
 select lives_ok(
   $$select public.ask_for_details(
     'd2900000-0000-4000-8000-000000000011',
     array['size'],
     'How big is the table?',
-    true
+    false
   )$$,
-  'an admin can pause a published request until it is updated'
+  'an admin can ask without pausing the request'
+);
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select lives_ok(
+  $$insert into public.job_offers (
+    job_id, driver_id, kind, driver_amount_cents, platform_fee_cents, service_fee_cents,
+    customer_total_cents, outside_range, status, expires_at
+  ) values (
+    'd2900000-0000-4000-8000-000000000011',
+    'd2900000-0000-4000-8000-000000000004',
+    'accept',
+    5000,
+    0,
+    0,
+    5000,
+    false,
+    'active',
+    now() + interval '2 hours'
+  )$$,
+  'a driver can send an offer while the question is open'
 );
 
 select ok(
   (
-    select status = 'open' and paused_at is not null
+    select detail_request->>'answered_at' is null
+      and exists (
+        select 1 from public.job_offers
+        where job_id = 'd2900000-0000-4000-8000-000000000011'
+          and status = 'active'
+      )
     from public.jobs
     where id = 'd2900000-0000-4000-8000-000000000011'
+      and paused_at is null
   ),
-  'pause hides the published request until the customer updates it'
+  'the open question keeps the request visible to drivers'
+);
+
+select pg_temp.as_user('d2900000-0000-4000-8000-000000000004');
+select is(
+  (
+    select count(*)::int
+    from public.driver_job_feed()
+    where id = 'd2900000-0000-4000-8000-000000000011'
+  ),
+  1,
+  'the driver feed still shows a request that was not paused'
 );
 
 select pg_temp.as_user('d2900000-0000-4000-8000-000000000001');
@@ -345,6 +368,93 @@ select is(
   ),
   'Request updated — review your offer',
   'a driver who already offered is told to review the offer'
+);
+
+select pg_temp.as_user('d2900000-0000-4000-8000-000000000001');
+select public.create_customer_request(
+  'd2900000-0000-4000-8000-000000000012',
+  jsonb_build_object(
+    'service', 'delivery',
+    'description', 'Oak chair',
+    'has_photo', false,
+    'pricing_method', 'fixed',
+    'preferred_date', 'asap',
+    'zone_slug', 'west_metro',
+    'pickup_area', 'Austell, 30106',
+    'pickup_address', '12 Secret Street',
+    'dropoff_area', 'Smyrna, 30080',
+    'dropoff_address', '22 Hidden Avenue',
+    'customer_name', 'Details Customer',
+    'customer_phone', '+14045551212',
+    'stairs_pickup', 0,
+    'stairs_dropoff', 0,
+    'elevator', false,
+    'help_loading', false,
+    'offer_cents', 5000,
+    'budget_min_cents', null,
+    'budget_max_cents', null,
+    'pieces', null,
+    'size', null,
+    'item_value_cents', null,
+    'listing_url', null,
+    'notes', null,
+    'source', null,
+    'customer_email', null,
+    'access_notes', null,
+    'already_paid', null,
+    'seller_holding', null,
+    'wants_item_check', null,
+    'junk_load_size', null,
+    'junk_materials', null,
+    'junk_special_items', null,
+    'store_name', null,
+    'store_order_number', null
+  )
+);
+
+select pg_temp.as_user('d2900000-0000-4000-8000-000000000002');
+select lives_ok(
+  $$select public.ask_for_details(
+    'd2900000-0000-4000-8000-000000000012',
+    array['size'],
+    'How big is the chair?',
+    true
+  )$$,
+  'an admin can pause a published request until it is updated'
+);
+
+select pg_temp.as_user('d2900000-0000-4000-8000-000000000004');
+select is(
+  (
+    select count(*)::int
+    from public.driver_job_feed()
+    where id = 'd2900000-0000-4000-8000-000000000012'
+  ),
+  0,
+  'a paused request is hidden from the driver feed'
+);
+
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '', true);
+select throws_ok(
+  $$insert into public.job_offers (
+    job_id, driver_id, kind, driver_amount_cents, platform_fee_cents, service_fee_cents,
+    customer_total_cents, outside_range, status, expires_at
+  ) values (
+    'd2900000-0000-4000-8000-000000000012',
+    'd2900000-0000-4000-8000-000000000004',
+    'accept',
+    5000,
+    0,
+    0,
+    5000,
+    false,
+    'active',
+    now() + interval '2 hours'
+  )$$,
+  'this request is paused',
+  'a paused request rejects a new offer'
 );
 
 select * from finish();
