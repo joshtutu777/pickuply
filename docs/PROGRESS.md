@@ -693,3 +693,9 @@ Local only. Address search works before sign-in. An authorization sends one noti
 - The 24-hour auto-complete path on a delivered job. The cron was called and returned ok.
 - A customer cancel click. The release-before-capture refund was tested.
 - Hosted deploy. Do not apply `0014` through `0027` or deploy until that is approved.
+
+## Live test site (2026-10-24)
+
+`https://pickuplyapp.com` is the testing site. Production on the Vercel project `pickuply` was already Ready and serving that domain. The address, phone, and coverage fixes were already committed and pushed as `2765d42`. No secret values were copied into Vercel from this pass.
+
+Checked on the live site: street search returns house numbers and fills street, city, and ZIP on desktop and a phone-sized screen. The signed-in test customer sees a formatted phone. Signed-out profile and admin pages redirect away. The Areas I cover dropdown on driver application loads 629 Georgia cities and can select more than one, on desktop and a phone-sized screen. The application was not submitted. Messages opens and shows no conversations for that account. Google Places stays server-only. The browser map still uses the text fallback because Vercel has `GOOGLE_MAPS_API_KEY` and the app reads `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Stripe, Twilio, Resend, push, driving miles, and the cron secret are not on Vercel. Stripe keys in `.env.local` are test keys. The local webhook secret must not be reused for the hosted endpoint.

@@ -1,6 +1,8 @@
 # Deployment checklist
 
-Local evidence does not include a `.vercel` project link. The names `pickuply-ku8y` and `pickuply` cannot be confirmed from this repository. The GitHub repo named in the request is `joshtutu777/pickuply`. The working branch is `cursor/admin-ops-dashboard`. Nothing in this pass was pushed or deployed.
+`https://pickuplyapp.com` is the live testing site. The Vercel project is `pickuply` under the `pickuply-app` team. Production is what that domain serves. Keep Stripe in test mode. Do not paste secret values into git.
+
+When a feature needs a new variable, add the empty name to `.env.local.example`, give the owner a paste table (name, where the working value is, Production and Preview, server-only or public), and verify the feature on pickuplyapp.com after the owner saves it in Vercel. `vercel env ls` shows names only.
 
 ## Environment variables
 

@@ -68,3 +68,12 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 - `components/` reusable UI
 - `supabase/migrations/` numbered SQL migration files — never edit an applied migration; add a new one
 - Keep constants (zones, statuses, fees, report categories, strike points) in one place: `lib/constants.ts` and the database
+
+## Live test configuration
+`https://pickuplyapp.com` is the live testing site. When a feature needs an API key or environment variable:
+- Add the name to `.env.local.example` with an empty value. Never commit a real value.
+- Do not copy secret values into Git, client code, or chat. `NEXT_PUBLIC_*` is visible in the browser. Every other value stays server-only.
+- Give the owner a table: variable name, where the working value is, Production and Preview, server-only or public. The owner pastes each value into Vercel.
+- Verify with `vercel env ls` (names only) and by using the feature on pickuplyapp.com. A key that exists but is unused by the code does not count.
+- Keep Stripe on test keys (`sk_test_` and `pk_test_`). Do not turn on live payments, live texts, or other chargeable production actions without an explicit OK.
+- The local Stripe CLI webhook secret is not the secret for pickuplyapp.com. A hosted webhook needs its own test-mode endpoint.
