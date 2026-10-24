@@ -199,10 +199,8 @@ Static audit of `components/landing/landing-page.tsx`: Terms links to `/terms`, 
 
 1. **Bookings 8, 9, and 10 days ahead.** This pass did not create those PaymentIntents. The app stores Stripe's `capture_before`. If that deadline is before pickup, the choices are: authorize closer to pickup, limit how far ahead a job can be booked, or reauthorize with the customer's consent. No booking-window change was made.
 2. **Late-cancel fee.** The spec and help text describe a $15 partial capture. The finance report still shows that portion as Not tracked. Confirm whether that fee should be built before treating it as live.
-3. **Account deletion during an active job.** No deletion policy was added.
-4. **Damage and liability.** No coverage, limit, or automatic refund rule was added. Reports and the existing refund tools remain the path.
-5. **Rate-limit numbers** for OTP, requests, offers, messages, and help were not invented.
-6. **How long financial records are kept** after an account deletion request. Nothing is deleted by this pass.
+3. **Damage and liability.** No coverage, limit, or automatic refund rule was added. Reports and the existing refund tools remain the path.
+4. **Rate-limit numbers** for OTP, requests, offers, messages, and help were not invented.
 
 ## 38. Screenshot paths
 
@@ -379,22 +377,13 @@ Storage object bytes for photos and documents are not deleted with the account. 
 
 ## 27. Needs Josh's decision
 
-1. Can a suspended driver finish an active delivery? This pass does not stop the in-progress buttons and does not cancel the job.
-2. Should a future scheduled job be treated differently from a job already in progress? This pass leaves both in place.
-3. Should a suspended driver still receive eligible earnings on the existing payout schedule? This pass does not put those earnings on hold.
-4. What else, besides an active job, an open authorization, an open dispute, unfinished earnings, or a recovery balance, should delay deletion?
-5. How long should financial records, messages, photos, and dispute evidence be kept?
-6. Can a dual-role person delete only one role? This pass deletes or anonymizes the whole account.
-7. Can a person cancel a pending deletion request?
-8. How should deletion interact with an unresolved dispute or a recovery balance? This pass refuses to finish deletion while those exist.
-9. What is the suspension appeal process?
-10. How long should a restricted-phone HMAC be kept? A temporary suspension copies its end time. An indefinite one has no end time in the table.
-11. How should a phone number that was given to a new owner be handled?
-12. What should happen when a deleted account's temporary suspension reaches its end time? The check already ignores an expired HMAC. Whether the row should be deleted is open.
-13. What is the authorized process for deleting an admin account? A self-service request stays pending and does not remove the last admin.
-14. What is the recovery procedure if admin access is lost?
-15. Should a suspension trigger an extra review of outstanding payouts? This pass only alerts admins about active jobs.
-16. How should the other party be told that an active job needs help? Admins see an alert. The other party is not sent a new message. The allowed public line, if wanted, is "This booking requires assistance from Pickuply support."
+These were resolved by the approved account rules and are no longer open: suspended drivers finishing an in-transit delivery, flagging an assigned job that has not started, payouts during suspension, deletion blockers, the 14-day cancellation window, Stop Driving for someone who is also a customer, the help-request appeal, HMAC retention, expired temporary restrictions, and removing the last admin.
+
+Still open:
+
+1. How should a phone number that was given to a new owner be handled?
+2. What is the recovery procedure if all admin access is lost? The last-admin lock stops the last admin from being removed. It does not say how to recover a lost admin sign-in.
+3. Recommended definition of a recent dispute for the 90-day photo rule: keep the photos until 365 days after `resolved_at`. That cutoff is not implemented. A photo tied to any dispute is kept until this is decided.
 
 ## 28. Screenshots and artifact paths
 
@@ -407,3 +396,64 @@ Implementation: `48f7e3043b71eb17a34494b9119dc9c54490f8c9`. The commit that adds
 ## 30. Confirmation that no hosted changes occurred
 
 No git push. No deploy. No hosted database, Stripe, Twilio, Vercel, or DNS change. No live charge. No real SMS, email, or push. `.env.local` and `.env.test.local` were not edited.
+
+## 31. Policy follow-up
+
+Local only. The two earlier Task 4 commits were not rewritten. Migration `0061_account_policy.sql` applies the nine approved rules. There is no `/admin/customers/[id]` page. The instruction for that page was cut off, so customer suspension stays on the request page and the driver page. Task 3 sections 2–12 and 16–29 were not run again.
+
+The phone-protection secret is in local Supabase Vault under the name `phone_hmac_secret`. A copy stays in the ignored `.local/phone-hmac-secret` file. The value is not in git. `ALTER DATABASE` cannot set `pickuply.phone_hmac_secret` on this local database. The function reads that setting when it is present, and Vault only when the setting is unset. An empty setting does not fall through to Vault. A missing secret blocks a new registration and leaves a restricted deletion pending. It does not block an existing account.
+
+## 32. Policy tests executed
+
+Database, rolled back:
+
+- An assigned job is flagged. A job already in transit is not. The suspended driver cannot start the assigned job. The in-transit job reaches the delivery-photo check. A direct price change on the flagged job is rejected. Reassignment keeps the authorized payment.
+- Suspension alone leaves earned pay ready. An open dispute then holds that pay.
+- A customer who also drives can stop driving, keep the phone, close the unaccepted offer, and clear the license. A driver-only account with open pay stays signed in and does not lose the phone.
+- Deletion stays pending for 14 days, can be cancelled during those days, and cannot be cancelled after. A clear account is deleted once. A second run does not complete it again. A remaining blocker does not move the saved end time.
+- With the secret cleared inside the test, a restricted deletion keeps the phone and a new registration is refused.
+- The last remaining admin cannot be demoted.
+
+A separate local script demoted two temporary admins at the same time. One change was rejected. The original admin was restored. The temporary users were removed.
+
+Browser, local app at `http://127.0.0.1:3001`, one Chromium tab, no saved screenshots:
+
+- Delete Account shows the 14-day explanation and the confirmation form. The form was not submitted.
+- Profile for an account that is not a driver shows Account management and Delete Account, and does not show Stop Driving.
+- Stop Driving explains that the customer account stays, and this account says it is not set up to drive.
+- `/help?appeal=1` fills the topic with Account restriction. The request was not sent.
+
+## 33. Policy pass results
+
+| Result | Count | What |
+|---|---:|---|
+| Passed | 34 | Policy database tests |
+| Passed | 23 | Deletion database tests, including the 14-day grace |
+| Passed | 12 | Suspension database tests |
+| Passed | 7 | Security database tests |
+| Passed | 5 | Existing payout-hold regression |
+| Passed | 1 | Concurrent last-admin script, original admin restored |
+| Passed | 121 | Unit suite, including the grace-window case |
+| Passed | 1 | Typecheck |
+| Passed | 1 | Lint of the files this pass changed |
+| Failed | 0 | |
+| Blocked | 0 | The local Vault secret is set. Hosted Vault was not configured. |
+| Not Run | Production build; Playwright; Firefox; WebKit; axe; load; a driver account in the browser; a suspended Contact support click; HTTP calls besides the database functions; Task 3 sections 2–12 and 16–29 | |
+
+Reserved numbers 5555550201 through 5555550205 were not used.
+
+## 34. Policy bugs fixed
+
+Reassignment failed because the job guard also requires the admin-assign setting. Saving deletion blockers failed because the function name was read as a table. Both are fixed. `ALTER DATABASE` is not how this local database accepts the phone secret, so local setup uses Vault.
+
+## 35. Still open
+
+A photo tied to any dispute is kept. The recommended recent-dispute cutoff, 365 days after `resolved_at`, is not implemented. Reassigned phone numbers and recovery from a lost admin sign-in are still open. Hosted scheduling was not turned on. Storage files outside the job-photos match can remain. The earlier Task 3 matrix was not re-run.
+
+## 36. Policy commit
+
+Implementation: `3d26fe8c723e94e20ab4f35b43150e6a4342c235`. The commit that adds this policy section follows it. Neither was pushed. The earlier Task 4 commits `48f7e3043b71eb17a34494b9119dc9c54490f8c9` and `d816af90d6a2c7e802f13e634b92bac064024b83` were not rewritten.
+
+## 37. Policy confirmation
+
+No git push. No deploy. No hosted database, Stripe, Twilio, Vercel, or DNS change. No live charge. No real SMS, email, or push. `.env.local` and `.env.test.local` were not edited. The phone secret was not printed.
