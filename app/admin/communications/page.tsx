@@ -86,6 +86,8 @@ async function Communications({
             <option value="online_drivers">Online drivers</option>
             <option value="city_drivers">Drivers covering a city</option>
             <option value="active_customers">Customers with an active job</option>
+            <option value="never_booked">Customers who have never booked</option>
+            <option value="needs_documents">Drivers needing documents</option>
             <option value="all">Customers and eligible drivers</option>
           </select>
         </label>
