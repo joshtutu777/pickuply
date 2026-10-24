@@ -17,8 +17,7 @@ export function CoverageEditor({
   persist?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
-  const [cities, setCities] = useState<string[]>([]);
-  const [city, setCity] = useState("");
+  const [cities, setCities] = useState<string[] | null>(null);
   const [zip, setZip] = useState("");
   const [originZip, setOriginZip] = useState(value.radiusZip);
   const [fromZip, setFromZip] = useState(Boolean(value.radiusZip));
@@ -31,7 +30,12 @@ export function CoverageEditor({
       .from("ga_zip_centroids")
       .select("city")
       .limit(2000)
-      .then(({ data }) => {
+      .then(({ data, error: loadError }) => {
+        if (loadError) {
+          setCities([]);
+          setError("Cities could not be loaded. Refresh and try again.");
+          return;
+        }
         const names = [...new Set((data ?? []).map((row) => row.city))].sort((a, b) => a.localeCompare(b));
         setCities(names);
       });
@@ -64,17 +68,6 @@ export function CoverageEditor({
     setSaved("Saved");
   }
 
-  function addCity() {
-    const match = cities.find((name) => name.toLowerCase() === city.trim().toLowerCase());
-    if (!match) {
-      setError("Choose a Georgia city.");
-      return;
-    }
-    if (draft.cities.includes(match)) return;
-    void commit({ ...draft, cities: [...draft.cities, match] });
-    setCity("");
-  }
-
   function addZip() {
     const next = zip.trim();
     if (!/^[0-9]{5}$/.test(next)) {
@@ -92,22 +85,28 @@ export function CoverageEditor({
       <div>
         <label className="block text-base font-semibold text-ink" htmlFor="coverage-city">
           Georgia city
-          <input
+          <select
             id="coverage-city"
-            list="georgia-cities"
-            value={city}
-            onChange={(event) => setCity(event.target.value)}
+            value=""
+            onChange={(event) => {
+              const match = event.target.value;
+              if (!match || draft.cities.includes(match)) return;
+              void commit({ ...draft, cities: [...draft.cities, match] });
+            }}
             className={controlClass}
-          />
+          >
+            <option value="">
+              {cities === null ? "Loading cities…" : cities.length === 0 ? "No cities found" : "Choose a city"}
+            </option>
+            {(cities ?? [])
+              .filter((name) => !draft.cities.includes(name))
+              .map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+          </select>
         </label>
-        <datalist id="georgia-cities">
-          {cities.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
-        <button type="button" onClick={addCity} className="mt-2 inline-flex min-h-12 items-center font-semibold text-brand">
-          Add city
-        </button>
       </div>
       {draft.cities.length > 0 ? (
         <ul className="flex flex-wrap gap-2">

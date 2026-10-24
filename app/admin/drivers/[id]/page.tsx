@@ -6,6 +6,7 @@ import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { coverageSummary } from "@/lib/driver/coverage";
+import { formatUsPhone } from "@/lib/phone";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,7 +52,7 @@ async function DriverDetail({
   const { data: driver } = await supabase.from("drivers").select("*").eq("profile_id", id).maybeSingle();
   if (!driver) notFound();
   const [{ data: profile }, { data: vehicle }, { data: payout }, { data: coverage }] = await Promise.all([
-    supabase.from("profiles").select("full_name, role, photo_url").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("full_name, phone, role, photo_url").eq("id", id).maybeSingle(),
     supabase
       .from("vehicles")
       .select("type, make, model, year, plate, cargo_length_in, photo_url, approved")
@@ -93,6 +94,9 @@ async function DriverDetail({
       </h1>
       <p className="mt-2 text-base text-muted">
         {driver.status.replaceAll("_", " ")} · role {profile?.role}
+      </p>
+      <p className="mt-2 text-base text-ink">
+        Phone: {profile?.phone ? formatUsPhone(profile.phone) ?? profile.phone : "No phone on file"}
       </p>
       {driver.license_url ? <p className="mt-2 text-base text-ink">License on file</p> : null}
       {driver.status === "removed" ? (

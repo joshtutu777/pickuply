@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ModeSwitch } from "@/components/profile/mode-switch";
 import { SignOutButton } from "@/components/sign-out-button";
-import { maskUsPhone } from "@/lib/phone";
+import { formatUsPhone } from "@/lib/phone";
 import type { Role } from "@/lib/auth/access";
 import { betaMode } from "@/lib/beta";
 
@@ -21,11 +21,11 @@ export function ProfileMenu({
   area?: string | null;
   surface: "customer" | "driver";
 }) {
-  const masked = phone ? maskUsPhone(phone) : null;
+  const shown = phone ? formatUsPhone(phone) : null;
   const driving = role === "driver" || hasDriver;
   return (
     <>
-      <p className="mt-2 text-base text-muted">{masked ?? "Phone on file"}</p>
+      <p className="mt-2 text-base text-muted">{shown ?? "No phone on file"}</p>
       {area ? <p className="mt-1 text-base text-muted">{area}</p> : null}
       <ul className="mt-6 grid gap-3">
         {role === "admin" ? (

@@ -6,6 +6,7 @@ import { IncludeTestData } from "@/components/admin/include-test-data";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
+import { formatUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: { absolute: "Customers · Pickuply Admin" } };
@@ -82,8 +83,11 @@ async function Customers({ searchParams }: CustomersPageProps) {
       <ul className="mt-4 grid gap-2">
         {shown.map((row) => (
           <li key={row.id}>
-            <Link href={`/admin/customers/${row.id}`} className="flex min-h-12 items-center justify-between rounded-2xl bg-paper-raised px-4 ring-1 ring-line">
-              <span className="font-semibold text-ink">{row.full_name ?? "Unnamed"}</span>
+            <Link href={`/admin/customers/${row.id}`} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-paper-raised px-4 ring-1 ring-line">
+              <span>
+                <span className="block font-semibold text-ink">{row.full_name ?? "Unnamed"}</span>
+                <span className="block text-sm text-muted">{row.phone ? formatUsPhone(row.phone) ?? row.phone : "No phone"}</span>
+              </span>
               <span className="text-sm text-muted">
                 {row.deleted_at ? "Deleted" : row.reclaim_hold_at ? "Phone review" : suspended.has(row.id) ? "Suspended" : pending.has(row.id) ? "Deletion pending" : row.role}
               </span>

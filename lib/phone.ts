@@ -6,6 +6,14 @@ export function normalizeUsPhone(value: string): string | null {
   return null;
 }
 
+/** Readable number for the signed-in person and for an admin. */
+export function formatUsPhone(value: string): string | null {
+  const normalized = normalizeUsPhone(value);
+  if (!normalized) return null;
+  const digits = normalized.slice(2);
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 /** Last four digits only. The rest of the number stays hidden. */
 export function maskUsPhone(value: string): string | null {
   const normalized = normalizeUsPhone(value);
