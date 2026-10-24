@@ -121,7 +121,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - When payment is due, the heading is **Confirm Your Booking** and the button is **Confirm Booking & Payment**. The breakdown is the selected driver's offer (driver earnings plus the platform fee), the service fee, additional charges, and the customer total. Trip, late-cancel, and dump charges are not in that total at booking. The card is authorized at confirm. The charge happens after the customer confirms delivery, or 24 hours later. If the authorization expires first, the card is not charged.
 
 ### 4.6 Public pages and text consent
-- `/privacy` and `/terms` publish the October 22, 2026 drafts, with the booking section matched to the current offer and payment flow. A lawyer must approve them before launch.
+- `/privacy` and `/terms` are the published October 22, 2026 Privacy Policy and Terms of Service. The booking section matches the current offer and payment flow. A later legal review is optional and is not required before launch.
 - `/signup` opens phone sign-up. `/driver/apply` opens the driver application sign-up. Optional text consent is a separate unchecked box. The sign-in code does not depend on that box.
 - Vercel Hobby cannot run the payment, notification, auto-complete, or transfer jobs more than once a day. Those routes stay in the app. `docs/SCHEDULER.md` is the activation step for Supabase `pg_cron`. Paid bookings are not ready until that scheduler, or Vercel Pro, is actually running.
 

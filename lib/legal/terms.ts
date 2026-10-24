@@ -15,8 +15,7 @@ export const termsSections: LegalSection[] = [
     id: "marketplace",
     heading: "Marketplace role",
     paragraphs: [
-      "Pickuply facilitates requests, offers, booking, and messages. Drivers are independent service providers, not employees of Pickuply, unless a written agreement says otherwise. Pickuply does not guarantee that a driver will offer, that a customer will book, or that a job will be completed.",
-      "The draft source says the allocation of liability and insurance must be reviewed by counsel before launch. This page does not add an insurance guarantee.",
+      "Pickuply facilitates requests, offers, booking, and messages. Drivers are independent service providers, not employees of Pickuply, unless a written agreement says otherwise. Pickuply does not guarantee that a driver will offer, that a customer will book, or that a job will be completed. Pickuply does not provide an insurance guarantee.",
     ],
   },
   {
@@ -41,7 +40,6 @@ export const termsSections: LegalSection[] = [
     paragraphs: [
       "Before the customer confirms, Pickuply shows the selected driver's offer, the service fee, any additional charges that apply at booking, and the total. The driver's offer on that screen is driver earnings plus the platform fee. The platform fee starts at 10% of driver earnings with a $10 minimum. The service fee is the card-processing amount, starting from 2.9% plus 30 cents, and is labeled Service fee. The amounts on the screen are the amounts used for that booking.",
       "When a driver accepts a posted fixed price, the customer total stays the posted total and the fees are calculated inside it. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
-      "Service-fee wording and card-surcharge rules still need review before launch.",
     ],
   },
   {
@@ -57,7 +55,7 @@ export const termsSections: LegalSection[] = [
     id: "cancellations",
     heading: "Cancellations and refunds",
     paragraphs: [
-      "Whether money comes back depends on whether a driver is assigned, whether work has started, and whether a charge has already been captured. The source draft says not to assume a specific cancellation fee until a schedule is published and shown before booking. This page does not add a cancellation penalty beyond what the booking screen shows.",
+      "Whether money comes back depends on whether a driver is assigned, whether work has started, and whether a charge has already been captured. These Terms do not add a cancellation penalty beyond what the booking screen shows.",
       "Contact info@pickuplyapp.com for help with a cancellation or a refund question.",
     ],
   },
@@ -81,7 +79,7 @@ export const termsSections: LegalSection[] = [
     heading: "Safety, damage, and disputes",
     paragraphs: [
       "Customers must provide safe, lawful access and disclose material risks. Drivers must use appropriate care and follow transportation and disposal rules.",
-      "Report loss, damage, or misconduct to info@pickuplyapp.com. A problem report can hold capture of a payment that has not moved yet. It does not reverse money that has already moved. The source draft says claims, insurance, and liability still need counsel's review. This page does not set a damage payout.",
+      "Report loss, damage, or misconduct to info@pickuplyapp.com. A problem report can hold capture of a payment that has not moved yet. It does not reverse money that has already moved. These Terms do not set a damage payout.",
     ],
   },
   {
@@ -103,7 +101,7 @@ export const termsSections: LegalSection[] = [
     id: "disclaimers",
     heading: "Disclaimers and legal terms",
     paragraphs: [
-      "The service is provided as available, to the extent the law allows. The source draft does not impose arbitration, a class-action waiver, a liability cap, or a governing-law clause. Those terms are not added here. Qualified counsel must write them before launch if Pickuply wants them.",
+      "The service is provided as available, to the extent the law allows. These Terms do not include arbitration, a class-action waiver, a liability cap, or a governing-law clause.",
     ],
   },
   {

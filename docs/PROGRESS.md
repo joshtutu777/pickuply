@@ -496,7 +496,11 @@ Local UI only. No schema, pricing, payment, or eligibility changes. Customers ge
 
 ## Launch readiness pass (2026-10-23)
 
-`/privacy` and `/terms` now follow the Word drafts in `docs/legal/`. The Word files stay untracked. The terms section on offers and payment was aligned with the current code: an offer is not a booking, the customer chooses the driver, the card is authorized at confirm, and capture is after delivery or 24 hours later. Arbitration, liability caps, and a published cancellation fee were not added. A lawyer still has to approve both pages.
+`/privacy` and `/terms` follow the Word documents in `docs/legal/`. The Word files stay untracked. The terms section on offers and payment was aligned with the current code: an offer is not a booking, the customer chooses the driver, the card is authorized at confirm, and capture is after delivery or 24 hours later. Arbitration, liability caps, and a published cancellation fee were not added.
+
+## Published legal pages (2026-10-23)
+
+The public Privacy Policy and Terms no longer say that lawyer approval is required or that the pages are drafts. The effective date stays October 22, 2026. The operator name is Pickuply and the contact is info@pickuplyapp.com, matching the source documents. Insurance, cancellation, damage, and dispute wording was not given new dollar amounts, arbitration, or a liability cap. A later legal review can still be done, and it is not a launch requirement. `/terms/driver` remains a placeholder.
 
 `/signup` redirects to phone sign-up. `/driver/apply` redirects to the driver application. The optional SMS checkbox is separate, unchecked, and worded for customers and drivers. Consent version `2026-10-23` turns on that person's optional texts. STOP is recorded by `POST /api/twilio/sms` and turns them off. Local migration `0055` is applied here and is not on the hosted database.
 

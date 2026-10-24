@@ -20,9 +20,6 @@ export function LegalDocument({
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Legal</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{title}</h1>
       <p className="mt-3 text-base text-muted">Effective date: {effective}</p>
-      <p className="mt-4 rounded-2xl bg-brand-soft px-4 py-3 text-base leading-relaxed text-ink">
-        This page follows the October 22, 2026 draft. A lawyer must approve it before public launch.
-      </p>
       <nav aria-label="Contents" className="mt-8">
         <h2 className="text-lg font-semibold text-ink">Contents</h2>
         <ol className="mt-3 grid gap-2">

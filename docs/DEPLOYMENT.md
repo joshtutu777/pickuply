@@ -44,4 +44,4 @@ See `docs/SCHEDULER.md`. Paid bookings are not ready until pg_cron is activated 
 
 ## Legal
 
-`/privacy` and `/terms` need a lawyer's approval before they are treated as final.
+`/privacy` and `/terms` are the published policies. Effective date: October 22, 2026. Operator: Pickuply. Contact: info@pickuplyapp.com. A later legal review is optional and is not required before launch. `/terms/driver` is still a development placeholder and is not those policies.
