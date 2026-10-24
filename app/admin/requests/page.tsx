@@ -16,6 +16,9 @@ import {
   type RequestFilters,
 } from "@/lib/admin/ops";
 import { pricingMethods, services } from "@/lib/constants";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 
 const statuses = [
@@ -46,8 +49,10 @@ export default function AdminRequestsPage({ searchParams }: PageProps<"/admin/re
 
 async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requests">["searchParams"] }) {
   await requireAdmin("/admin/requests");
-  const data = await loadAdminDashboard();
-  const filters = parseRequestFilters(await searchParams);
+  const raw = await searchParams;
+  const lane = await resolveTestLane(includeTestParam(raw.includeTest));
+  const data = await loadAdminDashboard(lane);
+  const filters = parseRequestFilters(raw);
   if (data.error) {
     return (
       <main className="px-4 py-8">
@@ -67,6 +72,17 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
     <main className="px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{title}</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData
+          include={lane === "all"}
+          path="/admin/requests"
+          search={new URLSearchParams(
+            Object.entries(raw).flatMap(([key, value]) =>
+              (Array.isArray(value) ? value : value ? [value] : []).map((item) => [key, item]),
+            ),
+          ).toString()}
+        />
+      )}
       <FilterForm filters={filters} />
       {jobs.length === 0 ? (
         <p className="mt-6 rounded-3xl bg-paper-raised p-5 text-base text-muted ring-1 ring-line">

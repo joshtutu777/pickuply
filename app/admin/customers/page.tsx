@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { LoadingMain } from "@/components/loading-main";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,12 +27,14 @@ async function Customers({ searchParams }: CustomersPageProps) {
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.replace(/[^a-zA-Z0-9 @.+-]/g, "").slice(0, 40) : "";
   const filter = typeof params.status === "string" ? params.status : "all";
+  const lane = await resolveTestLane(includeTestParam(params.includeTest));
   const supabase = await createClient();
   let request = supabase
     .from("profiles")
-    .select("id, full_name, phone, role, deleted_at, reclaim_hold_at")
+    .select("id, full_name, phone, role, deleted_at, reclaim_hold_at, is_test")
     .order("full_name", { ascending: true })
     .limit(80);
+  if (lane !== "all") request = request.eq("is_test", lane === "test");
   if (q) request = request.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
   if (filter === "review") request = request.not("reclaim_hold_at", "is", null);
   if (filter === "deleted") request = request.not("deleted_at", "is", null);
@@ -50,6 +55,9 @@ async function Customers({ searchParams }: CustomersPageProps) {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Customers</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/customers" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <form className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]" action="/admin/customers">
         <label className="font-semibold text-ink">
           Search

@@ -43,7 +43,8 @@ end $$;
 
 update public.profiles
 set role = seed_people.role,
-    full_name = seed_people.full_name
+    full_name = seed_people.full_name,
+    is_test = true
 from seed_people
 join seed_ids on seed_ids.phone = seed_people.phone
 where profiles.id = seed_ids.id;

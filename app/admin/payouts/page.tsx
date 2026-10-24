@@ -3,6 +3,9 @@ import Link from "next/link";
 import { recordOutsidePayment, recoverDeduction, recoverReversal } from "@/app/admin/payouts/actions";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { inTestLane, includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
@@ -18,6 +21,7 @@ export default function PayoutsPage({ searchParams }: PageProps<"/admin/payouts"
 async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payouts">["searchParams"] }) {
   await requireAdmin("/admin/payouts");
   const query = await searchParams;
+  const lane = await resolveTestLane(includeTestParam(query.includeTest));
   const supabase = await createClient();
   const [{ data: entries }, { data: recoveries }, { data: drivers }, { data: accounts }] = await Promise.all([
     supabase
@@ -34,18 +38,31 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
     supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled"),
   ]);
   const readyAccounts = new Set((accounts ?? []).filter((account) => account.payouts_enabled).map((account) => account.driver_id));
-  const needsOnboarding = (drivers ?? []).filter((driver) => !readyAccounts.has(driver.profile_id));
+  const entryJobs = [...new Set((entries ?? []).map((entry) => entry.job_id))];
+  const driverIds = (drivers ?? []).map((driver) => driver.profile_id);
+  const [{ data: jobFlags }, { data: driverFlags }] = await Promise.all([
+    entryJobs.length ? supabase.from("jobs").select("id, is_test").in("id", entryJobs) : Promise.resolve({ data: [] as { id: string; is_test: boolean }[] }),
+    driverIds.length ? supabase.from("profiles").select("id, is_test").in("id", driverIds) : Promise.resolve({ data: [] as { id: string; is_test: boolean }[] }),
+  ]);
+  const testJobs = new Map((jobFlags ?? []).map((row) => [row.id, row.is_test === true]));
+  const testDrivers = new Map((driverFlags ?? []).map((row) => [row.id, row.is_test === true]));
+  const laneEntries = (entries ?? []).filter((entry) => inTestLane(testJobs.get(entry.job_id) ?? false, lane));
+  const laneDrivers = (drivers ?? []).filter((driver) => inTestLane(testDrivers.get(driver.profile_id) ?? false, lane));
+  const needsOnboarding = laneDrivers.filter((driver) => !readyAccounts.has(driver.profile_id));
   const nameIds = needsOnboarding.map((driver) => driver.profile_id);
   const { data: nameRows } = nameIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", nameIds)
     : { data: [] };
   const names = new Map((nameRows ?? []).map((row) => [row.id, row.full_name]));
-  const failedTransfers = (entries ?? []).filter((entry) => entry.transfer_status === "failed");
+  const failedTransfers = laneEntries.filter((entry) => entry.transfer_status === "failed");
 
   return (
     <main className="px-4 py-8">
       <BackLink href="/admin" label="Admin" />
       <h1 className="font-display text-4xl font-semibold text-ink">Payouts</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/payouts" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <p className="mt-2 text-base text-muted">
         A transfer sends earnings to the driver Stripe account. It is not a deposit in their bank. Paid outside Stripe is an admin record, not a transfer.
       </p>
@@ -70,9 +87,9 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
           </li>
         ))}
       </ul>
-      {(entries ?? []).length === 0 ? <p className="mt-6">No earnings yet.</p> : null}
+      {laneEntries.length === 0 ? <p className="mt-6">No earnings yet.</p> : null}
       <ul className="mt-6 grid gap-4">
-        {(entries ?? []).map((entry) => (
+        {laneEntries.map((entry) => (
           <li key={entry.id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
             <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
             <p>Transfer {entry.transfer_status ?? "not sent"}</p>

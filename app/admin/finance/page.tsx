@@ -35,6 +35,9 @@ import {
   type Money,
 } from "@/lib/admin/finance";
 import { loadFinanceJobs } from "@/lib/admin/finance-load";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
+import { IncludeTestData } from "@/components/admin/include-test-data";
 import { compareWithStripe } from "@/lib/admin/finance-stripe";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -66,7 +69,8 @@ async function Finance({ searchParams }: FinancePageProps) {
   }
   params.delete("fresh");
   const filters = parseFinanceFilters(params);
-  const loaded = await loadFinanceJobs();
+  const lane = await resolveTestLane(includeTestParam(params.get("includeTest") ?? undefined));
+  const loaded = await loadFinanceJobs(lane);
   const now = new Date();
   const window = dateWindow(filters, now);
   const filtered = sortJobs(filterJobs(loaded.jobs, filters, now, window), filters);
@@ -86,6 +90,9 @@ async function Finance({ searchParams }: FinancePageProps) {
       <p className="mt-2 max-w-3xl text-base text-muted">
         Amounts come from the ledger and stored Stripe records. A transfer is not a bank payout. Bank payouts are not tied to a job, so that column says Not tracked.
       </p>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/finance" search={params.toString()} />
+      )}
       {loaded.error ? <p className="mt-4 text-danger">{loaded.error}</p> : null}
       {params.get("error") === "save" ? <p className="mt-4 text-danger">The filters could not be saved.</p> : null}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -338,6 +345,7 @@ function FilterForm({
   return (
     <form className="mt-4 grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line md:grid-cols-3" method="get">
       <input type="hidden" name="tab" value={filters.tab} />
+      {filters.includeTest ? <input type="hidden" name="includeTest" value="1" /> : null}
       <label>Date range<select name="range" defaultValue={filters.range} className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="last_week">Last week</option><option value="month">This month</option><option value="last_month">Last month</option><option value="custom">Custom</option></select></label>
       <label>From<input name="from" type="date" defaultValue={filters.from} className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" /></label>
       <label>To<input name="to" type="date" defaultValue={filters.to} className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" /></label>

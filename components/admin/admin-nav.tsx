@@ -19,9 +19,11 @@ const items = [
 function NavLinks({
   badges,
   current,
+  showTestData,
 }: {
   badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
   current: ReturnType<typeof adminNavCurrent>;
+  showTestData: boolean;
 }) {
   return (
     <nav aria-label="Admin">
@@ -117,6 +119,19 @@ function NavLinks({
           Payouts
         </Link>
       </li>
+      {showTestData ? (
+        <li>
+          <Link
+            href="/admin/test-data"
+            aria-current={current === "test" ? "page" : undefined}
+            className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+              current === "test" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+            }`}
+          >
+            Test data
+          </Link>
+        </li>
+      ) : null}
     </ul>
     </nav>
   );
@@ -124,8 +139,10 @@ function NavLinks({
 
 export function AdminNav({
   badges,
+  showTestData = false,
 }: {
   badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
+  showTestData?: boolean;
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
@@ -136,12 +153,12 @@ export function AdminNav({
       <details className="border-b border-line bg-paper md:hidden">
         <summary className="flex min-h-12 cursor-pointer list-none items-center px-4 text-base font-semibold text-ink">
           Menu
-          <span className="ml-2 font-normal text-muted">{items.find((item) => item.id === current)?.label}</span>
+          <span className="ml-2 font-normal text-muted">{current === "test" ? "Test data" : items.find((item) => item.id === current)?.label}</span>
         </summary>
-        <NavLinks badges={badges} current={current} />
+        <NavLinks badges={badges} current={current} showTestData={showTestData} />
       </details>
       <aside className="hidden w-72 shrink-0 border-r border-line md:block">
-        <NavLinks badges={badges} current={current} />
+        <NavLinks badges={badges} current={current} showTestData={showTestData} />
       </aside>
     </>
   );

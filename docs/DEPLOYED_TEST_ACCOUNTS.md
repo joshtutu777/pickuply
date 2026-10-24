@@ -1,6 +1,6 @@
 # Deployed test accounts
 
-These are synthetic 555 numbers for a **separate test Supabase project** and a Vercel Preview that points at that project. They are not production logins.
+These are synthetic 555 numbers. The owner has approved, in principle, using production project `uyhithfdmphilleusiom` for temporary pre-launch testing. No hosted write has been made. The provision script still refuses that project until a later approval. Local rows are marked `is_test` and stay out of real feeds, announcements, and payouts.
 
 No one-time codes are stored in this file or in git. Production authentication was not changed.
 
@@ -71,16 +71,15 @@ Not done, because it would touch production or send a text:
 
 Role homes in the app, once a session exists: customers land on `/account`, drivers on `/driver`, admins on `/admin`. Jamie can use the customer/driver switch. That routing was not clicked through on the deployed site.
 
-## Hosted actions still required
+## Hosted actions still waiting for approval
 
-Do these only after you approve a **new** Supabase project. Do not run them on `uyhithfdmphilleusiom`.
+Using `uyhithfdmphilleusiom` is approved in principle. None of the steps below have been done, and each one still needs its own OK. Do not run them from this document alone.
 
-1. Create a Supabase project that is not the production project. Apply the local migrations there only when you explicitly approve that.
-2. In that project, open Authentication, Providers, Phone. Turn phone sign-in on. Under test phone numbers, add each of the 13 numbers as `+1` and the 10 digits, each with its own 6-digit code. Supabase will accept that code and will not send an SMS for those numbers. Leave Twilio off on this test project unless you also want real phones.
-3. Create a Vercel Preview. Set `NEXT_PUBLIC_SUPABASE_URL` and the anon key to the new project. Set `SUPABASE_SERVICE_ROLE_KEY` on the server only. Keep `STRIPE_SECRET_KEY` as an `sk_test_` key. Do not copy production Twilio, live Stripe, or the production service role into the Preview.
-4. Confirm `platform_settings.sms_enabled` is false. Do not add push subscriptions for these users.
-5. Run `node scripts/provision-deployed-test-accounts.mjs` only after the script is changed to allow that new host. Today the script refuses every hosted URL, including production.
-6. Sign in on the Preview as Casey, Taylor, Sky, and Jamie. Confirm `/account`, `/driver`, and `/admin`, and Jamie's customer switch. Do not use https://pickuplyapp.com for this.
+1. Compare the hosted schema with migrations `0001` through `0071`, back it up, and apply only the migrations you approve. The hosted database has not been changed for this roster.
+2. After that schema is in place, add the 13 numbers in the Supabase dashboard as test phone numbers. Format each as `+1` plus the 10 digits, each with its own code. Supabase accepts that code and does not send an SMS for that number. Do not turn on a general login bypass. Leave Twilio in place for real phone sign-in.
+3. Keep Stripe on test keys. Leave optional SMS off. Test accounts must not send email, SMS, or push.
+4. Change the provision script to allow only `uyhithfdmphilleusiom`, and only with the extra confirmation flags, after that change is approved. Then run it. Today the script still refuses that host.
+5. Sign in only after the accounts and codes exist. Check `/account`, `/driver`, and `/admin`, and Jamie's customer switch.
 
 ## Local commands
 
@@ -98,6 +97,8 @@ node scripts/provision-deployed-test-accounts.mjs --cleanup
 
 The script reads the local API URL from `npx supabase status`. It does not print keys. It does not call Twilio.
 
-## Cleanup on a future test project
+## Cleanup
 
-After you approve hosted provisioning, delete the same 13 phones from that project's Authentication user list and delete their fixture jobs (`c1300000-0000-4000-8000-000000000302` through `000313`, plus report `0003a5`). Do not run that delete on production. Production does not have this roster.
+Locally, `--cleanup` removes only these 13 users and their fixture rows.
+
+On a database that has migration `0071`, a real admin uses `/admin/test-data`. That page previews counts, requires the confirmation phrase, and retires test jobs and profiles. It does not delete payments, ledger rows, messages, job history, or the audit log. It does not touch accounts whose `is_test` flag is false. Production does not have this roster until provisioning is approved.

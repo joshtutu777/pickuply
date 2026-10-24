@@ -46,6 +46,7 @@ export async function startCheckout(formData: FormData) {
   const expiresAt = checkoutExpiresAt(new Date(row.due_at).getTime(), new Date().getTime());
   let sessionId = "";
   let sessionUrl: string | null = null;
+  let checkoutLive = false;
   try {
     const session = await getStripe().checkout.sessions.create(
       {
@@ -74,15 +75,28 @@ export async function startCheckout(formData: FormData) {
     );
     sessionId = session.id;
     sessionUrl = session.url;
+    checkoutLive = session.livemode;
   } catch {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
   }
 
-  const recorded = await createServiceClient().rpc("record_checkout_session", {
+  const service = createServiceClient();
+  const recorded = await service.rpc("record_checkout_session", {
     target_job: jobId,
     session_id: sessionId,
     attempt: row.attempt,
   });
+  if (!recorded.error) {
+    const marked = await service.rpc("note_stripe_livemode", { target_job: jobId, live: checkoutLive });
+    if (marked.error) {
+      try {
+        await getStripe().checkout.sessions.expire(sessionId);
+      } catch {
+        // The attempt number will not be reused. The customer can start again.
+      }
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+    }
+  }
   if (recorded.error || !sessionUrl) {
     if (sessionId) {
       try {

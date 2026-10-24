@@ -26,14 +26,16 @@ type JobRow = {
   customer_confirmed_at: string | null;
 };
 
-export async function loadFinanceJobs(): Promise<{ jobs: FinanceJob[]; error: string | null }> {
+export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): Promise<{ jobs: FinanceJob[]; error: string | null }> {
   const supabase = await createClient();
-  const jobsResult = await supabase
+  let jobsQuery = supabase
     .from("jobs")
-    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, late_cancel_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at")
+    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, late_cancel_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at, is_test")
     .not("payment_status", "is", null)
     .order("created_at", { ascending: false })
     .limit(2000);
+  if (lane !== "all") jobsQuery = jobsQuery.eq("is_test", lane === "test");
+  const jobsResult = await jobsQuery;
   if (jobsResult.error) return { jobs: [], error: "The payment list could not be loaded." };
   const jobs = (jobsResult.data ?? []) as JobRow[];
   const ids = jobs.map((job) => job.id);

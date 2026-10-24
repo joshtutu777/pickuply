@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { inTestLane, type TestLane } from "@/lib/admin/test-lane";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -36,22 +37,23 @@ export type AdminDashboard = {
 
 export type AdminDashboardResult = AdminDashboard | { error: true };
 
-type ProfileRow = { id: string; full_name: string | null; role: string | null };
+type ProfileRow = { id: string; full_name: string | null; role: string | null; is_test?: boolean };
 
-export const loadAdminDashboard = cache(async function loadAdminDashboard(): Promise<AdminDashboardResult> {
+export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: TestLane = "real"): Promise<AdminDashboardResult> {
   await requireAdmin("/admin");
   const now = Date.now();
   try {
     const supabase = await createClient();
+    const jobsRequest = supabase
+      .from("jobs")
+      .select(
+        "id, customer_id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items, detail_request, is_test",
+      )
+      .order("created_at", { ascending: false })
+      .limit(2000);
     const [jobsResult, driversResult, coverageResult, reviewsResult, zonesResult, offersResult, photosResult, openedResult, eventsResult, auditResult] =
       await Promise.all([
-        supabase
-          .from("jobs")
-          .select(
-            "id, customer_id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items, detail_request",
-          )
-          .order("created_at", { ascending: false })
-          .limit(2000),
+        lane === "all" ? jobsRequest : jobsRequest.eq("is_test", lane === "test"),
         supabase
           .from("drivers")
           .select("profile_id, status, home_city, zone_id, is_online, license_expires, insurance_expires, created_at")
@@ -124,13 +126,18 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
     if (profileIds.size > 0) {
       const profileResult = await supabase
         .from("profiles")
-        .select("id, full_name, role")
+        .select("id, full_name, role, is_test")
         .in("id", [...profileIds]);
       if (profileResult.error) return { error: true };
       for (const profile of profileResult.data ?? []) profiles.set(profile.id, profile);
     }
 
-    const jobs: AdminJob[] = (jobsResult.data ?? []).map((job) => ({
+    const visibleJobs = (jobsResult.data ?? []).filter((job) => inTestLane(Boolean(job.is_test), lane));
+    const visibleJobIds = new Set(visibleJobs.map((job) => job.id));
+    const eventRows = (eventsResult.data ?? []).filter((event) => !event.job_id || visibleJobIds.has(event.job_id) || lane === "all");
+    const auditRows = auditResult.data ?? [];
+
+    const jobs: AdminJob[] = visibleJobs.map((job) => ({
       id: job.id,
       service: job.service,
       status: job.status,
@@ -169,7 +176,9 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
         }),
       ]),
     );
-    const drivers: AdminDriver[] = (driversResult.data ?? []).map((driver) => ({
+    const drivers: AdminDriver[] = (driversResult.data ?? [])
+      .filter((driver) => inTestLane(Boolean(profiles.get(driver.profile_id)?.is_test), lane))
+      .map((driver) => ({
       id: driver.profile_id,
       status: driver.status,
       homeCity: driver.home_city,
@@ -185,7 +194,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
 
     const zones = (zonesResult.data ?? []).map((zone) => ({ id: zone.id, name: zone.name }));
     const needs = needsAction(jobs, drivers, now);
-    const activity = buildActivity(eventsResult.data ?? [], auditResult.data ?? [], profiles);
+    const activity = buildActivity(eventRows, auditRows, profiles);
 
     return {
       error: false,

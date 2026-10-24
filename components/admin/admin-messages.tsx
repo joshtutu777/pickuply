@@ -9,9 +9,9 @@ type ThreadSummary = {
   last_at: string | null;
 };
 
-export async function AdminMessageList() {
+export async function AdminMessageList({ includeTest = false }: { includeTest?: boolean }) {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_open_threads");
+  const { data, error } = await supabase.rpc("admin_open_threads", { include_test: includeTest });
   if (error) return null;
   const threads = (data ?? []) as ThreadSummary[];
 

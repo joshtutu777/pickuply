@@ -1,5 +1,10 @@
 export type ChannelDecision = "send" | "skip" | "wait";
 
+/** Test accounts keep the in-app alert. They do not get SMS, email, or push. */
+export function externalDeliveryAllowed(isTest: boolean): boolean {
+  return isTest !== true;
+}
+
 export function channelPlan(input: {
   platformSms: boolean;
   pushEnabled: boolean;

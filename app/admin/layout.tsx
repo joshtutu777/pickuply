@@ -5,10 +5,12 @@ import { AdminAutoRefresh, AdminDocumentTitle } from "@/components/admin/admin-r
 import { LoadingMain } from "@/components/loading-main";
 import { adminTabTitle } from "@/lib/admin/ops";
 import { loadAdminDashboard } from "@/lib/admin/load";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const data = await loadAdminDashboard();
+  const lane = await resolveTestLane(false);
+  const data = await loadAdminDashboard(lane);
   const count = data.error ? 0 : data.counts.needsAction;
   return { title: { absolute: adminTabTitle(count) } };
 }
@@ -22,7 +24,8 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
 }
 
 async function AdminFrame({ children }: { children: React.ReactNode }) {
-  const data = await loadAdminDashboard();
+  const lane = await resolveTestLane(false);
+  const data = await loadAdminDashboard(lane);
   const needs = data.error ? [] : data.needs;
   const title = adminTabTitle(needs.length);
   const supabase = await createClient();
@@ -56,7 +59,7 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col md:flex-row">
       <AdminAutoRefresh />
       <AdminDocumentTitle title={title} />
-      <AdminNav badges={badges} />
+      <AdminNav badges={badges} showTestData={lane !== "test"} />
       <div className="min-w-0 flex-1">
         {phoneReady === false ? (
           <p role="alert" className="bg-danger px-4 py-3 text-base font-semibold text-white">

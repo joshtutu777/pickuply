@@ -4,7 +4,10 @@ import { RefreshButton } from "@/components/admin/admin-refresh";
 import { AdminMessageList } from "@/components/admin/admin-messages";
 import { BadgeChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
+import { IncludeTestData } from "@/components/admin/include-test-data";
 import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import {
   documentExpiresSoon,
   onlineByZone,
@@ -13,17 +16,27 @@ import {
 } from "@/lib/admin/ops";
 import { requireAdmin } from "@/lib/auth/session";
 
-export default function AdminPage() {
+export default function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <Overview />
+      <Overview searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Overview() {
+async function Overview({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAdmin("/admin");
-  const data = await loadAdminDashboard();
+  const params = await searchParams;
+  const lane = await resolveTestLane(includeTestParam(params.includeTest));
+  const data = await loadAdminDashboard(lane);
   if (data.error) {
     return (
       <main className="px-4 py-8">
@@ -103,6 +116,9 @@ async function Overview() {
         <PageHeading />
         <RefreshButton />
       </div>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <div className="mt-8 flex flex-col gap-10">
         <section className="order-1 md:order-2" aria-labelledby="needs-action-heading">
           <h2 id="needs-action-heading" className="font-display text-3xl font-semibold text-ink">
@@ -144,7 +160,7 @@ async function Overview() {
           )}
         </section>
 
-        <AdminMessageList />
+        <AdminMessageList includeTest={lane === "all"} />
 
         <section className="order-2 md:order-1" aria-labelledby="summary-heading">
           <h2 id="summary-heading" className="font-display text-3xl font-semibold text-ink">

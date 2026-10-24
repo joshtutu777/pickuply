@@ -99,6 +99,7 @@ export type FinanceFilters = {
   compare: boolean;
   sort: string;
   page: number;
+  includeTest?: boolean;
 };
 
 export const chipLabel: Record<(typeof paymentChips)[number], string> = {
@@ -232,6 +233,7 @@ export function parseFinanceFilters(params: URLSearchParams): FinanceFilters {
     compare: params.get("compare") === "1",
     sort: params.get("sort") ?? "newest",
     page: Number.isInteger(page) && page > 0 ? page : 1,
+    includeTest: params.get("includeTest") === "1",
   };
 }
 
@@ -265,6 +267,7 @@ export function filtersToParams(filters: FinanceFilters): URLSearchParams {
   if (filters.compare) params.set("compare", "1");
   if (filters.sort !== "newest") params.set("sort", filters.sort);
   if (filters.page > 1) params.set("page", String(filters.page));
+  if (filters.includeTest) params.set("includeTest", "1");
   return params;
 }
 

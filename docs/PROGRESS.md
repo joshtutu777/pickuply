@@ -670,9 +670,13 @@ Local only. Profile keeps Sign out and adds the masked phone, mode switch, Help,
 
 Local UI only. The customer job page shows four milestones: Request & Price, Driver Confirmed, Pickup, and Delivered. Driver Confirmed stays incomplete until the job is assigned and the card is authorized. The old ten-step list is under View activity history. Driver screens still use the detailed tracker.
 
+## Test account isolation (2026-10-24)
+
+Local only. Profiles and jobs carry `is_test`. Test and real accounts cannot book each other. Feeds, offers, alerts, feed signals, messages, and announcements stay in one lane. A test admin cannot read or change real rows. Admin totals hide test rows unless Include test data is on. `/admin/test-data` previews counts and retires test rows after a confirmation phrase. Payments, ledger lines, messages, and the audit log stay. Test earnings are excluded from transfers, and a test job cannot store a live Stripe payment. The isolation database test is 28 checks and passed, and the announcement test still passed. The hosted database was not changed.
+
 ## Deployed test roster (2026-10-24)
 
-Local only. Thirteen synthetic 555 numbers, 0301 through 0313, exist on local Supabase with roles, jobs, one held ledger row, and one dispute. No Stripe ids and no payouts are enabled. The production project behind pickuplyapp.com was not changed. Sign-in codes are not in git. Hosted use waits for a separate test Supabase project. See `docs/DEPLOYED_TEST_ACCOUNTS.md`.
+Local only. Thirteen synthetic 555 numbers, 0301 through 0313, exist on local Supabase with roles, jobs, one held ledger row, and one dispute. The provision script marks them `is_test`. No Stripe ids and no payouts are enabled. The production project behind pickuplyapp.com was not changed. Sign-in codes are not in git. Using that project for these accounts is approved in principle and still needs a separate OK before any hosted write. See `docs/DEPLOYED_TEST_ACCOUNTS.md`.
 
 ## Walkthrough UX (2026-10-24)
 

@@ -4,6 +4,9 @@ import { StatusChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
 import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
 import { documentExpiresSoon, driverQueueLabel, filterDrivers, onlineByZone, sortDriverQueue, waitLabel, type AdminDriver } from "@/lib/admin/ops";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,12 +25,16 @@ async function DriversContent({ searchParams }: { searchParams: PageProps<"/admi
   const online = one(params.online);
   const zone = one(params.zone);
   const covers = one(params.covers).trim();
-  const data = await loadAdminDashboard();
+  const lane = await resolveTestLane(includeTestParam(params.includeTest));
+  const data = await loadAdminDashboard(lane);
   if (data.error) {
     return (
       <main className="px-4 py-8">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Drivers</h1>
+        {lane === "test" ? null : (
+          <IncludeTestData include={lane === "all"} path="/admin/drivers" search={lane === "all" ? "includeTest=1" : ""} />
+        )}
         <p role="alert" className="mt-6 text-lg text-danger">
           We couldn&apos;t load drivers. Try again.
         </p>
@@ -46,6 +53,9 @@ async function DriversContent({ searchParams }: { searchParams: PageProps<"/admi
     <main className="px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Drivers</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/drivers" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <DriverList
         drivers={sortDriverQueue(filterDrivers(drivers, { status, online, zone }))}
         covers={covers}

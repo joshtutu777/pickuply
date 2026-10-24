@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { channelPlan } from "./channels";
+import { channelPlan, externalDeliveryAllowed } from "./channels";
 
 const base = {
   platformSms: false,
@@ -34,6 +34,11 @@ test("a missing email key waits instead of marking the alert sent", () => {
 test("optional texts stay off without consent", () => {
   const plan = channelPlan({ ...base, platformSms: true, smsEnabled: true, hasConsent: false });
   assert.equal(plan.sms, "skip");
+});
+
+test("a test account does not get an external alert", () => {
+  assert.equal(externalDeliveryAllowed(true), false);
+  assert.equal(externalDeliveryAllowed(false), true);
 });
 
 test("push is skipped when the person turned it off", () => {

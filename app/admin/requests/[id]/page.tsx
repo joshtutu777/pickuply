@@ -60,7 +60,7 @@ async function RequestDetail({
   const service = serviceById(job.service as ServiceId);
   const coveringResult =
     job.status === "open"
-      ? await supabase.rpc("drivers_covering_pickup", { pickup_area: job.pickup_area })
+      ? await supabase.rpc("drivers_covering_pickup", { pickup_area: job.pickup_area, target_job: id })
       : { data: [] as { profile_id: string; summary: string }[] };
   const covering = (coveringResult.data ?? []) as { profile_id: string; summary: string }[];
   const coveringIds = covering.map((row) => row.profile_id);

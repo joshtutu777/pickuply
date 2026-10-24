@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,11 +49,13 @@ async function FunnelContent({
   const from = typeof query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.from) ? query.from : "2026-10-01";
   const to = typeof query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.to) ? query.to : "2026-10-31";
   const source = typeof query.source === "string" ? query.source.replace(/[^a-z0-9_-]/g, "").slice(0, 40) : "";
+  const lane = await resolveTestLane(includeTestParam(query.includeTest));
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_funnel", {
     range_start: from,
     range_end: to,
     source_filter: source,
+    include_test: lane === "all",
   });
   const rows = (data ?? []) as { event_name: string; step: string; sessions: number }[];
   const count = (event: string, step: string) =>
@@ -61,6 +66,9 @@ async function FunnelContent({
       <BackLink href="/admin" label="Admin" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Funnel</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/funnel" search={lane === "all" ? `from=${from}&to=${to}&includeTest=1` : `from=${from}&to=${to}`} />
+      )}
       <p className="mt-2 text-base text-muted">Counts are distinct sessions. Raw events are kept for 90 days.</p>
       <Link href="/admin" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
         Overview

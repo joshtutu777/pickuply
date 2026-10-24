@@ -52,6 +52,8 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
     checkout_driver: driverId,
   });
   if (result.error) throw new Error(result.error.message);
+  const marked = await supabase.rpc("note_stripe_livemode", { target_job: jobId, live: intent.livemode });
+  if (marked.error) throw new Error(marked.error.message);
   if (result.data === "released_late" || result.data === "duplicate") {
     try {
       await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });

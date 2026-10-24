@@ -2,28 +2,38 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
-export default function PaymentsPage() {
+export default function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <Payments />
+      <Payments searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Payments() {
+async function Payments({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdmin("/admin/payments");
+  const params = await searchParams;
+  const lane = await resolveTestLane(params.includeTest === "1" || (Array.isArray(params.includeTest) && params.includeTest[0] === "1"));
   const supabase = await createClient();
+  let jobsQuery = supabase
+    .from("jobs")
+    .select("id, status, payment_status, price_cents, captured_cents, refunded_cents, service_fee_cents, is_test")
+    .in("payment_status", ["awaiting_payment", "authorized", "failed", "captured", "canceled", "refunded"])
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (lane !== "all") jobsQuery = jobsQuery.eq("is_test", lane === "test");
   const [{ data: jobs }, { data: refunds }, { data: disputes }] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select("id, status, payment_status, price_cents, captured_cents, refunded_cents, service_fee_cents")
-      .in("payment_status", ["awaiting_payment", "authorized", "failed", "captured", "canceled", "refunded"])
-      .order("updated_at", { ascending: false })
-      .limit(50),
+    jobsQuery,
     supabase.from("refund_requests").select("id, job_id, amount_cents, status, reason").order("created_at", { ascending: false }).limit(25),
     supabase.from("card_disputes").select("stripe_dispute_id, job_id, amount_cents, status, outcome").order("updated_at", { ascending: false }).limit(25),
   ]);
@@ -37,6 +47,9 @@ async function Payments() {
     <main className="px-4 py-8">
       <BackLink href="/admin" label="Admin" />
       <h1 className="font-display text-4xl font-semibold text-ink">Payments</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/payments" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <p className="mt-2"><Link href="/admin/finance" className="font-semibold text-brand">Open the payments report</Link></p>
       <p className="mt-2 text-base text-muted">Card holds, captures, and refunds. A shortfall means the Stripe fee was higher than the service fee.</p>
       {(jobs ?? []).length === 0 ? <p className="mt-6">No card payments yet.</p> : null}

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { sendEmail } from "@/lib/email";
-import { channelPlan } from "@/lib/notifications/channels";
+import { channelPlan, externalDeliveryAllowed } from "@/lib/notifications/channels";
 import { sendPush } from "@/lib/push";
 import { sendSms } from "@/lib/sms";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -42,6 +42,17 @@ export async function deliverPendingAlerts(): Promise<number> {
 
 async function deliverOne(row: AlertRow, platformSms: boolean): Promise<boolean> {
   const supabase = createServiceClient();
+  const { data: profile } = await supabase.from("profiles").select("is_test").eq("id", row.profile_id).maybeSingle();
+  if (!externalDeliveryAllowed(profile?.is_test === true)) {
+    const now = new Date().toISOString();
+    const patch: Record<string, string> = {};
+    if (row.push_sent_at == null) patch.push_sent_at = now;
+    if (row.email_sent_at == null) patch.email_sent_at = now;
+    if (row.sms_sent_at == null) patch.sms_sent_at = now;
+    if (Object.keys(patch).length === 0) return false;
+    await supabase.from("notifications").update(patch).eq("id", row.id);
+    return true;
+  }
   const [{ data: prefs }, { data: subscriptions }, { data: consent }, userResult] = await Promise.all([
     supabase
       .from("notification_preferences")
