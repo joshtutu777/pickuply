@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BetaNotice } from "@/components/beta-notice";
 import { howItWorks, services, trustPoints } from "@/lib/constants";
 
 const primaryAction =
@@ -24,6 +25,7 @@ export default function HomePage() {
               Early access for local pickup, store delivery, and junk hauling.
               Drivers send offers. You choose who to book.
             </p>
+            <BetaNotice from="/" />
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/request" className={primaryAction}>
                 Get a price

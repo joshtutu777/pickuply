@@ -181,6 +181,7 @@ function isProtected(pathname: string): boolean {
     matches(pathname, "/driver") ||
     matches(pathname, "/admin") ||
     matches(pathname, "/help") ||
+    matches(pathname, "/feedback") ||
     matches(pathname, "/login/name")
   );
 }

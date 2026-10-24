@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
+import { BetaBadge } from "@/components/beta-badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import type { AppNavItem } from "@/lib/app-nav";
+import { betaMode } from "@/lib/beta";
 
 const primaryLink =
   "min-h-12 items-center justify-center rounded-full bg-brand px-5 text-base font-semibold text-white transition-colors hover:bg-brand-dark";
@@ -45,6 +47,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             <span className="font-display text-[1.65rem] leading-none font-semibold tracking-tight text-ink">
               Pickuply
             </span>
+            <BetaBadge />
           </Link>
           {state.status === "signed-in" && state.appNav ? null : (
             <Link href="/request" className={`inline-flex shrink-0 sm:hidden ${primaryLink}`}>
@@ -100,6 +103,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           alertUnread={state.unread}
           messageUnread={state.messageUnread}
           offerUnread={state.offerUnread}
+          showFeedback={betaMode()}
         />
       ) : null}
       </div>

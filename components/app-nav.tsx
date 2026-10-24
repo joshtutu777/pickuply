@@ -22,12 +22,14 @@ export function AppNav({
   alertUnread = 0,
   messageUnread = 0,
   offerUnread = 0,
+  showFeedback = false,
 }: {
   items: AppNavItem[];
   label: "Customer" | "Driver";
   alertUnread?: number;
   messageUnread?: number;
   offerUnread?: number;
+  showFeedback?: boolean;
 }) {
   const pathname = usePathname();
   const hash = useHash();
@@ -65,6 +67,19 @@ export function AppNav({
             </li>
           );
         })}
+        {showFeedback ? (
+          <li>
+            <Link
+              href={`/feedback?from=${encodeURIComponent(pathname || "/")}`}
+              aria-current={pathname === "/feedback" ? "page" : undefined}
+              className={`inline-flex min-h-12 items-center justify-center rounded-full px-4 text-base font-semibold ${
+                pathname === "/feedback" ? "bg-brand text-white" : "bg-paper-raised text-ink ring-1 ring-line hover:ring-brand"
+              }`}
+            >
+              Send Feedback
+            </Link>
+          </li>
+        ) : null}
       </ul>
     </nav>
   );

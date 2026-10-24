@@ -3,6 +3,7 @@ import { ModeSwitch } from "@/components/profile/mode-switch";
 import { SignOutButton } from "@/components/sign-out-button";
 import { maskUsPhone } from "@/lib/phone";
 import type { Role } from "@/lib/auth/access";
+import { betaMode } from "@/lib/beta";
 
 const row =
   "flex min-h-12 w-full items-center rounded-3xl bg-paper-raised px-4 text-left font-semibold text-ink ring-1 ring-line";
@@ -75,6 +76,16 @@ export function ProfileMenu({
           <li>
             <Link href="/driver/earnings" className={row}>
               Earnings and payouts
+            </Link>
+          </li>
+        ) : null}
+        {betaMode() ? (
+          <li>
+            <Link
+              href={surface === "driver" ? "/feedback?from=/driver/profile" : "/feedback?from=/account/profile"}
+              className={row}
+            >
+              Send Feedback
             </Link>
           </li>
         ) : null}

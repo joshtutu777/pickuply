@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CustomerJobCard } from "@/components/account/job-card";
+import { BetaNotice } from "@/components/beta-notice";
 import { ServiceTiles } from "@/components/mobile/service-tiles";
 import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
@@ -40,6 +41,7 @@ async function AccountContent({
         Hi, {firstName(session.fullName) ?? "there"}
       </h1>
       <p className="mt-2 text-base text-muted">You find it. We pick it up.</p>
+      <BetaNotice from="/account" />
       {singleQuery(params.error) === "forbidden" ? (
         <p role="alert" className="mt-4 text-base font-medium text-danger">
           You don&apos;t have access to that page.
