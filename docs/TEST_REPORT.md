@@ -236,3 +236,174 @@ No new screenshots in this pass. Earlier ones:
 ## 41. Local-only confirmation
 
 No git push. No deploy. No hosted database, Stripe, Twilio, Vercel, or DNS change. No live charge.
+
+# Task 4 — User Suspension, Reinstatement, Account Deletion & Account Security
+
+Date: 2026-10-24. Local only. Nothing in this pass was pushed, deployed, or applied to hosted Supabase, Stripe, Twilio, or Vercel.
+
+## 1. Executive summary
+
+Admins can suspend and reinstate a customer or a driver. A suspension pauses open requests that have no driver and closes offers that have not been accepted. Accepted bookings, payments, and earnings stay as they are. The person can still sign in and sees their own restriction. Delete Account is on Profile. An account with an open job or open money stays pending instead of being erased. A restricted phone is blocked from new marketplace use only when the database setting `pickuply.phone_hmac_secret` is set. That secret is not in the migration and was not written to an env file.
+
+## 2. Existing functionality discovered
+
+Offline is the driver's own online switch. Paused is the existing driver status and the existing admin pause on a request (`paused_at`). Neither was reused as the suspension flag. Suspension is a row in `account_suspensions`. A request paused only because of a suspension is marked `suspension_hold`, so an ordinary admin pause is not cleared on reinstatement. Phone OTP is unchanged. `choose_offer` still says "that offer is no longer available" when the offer is not active.
+
+## 3. New functionality implemented
+
+Suspend, extend, reinstate, and expire. Customer and driver notices. Delete Account with a checkbox and the word DELETE, plus a recent sign-in check. Pending deletion when blockers exist. Anonymization when they do not. Admin queue at `/admin/accounts`. Last-admin and self-suspension checks in the database.
+
+## 4. Database migrations
+
+`supabase/migrations/0060_account_suspension.sql` was applied only to the local Docker database and recorded as version `0060`. It is not on the hosted project.
+
+## 5. Customer suspension behavior
+
+A suspended customer can still sign in. The home notice uses the temporary sentence only when the restriction has an end time. An indefinite restriction does not say "temporarily." New requests and choosing an offer are rejected in the database. History stays available. The browser check signed in with a local test phone and opened `/account/delete`. No real SMS was sent.
+
+## 6. Driver suspension behavior
+
+A suspended driver cannot submit an offer or claim a job. The database test asserts that sentence. Existing assigned jobs are not cancelled. Earnings rows are not placed on hold by this change.
+
+## 7. Offer invalidation
+
+Suspending a driver sets unaccepted offers to `expired` and sets `unavailable_at`. Choosing one returns "that offer is no longer available." Reinstatement does not turn those offers back on.
+
+## 8. Request pause and reinstatement
+
+An open request with no assigned driver gets `paused_at` and `suspension_hold`. An assigned job does not. Reinstatement clears the pause only when the request is still open, unassigned, and not past its quote time. The feed hides a paused request. After the suspension time has passed, eligibility does not keep waiting for the scheduled job.
+
+## 9. Neutral messaging
+
+Other people see "that offer is no longer available" or "This request is no longer available." The restriction reason and the internal note are not in those errors. The reason is on the admin screen only. Customers cannot update `account_suspensions` (database error 42501 in the security test).
+
+## 10. Temporary suspension expiration
+
+`account_is_suspended` is false once `expires_at` is in the past, even before `expire_due_suspensions` runs. That function is idempotent and restores a still-open request. The notifications cron calls it. No new hosted cron was added.
+
+## 11. Active-job handling
+
+The database test keeps an assigned, authorized job assigned after the driver is suspended. No refund, fee, or transfer change was made. Whether a suspended driver should keep moving that job is listed under Needs Josh's decision. The in-progress status buttons were not blocked.
+
+## 12. Customer deletion flow
+
+Profile → Account management → Delete Account. The page explains that deletion is permanent once completed, that some records stay, and that it may wait. A wrong confirmation shows "Check the box and type DELETE to continue." That path was exercised in the browser against the local app and did not delete the account. A customer with no obligations is anonymized. A customer with an assigned authorized job stays pending, and the phone stays.
+
+## 13. Driver deletion flow
+
+The same Delete Account page is on the driver profile menu. The eligibility check includes the driver's assigned jobs and open ledger rows. A driver-only deletion with no history was not given its own database test.
+
+## 14. Dual-role account handling
+
+Suspension and deletion use `profiles.id`, so both roles are the same account. A test that is only a dual-role person was not run.
+
+## 15. Personal-data deletion
+
+An eligible deletion sets the name to "Deleted account", clears phone, email, and photo, sets `deleted_at`, removes push rows, and deletes auth sessions and refresh tokens. The profile id stays so job rows still point at someone. Auth users are not deleted, because that would cascade into jobs. Storage file bytes are not removed.
+
+## 16. Financial record retention
+
+Ledger rows, payments, and disputes are not deleted. A deletion with an authorized payment or an active job stays pending.
+
+## 17. Restricted re-registration
+
+If the account is suspended at deletion and the HMAC secret is set, the phone is stored only as an HMAC. A later request or offer from that number is rejected with "This phone number cannot be used for Pickuply right now. Contact support if you think this is a mistake." A normal deletion stores nothing, so the number can register again with no old profile.
+
+## 18. Phone HMAC protection
+
+The secret is `current_setting('pickuply.phone_hmac_secret', true)`. It is not in the migration, the table, or an env file. The deletion test set it inside the rolled-back transaction. If the setting is missing, `phone_is_restricted` stays false. Before this is real on a hosted database, set that configuration on the database only, outside git. Do not put the secret in `.env.local`.
+
+## 19. Admin-account safeguards
+
+An admin cannot suspend themselves. One of two admins can be suspended. A suspended admin cannot suspend or delete the last active admin. An admin deletion request through Profile stays pending in the function and is not erased automatically. That self-service admin path was not given its own browser test. Buttons are not the enforcement.
+
+## 20. Notification results
+
+Suspension and reinstatement insert an in-app notification for the person. Active jobs notify admins that the booking was not cancelled. SMS stays off. No push was sent. The cron call was not executed against a live scheduler.
+
+## 21. RLS and authorization results
+
+`account_suspensions` has no customer write grant. The security test got SQLSTATE 42501. `suspend_account` and `complete_account_deletion` reject a non-admin. Passed in pgTAP. Direct HTTP calls from a second browser were not run.
+
+## 22. Audit log results
+
+Suspension, extension, reinstatement, expiration, deletion request, and deletion completion write `audit_log`. The security test checks that an extension writes `extend_suspension`. Log text does not include an OTP or the HMAC secret.
+
+## 23. Test scenarios executed
+
+Database, all passing, transactions rolled back:
+
+- Customer cannot suspend. Admin cannot self-suspend. Last active admin cannot be suspended or deleted. One of two admins can be suspended.
+- Driver suspension expires the open offer and leaves the assigned job assigned.
+- Customer suspension pauses the open request. Reinstatement restores that request and leaves the offer expired.
+- Choosing the closed offer returns the existing unavailable sentence. A driver offer on the paused request returns "This request is no longer available."
+- Expired time lifts the restriction before the expire function, and running that function twice restores the request.
+- Clean deletion anonymizes and does not block the phone. Busy deletion stays pending and keeps one request row. An old sign-in cannot delete. A suspended deletion stores an HMAC that is not the phone number.
+- A customer cannot update the suspension table or complete someone else's deletion. An extension is audited.
+
+Browser, local app at `http://127.0.0.1:3001`, one Chromium tab:
+
+- Signed-out `/account/delete` goes to login and returns there after the local test code.
+- The page shows the permanence, records, and delay copy, the checkbox, and the DELETE field.
+- Submitting without the checkbox shows the confirmation warning and does not delete.
+- Profile shows Account management and Delete Account.
+- `/admin/accounts` shows the empty deletion list.
+- A driver detail page shows Suspend Account, the reason, the internal note, active jobs, and history.
+
+## 24. Passed / Failed / Blocked / Not Run
+
+| Result | Count | What |
+|---|---:|---|
+| Passed | 12 | Suspension database tests |
+| Passed | 22 | Deletion database tests |
+| Passed | 7 | Security database tests |
+| Passed | 5 | Existing payout-hold regression |
+| Passed | 120 | Unit suite, including 6 restriction-copy cases |
+| Passed | 1 | Typecheck |
+| Passed | 1 | Lint of the files this pass changed |
+| Passed | 1 | Production build |
+| Passed | 1 | Local browser pass of delete confirmation, profile link, accounts page, and the suspend form |
+| Failed | 0 | |
+| Blocked | 1 | Phone HMAC does nothing until `pickuply.phone_hmac_secret` is set on the database. The test set it only inside a rolled-back transaction. |
+| Not Run | Playwright customer, driver, and admin projects; Firefox; WebKit; axe; load; saved screenshots; concurrent HTTP races; refund, dispute, payout-hold, and dual-role fixtures; a new offer after reinstatement; admin self-deletion in the browser | |
+
+Reserved numbers 5555550201 through 5555550205 were not used.
+
+## 25. Bugs fixed
+
+Extending a suspension failed because the note column and the function argument shared a name. The update now uses the argument. Deleting refresh tokens failed because that user id is text, not uuid. The delete casts it.
+
+## 26. Remaining defects
+
+Storage object bytes for photos and documents are not deleted with the account. The profile row remains so jobs keep a foreign key. There is no screen that lets a person cancel a pending deletion request. In-progress job buttons still work for a suspended driver, on purpose, until the delivery question below is decided.
+
+## 27. Needs Josh's decision
+
+1. Can a suspended driver finish an active delivery? This pass does not stop the in-progress buttons and does not cancel the job.
+2. Should a future scheduled job be treated differently from a job already in progress? This pass leaves both in place.
+3. Should a suspended driver still receive eligible earnings on the existing payout schedule? This pass does not put those earnings on hold.
+4. What else, besides an active job, an open authorization, an open dispute, unfinished earnings, or a recovery balance, should delay deletion?
+5. How long should financial records, messages, photos, and dispute evidence be kept?
+6. Can a dual-role person delete only one role? This pass deletes or anonymizes the whole account.
+7. Can a person cancel a pending deletion request?
+8. How should deletion interact with an unresolved dispute or a recovery balance? This pass refuses to finish deletion while those exist.
+9. What is the suspension appeal process?
+10. How long should a restricted-phone HMAC be kept? A temporary suspension copies its end time. An indefinite one has no end time in the table.
+11. How should a phone number that was given to a new owner be handled?
+12. What should happen when a deleted account's temporary suspension reaches its end time? The check already ignores an expired HMAC. Whether the row should be deleted is open.
+13. What is the authorized process for deleting an admin account? A self-service request stays pending and does not remove the last admin.
+14. What is the recovery procedure if admin access is lost?
+15. Should a suspension trigger an extra review of outstanding payouts? This pass only alerts admins about active jobs.
+16. How should the other party be told that an active job needs help? Admins see an alert. The other party is not sent a new message. The allowed public line, if wanted, is "This booking requires assistance from Pickuply support."
+
+## 28. Screenshots and artifact paths
+
+No screenshot files were saved. The browser check was a live local session, not a saved image.
+
+## 29. Local Git commit hashes
+
+Implementation: `48f7e3043b71eb17a34494b9119dc9c54490f8c9`. The commit that adds this Task 4 section follows it. Neither was pushed.
+
+## 30. Confirmation that no hosted changes occurred
+
+No git push. No deploy. No hosted database, Stripe, Twilio, Vercel, or DNS change. No live charge. No real SMS, email, or push. `.env.local` and `.env.test.local` were not edited.
