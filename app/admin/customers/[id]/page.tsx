@@ -12,19 +12,20 @@ export const metadata: Metadata = { title: { absolute: "Customer · Pickuply Adm
 
 type CustomerPageProps = {
   params: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function CustomerPage({ params }: CustomerPageProps) {
+export default function CustomerPage({ params, searchParams }: CustomerPageProps) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <Customer params={params} />
+      <Customer params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function Customer({ params }: CustomerPageProps) {
+async function Customer({ params, searchParams }: CustomerPageProps) {
   await requireAdmin("/admin/customers");
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const customerId = typeof id === "string" ? id : "";
   if (!/^[0-9a-f-]{36}$/i.test(customerId)) notFound();
   const supabase = await createClient();
@@ -48,6 +49,11 @@ async function Customer({ params }: CustomerPageProps) {
       <BackLink href="/admin/customers" label="Customers" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{profile.full_name ?? "Unnamed"}</h1>
+      {typeof query.error === "string" ? (
+        <p role="alert" className="mt-4 text-base text-danger">
+          {query.error}
+        </p>
+      ) : null}
       <dl className="mt-4 grid gap-2 text-base text-ink">
         <div><dt className="font-semibold">Phone</dt><dd>{profile.phone ?? "No phone"}</dd></div>
         <div><dt className="font-semibold">Role</dt><dd>{profile.role}</dd></div>
