@@ -114,7 +114,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
 
   const first = await open(browser, "/driver");
   const feedResponse = first.waitForResponse(
-    (response) => response.url().includes("/rpc/driver_job_feed") && response.request().method() === "POST",
+    (response) => response.url().includes("/rpc/driver_matched_feed") && response.request().method() === "POST",
   );
   await signIn(first, pat);
   const feedPayload: unknown = await (await feedResponse).json();

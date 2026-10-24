@@ -129,7 +129,7 @@ insert into public.jobs (
 select pg_temp.as_user('a4100000-0000-4000-8000-000000000001');
 select is(
   (
-    select count(*)::int from public.driver_job_feed()
+    select count(*)::int from public.driver_matched_feed()
     where id in (
       'a4100000-0000-4000-8000-000000000010',
       'a4100000-0000-4000-8000-000000000011',
@@ -137,12 +137,12 @@ select is(
     )
   ),
   2,
-  'the feed shows a radius match and a city match'
+  'Matched for You shows a radius match and a city match'
 );
 select is(
-  (select count(*)::int from public.driver_job_feed() where id = 'a4100000-0000-4000-8000-000000000012'),
+  (select count(*)::int from public.driver_matched_feed() where id = 'a4100000-0000-4000-8000-000000000012'),
   0,
-  'a pickup outside the cities and radius stays hidden'
+  'a pickup outside the cities and radius is not in Matched for You'
 );
 
 select lives_ok($$select public.set_show_all_jobs(true)$$, 'show all Georgia jobs can be turned on');
@@ -152,9 +152,9 @@ select is(
   'show all Georgia jobs is remembered'
 );
 select is(
-  (select count(*)::int from public.driver_job_feed() where id = 'a4100000-0000-4000-8000-000000000012'),
+  (select count(*)::int from public.driver_georgia_page() where id = 'a4100000-0000-4000-8000-000000000012'),
   1,
-  'show all Georgia jobs reveals the pickup outside coverage'
+  'All Georgia Requests includes the pickup outside coverage'
 );
 select lives_ok($$select public.set_show_all_jobs(false)$$, 'show all Georgia jobs can be turned off');
 
@@ -247,10 +247,20 @@ select is(
   'show all jobs does not send an alert outside coverage'
 );
 
+select set_config('pickuply.offer_chosen', 'yes', true);
+update public.jobs
+set
+  driver_pay_cents = (fees.breakdown->>'driver_earnings_cents')::integer,
+  platform_fee_cents = (fees.breakdown->>'platform_fee_cents')::integer,
+  service_fee_cents = (fees.breakdown->>'service_fee_cents')::integer,
+  price_cents = (fees.breakdown->>'customer_total_cents')::integer
+from (select public.price_breakdown('forward', 6000) as breakdown) fees
+where id = 'a4100000-0000-4000-8000-000000000013';
+
 select pg_temp.as_user('a4100000-0000-4000-8000-000000000002');
 select lives_ok(
   $$select public.claim_job('a4100000-0000-4000-8000-000000000013')$$,
-  'a driver can accept an eligible job outside coverage'
+  'a driver can accept an eligible priced job outside coverage'
 );
 
 select pg_temp.as_user('a4100000-0000-4000-8000-000000000003');

@@ -71,7 +71,7 @@ async function DriverContent({
     .maybeSingle();
   const { data: coverageRow } = await supabase
     .from("driver_feed_filters")
-    .select("cities, zips, radius_miles, radius_zip, show_all, services, vehicle_fit")
+    .select("cities, zips, radius_miles, radius_zip")
     .eq("profile_id", session.userId)
     .maybeSingle();
   const coverage: CoverageDraft = coverageRow
@@ -142,9 +142,6 @@ async function DriverContent({
           termsAccepted={application?.terms_version === "driver-terms-v1"}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
-          showAllJobs={Boolean(coverageRow?.show_all)}
-          feedServices={(coverageRow?.services ?? []).join(", ")}
-          vehicleFit={Boolean(coverageRow?.vehicle_fit)}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
