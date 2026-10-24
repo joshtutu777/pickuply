@@ -40,7 +40,7 @@ export function PayPanel({
         ) : null}
         <p className="font-semibold">Total {formatCents(totalCents)}</p>
         {confirmed.has(paymentStatus ?? "") ? (
-          <p>Payment confirmed. The driver can start.</p>
+          <p>Booking confirmed. {formatCents(totalCents)} is held on your card and charged only after delivery.</p>
         ) : windowOpen ? (
           <>
             <p>{minutesLeft} minutes left to pay.</p>
@@ -56,8 +56,9 @@ export function PayPanel({
                 type="submit"
                 className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-6 text-center font-semibold text-white sm:w-auto"
               >
-                Confirm Booking & Payment
+                Confirm booking
               </button>
+              <p className="mt-2 text-base text-muted">You won&apos;t be charged until your item is delivered</p>
             </form>
           </>
         ) : (

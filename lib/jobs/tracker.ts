@@ -129,7 +129,7 @@ export function buildJobTracker(input: {
     },
     { id: "price", label: "Price confirmed", at: priceAt },
     { id: "driver", label: "Driver confirmed", at: driverAt },
-    { id: "payment", label: paymentDone ? "Payment confirmed" : "Awaiting payment", at: null },
+    { id: "payment", label: paymentDone ? "Booking confirmed" : "Awaiting payment", at: null },
     { id: "en_route", label: "Driver heading to pickup", at: statusAt("en_route") },
     { id: "arrived", label: "Driver arrived", at: statusAt("arrived") },
     { id: "item_check", label: "Item checked", at: statusAt("item_check") },

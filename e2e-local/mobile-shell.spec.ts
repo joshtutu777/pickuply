@@ -191,7 +191,7 @@ test("an assigned job shows the real next step, chat, and no phone link", async 
     await page.goto(`/jobs/${quoteJobId}`);
     await expect(page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Chat" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Confirm Booking & Payment" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm booking" })).toBeVisible();
     await expect(page.locator("a[href^='tel:']")).toHaveCount(0);
     await expect(page.locator("#messages")).toBeAttached();
     await page.goto("/account/messages");
@@ -268,7 +268,7 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     await page.goto("/driver");
     await expect(page.locator(`a[href="/driver/jobs/${junkJobId}"]`)).toBeVisible();
     await page.goto(`/driver/jobs/${junkJobId}`);
-    await expect(page.getByText("Payment confirmed: you can start")).toBeVisible();
+    await expect(page.getByText("Payment secured — you can start the trip.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Start trip to pickup" })).toBeVisible();
     await expect(page.locator("a[href^='tel:']")).toHaveCount(0);
     await expect(page.getByText(street)).toBeVisible();

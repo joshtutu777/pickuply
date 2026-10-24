@@ -130,7 +130,7 @@ async function DriverJob({
         <p>Waiting for customer payment</p>
       ) : null}
       {job.status === "assigned" && ["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
-        <p>Payment confirmed: you can start</p>
+        <p>Payment secured — you can start the trip.</p>
       ) : null}
       {job.payment_due_at && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>

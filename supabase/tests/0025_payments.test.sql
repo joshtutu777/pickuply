@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(15);
+select plan(17);
 
 do $$
 declare
@@ -310,6 +310,22 @@ select public.apply_authorization(
   'd2525252-2525-4252-8252-252525252522'
 );
 reset role;
+select is(
+  (select title from public.notifications
+   where job_id = 'd2525252-2525-4252-8252-252525252531'
+     and profile_id = 'd2525252-2525-4252-8252-252525252521'
+     and kind = 'payment_confirmed'),
+  'Booking confirmed — $91.75 held on your card, charged after delivery.',
+  'authorization creates one customer notice'
+);
+select is(
+  (select title from public.notifications
+   where job_id = 'd2525252-2525-4252-8252-252525252531'
+     and profile_id = 'd2525252-2525-4252-8252-252525252522'
+     and kind = 'payment_confirmed'),
+  'Payment secured — you can start the trip.',
+  'authorization creates one driver notice'
+);
 select is(
   (select payment_status || '|' || charge_id
    from public.jobs

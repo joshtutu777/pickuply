@@ -144,7 +144,7 @@ test("the payment deadline cron reopens an unpaid job", async ({ browser }) => {
 
 test("a card approved after the job reopens is released", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await assignedJob(browser);
-  await customer.page.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+  await customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await customer.page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
   const sessionId = localSql(`select checkout_session_id from public.job_payments where job_id = '${jobId}'`).trim();
   localSql(`update public.jobs set payment_due_at = now() - interval '1 minute' where id = '${jobId}';`);
@@ -221,7 +221,7 @@ test("a refund before capture releases the card hold", async ({ browser }) => {
 
 test("earnings stay held until payout setup, and an outside payment is labeled", async ({ browser }) => {
   const session = await assignedJob(browser, "driver2");
-  await session.customer.page.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+  await session.customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await payOnStripe(session.customer.page, "4242424242424242");
   await driveToDelivery(session.customer.page, session.driver.page, session.jobId);
   await session.customer.page.getByRole("button", { name: "Got it" }).click();
@@ -312,12 +312,12 @@ test("a test chargeback holds the ledger", async ({ browser }) => {
 
 test("an expired Checkout session can be started again", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await assignedJob(browser);
-  await customer.page.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+  await customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await customer.page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
   const first = localSql(`select checkout_session_id from public.job_payments where job_id = '${jobId}'`).trim();
   await stripe.checkout.sessions.expire(first);
   await customer.page.goto(`/jobs/${jobId}`);
-  await customer.page.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+  await customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await customer.page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
   const second = localSql(`select checkout_session_id from public.job_payments where job_id = '${jobId}'`).trim();
   expect(second.startsWith("cs_")).toBe(true);
@@ -329,12 +329,12 @@ test("an expired Checkout session can be started again", async ({ browser }) => 
 
 async function paidJob(browser: Browser, card: string, expectAuthorized = true) {
   const session = await assignedJob(browser);
-  await session.customer.page.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+  await session.customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await payOnStripe(session.customer.page, card);
   if (expectAuthorized) {
     await waitForRow(`select payment_status from public.jobs where id = '${session.jobId}'`, /authorized/);
     await session.driver.page.goto(`/driver/jobs/${session.jobId}`);
-    await expect(session.driver.page.getByText("Payment confirmed: you can start")).toBeVisible();
+    await expect(session.driver.page.getByText("Payment secured — you can start the trip.")).toBeVisible();
   }
   return session;
 }
@@ -369,7 +369,7 @@ async function assignedJob(browser: Browser, who: "driver" | "driver2" = "driver
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.getByRole("button", { name: "Choose this driver" }).click();
   await expect(customer.page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
-  await expect(customer.page.getByRole("button", { name: "Confirm Booking & Payment" })).toBeVisible();
+  await expect(customer.page.getByRole("button", { name: "Confirm booking" })).toBeVisible();
   return { customer, driver, admin, jobId };
 }
 

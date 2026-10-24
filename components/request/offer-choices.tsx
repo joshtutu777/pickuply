@@ -98,7 +98,7 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
                 type="submit"
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
               >
-                Choose this driver
+                Choose {offer.driver_first_name || "this driver"}
               </button>
             </form>
           </article>

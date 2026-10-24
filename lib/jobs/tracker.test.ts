@@ -91,7 +91,7 @@ test("an assigned job says awaiting payment until the card is authorized", () =>
   const payment = unpaid.steps.find((step) => step.id === "payment");
   assert.equal(payment?.state, "current");
   assert.equal(payment?.label, "Awaiting payment");
-  assert.equal(unpaid.steps.some((step) => step.label === "Payment confirmed"), false);
+  assert.equal(unpaid.steps.some((step) => step.label === "Booking confirmed"), false);
 
   const authorized = buildJobTracker({
     service: "delivery",
@@ -103,7 +103,7 @@ test("an assigned job says awaiting payment until the card is authorized", () =>
     hasDumpReceipt: false,
     events,
   });
-  assert.equal(authorized.steps.find((step) => step.id === "payment")?.label, "Payment confirmed");
+  assert.equal(authorized.steps.find((step) => step.id === "payment")?.label, "Booking confirmed");
   assert.equal(authorized.steps.find((step) => step.id === "payment")?.state, "done");
 });
 
