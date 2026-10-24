@@ -379,11 +379,7 @@ Storage object bytes for photos and documents are not deleted with the account. 
 
 These were resolved by the approved account rules and are no longer open: suspended drivers finishing an in-transit delivery, flagging an assigned job that has not started, payouts during suspension, deletion blockers, the 14-day cancellation window, Stop Driving for someone who is also a customer, the help-request appeal, HMAC retention, expired temporary restrictions, and removing the last admin.
 
-Still open:
-
-1. How should a phone number that was given to a new owner be handled?
-2. What is the recovery procedure if all admin access is lost? The last-admin lock stops the last admin from being removed. It does not say how to recover a lost admin sign-in.
-3. Recommended definition of a recent dispute for the 90-day photo rule: keep the photos until 365 days after `resolved_at`. That cutoff is not implemented. A photo tied to any dispute is kept until this is decided.
+Phone reuse after 12 quiet months, recovery when every admin sign-in is lost, and the 365-day dispute photo rule are now decided. See `docs/DEPLOYMENT.md` and migration `0063_account_followups.sql`.
 
 ## 28. Screenshots and artifact paths
 
@@ -482,3 +478,17 @@ Android Chrome, iPhone Safari, Lighthouse, and a production build were not run. 
 ## 40. Communications commit
 
 Implementation: `f8b9693f29222cfb381d7e060bcca13506bc7895`. The commit that adds this section follows it. Neither was pushed.
+
+## 41. Account follow-ups
+
+A missing phone-protection secret no longer blocks sign-up or deletion. The restricted-phone check is skipped, `audit_log` gets `phone_protection_missing`, and `/admin` shows "Phone protection secret is not configured" plus a health line. `/admin/customers` and `/admin/customers/[id]` are the customer record. Requests, finance, and messages link to them. A phone with no activity for 12 months asks "Is this your account?" after the code. "No, start a new account" freezes the old account for review. Dispute photos stay 365 days after the dispute is resolved. `scripts/promote-admin.sql` is documented and does not run by itself.
+
+| Result | Count | What |
+|---|---:|---|
+| Passed | 35 | Account policy database tests, including a missing secret |
+| Passed | 3 | Chromium, Firefox, and WebKit: customer record, Suspend Account, Delete Account copy, Stop Driving form |
+| Passed | 1 | Production build |
+| Failed | 0 | |
+| Not run | A real OTP reclaim on a 12-month-old phone, and a hosted SQL editor recovery |
+
+Implementation: `3d22c1c604902d22731ab3aee8399f0403d80952`. This report commit follows it. Neither was pushed.
