@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { resolveSupportThread } from "@/app/admin/messages/actions";
 import { BackLink } from "@/components/back-link";
 import { MessagePanel, type ChatMessage } from "@/components/messages/message-panel";
 import { LoadingMain } from "@/components/loading-main";
@@ -24,7 +25,7 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
   const supabase = await createClient();
   const { data: thread } = await supabase
     .from("message_threads")
-    .select("id, closes_at, resolved_at, requester_id, driver_id")
+    .select("id, kind, closes_at, resolved_at, requester_id, driver_id")
     .eq("id", id)
     .maybeSingle();
   if (!thread) notFound();
@@ -45,6 +46,15 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
           </Link>
         ) : null}
       </p>
+      {thread.kind === "support" && !thread.resolved_at ? (
+        <form action={resolveSupportThread} className="mt-4">
+          <input type="hidden" name="threadId" value={id} />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white">
+            Mark resolved
+          </button>
+        </form>
+      ) : null}
+      {thread.resolved_at ? <p className="mt-4 text-base text-ink">This conversation is resolved and read-only.</p> : null}
       <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closesAt={thread.resolved_at ?? thread.closes_at} />
     </main>
   );
