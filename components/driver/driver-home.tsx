@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { acceptDriverTerms, dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import { services } from "@/lib/constants";
@@ -225,6 +225,7 @@ export function DriverHome({
   termsAccepted,
   coverage,
   offlineAlerts,
+  setup = null,
 }: {
   isOnline: boolean;
   userId: string;
@@ -236,6 +237,7 @@ export function DriverHome({
   termsAccepted: boolean;
   coverage: CoverageDraft;
   offlineAlerts: boolean;
+  setup?: ReactNode;
 }) {
   const [online, setOnline] = useState(isOnline);
   const [offlineAlertsOn, setOfflineAlertsOn] = useState(offlineAlerts);
@@ -512,10 +514,12 @@ export function DriverHome({
         </p>
       ) : null}
     </section>
+    <div className={setup ? "flex flex-col" : undefined}>
+    {setup ? <div className="order-1 sm:order-2">{setup}</div> : null}
     {showFeed ? (
     <div
       id="jobs"
-      className="mt-6"
+      className={setup ? "order-2 mt-6 sm:order-1" : "mt-6"}
       onTouchStart={(event) => {
         pullStart.current = event.touches[0]?.clientY ?? 0;
       }}
@@ -525,7 +529,9 @@ export function DriverHome({
       }}
     >
       <p className="mt-4 text-base text-muted">
-        You can browse while Offline. Claiming or offering requires Online.
+        {approved
+          ? "You can browse while Offline. Claiming or offering requires Online."
+          : "Browse only until Pickuply approves you. You cannot take a job yet."}
       </p>
       <div className="mt-4">
         <p className="text-base text-ink">
@@ -676,6 +682,7 @@ export function DriverHome({
       </section>
     </div>
     ) : null}
+    </div>
     </>
   );
 }

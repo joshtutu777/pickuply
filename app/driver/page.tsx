@@ -145,6 +145,7 @@ async function DriverContent({
           termsAccepted={application?.terms_version === "driver-terms-v1"}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
+          setup={!approved ? checklist : null}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
@@ -212,7 +213,7 @@ async function DriverContent({
             </div>
           </section>
         ) : null}
-        {checklist}
+        {approved ? checklist : null}
         {forbidden ? <ForbiddenAlert /> : null}
         {approved ? <AssignedLinks userId={session.userId} /> : null}
       </main>
