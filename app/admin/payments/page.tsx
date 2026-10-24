@@ -37,6 +37,17 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
     supabase.from("refund_requests").select("id, job_id, amount_cents, status, reason").order("created_at", { ascending: false }).limit(25),
     supabase.from("card_disputes").select("stripe_dispute_id, job_id, amount_cents, status, outcome").order("updated_at", { ascending: false }).limit(25),
   ]);
+  const relatedIds = [...new Set([...(refunds ?? []).map((row) => row.job_id), ...(disputes ?? []).map((row) => row.job_id)])];
+  const { data: relatedJobs } = relatedIds.length
+    ? await supabase.from("jobs").select("id, is_test").in("id", relatedIds)
+    : { data: [] as { id: string; is_test: boolean }[] };
+  const visibleJobs = new Set(
+    (relatedJobs ?? [])
+      .filter((job) => lane === "all" || job.is_test === (lane === "test"))
+      .map((job) => job.id),
+  );
+  const shownRefunds = (refunds ?? []).filter((row) => visibleJobs.has(row.job_id));
+  const shownDisputes = (disputes ?? []).filter((row) => visibleJobs.has(row.job_id));
   const ids = (jobs ?? []).map((job) => job.id);
   const { data: payments } = ids.length
     ? await supabase.from("job_payments").select("job_id, stripe_fee_cents, fee_shortfall, capture_before").in("job_id", ids)
@@ -74,9 +85,9 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
         })}
       </ul>
       <h2 className="mt-8 text-2xl font-semibold text-ink">Card disputes</h2>
-      {(disputes ?? []).length === 0 ? <p className="mt-3">No card disputes.</p> : null}
+      {shownDisputes.length === 0 ? <p className="mt-3">No card disputes.</p> : null}
       <ul className="mt-3 grid gap-2">
-        {(disputes ?? []).map((dispute) => (
+        {shownDisputes.map((dispute) => (
           <li key={dispute.stripe_dispute_id}>
             {formatCents(dispute.amount_cents ?? 0)} · {dispute.status}
             {dispute.outcome ? ` · ${dispute.outcome}` : " · open"}
@@ -84,9 +95,9 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
         ))}
       </ul>
       <h2 className="mt-8 text-2xl font-semibold text-ink">Refunds</h2>
-      {(refunds ?? []).length === 0 ? <p className="mt-3">No refunds yet.</p> : null}
+      {shownRefunds.length === 0 ? <p className="mt-3">No refunds yet.</p> : null}
       <ul className="mt-3 grid gap-2">
-        {(refunds ?? []).map((refund) => (
+        {shownRefunds.map((refund) => (
           <li key={refund.id}>
             {formatCents(refund.amount_cents)} · {refund.status} · {refund.reason}
           </li>

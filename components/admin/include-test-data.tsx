@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export function IncludeTestData({
   include,
   path,
@@ -17,9 +15,9 @@ export function IncludeTestData({
 
   return (
     <p className="mt-3 text-sm text-muted">
-      <Link href={href} className="font-semibold text-brand">
+      <a href={href} className="font-semibold text-brand">
         {include ? "Hide test data" : "Include test data"}
-      </Link>
+      </a>
       {include ? " Test accounts are included in this view." : " Test accounts are hidden."}
     </p>
   );

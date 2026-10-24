@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import Script from "next/script";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
 import { UpdateBanner } from "@/components/pwa/update-banner";
@@ -54,14 +55,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
         <UpdateBanner />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: "if(location.pathname==='/')document.documentElement.dataset.landing='1'",
-          }}
-        />
+        <Script id="landing-flag" strategy="beforeInteractive">
+          {`if(location.pathname==='/')document.documentElement.dataset.landing='1'`}
+        </Script>
         <Suspense fallback={<SiteHeader state={{ status: "signed-out" }} />}>
           <MarketingSlot>
             <HeaderSession />
