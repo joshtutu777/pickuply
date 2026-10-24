@@ -41,10 +41,6 @@ async function googleSuggestions(query: string, session: string, key: string): P
 
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const user = await supabase.auth.getUser();
-  if (!user.data.user) {
-    return NextResponse.json({ suggestions: [] }, { status: 401 });
-  }
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() ?? "";
   const session = url.searchParams.get("session")?.trim() ?? "";

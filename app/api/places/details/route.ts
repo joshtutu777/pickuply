@@ -4,8 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const user = await supabase.auth.getUser();
-  if (!user.data.user) return NextResponse.json({ place: null }, { status: 401 });
   const url = new URL(request.url);
   const id = url.searchParams.get("id")?.trim() ?? "";
   const session = url.searchParams.get("session")?.trim() ?? "";
