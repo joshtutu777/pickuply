@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Driver offer form (2026-10-23)
+
+The driver offer form has one field, Offer Amount ($), and one Submit Offer button. It does not show a customer total or a fee breakdown. The server still stores the customer total from the existing fee schedule. Submitting an offer does not assign the driver. Settings can change the minimum offer: $35 for pickup and delivery, $50 for junk removal, $35 for store delivery, and $35 for free-item pickups. There is no twice-the-price maximum, and a counter no longer needs a written reason. A job can have five active offers. A driver can offer on more than one job. When both stair counts are zero, the card says "No stairs reported." Local migration `0053` is applied. It is not on the hosted database.
+
 ## Desktop navigation (2026-10-23)
 
 At 768px and wider, a signed-in customer or driver sees Home, Requests or Jobs, Messages, Alerts, and Profile in the header. The phone bar stays under that width and uses the same destinations. Admin keeps a side menu from 768px up: Dashboard, Requests, Drivers, Messages, Alerts, and Settings. The logo still opens the current mode home and does not switch modes. The service worker does not cache pages.
@@ -504,7 +508,7 @@ The open driver feed was one list that polled every 25 seconds. An unassigned dr
 
 ## Waves stay off (2026-10-23)
 
-Settings has Waves enabled, and it starts off. While it is off, an open request is not held for a wave or an invitation. A driver still cannot hold more than five active offers. Online drivers whose Areas I cover match get a new-job alert, and Offline drivers with Job alerts while Offline on get one too. Turning waves on follows `docs/WAVES.md`. Visibility uses the time the request opened.
+Settings has Waves enabled, and it starts off. While it is off, an open request is not held for a wave or an invitation. A job can have five active offers. A driver can offer on more than one job. Online drivers whose Areas I cover match get a new-job alert, and Offline drivers with Job alerts while Offline on get one too. Turning waves on follows `docs/WAVES.md`. Visibility uses the time the request opened.
 
 ## Requests publish on submit (2026-10-23)
 

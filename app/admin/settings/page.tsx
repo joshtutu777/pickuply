@@ -1,7 +1,13 @@
 import { BackLink } from "@/components/back-link";
 import { Suspense } from "react";
 import { saveSettings } from "@/app/admin/requests/actions";
-import { saveSmsSetting, saveSupportContact, saveProofLocation, saveWavesSetting } from "@/app/admin/settings/actions";
+import {
+  saveOfferMinimums,
+  saveSmsSetting,
+  saveSupportContact,
+  saveProofLocation,
+  saveWavesSetting,
+} from "@/app/admin/settings/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -37,6 +43,10 @@ async function SettingsContent({
     support_email: null,
     proof_location_enabled: false,
     waves_enabled: false,
+    delivery_offer_min_cents: 3500,
+    junk_offer_min_cents: 5000,
+    store_offer_min_cents: 3500,
+    free_item_offer_min_cents: 3500,
   };
 
   return (
@@ -95,6 +105,54 @@ async function SettingsContent({
           className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand font-semibold text-white"
         >
           Save settings
+        </button>
+      </form>
+      <form action={saveOfferMinimums} className="mt-8 space-y-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Minimum offer amounts</h2>
+        <p className="text-base text-muted">
+          A driver cannot submit an offer below these amounts. The customer total is still calculated from the offer.
+        </p>
+        <label className="block text-base font-semibold" htmlFor="deliveryMin">
+          Pickup & Delivery (dollars)
+          <input
+            id="deliveryMin"
+            name="deliveryMin"
+            defaultValue={(settings.delivery_offer_min_cents / 100).toFixed(2)}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="junkMin">
+          Junk Removal (dollars)
+          <input
+            id="junkMin"
+            name="junkMin"
+            defaultValue={(settings.junk_offer_min_cents / 100).toFixed(2)}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="storeMin">
+          Store Delivery (dollars)
+          <input
+            id="storeMin"
+            name="storeMin"
+            defaultValue={(settings.store_offer_min_cents / 100).toFixed(2)}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="freeItemMin">
+          Free-Item Pickups (dollars)
+          <input
+            id="freeItemMin"
+            name="freeItemMin"
+            defaultValue={(settings.free_item_offer_min_cents / 100).toFixed(2)}
+            className={controlClass}
+          />
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save minimum offers
         </button>
       </form>
       <form action={saveWavesSetting} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">

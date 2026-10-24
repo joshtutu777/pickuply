@@ -1,6 +1,6 @@
 # Three-wave job release
 
-Waves are off unless an admin turns on **Waves enabled** in Settings. While that setting is off, every open request is visible to every eligible driver immediately. There is no wave delay and no invitation limit. Matched for You is coverage. All Georgia Requests is every other eligible open job. Wave release applies to both sections when waves are on. A driver can still have only five active offers at a time.
+Waves are off unless an admin turns on **Waves enabled** in Settings. While that setting is off, every open request is visible to every eligible driver immediately. There is no wave delay and no invitation limit. Matched for You is coverage. All Georgia Requests is every other eligible open job. Wave release applies to both sections when waves are on. A job can still have only five active offers at a time. A driver can offer on more than one job.
 
 While the setting is on, visibility is calculated from the time the request became `open`. A missed cron cannot hide or reveal a job. Wave 2 and wave 3 notifications are not sent by a five-minute schedule. Vercel Hobby cannot run that often. The feed, offers, and claims read the same timestamps.
 

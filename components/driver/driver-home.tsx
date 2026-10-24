@@ -56,6 +56,13 @@ function countFrom(value: unknown) {
 
 type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null };
 
+function stairLabel(pickup: number, dropoff: number | null) {
+  const drop = dropoff ?? 0;
+  if (pickup === 0 && drop === 0) return "No stairs reported";
+  if (dropoff == null) return `Stairs ${pickup}`;
+  return `Stairs ${pickup} / ${dropoff}`;
+}
+
 function OfferActions({
   job,
   canAct,
@@ -67,29 +74,13 @@ function OfferActions({
   blockedReason: string | null;
   onDone: () => void;
 }) {
-  const [earnings, setEarnings] = useState("");
-  const [reason, setReason] = useState("");
-  const [preview, setPreview] = useState<{ cents: number; total: number } | null>(null);
+  const [amount, setAmount] = useState("");
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
   const router = useRouter();
-  const earningsCents = parseDollarsToCents(earnings) ?? 0;
-  const previewTotal = preview && preview.cents === earningsCents ? preview.total : null;
+  const offerCents = parseDollarsToCents(amount) ?? 0;
+  const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
 
-  useEffect(() => {
-    if (earningsCents <= 0) return;
-    let cancelled = false;
-    void createClient()
-      .rpc("price_breakdown", { mode: "forward", amount_cents: earningsCents })
-      .then(({ data }) => {
-        const total = (data as { customer_total_cents?: number } | null)?.customer_total_cents;
-        if (!cancelled && total != null) setPreview({ cents: earningsCents, total });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [earningsCents, job.pricing_method]);
-
-  async function send(kind: "accept" | "counter" | "claim" | "offer") {
+  async function send(kind: "accept" | "claim" | "offer") {
     setMessage(null);
     const supabase = createClient();
     const result =
@@ -98,15 +89,15 @@ function OfferActions({
         : await supabase.rpc("submit_offer", {
             target_job: job.id,
             kind,
-            earnings_cents: kind === "accept" ? null : earningsCents,
-            reason,
+            earnings_cents: kind === "accept" ? null : offerCents,
+            reason: "",
           });
     if (result.error) {
       setMessage({ text: takenJobMessage(result.error.message), alert: true });
       return;
     }
     setMessage({
-      text: kind === "claim" ? "You are assigned. Payment is still due." : "Offer sent. The customer chooses.",
+      text: kind === "claim" ? "You are assigned. Payment is still due." : "Offer submitted successfully.",
       alert: false,
     });
     if (kind === "claim" || kind === "accept") {
@@ -118,7 +109,7 @@ function OfferActions({
 
   return (
     <div className="mt-3 grid gap-3">
-      {job.pricing_method === "quote" && job.driver_pay_cents != null ? (
+      {claimable ? (
         <button
           type="button"
           disabled={!canAct}
@@ -127,69 +118,37 @@ function OfferActions({
         >
           Claim this job
         </button>
-      ) : null}
-      {job.pricing_method === "quote" && job.driver_pay_cents == null ? (
+      ) : (
         <>
+          {job.pricing_method === "fixed" ? (
+            <button
+              type="button"
+              disabled={!canAct}
+              onClick={() => void send("accept")}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+            >
+              Accept posted price
+            </button>
+          ) : null}
           <label className="text-base font-semibold text-ink">
-            Your earnings (dollars)
+            Offer Amount ($)
             <input
-              value={earnings}
-              onChange={(event) => setEarnings(event.target.value)}
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
               inputMode="decimal"
               className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
             />
           </label>
-          {previewTotal != null ? <p>Customer total {formatCents(previewTotal)}</p> : null}
           <button
             type="button"
-            disabled={!canAct}
+            disabled={!canAct || offerCents <= 0}
             onClick={() => void send("offer")}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
           >
-            Send offer
+            Submit Offer
           </button>
         </>
-      ) : null}
-      {job.pricing_method === "fixed" ? (
-        <button
-          type="button"
-          disabled={!canAct}
-          onClick={() => void send("accept")}
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
-        >
-          Accept posted price
-        </button>
-      ) : null}
-      {job.pricing_method !== "quote" ? (
-        <>
-          <label className="text-base font-semibold text-ink">
-            Your earnings (dollars)
-            <input
-              value={earnings}
-              onChange={(event) => setEarnings(event.target.value)}
-              inputMode="decimal"
-              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
-            />
-          </label>
-          {previewTotal != null ? <p>Customer total {formatCents(previewTotal)}</p> : null}
-          <label className="text-base font-semibold text-ink">
-            Reason if this is a counter
-            <input
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
-            />
-          </label>
-          <button
-            type="button"
-            disabled={!canAct}
-            onClick={() => void send("counter")}
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink font-semibold text-white disabled:opacity-60"
-          >
-            {job.pricing_method === "range" ? "Send offer or counter" : "Send counter"}
-          </button>
-        </>
-      ) : null}
+      )}
       {blockedReason ? <p className="text-base text-ink">{blockedReason}</p> : null}
       {message ? (
         <p role={message.alert ? "alert" : "status"} className={message.alert ? "text-base text-danger" : "text-base text-ink"}>
@@ -222,8 +181,8 @@ function JobCard({
         {job.miles_from_you != null ? ` · ~${Math.round(Number(job.miles_from_you))} mi from you` : ""}
       </p>
       <p>
-        {job.required_vehicle?.replaceAll("_", " ") ?? "Any vehicle"} · {job.help_loading ? "2 people" : "1 person"} · Stairs {job.stairs_pickup}
-        {job.stairs_dropoff != null ? ` / ${job.stairs_dropoff}` : ""}
+        {job.required_vehicle?.replaceAll("_", " ") ?? "Any vehicle"} · {job.help_loading ? "2 people" : "1 person"} ·{" "}
+        {stairLabel(job.stairs_pickup, job.stairs_dropoff)}
       </p>
       <p>
         {job.preferred_date}
@@ -239,9 +198,7 @@ function JobCard({
       ) : null}
       {job.earningsCents != null ? (
         <p className="font-semibold">Your earnings {formatCents(job.earningsCents)}</p>
-      ) : (
-        <p>Enter your earnings when you offer.</p>
-      )}
+      ) : null}
       <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} onDone={onDone} />
       {job.photos.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2">
@@ -331,23 +288,9 @@ export function DriverHome({
       if (!signed.data?.signedUrl) continue;
       photos.set(photo.job_id, [...(photos.get(photo.job_id) ?? []), signed.data.signedUrl]);
     }
-    const earnings = new Map<string, number | null>();
-    for (const job of rows) {
-      if (token !== generation.current) return;
-      let value: number | null = job.driver_pay_cents;
-      if (job.pricing_method === "fixed" && job.offer_cents) {
-        const priced = await supabase.rpc("price_breakdown", { mode: "accept", amount_cents: job.offer_cents });
-        value = (priced.data as { driver_earnings_cents?: number } | null)?.driver_earnings_cents ?? null;
-      }
-      earnings.set(job.id, value);
-    }
     if (token !== generation.current) return;
     const apply = (current: FeedCard[]) =>
-      current.map((job) =>
-        earnings.has(job.id)
-          ? { ...job, photos: photos.get(job.id) ?? [], earningsCents: earnings.get(job.id) ?? null }
-          : job,
-      );
+      current.map((job) => ({ ...job, photos: photos.get(job.id) ?? [] }));
     setMatched(apply);
     setGeorgia(apply);
   }, []);

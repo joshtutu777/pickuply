@@ -66,7 +66,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await driver.page.goto("/driver");
   const fixedCard = driver.page.locator("li").filter({ hasText: "Austell 30168" });
   await fixedCard.getByRole("button", { name: "Accept posted price" }).click();
-  await expect(fixedCard.getByText("Offer sent. The customer chooses.")).toBeVisible();
+  await expect(fixedCard.getByText("Offer submitted successfully.")).toBeVisible();
 
   await customer.page.goto(`/jobs/${fixedId}`);
   await customer.page.getByRole("button", { name: "Choose this driver" }).click();
