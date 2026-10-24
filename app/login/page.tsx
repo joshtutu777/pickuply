@@ -13,12 +13,14 @@ export const metadata: Metadata = {
 
 const notices: Record<string, string> = {
   profile: "We couldn't open your profile. Try signing in again.",
+  reclaim: "The old account is waiting for review. Use the same phone to start a new one.",
+  review: "That account is waiting for Pickuply to review it.",
 };
 
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[]; error?: string | string[]; intent?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; error?: string | string[]; intent?: string | string[]; reclaim?: string | string[] }>;
 }) {
   return (
     <Suspense fallback={<LoadingMain />}>
@@ -30,7 +32,7 @@ export default function LoginPage({
 async function LoginContent({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[]; error?: string | string[]; intent?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; error?: string | string[]; intent?: string | string[]; reclaim?: string | string[] }>;
 }) {
   const params = await searchParams;
   const next = safeNextParam(singleQuery(params.next));
@@ -45,7 +47,7 @@ async function LoginContent({
   });
   if (decision.type === "redirect") redirect(decision.location);
 
-  const errorCode = singleQuery(params.error) ?? "";
+  const errorCode = singleQuery(params.reclaim) === "1" ? "reclaim" : singleQuery(params.reclaim) === "review" ? "review" : singleQuery(params.error) ?? "";
   const notice = notices[errorCode] ?? "";
   return <LoginForm next={next ?? ""} intent={intent ?? ""} notice={notice} />;
 }

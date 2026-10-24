@@ -8,6 +8,7 @@ const items = [
   { id: "overview", href: "/admin", label: "Dashboard" },
   { id: "requests", href: "/admin/requests", label: "Requests" },
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
+  { id: "customers", href: "/admin/customers", label: "Customers" },
   { id: "messages", href: "/admin/messages", label: "Messages" },
   { id: "communications", href: "/admin/communications", label: "Communications" },
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },

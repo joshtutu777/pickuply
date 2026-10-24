@@ -33,6 +33,7 @@ function job(overrides: Partial<AdminJob> = {}): AdminJob {
     paymentDueAt: null,
     quoteExpiresAt: null,
     assignedDriverId: null,
+    customerId: null,
     preferredDate: "asap",
     itemValueCents: 0,
     offerCents: null,
@@ -203,6 +204,7 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/settings", ""), "settings");
   assert.equal(adminNavCurrent("/admin/messages", ""), "messages");
   assert.equal(adminNavCurrent("/admin/communications", ""), "communications");
+  assert.equal(adminNavCurrent("/admin/customers", ""), "customers");
   assert.equal(adminNavCurrent("/admin/finance", ""), "payments");
   assert.equal(adminNavCurrent("/admin/payments", ""), "payments");
   assert.equal(adminNavCurrent("/admin/feedback", ""), "feedback");

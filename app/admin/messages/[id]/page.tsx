@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
@@ -23,7 +24,7 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
   const supabase = await createClient();
   const { data: thread } = await supabase
     .from("message_threads")
-    .select("id, closes_at, resolved_at")
+    .select("id, closes_at, resolved_at, requester_id, driver_id")
     .eq("id", id)
     .maybeSingle();
   if (!thread) notFound();
@@ -32,6 +33,18 @@ async function AdminMessage({ params }: { params: PageProps<"/admin/messages/[id
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <BackLink href="/admin/messages" label="Messages" />
       <h1 className="font-display text-4xl font-semibold text-ink">Message</h1>
+      <p className="mt-3 flex flex-wrap gap-4">
+        {thread.requester_id ? (
+          <Link href={`/admin/customers/${thread.requester_id}`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Customer
+          </Link>
+        ) : null}
+        {thread.driver_id ? (
+          <Link href={`/admin/drivers/${thread.driver_id}`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Driver
+          </Link>
+        ) : null}
+      </p>
       <MessagePanel threadId={id} initial={(data ?? []) as ChatMessage[]} closesAt={thread.resolved_at ?? thread.closes_at} />
     </main>
   );

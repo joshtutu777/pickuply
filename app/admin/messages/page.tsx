@@ -53,6 +53,13 @@ async function AdminMessages({ searchParams }: { searchParams: Promise<{ error?:
               </option>
             ))}
           </select>
+          <span className="mt-2 block text-sm">
+            {directory.map((person) => (
+              <Link key={person.profile_id} href={person.person_role === "driver" ? `/admin/drivers/${person.profile_id}` : `/admin/customers/${person.profile_id}`} className="mr-3 inline-flex min-h-12 items-center font-semibold text-brand">
+                {person.person_role === "driver" ? "Driver" : "Customer"} record
+              </Link>
+            ))}
+          </span>
         </label>
         <label className="text-base font-semibold text-ink" htmlFor="note">
           Message

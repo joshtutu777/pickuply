@@ -101,7 +101,14 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
                   <tr key={job.id} className="bg-paper-raised text-base">
                     <td className="rounded-l-2xl px-3 py-3">{readableTime(job.createdAt, data.now)}</td>
                     <td className="px-3 py-3">{serviceLabel(job.service)}</td>
-                    <td className="px-3 py-3">{job.pickupArea}</td>
+                    <td className="px-3 py-3">
+                      {job.pickupArea}
+                      {job.customerId ? (
+                        <Link href={`/admin/customers/${job.customerId}`} className="mt-1 block text-sm font-semibold text-brand">
+                          Customer
+                        </Link>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-3">
                       {pricingMethodLabel(job.pricingMethod)}
                       {pricingAmount(job) ? <span className="block text-sm text-muted">{pricingAmount(job)}</span> : null}

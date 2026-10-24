@@ -205,7 +205,13 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
               <tr key={job.id} className="border-t border-line">
                 <td className="py-2 pr-3">{new Date(job.createdAt).toLocaleDateString()}</td>
                 <td className="py-2 pr-3"><Link className="font-semibold text-brand" href={`/admin/requests/${job.id}`}>{job.id.slice(0, 8)}</Link></td>
-                <td className="py-2 pr-3">{job.customerFirst ?? "Unavailable"}</td>
+                <td className="py-2 pr-3">
+                  {job.customerId ? (
+                    <Link href={`/admin/customers/${job.customerId}`} className="font-semibold text-brand">{job.customerFirst ?? "Customer"}</Link>
+                  ) : (
+                    job.customerFirst ?? "Unavailable"
+                  )}
+                </td>
                 <td className="py-2 pr-3">{job.driverFirst ?? "Unassigned"}</td>
                 <td className="py-2 pr-3">{chip ? chipLabel[chip] : "Unavailable"}</td>
                 <td className="py-2 pr-3">{job.priceCents == null ? "Unavailable" : showMoney({ cents: job.priceCents })}</td>

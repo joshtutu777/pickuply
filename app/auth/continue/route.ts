@@ -20,11 +20,16 @@ export async function GET(request: Request) {
   if (!session.fullName?.trim()) {
     redirect(authLocation("/login/name", next, intent));
   }
+  const supabase = await createClient();
+  const { data: reclaim } = await supabase.rpc("phone_reclaim_hint");
+  if (reclaim && typeof reclaim === "object") {
+    const nextQuery = next ? `&next=${encodeURIComponent(next)}` : "";
+    redirect(`/auth/reclaim?intent=${intent ?? ""}${nextQuery}`);
+  }
   const mode = await readMode();
   let hasDriver = session.role === "driver";
   if (!hasDriver) {
     try {
-      const supabase = await createClient();
       const { data } = await supabase
         .from("drivers")
         .select("profile_id")

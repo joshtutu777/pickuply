@@ -498,9 +498,13 @@ Local UI only. No schema, pricing, payment, or eligibility changes. Customers ge
 
 `/admin/communications` sends one-way announcements through in-app alerts, push, and text. Texting stays off. Push is not marked as shown on a phone. Private conversations stay in Messages. The manifest can be installed, and `/app` sends a signed-in person to the right home. Local migration `0062_admin_announcements.sql` is not on the hosted database. Phone installation was not run on a device.
 
+## Customer records and phone recovery (2026-10-24)
+
+`/admin/customers` lists people and `/admin/customers/[id]` shows the profile, phone, jobs, payments, reviews, help, messages, suspension history, deletion status, and audit history. A missing phone-protection secret no longer blocks sign-up or deletion. It is skipped, audited, and shown as a red banner on `/admin`. A quiet phone of 12 months asks "Is this your account?" after the code. Dispute photos stay 365 days after the dispute is resolved. Keep two admins. `scripts/promote-admin.sql` is the last-resort recovery script and is not a migration. Local migration `0063_account_followups.sql` is not on the hosted database.
+
 ## Account policy rules (2026-10-24)
 
-The nine approved account rules are now in the spec. A suspended driver can finish a job that is already in transit. An assigned job that has not started is flagged for an admin and is not cancelled or refunded. Suspension does not hold earnings by itself. Delete Account waits 14 days and can be cancelled during that time. Stop Driving is separate from Delete Account. Contact support on a restriction notice opens the existing help form. The last active admin cannot be removed. Local phone protection uses Vault, not a committed secret. Migration `0061_account_policy.sql` is local only. There is no `/admin/customers/[id]` page. Customer suspension stays on the request page and the accounts list.
+The nine approved account rules are now in the spec. A suspended driver can finish a job that is already in transit. An assigned job that has not started is flagged for an admin and is not cancelled or refunded. Suspension does not hold earnings by itself. Delete Account waits 14 days and can be cancelled during that time. Stop Driving is separate from Delete Account. Contact support on a restriction notice opens the existing help form. The last active admin cannot be removed. Local phone protection uses Vault, not a committed secret. Migration `0061_account_policy.sql` is local only. Customer records are now at `/admin/customers`. Suspension also stays on the request page and the accounts list.
 
 ## Account suspension and deletion (2026-10-24)
 

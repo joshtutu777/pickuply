@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob } from "@/app/admin/requests/actions";
@@ -248,7 +249,14 @@ async function RequestDetail({
         <p className="mt-6 text-base text-muted">This request is not waiting for a first review.</p>
       )}
       {extra?.customer_id ? (
-        <AccountControls profileId={extra.customer_id} returnTo={`/admin/requests/${id}`} label="Customer account" />
+        <>
+          <p className="mt-6">
+            <Link href={`/admin/customers/${extra.customer_id}`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+              Open customer
+            </Link>
+          </p>
+          <AccountControls profileId={extra.customer_id} returnTo={`/admin/requests/${id}`} label="Customer account" />
+        </>
       ) : null}
       {extra?.assigned_driver_id ? (
         <AccountControls

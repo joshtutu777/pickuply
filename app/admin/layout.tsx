@@ -39,6 +39,10 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
     .from("beta_feedback")
     .select("id", { count: "exact", head: true })
     .eq("status", "new");
+  const [{ data: phoneReady }, { data: adminCount }] = await Promise.all([
+    supabase.rpc("admin_phone_protection_ready"),
+    supabase.rpc("admin_active_admin_count"),
+  ]);
   const badges = {
     overview: needs.length,
     requests: needs.filter((item) => item.kind === "request" || item.kind === "quote").length,
@@ -53,7 +57,22 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
       <AdminAutoRefresh />
       <AdminDocumentTitle title={title} />
       <AdminNav badges={badges} />
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1">
+        {phoneReady === false ? (
+          <p role="alert" className="bg-danger px-4 py-3 text-base font-semibold text-white">
+            Phone protection secret is not configured
+          </p>
+        ) : null}
+        {adminCount === 1 ? (
+          <p role="status" className="bg-ink px-4 py-3 text-base text-white">
+            Only one active admin. Add a second admin before anyone is removed. The recovery steps are in the deployment notes.
+          </p>
+        ) : null}
+        <section className="px-4 pt-4 text-sm text-muted" aria-label="Health">
+          Phone protection: {phoneReady === false ? "not configured" : phoneReady === true ? "configured" : "not checked"}
+        </section>
+        {children}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(34);
+select plan(35);
 
 do $$
 declare
@@ -291,16 +291,20 @@ update public.account_deletion_requests
 set grace_ends_at = now() - interval '1 minute'
 where profile_id = 'c1630000-0000-4000-8000-000000000008' and status = 'pending';
 select set_config('pickuply.phone_hmac_secret', '', true);
-select lives_ok($$select public.process_due_deletions()$$, 'a missing secret does not finish a restricted deletion');
+select lives_ok($$select public.process_due_deletions()$$, 'a missing secret still deletes a clear account');
 select is(
-  (select phone is not null and deleted_at is null from public.profiles where id = 'c1630000-0000-4000-8000-000000000008'),
+  (select phone is null and deleted_at is not null from public.profiles where id = 'c1630000-0000-4000-8000-000000000008'),
   true,
-  'the restricted phone is still on the account'
+  'deletion finishes and skips the phone restriction'
 );
-select throws_ok(
+select lives_ok(
   $$select pg_temp.make_user('c1630000-0000-4000-8000-000000000009', 'pol-new@pickuply.test')$$,
-  'registration is unavailable until phone protection is configured',
-  'a missing secret does not allow a new registration'
+  'a missing secret still allows registration'
+);
+select is(
+  (select count(*)::integer from public.audit_log where action = 'phone_protection_missing' and target_id = 'c1630000-0000-4000-8000-000000000009'),
+  1,
+  'a missing secret is written to the security log'
 );
 
 select set_config('request.jwt.claim.sub', '', true);

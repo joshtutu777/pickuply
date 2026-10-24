@@ -48,7 +48,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
         supabase
           .from("jobs")
           .select(
-            "id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items, detail_request",
+            "id, customer_id, service, status, created_at, pricing_method, pickup_area, zone_id, payment_status, payment_due_at, quote_expires_at, assigned_driver_id, preferred_date, item_value_cents, offer_cents, budget_min_cents, budget_max_cents, price_cents, description, junk_special_items, detail_request",
           )
           .order("created_at", { ascending: false })
           .limit(2000),
@@ -142,6 +142,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(): Pro
       paymentDueAt: job.payment_due_at,
       quoteExpiresAt: job.quote_expires_at,
       assignedDriverId: job.assigned_driver_id,
+      customerId: job.customer_id,
       preferredDate: job.preferred_date,
       itemValueCents: job.item_value_cents,
       offerCents: job.offer_cents,

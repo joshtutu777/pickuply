@@ -63,7 +63,15 @@ Local development uses the same Vault name in the local database. The value also
 
 To rotate, set `pickuply.phone_hmac_secret_previous` to the old value, store the new value as the current secret, and leave the previous setting in place until every old HMAC has expired. New rows use the current secret. Old rows still match while the previous value is set. The phone numbers are not kept, so an old HMAC cannot be rebuilt without the previous secret.
 
-If the secret is missing, new marketplace registration stops and deletion of a suspended or removed account stays pending. People who already have accounts are not blocked from signing in. An expired temporary restriction is deleted by the retention cleanup and does not become a permanent ban.
+If the secret is missing, sign-up and account deletion still proceed. The restricted-phone check is skipped, a `phone_protection_missing` row is written to `audit_log`, and `/admin` shows a red banner: "Phone protection secret is not configured." The admin health line on that page reports the same item. People who already have accounts can still sign in. An expired temporary restriction is deleted by the retention cleanup and does not become a permanent ban.
+
+Dispute photos and driver documents stay while a dispute is open and for 365 days after `resolved_at`. After that they follow the normal 90-day deletion rule.
+
+## Admin recovery
+
+Keep at least two active admin accounts. `/admin` warns when only one active admin remains. The last admin cannot be suspended, deleted, or demoted in the app.
+
+If every admin sign-in is lost, open the Supabase SQL editor as the database owner and run `scripts/promote-admin.sql` after replacing the example phone with the confirmed phone of an existing profile. That script is not a migration and does not run by itself. Do not put a real phone number in git.
 
 The notifications cron calls `process_due_deletions()` and `cleanup_account_retention()` after the existing suspension cleanup. Those functions are service-role only. This pass does not add a hosted cron job or change `vercel.json`. Production still needs the scheduler in `docs/SCHEDULER.md` before those cleanups run on a host.
 
