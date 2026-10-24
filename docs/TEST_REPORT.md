@@ -457,3 +457,28 @@ Implementation: `3d26fe8c723e94e20ab4f35b43150e6a4342c235`. The commit that adds
 ## 37. Policy confirmation
 
 No git push. No deploy. No hosted database, Stripe, Twilio, Vercel, or DNS change. No live charge. No real SMS, email, or push. `.env.local` and `.env.test.local` were not edited. The phone secret was not printed.
+
+## 38. Communications and the installable app
+
+Local only. Announcements are a new path. Private conversations still use `/admin/messages`. The Conversations link on Communications opens that inbox. No second message table was added.
+
+Push for an announcement is stored as `provider_accepted` and `push_displayed` stays false. No push provider was called. Texting stays off. A promotional text is prepared with the Pickuply prefix and STOP line, and a send outside 8:00 AM to 9:00 PM Eastern is deferred. Inbound STOP was not checked against a hosted Twilio webhook.
+
+The manifest name is Pickuply, display is standalone, and the start URL is `/app?source=pwa`. Icons at 192, 512, maskable 512, and the 180 Apple icon returned HTTP 200 on the local app. `/sw.js` and `/offline` did too. A signed-in admin opening `/app?source=pwa` landed on the admin home. Communications showed the three channels, the audience list, Eastern date and time, and an empty announcement list. Nothing was sent.
+
+Android Chrome, iPhone Safari, Lighthouse, and a production build were not run. Checkout still returns to the job page on this site, and Connect still returns to driver earnings. Those returns were not opened from an installed phone.
+
+## 39. Communications and install results
+
+| Result | Count | What |
+|---|---:|---|
+| Passed | 143 | Unit suite, including 18 announcement tests and 4 install tests |
+| Passed | 11 | Announcement database tests |
+| Passed | 1 | Typecheck |
+| Passed | 1 | Lint of the files this pass changed |
+| Failed | 0 | |
+| Not run | A physical Android or iPhone install, Lighthouse, production build, a real push, a real text, and two database sessions racing the rate limit. The database locks one admin's announcements for the length of the save. |
+
+## 40. Communications commit
+
+Implementation: `f8b9693f29222cfb381d7e060bcca13506bc7895`. The commit that adds this section follows it. Neither was pushed.
