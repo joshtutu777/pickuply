@@ -1329,4 +1329,4 @@ grant execute on function public.preview_test_data_cleanup() to authenticated;
 grant execute on function public.cleanup_test_data(text) to authenticated;
 
 grant execute on function public.driver_browse_jobs() to authenticated;
-grant execute on function public.driver_is_eligible_for_job(uuid) to authenticated;
+revoke all on function public.driver_is_eligible_for_job(uuid) from public, anon, authenticated;

@@ -130,21 +130,6 @@ $$;
 revoke all on function public.my_account_restriction() from public, anon, service_role;
 grant execute on function public.my_account_restriction() to authenticated;
 
-create or replace function public.my_phone_restricted()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(public.phone_is_restricted(phone), false)
-  from public.profiles
-  where id = auth.uid();
-$$;
-
-revoke all on function public.my_phone_restricted() from public, anon, service_role;
-grant execute on function public.my_phone_restricted() to authenticated;
-
 create or replace function public.normalize_phone(raw text)
 returns text
 language sql
@@ -194,6 +179,21 @@ as $$
 $$;
 
 revoke all on function public.phone_is_restricted(text) from public, anon, authenticated, service_role;
+
+create or replace function public.my_phone_restricted()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.phone_is_restricted(phone), false)
+  from public.profiles
+  where id = auth.uid();
+$$;
+
+revoke all on function public.my_phone_restricted() from public, anon, service_role;
+grant execute on function public.my_phone_restricted() to authenticated;
 
 create or replace function public.other_active_admins(except_id uuid)
 returns integer

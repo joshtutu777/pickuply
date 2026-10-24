@@ -98,6 +98,7 @@ reset role;
 select pg_temp.clear_auth();
 
 select pg_temp.as_user('c1710000-0000-4000-8000-000000000002');
+select is(public.driver_is_eligible_for_job('c1710000-0000-4000-8000-000000000012'), false, 'a real driver cannot take a test job');
 set local role authenticated;
 select is(
   (select count(*)::integer from public.driver_browse_jobs() where id = 'c1710000-0000-4000-8000-000000000012'),
@@ -109,9 +110,9 @@ select is(
   1,
   'a real driver still sees a real job'
 );
-select is(public.driver_is_eligible_for_job('c1710000-0000-4000-8000-000000000012'), false, 'a real driver cannot take a test job');
 reset role;
 select pg_temp.as_user('c1710000-0000-4000-8000-000000000004');
+select is(public.driver_is_eligible_for_job('c1710000-0000-4000-8000-000000000011'), false, 'a test driver cannot take a real job');
 set local role authenticated;
 select is(
   (select count(*)::integer from public.driver_browse_jobs() where id = 'c1710000-0000-4000-8000-000000000011'),
@@ -123,7 +124,6 @@ select is(
   1,
   'a test driver sees a test job'
 );
-select is(public.driver_is_eligible_for_job('c1710000-0000-4000-8000-000000000011'), false, 'a test driver cannot take a real job');
 reset role;
 select pg_temp.clear_auth();
 
