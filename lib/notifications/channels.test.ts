@@ -13,6 +13,7 @@ const base = {
   hasPushKey: true,
   hasEmailKey: true,
   hasSmsKey: true,
+  hasConsent: true,
   pushSent: false,
   emailSent: false,
   smsSent: false,
@@ -28,6 +29,11 @@ test("texting stays off while the platform switch is off", () => {
 test("a missing email key waits instead of marking the alert sent", () => {
   const plan = channelPlan({ ...base, hasEmailKey: false });
   assert.equal(plan.email, "wait");
+});
+
+test("optional texts stay off without consent", () => {
+  const plan = channelPlan({ ...base, platformSms: true, smsEnabled: true, hasConsent: false });
+  assert.equal(plan.sms, "skip");
 });
 
 test("push is skipped when the person turned it off", () => {

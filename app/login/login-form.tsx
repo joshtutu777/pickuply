@@ -185,7 +185,7 @@ export function LoginForm({
               disabled={!configured || pending || cooling}
             />
           </label>
-          <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} showDisclosure={false} />
+          <SmsConsent audience={driver ? "driver" : "customer"} checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="phone-error" role="alert" className="text-sm font-medium text-danger">
               {error}
@@ -228,7 +228,7 @@ export function LoginForm({
               disabled={pending}
             />
           </label>
-          <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} showDisclosure={false} />
+          <SmsConsent audience={driver ? "driver" : "customer"} checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="code-error" role="alert" className="text-sm font-medium text-danger">
               {error}

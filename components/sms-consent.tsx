@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export const smsConsentVersion = "2026-10-22";
+export const smsConsentVersion = "2026-10-23";
 
-export const smsConsentDisclosure =
-  "Pickuply uses SMS to send verification codes when you sign in. You may also choose to receive booking updates, driver notifications, payment reminders, and service-related text messages. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. Consent to optional messages is not required to use Pickuply.";
+export const customerSmsConsent =
+  "I agree to receive automated text messages from Pickuply about my requests, driver offers, bookings, and deliveries. Consent is not required to register. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance.";
+
+export const driverSmsConsent =
+  "I agree to receive automated text messages from Pickuply about my driver application, available jobs, offers, and assignments. Consent is not required to apply. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance.";
 
 export function SmsConsent({
   checked,
   onChange,
-  showDisclosure = true,
+  audience,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  showDisclosure?: boolean;
+  audience: "customer" | "driver";
 }) {
   return (
     <section
@@ -24,30 +27,28 @@ export function SmsConsent({
       data-disclosure-version={smsConsentVersion}
     >
       <h2 id="sms-consent-heading" className="text-base font-semibold text-ink">
-        Text messages
+        Optional text messages
       </h2>
-      {showDisclosure ? (
-        <>
-          <p className="text-sm leading-relaxed text-muted">{smsConsentDisclosure}</p>
-          <p className="text-sm leading-relaxed text-muted">
-            <Link href="/privacy" className="font-semibold text-brand underline underline-offset-4">
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link href="/terms" className="font-semibold text-brand underline underline-offset-4">
-              Terms of Service
-            </Link>
-          </p>
-        </>
-      ) : null}
+      <p className="text-sm leading-relaxed text-muted">
+        The sign-in code is separate. This box is only for optional texts. Pickuply is the sender.{" "}
+        <Link href="/privacy" className="font-semibold text-brand underline underline-offset-4">
+          Privacy Policy
+        </Link>{" "}
+        and{" "}
+        <Link href="/terms" className="font-semibold text-brand underline underline-offset-4">
+          Terms of Service
+        </Link>
+        .
+      </p>
       <label className="flex min-h-12 items-start gap-3 text-base leading-relaxed text-ink">
         <input
-          className="mt-1"
+          className="mt-1 size-5"
           type="checkbox"
+          name="smsConsent"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
         />
-        I agree to receive SMS booking and service notifications from Pickuply.
+        <span>{audience === "driver" ? driverSmsConsent : customerSmsConsent}</span>
       </label>
     </section>
   );

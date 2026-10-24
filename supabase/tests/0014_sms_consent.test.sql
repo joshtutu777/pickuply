@@ -69,7 +69,7 @@ select results_eq(
   $$select disclosure_version, source
     from public.sms_consents
     where profile_id = 'c1414141-1414-4141-8141-141414141414'$$,
-  $$values ('2026-10-22'::text, 'login'::text)$$,
+  $$values ('2026-10-23'::text, 'login'::text)$$,
   'the row stores the disclosure version and the login source'
 );
 
@@ -81,7 +81,7 @@ select throws_ok(
 
 select throws_ok(
   $$insert into public.sms_consents (profile_id, disclosure_version, source)
-    values ('c1414141-1414-4141-8141-141414141414', '2026-10-22', 'login')$$,
+    values ('c1414141-1414-4141-8141-141414141414', '2026-10-23', 'login')$$,
   '42501',
   'permission denied for table sms_consents',
   'direct insert is denied'

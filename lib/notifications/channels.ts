@@ -11,6 +11,7 @@ export function channelPlan(input: {
   hasPushKey: boolean;
   hasEmailKey: boolean;
   hasSmsKey: boolean;
+  hasConsent: boolean;
   pushSent: boolean;
   emailSent: boolean;
   smsSent: boolean;
@@ -32,7 +33,7 @@ export function channelPlan(input: {
         : "skip",
     sms: input.smsSent
       ? "skip"
-      : input.platformSms && input.smsEnabled && input.hasPhone
+      : input.platformSms && input.smsEnabled && input.hasConsent && input.hasPhone
         ? input.hasSmsKey
           ? "send"
           : "wait"

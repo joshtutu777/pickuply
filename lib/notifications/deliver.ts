@@ -42,15 +42,23 @@ export async function deliverPendingAlerts(): Promise<number> {
 
 async function deliverOne(row: AlertRow, platformSms: boolean): Promise<boolean> {
   const supabase = createServiceClient();
-  const [{ data: prefs }, { data: subscriptions }, userResult] = await Promise.all([
+  const [{ data: prefs }, { data: subscriptions }, { data: consent }, userResult] = await Promise.all([
     supabase
       .from("notification_preferences")
       .select("push_enabled, email_enabled, sms_enabled")
       .eq("profile_id", row.profile_id)
       .maybeSingle(),
     supabase.from("push_subscriptions").select("endpoint, p256dh, auth").eq("profile_id", row.profile_id),
+    supabase
+      .from("sms_consents")
+      .select("opted_out_at")
+      .eq("profile_id", row.profile_id)
+      .order("consented_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase.auth.admin.getUserById(row.profile_id),
   ]);
+  const hasConsent = consent != null && consent.opted_out_at == null;
   const email = userResult.data.user?.email ?? "";
   const phone = userResult.data.user?.phone ?? "";
   const plan = channelPlan({
@@ -66,6 +74,7 @@ async function deliverOne(row: AlertRow, platformSms: boolean): Promise<boolean>
     hasSmsKey: Boolean(
       process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER,
     ),
+    hasConsent,
     pushSent: row.push_sent_at != null,
     emailSent: row.email_sent_at != null,
     smsSent: row.sms_sent_at != null,

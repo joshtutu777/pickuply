@@ -385,7 +385,7 @@ export function OnboardingForm({
         />
       </section>
 
-      <SmsConsent checked={smsOptIn} onChange={setSmsOptIn} />
+      <SmsConsent audience="driver" checked={smsOptIn} onChange={setSmsOptIn} />
       {error ? (
         <p role="alert" className="text-base font-medium text-danger">
           {error}
