@@ -31,6 +31,11 @@ html {
   background: var(--paper);
 }
 
+html[data-landing] [data-app-header],
+html[data-landing] [data-app-footer] {
+  display: none;
+}
+
 body {
   background: var(--paper);
   color: var(--ink);

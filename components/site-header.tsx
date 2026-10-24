@@ -30,7 +30,7 @@ export type HeaderState =
 
 export function SiteHeader({ state }: { state: HeaderState }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur-md">
+    <header data-app-header="" className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur-md">
       <div className="mx-auto w-full max-w-5xl px-4 py-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-3">

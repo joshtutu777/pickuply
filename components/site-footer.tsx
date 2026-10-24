@@ -5,7 +5,7 @@ const footerLink =
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-line bg-paper-raised">
+    <footer data-app-footer="" className="mt-auto border-t border-line bg-paper-raised">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-8">
         <p className="font-display text-2xl font-semibold tracking-tight text-ink">
           Pickuply
@@ -27,12 +27,6 @@ export function SiteFooter() {
             Help
           </Link>
         </nav>
-        <Link
-          href="/admin"
-          className="mt-2 inline-flex min-h-12 items-center self-start px-4 text-sm font-medium text-muted underline-offset-4 hover:underline"
-        >
-          Admin
-        </Link>
       </div>
     </footer>
   );

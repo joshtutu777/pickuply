@@ -74,11 +74,12 @@ Hazardous materials, chemicals, propane tanks, paint/solvents (junk), weapons, d
 Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 4.1 Landing page
-- Headline: "You Find It. We Pick It Up." Subheadline: "Found it. Bought it. Can't pick it up? We'll bring it home."
-- Four service cards: Pickup & Delivery · Free-Item Pickups · Junk Removal & Hauling ("Old furniture, junk, and yard debris. Send a photo and we'll get you a price.") · Construction Store Deliveries. Each links to `/request?service=...`
-- "Have a truck? Drive with Pickuply" link to driver onboarding
-- Trust strip: Verified drivers · Price locked before pickup · Card charged only after delivery
-- How it works (4 steps), price ranges, testimonials (later)
+- Headline: "Say yes to the deal. We'll do the rest." The public tagline "You Find It. We Pick It Up." stays in the footer.
+- Post a pickup opens `/request`. Drive with us and Apply to drive open `/drive`. Sign in opens `/login`.
+- Four service cards, in this order, each opening the matching request: Pickup & Delivery; Free-Item Pickups; Store Pickup & Delivery; Junk Removal & Hauling ("Old furniture, junk, and yard debris. Send a photo and get offers.").
+- The section before the services is text only. The hero has no photograph.
+- How it works step 2 is "Set your price / Receive offers": name a price, set a budget, or get offers, then the customer chooses.
+- A Georgia outline says Serving Georgia. It does not show driver locations.
 
 ### 4.2 Request form (guest)
 | Section | Fields |

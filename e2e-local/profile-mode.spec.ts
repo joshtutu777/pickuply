@@ -38,7 +38,7 @@ test("sign out from Profile returns to the landing page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Robin Returning" })).toBeVisible();
   await page.screenshot({ path: "test-results/profile-mode/customer-profile.png" });
   await page.getByRole("main").getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Sign up / Sign in" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in" }).first()).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 });
 
@@ -151,7 +151,7 @@ test("an approved driver can switch to the customer account", async ({ page }) =
 
 test("landing Sign up opens login", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Sign up / Sign in" }).first().click();
+  await page.getByRole("link", { name: "Sign in" }).first().click();
   await expect(page).toHaveURL(/\/login/);
   await expect(page.getByRole("heading", { name: "Log in or sign up" })).toBeVisible();
   await page.screenshot({ path: "test-results/profile-mode/landing-signin.png" });

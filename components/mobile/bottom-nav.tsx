@@ -88,6 +88,7 @@ export function BottomNav({
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, [pathname, hash]);
   if (!ready || (role !== "customer" && role !== "driver")) return null;
+  if (pathname === "/") return null;
   if (hidden.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
   const customerArea = pathname === "/account" || pathname.startsWith("/account/") || pathname.startsWith("/jobs/");
   const items = role === "driver" && !customerArea ? driverNav : customerNav;

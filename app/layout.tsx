@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
+import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -47,12 +48,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "if(location.pathname==='/')document.documentElement.dataset.landing='1'",
+          }}
+        />
         <Suspense fallback={<SiteHeader state={{ status: "signed-out" }} />}>
-          <HeaderSession />
+          <MarketingSlot>
+            <HeaderSession />
+          </MarketingSlot>
         </Suspense>
         <div data-app-scroll className="flex min-h-0 w-full flex-1 flex-col">
           {children}
-          <SiteFooter />
+          <Suspense fallback={<SiteFooter />}>
+            <MarketingSlot>
+              <SiteFooter />
+            </MarketingSlot>
+          </Suspense>
         </div>
         <Suspense fallback={null}>
           <MobileFrame />

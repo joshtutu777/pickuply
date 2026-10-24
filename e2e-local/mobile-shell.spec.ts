@@ -103,7 +103,7 @@ test("signed-out pages keep the header and hide the app bar", async ({ page }) =
   await page.goto("/");
   await expect(page.getByRole("navigation", { name: "Customer" })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Driver" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Get a price" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Post a pickup" }).first()).toBeVisible();
 });
 
 test.describe("customer", () => {

@@ -86,7 +86,7 @@ test.describe("phone sign-in", () => {
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect.poll(() => new URL(page.url()).pathname).toBe("/");
-    await expect(page.getByRole("link", { name: "Sign up / Sign in" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await page.goto("/account");
     await expect(page).toHaveURL(/\/login\?/);
   });

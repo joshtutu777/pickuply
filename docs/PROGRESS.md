@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Landing page (2026-10-24)
+
+The public home page follows `design-reference/pickuply-landing-updated/index.html`. That folder is gitignored. The four service drawings are copied to `public/images/landing/`. No photographs were in the reference folder, so the cards use those drawings plus the original icons. Post a pickup opens `/request`. Drive with us and Apply to drive open `/drive`. Sign in opens `/login`. The app header and footer, including the Admin link, are not shown on the home page. Step 2 says customers can name a price, set a budget, or get offers, and then choose. A Georgia outline says Serving Georgia and has no driver locations.
+
 ## Payment lifecycle check (2026-10-24)
 
 Local only. Not pushed, and not applied to the hosted database. No payment rule, fee, capture, refund, or transfer rule was changed.
