@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseNyDateTime, phoneReuseNotice, restrictionNotice } from "./restriction";
+import { deletionGraceOpen, parseNyDateTime, phoneReuseNotice, restrictionNotice } from "./restriction";
 
 test("an indefinite customer notice does not say the restriction is temporary", () => {
   const notice = restrictionNotice("customer", { active: true, kind: "indefinite", expires_at: null });
@@ -38,6 +38,13 @@ test("a reused phone notice does not mention a suspension", () => {
 
 test("an inactive account has no notice", () => {
   assert.equal(restrictionNotice("customer", { active: false }), null);
+});
+
+test("the deletion cancel window stays open only before the saved end time", () => {
+  const now = Date.parse("2026-10-24T12:00:00.000Z");
+  assert.equal(deletionGraceOpen("pending", "2026-10-25T12:00:00.000Z", now), true);
+  assert.equal(deletionGraceOpen("pending", "2026-10-24T12:00:00.000Z", now), false);
+  assert.equal(deletionGraceOpen("cancelled", "2026-10-25T12:00:00.000Z", now), false);
 });
 
 test("a New York wall time is stored in UTC across daylight saving", () => {

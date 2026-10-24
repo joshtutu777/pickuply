@@ -23,6 +23,7 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
   const session = await requireSignedIn("/help");
   const params = await searchParams;
   const error = typeof params.error === "string" ? params.error : "";
+  const appeal = params.appeal === "1";
   const query = typeof params.q === "string" ? params.q.trim().toLowerCase() : "";
   const supabase = await createClient();
   const driver = session.role === "driver";
@@ -77,7 +78,13 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
         <form action={createHelpRequest} className="mt-4 space-y-3">
           <label className="block font-semibold" htmlFor="topic">
             Topic
-            <input id="topic" name="topic" required className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+            <input
+              id="topic"
+              name="topic"
+              required
+              defaultValue={appeal ? "Account restriction" : ""}
+              className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4"
+            />
           </label>
           <label className="block font-semibold" htmlFor="job">
             Related job

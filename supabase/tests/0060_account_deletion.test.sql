@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(22);
+select plan(23);
 
 do $$
 declare
@@ -101,14 +101,14 @@ select pg_temp.as_user('c1610000-0000-4000-8000-000000000001');
 set local role authenticated;
 select results_eq(
   $$select public.request_account_deletion()$$,
-  $$values ('completed')$$,
-  'a customer with no obligations is deleted'
+  $$values ('pending')$$,
+  'a customer with no obligations waits for the 14-day grace period'
 );
 reset role;
 select is(
-  (select phone is null and deleted_at is not null from public.profiles where id = 'c1610000-0000-4000-8000-000000000001'),
+  (select phone is not null and deleted_at is null from public.profiles where id = 'c1610000-0000-4000-8000-000000000001'),
   true,
-  'the deleted profile no longer has a phone'
+  'the phone stays until the grace period ends'
 );
 select is_empty(
   $$select phone_hmac from public.phone_restrictions$$,
@@ -225,10 +225,17 @@ select pg_temp.as_user('c1610000-0000-4000-8000-000000000008');
 set local role authenticated;
 select results_eq(
   $$select public.request_account_deletion()$$,
-  $$values ('completed')$$,
-  'a suspended customer with no booking can be deleted'
+  $$values ('pending')$$,
+  'a suspended customer waits for the grace period'
 );
 reset role;
+update public.account_deletion_requests
+set grace_ends_at = now() - interval '1 minute'
+where profile_id = 'c1610000-0000-4000-8000-000000000008';
+select lives_ok(
+  $$select public.process_due_deletions()$$,
+  'the suspended account is deleted after the grace period'
+);
 select is(
   public.phone_is_restricted('5555550198'),
   true,

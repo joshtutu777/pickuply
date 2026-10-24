@@ -40,6 +40,33 @@ Set these on the server. Do not put the values in git. `NEXT_PUBLIC_*` values ar
 
 This repo cannot see the Google Cloud console. Before launch, confirm the browser key allows `pickuplyapp.com` and `www.pickuplyapp.com`, and that Maps JavaScript and Places are enabled for the keys that need them. Keep `GOOGLE_PLACES_API_KEY` off the client.
 
+## Phone protection secret
+
+Restricted-phone records store an HMAC, not the phone number. The database function `phone_hmac_secret()` reads them in this order:
+
+1. The PostgreSQL setting `pickuply.phone_hmac_secret`, when that setting is present. An empty value means the secret is missing. It does not fall through to Vault.
+2. A Supabase Vault secret named `phone_hmac_secret`, only when the PostgreSQL setting is unset.
+
+Creating a Vault secret does not set `pickuply.phone_hmac_secret`. The two stores are not interchangeable. This app's database code reads the setting first and Vault second. Do not expect a Vault row to populate the setting by itself.
+
+Generate a 32-byte value and keep it out of git, logs, and screenshots:
+
+`openssl rand -hex 32`
+
+On hosted Supabase, store it with the SQL editor as a privileged user:
+
+`select vault.create_secret('<generated value>', 'phone_hmac_secret', 'phone hmac');`
+
+Leave `pickuply.phone_hmac_secret` unset in production so the function uses that Vault row. Confirm with `select public.phone_hmac_secret() is not null;` and do not select the value.
+
+Local development uses the same Vault name in the local database. The value also stays in the ignored `.local/phone-hmac-secret` file. `scripts/set-local-phone-hmac.mjs` creates the Vault row from that file when the name is missing. It does not print the value. `.env.local` and `.env.test.local` are not used for this secret.
+
+To rotate, set `pickuply.phone_hmac_secret_previous` to the old value, store the new value as the current secret, and leave the previous setting in place until every old HMAC has expired. New rows use the current secret. Old rows still match while the previous value is set. The phone numbers are not kept, so an old HMAC cannot be rebuilt without the previous secret.
+
+If the secret is missing, new marketplace registration stops and deletion of a suspended or removed account stays pending. People who already have accounts are not blocked from signing in. An expired temporary restriction is deleted by the retention cleanup and does not become a permanent ban.
+
+The notifications cron calls `process_due_deletions()` and `cleanup_account_retention()` after the existing suspension cleanup. Those functions are service-role only. This pass does not add a hosted cron job or change `vercel.json`. Production still needs the scheduler in `docs/SCHEDULER.md` before those cleanups run on a host.
+
 ## Scheduler
 
 See `docs/SCHEDULER.md`. Paid bookings are not ready until pg_cron is activated or the project is on Vercel Pro.

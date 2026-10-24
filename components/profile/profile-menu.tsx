@@ -107,6 +107,11 @@ export function ProfileMenu({
       </ul>
       <div className="mt-8 border-t border-line pt-4">
         <p className="text-sm font-semibold text-muted">Account management</p>
+        {hasDriver ? (
+          <Link href="/account/stop-driving" className="mt-2 flex min-h-12 items-center text-base font-semibold text-ink">
+            Stop Driving
+          </Link>
+        ) : null}
         <Link href="/account/delete" className="mt-2 inline-flex min-h-12 items-center text-sm font-semibold text-danger">
           Delete Account
         </Link>

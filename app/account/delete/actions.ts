@@ -19,3 +19,14 @@ export async function requestDeletion(formData: FormData) {
   }
   redirect(data === "completed" ? "/account/delete?saved=completed" : "/account/delete?saved=pending");
 }
+
+export async function cancelDeletion() {
+  await connection();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_account_deletion");
+  if (error) {
+    const phone = error.message.includes("confirm your phone again");
+    redirect(phone ? "/account/delete?error=phone" : "/account/delete?error=cancel");
+  }
+  redirect("/account/delete?saved=cancelled");
+}

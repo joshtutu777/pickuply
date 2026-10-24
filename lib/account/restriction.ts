@@ -78,11 +78,23 @@ export function restrictionNotice(
   };
 }
 
+export function deletionGraceOpen(status: string | null | undefined, graceEndsAt: string | null | undefined, now = Date.now()): boolean {
+  if (status !== "pending" || !graceEndsAt) return false;
+  const ends = Date.parse(graceEndsAt);
+  return Number.isFinite(ends) && ends > now;
+}
+
 export function blockerLabel(code: string): string {
   if (code === "active_job") return "Active job";
+  if (code === "payment_hold") return "Payment hold";
+  if (code === "pending_capture") return "Payment waiting to be captured";
   if (code === "open_payment") return "Payment still open";
+  if (code === "pending_refund") return "Refund still open";
+  if (code === "pending_payout") return "Driver payout still open";
+  if (code === "held_payout") return "Driver payout on hold";
   if (code === "open_dispute") return "Open dispute";
   if (code === "open_earnings") return "Earnings not finished";
   if (code === "recovery_due") return "Recovery still owed";
+  if (code === "phone_restriction_unavailable") return "Phone restriction is not ready";
   return "Needs review";
 }
