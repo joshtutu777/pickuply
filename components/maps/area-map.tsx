@@ -99,10 +99,13 @@ export function AreaMap({
   const pinKey = pins.map((pin) => `${pin.lat},${pin.lng}:${pin.label}`).join("|");
   const lineKey = line.map((point) => point.join(",")).join("|");
   const dataRef = useRef({ circles, pins, line });
-  dataRef.current = { circles, pins, line };
+  useEffect(() => {
+    dataRef.current = { circles, pins, line };
+  }, [circles, pins, line]);
 
   useEffect(() => {
     if (!key || !holder.current) return;
+    const node = holder.current;
     let cancelled = false;
     let map: GoogleMap | null = null;
     const overlays: Overlay[] = [];
@@ -186,7 +189,7 @@ export function AreaMap({
     return () => {
       cancelled = true;
       for (const overlay of overlays) overlay.setMap(null);
-      holder.current?.replaceChildren();
+      node.replaceChildren();
     };
   }, [circleKey, key, lineKey, pinKey]);
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inAppBrowser, installCopy, showInstallPrompt, startDestination } from "./install";
+import { headerInstallPlan, inAppBrowser, installCopy, showInstallPrompt, startDestination } from "./install";
 
 test("in-app browsers get open-in-browser instructions", () => {
   assert.equal(inAppBrowser("Mozilla/5.0 Instagram 123"), true);
@@ -36,6 +36,14 @@ test("drivers see the prompt and customers wait for a request and 14 days", () =
     }),
     true,
   );
+});
+
+test("the header install button follows the browser", () => {
+  assert.equal(headerInstallPlan({ installed: true, userAgent: "Chrome", canPrompt: true }), "hidden");
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "Chrome", canPrompt: true }), "native");
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "iPhone", canPrompt: false }), "ios");
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "Instagram", canPrompt: false }), "in-app");
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "Firefox", canPrompt: false }), "guidance");
 });
 
 test("the installed start route follows the signed-in mode", () => {

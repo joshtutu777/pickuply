@@ -4,6 +4,16 @@ export function inAppBrowser(userAgent: string): boolean {
   return inAppPattern.test(userAgent);
 }
 
+export type InstallPlan = "hidden" | "native" | "ios" | "in-app" | "guidance";
+
+export function headerInstallPlan(input: { installed: boolean; userAgent: string; canPrompt: boolean }): InstallPlan {
+  if (input.installed) return "hidden";
+  if (inAppBrowser(input.userAgent)) return "in-app";
+  if (/iPhone|iPad|iPod/.test(input.userAgent)) return "ios";
+  if (input.canPrompt) return "native";
+  return "guidance";
+}
+
 export function installCopy(input: { userAgent: string; installed: boolean; ios: boolean }): string | null {
   if (input.installed) return null;
   if (inAppBrowser(input.userAgent)) {

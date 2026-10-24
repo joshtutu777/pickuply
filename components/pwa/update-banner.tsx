@@ -7,6 +7,7 @@ export function UpdateBanner() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    if (window.location.pathname.includes("/pay")) return;
     const watch = (registration: ServiceWorkerRegistration) => {
       const next = registration.installing ?? registration.waiting;
       if (registration.waiting) setReady(true);

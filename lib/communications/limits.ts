@@ -2,6 +2,8 @@
 export const announcementLimits = {
   immediatePerHour: 20,
   bulkPerHour: 5,
+  bulkPerDay: 10,
+  announcementsPerPersonPerDay: 3,
   allUserPerDay: 2,
   maxRecipients: 1000,
   promotionalSmsPerDay: 1,
@@ -32,6 +34,8 @@ export function limitMessage(input: {
   smsRecipients?: { recentDay: number; recentWeek: number }[];
   platformSmsDay?: number;
   pushRecent?: number[];
+  recipientAnnouncementDay?: number[];
+  accountNotice?: boolean;
 }): string | null {
   const now = Date.parse(input.now);
   const when = Date.parse(input.scheduledFor);
@@ -58,6 +62,18 @@ export function limitMessage(input: {
   const day = input.prior.filter((send) => Date.parse(send.at) > dayAgo && Date.parse(send.at) <= now);
   if (input.kind === "all_user" && day.filter((send) => send.kind === "all_user").length >= announcementLimits.allUserPerDay) {
     return "That admin already sent 2 all-user announcements today.";
+  }
+  if (
+    (input.kind === "bulk" || input.kind === "all_user") &&
+    day.filter((send) => send.kind === "bulk" || send.kind === "all_user").length >= announcementLimits.bulkPerDay
+  ) {
+    return "That admin already sent 10 bulk announcements today.";
+  }
+  if (
+    !input.accountNotice &&
+    (input.recipientAnnouncementDay ?? []).some((count) => count >= announcementLimits.announcementsPerPersonPerDay)
+  ) {
+    return "A recipient already has 3 announcements today. Account notices are not counted.";
   }
   if ((input.smsRecipients ?? []).some((row) => row.recentDay >= announcementLimits.promotionalSmsPerDay)) {
     return "A recipient already has the daily promotional text limit.";

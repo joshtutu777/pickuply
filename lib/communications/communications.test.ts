@@ -106,6 +106,17 @@ test("city coverage uses Areas I Cover and counts a driver once", () => {
   assert.deepEqual(online.ids, ["multi"]);
 });
 
+test("document gaps and customers who never booked are separate audiences", () => {
+  const people = [
+    driver("docs", { needsDocuments: true, driverStatus: "pending" }),
+    driver("ready", { needsDocuments: false }),
+    customer("new"),
+    customer("booked", { hasBooked: true }),
+  ];
+  assert.deepEqual(resolveAudience(people, { kind: "needs_documents", purpose: "promotional" }).ids, ["docs"]);
+  assert.deepEqual(resolveAudience(people, { kind: "never_booked", purpose: "promotional" }).ids, ["new"]);
+});
+
 test("customers with active jobs are counted once", () => {
   const result = resolveAudience(
     [customer("busy", { activeBookings: 2 }), customer("idle"), customer("old", { deleted: true, activeBookings: 1 })],
@@ -253,6 +264,31 @@ test("admin rate limits block the extra send", () => {
     promotional: true,
   }));
   assert.match(limitMessage({ now, kind: "bulk", recipients: 10, scheduledFor: now, pendingScheduled: 0, prior: bulk }) ?? "", /5 bulk/);
+  const bulkDay = Array.from({ length: 10 }, () => ({
+    at: "2026-10-24T08:00:00.000Z",
+    kind: "bulk" as const,
+    recipients: 10,
+    channel: "in_app" as const,
+    promotional: true,
+  }));
+  assert.match(limitMessage({ now, kind: "bulk", recipients: 10, scheduledFor: now, pendingScheduled: 0, prior: bulkDay }) ?? "", /10 bulk/);
+  assert.match(
+    limitMessage({ now, kind: "bulk", recipients: 1, scheduledFor: now, pendingScheduled: 0, prior: [], recipientAnnouncementDay: [3] }) ?? "",
+    /3 announcements/,
+  );
+  assert.equal(
+    limitMessage({
+      now,
+      kind: "bulk",
+      recipients: 1,
+      scheduledFor: now,
+      pendingScheduled: 0,
+      prior: [],
+      recipientAnnouncementDay: [3],
+      accountNotice: true,
+    }),
+    null,
+  );
   const allUser = Array.from({ length: 2 }, () => ({
     at: "2026-10-24T12:00:00.000Z",
     kind: "all_user" as const,

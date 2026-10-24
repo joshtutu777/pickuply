@@ -6,7 +6,9 @@ export type AudienceKind =
   | "all"
   | "online_drivers"
   | "city_drivers"
-  | "active_customers";
+  | "active_customers"
+  | "needs_documents"
+  | "never_booked";
 
 export type AudiencePurpose = "promotional" | "account_support";
 
@@ -20,6 +22,8 @@ export type AudiencePerson = {
   online: boolean;
   cities: string[];
   activeBookings: number;
+  needsDocuments?: boolean;
+  hasBooked?: boolean;
 };
 
 export type AudienceQuery = {
@@ -71,6 +75,10 @@ function matches(person: AudiencePerson, query: AudienceQuery): boolean {
   }
   if (query.kind === "customers") return person.role === "customer";
   if (query.kind === "active_customers") return person.activeBookings > 0;
+  if (query.kind === "never_booked") return person.role === "customer" && person.hasBooked !== true;
+  if (query.kind === "needs_documents") {
+    return person.driverStatus != null && person.driverStatus !== "removed" && !person.drivingStopped && person.needsDocuments === true;
+  }
   if (query.kind === "all") return person.role === "customer" || isEligibleDriver(person);
   if (!isEligibleDriver(person)) return false;
   if (query.kind === "drivers") return true;

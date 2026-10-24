@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BetaBadge } from "@/components/beta-badge";
+import { InstallButton } from "@/components/pwa/install-button";
 
 const services = [
   {
@@ -50,6 +51,7 @@ export function LandingPage() {
             <BetaBadge />
           </Link>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-0 sm:gap-2">
+            <InstallButton tone="landing" />
             <Link href="#how" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               How it works
             </Link>

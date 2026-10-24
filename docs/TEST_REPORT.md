@@ -492,3 +492,36 @@ A missing phone-protection secret no longer blocks sign-up or deletion. The rest
 | Not run | A real OTP reclaim on a 12-month-old phone, and a hosted SQL editor recovery |
 
 Implementation: `3d22c1c604902d22731ab3aee8399f0403d80952`. This report commit follows it. Neither was pushed.
+
+## 42. Install button and announcement caps
+
+The public home menu and the site header use the same install rules. The button is hidden when the app is already installed. A click uses the browser install prompt when the browser offers one. Otherwise it explains Safari, Chrome, or Edge. Embedded browsers get the open-in-browser sentence and a copy-link control. The driver card and the customer banner were not replaced. On the local home page the button was visible, and a click in this browser showed the fallback instructions. Android, iPhone, and a Vercel preview were not tested. Nothing was deployed.
+
+Announcement limits now also include 10 bulk sends a day and 3 announcements a day per person. Account notices are not counted in that personal cap. Audiences now include drivers missing a license, insurance, training, or agreement, and customers who have never had an accepted booking.
+
+Checkout still returns to `/jobs/{id}?paid=return`. Connect still returns to `/driver/earnings?connect=return`. Both stay on this site. A phone that leaves the installed app and opens Safari must sign in again on that page. That path was not opened on a device. The sign-in code field already uses a numeric keypad and `autocomplete="one-time-code"`. "New version available — Refresh" reloads only when that button is pressed, and it stays off payment pages.
+
+## 43. Launch readiness
+
+| Area | Status |
+|---|---|
+| Production build | READY. `npm run build` passed. |
+| Typecheck | READY. |
+| Unit tests | READY. 145 passed. |
+| Database tests | NOT READY. 31 files, 509 tests, 5 failed. All 5 are in `0029_ask_for_details.test.sql`. A new request is now `open`, and asking for details still requires the old review queue. The expectation was not changed. |
+| Lint | READY. The repository lint passed after the map ref was moved out of render. |
+| Playwright, three browsers, 390px and 1280px | NOT VERIFIED. The full matrix was not run. Chromium, Firefox, and WebKit did pass the earlier customer-record check. |
+| axe | NOT VERIFIED. No axe run was executed. |
+| Lighthouse | NOT VERIFIED. |
+| Install button on a phone or preview URL | NOT VERIFIED. |
+| Email collection | NOT READY. It was queued after this pass and is not built. Login stays phone and OTP. |
+| Payments, reviews, 48-hour hold, self-dealing, fee parity | READY in the earlier local tests. Not repeated as a new Stripe charge in this pass. |
+| Photo EXIF stripping | READY in code: photos are re-encoded to JPEG before upload. A camera-file browser test was not repeated. |
+| Hosted deploy | NOT VERIFIED. Nothing was pushed or deployed. |
+
+### Needs Josh's decision
+
+1. **Bookings 8, 9, and 10 days ahead.** Recommended answer: do not create the card hold that far ahead. Ask for the card closer to pickup, or limit how far ahead a job can be booked. Do not reauthorize without the customer's consent.
+2. **Late-cancel fee.** Recommended answer: build the $15 partial capture before treating the help text as live. Until then the finance report should keep saying it is not tracked.
+3. **Damage and liability.** Recommended answer: keep the $250 wording as a limit, not an automatic payout. Reports and the existing refund tools stay the path.
+4. **Rate limits for OTP, requests, offers, messages, and help.** Recommended answer: keep the limits already enforced in the database and do not invent a second set. Announcement limits are separate and already approved, including 10 bulk sends a day and 3 announcements a day per person.

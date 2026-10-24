@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
+import { InstallButton } from "@/components/pwa/install-button";
 import { BetaBadge } from "@/components/beta-badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import type { AppNavItem } from "@/lib/app-nav";
@@ -56,6 +57,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           )}
         </div>
         <nav aria-label="Primary" className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <InstallButton />
           <Link href="/request" className={`hidden sm:inline-flex ${primaryLink}`}>
             Get a price
           </Link>
