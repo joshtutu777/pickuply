@@ -62,6 +62,60 @@ test("captured job records the Stripe fee and holds the transfer until payout se
   await admin.context.close();
 });
 
+test("an unconfirmed delivery is captured once after the waiting period", async ({ browser }) => {
+  const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
+  await driveToDelivery(customer.page, driver.page, jobId);
+  localSql(`
+    begin;
+    set local session_replication_role = replica;
+    update public.jobs set updated_at = now() - interval '25 hours' where id = '${jobId}';
+    commit;
+  `);
+  const first = await cron("/api/cron/auto-complete");
+  expect(first).toContain('"ok":true');
+  const captured = await waitForRow(
+    `select payment_status || '|' || coalesce(captured_cents::text, '') || '|' || (select count(*) from public.ledger_entries where job_id = '${jobId}') from public.jobs where id = '${jobId}'`,
+    /captured\|\d+\|1/,
+  );
+  const again = await cron("/api/cron/auto-complete");
+  expect(again).toContain('"ok":true');
+  const second = localSql(
+    `select payment_status || '|' || coalesce(captured_cents::text, '') || '|' || (select count(*) from public.ledger_entries where job_id = '${jobId}') from public.jobs where id = '${jobId}'`,
+  ).trim();
+  expect(second).toBe(captured);
+  await customer.context.close();
+  await driver.context.close();
+  await admin.context.close();
+});
+
+test("an expired authorization is not captured and does not start a new charge", async ({ browser }) => {
+  const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
+  await driveToDelivery(customer.page, driver.page, jobId);
+  const intent = localSql(`select payment_intent_id from public.job_payments where job_id = '${jobId}'`).trim();
+  localSql(`
+    begin;
+    set local session_replication_role = replica;
+    update public.jobs set updated_at = now() - interval '25 hours' where id = '${jobId}';
+    update public.job_payments set capture_before = now() - interval '1 minute' where job_id = '${jobId}';
+    commit;
+  `);
+  const body = await cron("/api/cron/auto-complete");
+  expect(body).toContain('"ok":true');
+  const payment = localSql(
+    `select j.payment_status || '|' || coalesce(j.captured_cents::text, '') || '|' || p.payment_intent_id from public.jobs j join public.job_payments p on p.job_id = j.id where j.id = '${jobId}'`,
+  ).trim();
+  expect(payment).toBe(`authorized||${intent}`);
+  const ledger = localSql(`select count(*) from public.ledger_entries where job_id = '${jobId}'`).trim();
+  expect(ledger).toBe("0");
+  const alert = localSql(
+    `select count(*) from public.notifications where dedupe_key = 'capture-expired:${jobId}'`,
+  ).trim();
+  expect(Number(alert)).toBeGreaterThan(0);
+  await customer.context.close();
+  await driver.context.close();
+  await admin.context.close();
+});
+
 test("a declined card can be retried before the deadline", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4000000000000002", false);
   await expect(customer.page.getByText("The card was declined. You can try again.")).toBeVisible({ timeout: 60_000 });
@@ -295,16 +349,23 @@ async function assignedJob(browser: Browser, who: "driver" | "driver2" = "driver
   promoteAdmin();
   await admin.page.goto("/admin/drivers");
   await admin.page.getByRole("link", { name: new RegExp(driverPerson.name) }).click();
+  await expect(admin.page.getByRole("button", { name: "Approve driver" })).toBeVisible();
   const approveAnyway = admin.page.getByRole("checkbox", { name: "Approve anyway" });
   if (await approveAnyway.isVisible()) await approveAnyway.check();
   await admin.page.getByRole("button", { name: "Approve driver" }).click();
-  await admin.page.waitForURL(/saved=1/);
+  await admin.page.waitForURL(/saved=1/, { timeout: 30_000 });
   if (who === "driver") await connectDriver(driver.page);
   const jobId = await createRequest(customer.context);
   await publish(admin.page, jobId);
   await goOnline(driver.page);
   await driver.page.goto("/driver");
-  await driver.page.getByRole("button", { name: "Accept posted price" }).click();
+  const posted = driver.page
+    .getByRole("listitem")
+    .filter({ hasText: "Austell 30168 to Lithia Springs" })
+    .filter({ hasText: "Customer posted $150" });
+  await expect(posted.first()).toBeVisible();
+  await posted.first().getByRole("button", { name: "Accept posted price" }).click();
+  await expect(posted.first().getByText("Offer submitted successfully.")).toBeVisible();
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.getByRole("button", { name: "Choose this driver" }).click();
   await expect(customer.page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
@@ -428,8 +489,10 @@ async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
   await page.locator("#fullName").fill(name);
   await page.getByLabel("Street").fill("10 Test Street");
-  await page.getByLabel("City").fill("Austell");
-  await page.getByLabel("ZIP").fill("30106");
+  await page.getByLabel("City", { exact: true }).fill("Austell");
+  await page.getByLabel("ZIP", { exact: true }).fill("30106");
+  await page.locator("#coverage-city").fill("Austell");
+  await page.getByRole("button", { name: "Add city" }).click();
   await page.locator("#vehicleType").selectOption("pickup");
   await page.getByRole("radio", { name: "Light load" }).check();
   await page.locator("#licenseExpires").fill("2027-12-31");
@@ -546,6 +609,44 @@ function resetLocalPeople() {
     delete from public.audit_log
     where actor_id in (select id from auth.users where phone in ${phones})
       or target_id in (select id from auth.users where phone in ${phones});
+    delete from public.message_attachments
+    where created_by in (select id from auth.users where phone in ${phones})
+      or thread_id in (
+        select id from public.message_threads
+        where requester_id in (select id from auth.users where phone in ${phones})
+          or driver_id in (select id from auth.users where phone in ${phones})
+      )
+      or message_id in (
+        select id from public.messages
+        where sender_id in (select id from auth.users where phone in ${phones})
+          or thread_id in (
+            select id from public.message_threads
+            where requester_id in (select id from auth.users where phone in ${phones})
+              or driver_id in (select id from auth.users where phone in ${phones})
+          )
+      );
+    delete from public.messages
+    where sender_id in (select id from auth.users where phone in ${phones})
+      or thread_id in (
+        select id from public.message_threads
+        where requester_id in (select id from auth.users where phone in ${phones})
+          or driver_id in (select id from auth.users where phone in ${phones})
+      );
+    delete from public.message_threads
+    where requester_id in (select id from auth.users where phone in ${phones})
+      or driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.help_messages
+    where sender_id in (select id from auth.users where phone in ${phones})
+      or request_id in (
+        select id from public.help_requests
+        where profile_id in (select id from auth.users where phone in ${phones})
+      );
+    delete from public.help_requests
+    where profile_id in (select id from auth.users where phone in ${phones});
+    delete from public.beta_feedback
+    where user_id in (select id from auth.users where phone in ${phones});
+    delete from public.offer_views
+    where customer_id in (select id from auth.users where phone in ${phones});
     delete from public.profiles
     where id in (select id from auth.users where phone in ${phones});
     delete from public.drivers
