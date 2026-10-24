@@ -95,7 +95,10 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect(checklist.getByRole("link", { name: /Training/ })).toBeVisible();
       await driver.getByRole("switch", { name: "You are Offline" }).click();
       await expect(driver.getByText("Finish these steps. You can go Online after Pickuply approves you.")).toBeVisible();
-      ux.push("Before approval, the Online switch says to finish the steps and wait for approval. The 3-item checklist sits below the job feed, so it is easy to miss on a phone.");
+      await expect(driver.getByText("Browse only until Pickuply approves you. You cannot take a job yet.")).toBeVisible();
+      const checklistBox = await checklist.boundingBox();
+      const feedBox = await driver.locator("#jobs").boundingBox();
+      expect(checklistBox && feedBox && checklistBox.y < feedBox.y).toBeTruthy();
     }, [[driver, "driver-checklist"]]);
 
     await record("02", "Admin approves the driver and the driver goes Online", "Approve anyway if needed. The driver sees the approval alert, then Online.", async () => {
@@ -136,13 +139,15 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.getByLabel("What needs a ride?").fill("Walkthrough oak dresser");
       await customer.locator("#photos").setInputFiles({ name: "dresser.png", mimeType: "image/png", buffer: png });
       await customer.getByRole("button", { name: "Next", exact: true }).click();
-      const searched = await pickAddress(customer, "Search pickup address", "100 Market Street Austell GA");
-      if (!searched) {
-        ux.push("Address search did not return a suggestion, so the street, city, and ZIP were typed. Check the local places key if search should work.");
-        await customer.getByLabel("Pickup street address").fill("100 Market Street");
-        await customer.getByLabel("Pickup city").fill("Austell");
-        await customer.getByLabel("Pickup ZIP").fill("30106");
+      for (const query of [
+        "100 Market Street, Austell, GA 30106",
+        "20 Hidden Avenue, Hiram, GA 30141",
+        "265 Peachtree St NE, Atlanta, GA 30303",
+      ]) {
+        await expectGeorgiaSuggestion(customer, query);
       }
+      const searched = await pickAddress(customer, "Search pickup address", "1985 Chattahoochee Dr, Duluth, GA 30097");
+      expect(searched).toBe(true);
       await customer.getByLabel("Drop-off street address").fill("20 Hidden Avenue");
       await customer.getByLabel("Drop-off city").fill("Hiram");
       await customer.getByLabel("Drop-off ZIP").fill("30141");
@@ -181,9 +186,8 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.reload();
       await expect(customer.getByText(/New driver/)).toBeVisible();
       await expect(customer.getByText(/Total/)).toBeVisible();
-      await expect(customer.getByRole("button", { name: "Choose this driver" })).toBeVisible();
-      ux.push("The offer card says “Choose this driver,” then the pay step says “Confirm Booking & Payment.” There is no single button named Confirm booking.");
-      const choose = customer.getByRole("button", { name: "Choose this driver" });
+      await expect(customer.getByRole("button", { name: "Choose Walk" })).toBeVisible();
+      const choose = customer.getByRole("button", { name: "Choose Walk" });
       await choose.click();
       const chooseStarted = Date.now();
       let retriedChoose = false;
@@ -200,7 +204,8 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       }, { timeout: 60_000, intervals: [1_000, 2_000, 2_000] }).toBe(true);
       await customer.reload();
       await expect(customer.getByRole("heading", { name: "Confirm Your Booking" })).toBeVisible({ timeout: 45_000 });
-      await customer.getByRole("button", { name: "Confirm Booking & Payment" }).click();
+      await expect(customer.getByText("You won't be charged until your item is delivered")).toBeVisible();
+      await customer.getByRole("button", { name: "Confirm booking" }).click();
       await customer.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
       const sessionId = new URL(customer.url()).pathname.split("/").find((part) => part.startsWith("cs_"));
       if (!sessionId) throw new Error("The Checkout page did not include a session id.");
@@ -215,13 +220,17 @@ test("three people walk a pickup from signup through delivery", async ({ browser
         const status = localSql(`select coalesce(payment_status, '') from public.jobs where id = '${jobId}'`).trim();
         if (status === "authorized" || status === "paid" || status === "captured") return true;
         await customer.reload();
-        return customer.getByText("Payment confirmed. The driver can start.").isVisible();
+        return customer.getByText(/held on your card and charged only after delivery/).isVisible();
       }, { timeout: 90_000 }).toBe(true);
       const payment = localSql(`select payment_status from public.jobs where id = '${jobId}';`).trim();
       expect(payment).toBe("authorized");
-      if (!(await customer.getByText(/held/i).count())) {
-        ux.push("The authorized card is described as “Payment confirmed. The driver can start.” The word “held” is not on the job page.");
-      }
+      await customer.reload();
+      await expect(customer.getByText(/held on your card and charged only after delivery/)).toBeVisible();
+      await expect(customer.getByText(/Payment confirmed/i)).toHaveCount(0);
+      const noticePeople = localSql(
+        `select count(*)::text from (select profile_id from public.notifications where job_id = '${jobId}' and kind = 'payment_confirmed' group by profile_id having count(*) = 1) one;`,
+      ).trim();
+      expect(noticePeople).toBe("2");
     }, [[customer, "card-authorized"], [driver, "offer-sent"]]);
 
     await record("05", "Chat, pickup, delivery, and the 4-step tracker", "Messages both ways, a phone number stays hidden, then the trip reaches Got it.", async () => {
@@ -273,15 +282,12 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       const confirmed = customer.getByText("You confirmed this delivery.");
       const review = customer.getByRole("heading", { name: "Review" });
       await expect(confirmed.or(review)).toBeVisible({ timeout: 30_000 });
-      if ((await confirmed.count()) === 0) {
-        ux.push("After Got it, the page goes to the review. It does not keep the sentence “You confirmed this delivery.”");
-      }
+      await expect(customer.getByText("Delivery confirmed — thanks!")).toBeVisible();
       await customer.reload();
-      const closed = await customer.getByText("This conversation is closed.").isVisible();
-      if (!closed) ux.push("Job chat stayed open after Got it. The page says it closes when the job is complete, and there is a Help link rather than “Need help?”.");
-      else if (!(await customer.getByRole("link", { name: "Need help?" }).count())) {
-        ux.push("The closed chat says “This conversation is closed.” The nearby link is “Help,” not “Need help?”.");
-      }
+      await expect(customer.getByText("Delivery confirmed — thanks!")).toBeVisible();
+      await expect(customer.getByText("This conversation is closed. Need help? Visit")).toBeVisible();
+      await expect(customer.getByRole("link", { name: "Help", exact: true }).first()).toBeVisible();
+      await expect(customer.getByRole("link", { name: "Report a problem" })).toBeVisible();
     }, [[customer, "got-it"], [driver, "delivered"]]);
 
     await record("06", "Reviews, scheduled earnings, and admin payments", "Both reviews save. Driver earnings show the 48-hour hold. Admin payments show the job amounts.", async () => {
@@ -289,16 +295,14 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.getByLabel("Comment, optional").fill("Careful with the dresser.");
       await customer.getByRole("button", { name: "Send review" }).click();
       await expect(customer.getByText("You gave 5 stars.")).toBeVisible();
+      await expect(customer.getByText("Delivery confirmed — thanks!")).toBeVisible();
       await driver.reload();
       await driver.getByLabel("Stars").selectOption("5");
       await driver.getByRole("button", { name: "Send review" }).click();
       await expect(driver.getByText("You gave 5 stars.")).toBeVisible();
       await driver.goto("/driver/earnings");
-      await expect(driver.getByText("Finish payout setup before a transfer can be sent")).toBeVisible();
-      const earningsText = await driver.locator("body").innerText();
-      if (!/Scheduled/i.test(earningsText)) {
-        ux.push("Earnings for a driver without payout setup are Held, with “Finish payout setup before a transfer can be sent.” They do not say Scheduled (48h).");
-      }
+      await expect(driver.getByText("Held — finish payout setup to get paid")).toBeVisible();
+      await expect(driver.getByText(/Then sends 48 hours after completion/)).toBeVisible();
       const money = localSql(
         `select price_cents || '|' || driver_pay_cents || '|' || platform_fee_cents || '|' || service_fee_cents from public.jobs where id = '${jobId}';`,
       ).trim();
@@ -345,7 +349,17 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await admin.getByRole("checkbox", { name: "More photos" }).check();
       await admin.getByLabel("Note for the customer").fill("Please add one more photo of the table.");
       await admin.getByRole("button", { name: "Ask for details" }).click();
-      await expect(admin.getByText(/Drivers can still see this request/)).toBeVisible();
+      const askedAt = Date.now();
+      let retriedAsk = false;
+      await expect.poll(async () => {
+        if (await admin.getByText(/Drivers can still see this request/).isVisible().catch(() => false)) return true;
+        const ask = admin.getByRole("button", { name: "Ask for details" });
+        if (!retriedAsk && Date.now() - askedAt > 8_000 && (await ask.isVisible().catch(() => false))) {
+          retriedAsk = true;
+          await ask.click();
+        }
+        return false;
+      }, { timeout: 60_000, intervals: [1_000, 2_000, 2_000] }).toBe(true);
       await customer.goto("/account/messages");
       await customer.getByRole("link", { name: /Pickuply Support/ }).click();
       await expect(customer.getByText(/another photo|Add details/i).first()).toBeVisible();
@@ -363,14 +377,19 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect(customer.getByText("Walkthrough note")).toBeVisible();
       await driver.goto("/driver/notifications");
       await expect(driver.getByText("Walkthrough note")).toBeVisible();
-      const reply = customer.getByRole("link", { name: /^Reply$/ });
-      if (!(await reply.count())) {
-        ux.push("Announcements are one-way. The alert has no Reply control that opens a private support conversation.");
-      }
+      await customer.getByRole("button", { name: "Reply" }).first().click();
+      await expect(customer.getByRole("heading", { name: "Pickuply Support" })).toBeVisible();
+      await customer.goto("/account/notifications");
+      await expect(customer.getByText("Walkthrough note")).toBeVisible();
       await admin.goto(`/admin/customers/${customerId}`);
       await expect(admin.getByRole("heading", { name: /Walk/ })).toBeVisible();
+      await expect(admin.getByLabel("Restriction")).toHaveValue("indefinite");
+      for (const choice of ["24 hours", "3 days", "7 days", "30 days", "Custom date", "No end date"]) {
+        await expect(admin.getByRole("option", { name: choice })).toBeAttached();
+      }
+      await admin.getByLabel("Restriction").selectOption("custom");
+      await expect(admin.getByLabel("Ends (Eastern)")).toBeVisible();
       await admin.getByLabel("Restriction").selectOption("indefinite");
-      ux.push("A temporary suspension is the default and is rejected unless an Eastern end date is filled in. The walkthrough used an indefinite suspension.");
       await admin.getByLabel("Reason").fill("Walkthrough restriction check.");
       await admin.getByRole("button", { name: "Suspend Account" }).click();
       await expect(admin.getByText(/Restricted/)).toBeVisible();
@@ -405,7 +424,8 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await admin.getByRole("button", { name: "Mark resolved" }).click();
       await expect(admin.getByText("This conversation is resolved and read-only.")).toBeVisible();
       await customer.goto("/support");
-      await expect(customer.getByText("This conversation is closed.")).toBeVisible();
+      await expect(customer.getByText("This conversation is closed. Need help? Visit")).toBeVisible();
+      await expect(customer.getByRole("link", { name: "Report a problem" })).toBeVisible();
       await expect(customer.getByRole("textbox", { name: "Message", exact: true })).toHaveCount(0);
       await driver.goto("/support");
       await driver.getByRole("textbox", { name: "Message", exact: true }).fill("I need a hand with payout setup.");
@@ -605,13 +625,21 @@ async function signIn(page: Page, person: { phone: string; code: string; name: s
   }
 }
 
+async function expectGeorgiaSuggestion(page: Page, query: string) {
+  const field = page.getByLabel("Search pickup address");
+  await field.fill("");
+  await field.fill(query);
+  await expect(page.locator("ul").getByRole("button").filter({ hasText: /GA/i }).first()).toBeVisible({ timeout: 15_000 });
+}
+
 async function pickAddress(page: Page, label: string, query: string): Promise<boolean> {
   await page.getByLabel(label).fill(query);
   const suggestion = page.locator("ul").getByRole("button").filter({ hasText: /Austell|GA/i }).first();
   try {
-    await suggestion.waitFor({ state: "visible", timeout: 8_000 });
+    await suggestion.waitFor({ state: "visible", timeout: 15_000 });
     await suggestion.click();
-    return (await page.getByLabel("Pickup street address").inputValue()).length > 0;
+    await expect(page.getByLabel("Pickup street address")).toHaveValue(/\d/, { timeout: 15_000 });
+    return true;
   } catch {
     return false;
   }
