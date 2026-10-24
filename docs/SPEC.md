@@ -272,7 +272,11 @@ Every status change writes a **job event** (who, what, when, extra data). Every 
 | Driver no-show | Admin alerted, job reassigned, customer gets a credit; 2 strikes |
 
 ### Payment authorization note
-Card authorizations expire after ~7 days. For jobs scheduled more than 5 days out, authorize closer to the date (store the card, authorize 48h before). v1 may simply limit booking to within 5 days.
+Pickups can be scheduled at most 6 days ahead during the pilot. The request form and the database both reject a later date. A later option, not built yet, is to save the card and authorize it 2 days before pickup.
+
+A late cancel after assignment is one $15 capture of the existing hold. If the driver is on the way or further along, $10 goes to the driver and $5 stays with Pickuply. Otherwise Pickuply keeps the $15. There is no fee when the card was not authorized, or when the customer cancels before a driver is assigned. The trip fee stays $25: $20 to the driver and $5 to Pickuply. A customer can ask to reschedule once, free, before the driver is on the way. The driver has 2 hours to accept or decline. A decline opens the job again at the same price. A customer no-show fee waits for an admin after the driver has arrived, waited 15 minutes, and added a photo. A driver who is not on the way 30 minutes after the window starts does not cause a customer charge. Damage reports are due within 48 hours of delivery. Pickup photos are the before evidence. Damage already visible at pickup is not covered. An admin reviews it. There is no automatic refund. Verified damage can be refunded up to $250 for that job, and driver-fault amounts can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
+
+Rate limits: 5 sign-in codes per number per hour, 10 per network per hour, 10 new requests per customer per day, 30 offers per driver per hour, 60 messages per person per hour and 10 per minute, and 5 help requests per day.
 
 ---
 

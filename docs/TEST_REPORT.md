@@ -197,10 +197,7 @@ Static audit of `components/landing/landing-page.tsx`: Terms links to `/terms`, 
 
 ## 37. Needs Josh's decision
 
-1. **Bookings 8, 9, and 10 days ahead.** This pass did not create those PaymentIntents. The app stores Stripe's `capture_before`. If that deadline is before pickup, the choices are: authorize closer to pickup, limit how far ahead a job can be booked, or reauthorize with the customer's consent. No booking-window change was made.
-2. **Late-cancel fee.** The spec and help text describe a $15 partial capture. The finance report still shows that portion as Not tracked. Confirm whether that fee should be built before treating it as live.
-3. **Damage and liability.** No coverage, limit, or automatic refund rule was added. Reports and the existing refund tools remain the path.
-4. **Rate-limit numbers** for OTP, requests, offers, messages, and help were not invented.
+These four items are decided and are no longer open. Pickups can be scheduled at most 6 days ahead. The $15 late-cancel fee is one partial capture. Damage reports are due within 48 hours of delivery, with a $250 review cap and no automatic refund. OTP, request, offer, message, and help rate limits are the numbers in the spec.
 
 ## 38. Screenshot paths
 
@@ -521,7 +518,8 @@ Checkout still returns to `/jobs/{id}?paid=return`. Connect still returns to `/d
 
 ### Needs Josh's decision
 
-1. **Bookings 8, 9, and 10 days ahead.** Recommended answer: do not create the card hold that far ahead. Ask for the card closer to pickup, or limit how far ahead a job can be booked. Do not reauthorize without the customer's consent.
-2. **Late-cancel fee.** Recommended answer: build the $15 partial capture before treating the help text as live. Until then the finance report should keep saying it is not tracked.
-3. **Damage and liability.** Recommended answer: keep the $250 wording as a limit, not an automatic payout. Reports and the existing refund tools stay the path.
-4. **Rate limits for OTP, requests, offers, messages, and help.** Recommended answer: keep the limits already enforced in the database and do not invent a second set. Announcement limits are separate and already approved, including 10 bulk sends a day and 3 announcements a day per person.
+The booking window, late-cancel fee, damage policy, and those rate limits are decided. None of those four remain open.
+
+## 44. Booking window, fees, and rate limits
+
+Pickups more than 6 days ahead are rejected in the request form and by the database. A late cancel after assignment is one $15 capture. $10 of that goes to the driver only if the driver is on the way or further along. The trip fee stays $25, with $20 for the driver and $5 for Pickuply. Finance counts both fees. Damage reports must be filed within 48 hours of delivery. The Help page and the report form say what is covered and that nothing is refunded automatically. Sign-in codes, requests, offers, messages, and help requests use the limits in the spec. The fee split tests passed. The Stripe browser walk, offer walk, message walk, and admin walk were not run again in this pass.

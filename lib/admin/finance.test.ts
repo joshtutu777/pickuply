@@ -37,6 +37,7 @@ function job(overrides: Partial<FinanceJob> = {}): FinanceJob {
     serviceFeeCents: 465,
     stripeFeeCents: 465,
     tripFeeCents: null,
+    lateCancelCents: null,
     paymentDueAt: null,
     captureBefore: null,
     createdAt: "2026-10-24T15:00:00.000Z",
@@ -154,7 +155,8 @@ test("csv matches the filtered list and does not turn a missing amount into zero
 test("revenue uses stored fees and leaves an unknown Stripe fee unavailable", () => {
   const result = revenue([job({ stripeFeeCents: null })]);
   assert.deepEqual(result.stripe, { unavailable: true });
-  assert.deepEqual(result.lateCancel, { notTracked: true });
+  assert.deepEqual(result.lateCancel, { cents: 0 });
+  assert.deepEqual(revenue([job({ lateCancelCents: 1500, capturedCents: 1500 })]).lateCancel, { cents: 1500 });
   assert.deepEqual(result.net, { unavailable: true });
 });
 

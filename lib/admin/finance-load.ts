@@ -18,6 +18,7 @@ type JobRow = {
   platform_fee_cents: number | null;
   service_fee_cents: number | null;
   trip_fee_cents: number | null;
+  late_cancel_cents: number | null;
   payment_status: string | null;
   payment_due_at: string | null;
   created_at: string;
@@ -29,7 +30,7 @@ export async function loadFinanceJobs(): Promise<{ jobs: FinanceJob[]; error: st
   const supabase = await createClient();
   const jobsResult = await supabase
     .from("jobs")
-    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at")
+    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, late_cancel_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at")
     .not("payment_status", "is", null)
     .order("created_at", { ascending: false })
     .limit(2000);
@@ -100,6 +101,7 @@ export async function loadFinanceJobs(): Promise<{ jobs: FinanceJob[]; error: st
         serviceFeeCents: row.service_fee_cents,
         stripeFeeCents: payment?.stripe_fee_cents ?? null,
         tripFeeCents: row.trip_fee_cents,
+        lateCancelCents: row.late_cancel_cents,
         paymentDueAt: row.payment_due_at,
         captureBefore: payment?.capture_before ?? null,
         createdAt: row.created_at,

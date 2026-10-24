@@ -11,7 +11,7 @@ type CaptureContext = {
   payment_intent_id: string;
   charge_id: string | null;
   amount_cents: number;
-  kind: "full" | "trip";
+  kind: "full" | "trip" | "late_cancel";
   capture_before: string | null;
   service_fee_cents: number | null;
   expired: boolean;
@@ -50,7 +50,7 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
     existing.status === "requires_capture"
       ? await stripe.paymentIntents.capture(
           row.payment_intent_id,
-          row.kind === "trip" ? { amount_to_capture: row.amount_cents } : {},
+          row.kind === "trip" || row.kind === "late_cancel" ? { amount_to_capture: row.amount_cents } : {},
           { idempotencyKey: `capture:${row.payment_intent_id}:${row.kind}` },
         )
       : existing;
@@ -86,7 +86,7 @@ export async function syncStripeFees(): Promise<void> {
   }
 }
 
-export async function releaseCustomerAuthorization(jobId: string): Promise<"free" | "released"> {
+export async function releaseCustomerAuthorization(jobId: string): Promise<"free" | "released" | "late_cancel"> {
   const supabase = createServiceClient();
   const user = await createClient();
   const started = await user.rpc("begin_customer_cancel", { target_job: jobId });
@@ -94,10 +94,14 @@ export async function releaseCustomerAuthorization(jobId: string): Promise<"free
     throw new Error(started.error?.message ?? "This job could not be cancelled.");
   }
   const row = started.data as {
-    outcome: "free" | "release";
+    outcome: "free" | "release" | "late_cancel";
     payment_intent_id: string | null;
     checkout_session_id?: string | null;
   };
+  if (row.outcome === "late_cancel") {
+    await captureReadyPayment(jobId);
+    return "late_cancel";
+  }
   if (row.outcome === "free") {
     if (row.checkout_session_id || row.payment_intent_id) {
       try {

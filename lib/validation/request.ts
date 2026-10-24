@@ -156,7 +156,7 @@ function validateWhen(draft: RequestDraft): FieldErrors {
     errors.preferredDate = "Choose ASAP, today, or a date.";
   } else if (draft.preferredDate !== "asap" && draft.preferredDate !== "today") {
     if (!isWithinBookingWindow(draft.preferredDate)) {
-      errors.preferredDate = "Choose a date within the next 5 days.";
+      errors.preferredDate = "Choose a date within the next 6 days.";
     }
   }
   if (draft.preferredDate !== "asap" && !windowSchema.safeParse(draft.timeWindow).success) {

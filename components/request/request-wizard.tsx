@@ -763,7 +763,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                 name="chosenDate"
                 type="date"
                 min={today}
-                max={addDays(today, 5)}
+                max={addDays(today, 6)}
                 value={draft.preferredDate}
                 onChange={(value) => update("preferredDate", value)}
               />

@@ -35,11 +35,11 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "Is there a cancel fee?",
-        a: "After a driver is assigned and before work starts, a late cancel is a $15 partial capture of the existing authorization. The rest of the hold is released. It is not a new charge.",
+        a: "Before a driver is assigned, canceling is free and any card hold is released. After a driver is assigned, a late cancel is one $15 charge from the existing hold. If the driver is already on the way, $10 goes to the driver and $5 stays with Pickuply. If the driver has not started, Pickuply keeps the $15. If the card was not authorized yet, there is no fee.",
       },
       {
         q: "Can I reschedule?",
-        a: "TODO: the spec does not yet say how a customer reschedules after a driver is assigned.",
+        a: "You can ask once, for free, before the driver is on the way. The driver has 2 hours to accept or decline. If they decline, the job opens again at the same price.",
       },
     ],
   },
@@ -59,7 +59,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "What is covered?",
-        a: "Damage coverage is limited to $250 per job. Report the problem in the app.",
+        a: "Report damage within 48 hours of delivery and include photos. Pickup photos are the before picture. Damage already visible at pickup is not covered. Pickuply reviews the report. There is no automatic refund. Verified damage can be refunded up to $250 for that job. If the driver was at fault, that amount can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.",
       },
     ],
   },

@@ -115,7 +115,6 @@ async function Finance({ searchParams }: FinancePageProps) {
         </form>
       </div>
       {filters.pricing === "admin_quote" ? <p className="mt-3">Admin quotes are not stored separately from Get offers, so this filter has no rows.</p> : null}
-      {filters.fee === "late_cancel" ? <p className="mt-3">Late-cancel fees are not tracked yet.</p> : null}
       {filters.tab === "overview" ? <Overview jobs={filtered} previous={previous} filters={filters} now={now} /> : null}
       {filters.tab === "payments" ? <PaymentTable jobs={visible} /> : null}
       {filters.tab === "payouts" ? <PayoutTable jobs={visible} now={now} /> : null}

@@ -47,6 +47,7 @@ export type FinanceJob = {
   serviceFeeCents: number | null;
   stripeFeeCents: number | null;
   tripFeeCents: number | null;
+  lateCancelCents: number | null;
   paymentDueAt: string | null;
   captureBefore: string | null;
   createdAt: string;
@@ -175,6 +176,10 @@ export function refundKind(job: FinanceJob): "full" | "partial" | null {
   if (job.refundedCents >= job.capturedCents && job.capturedCents > 0) return "full";
   if (job.refundedCents > 0) return "partial";
   return null;
+}
+
+export function isLateCancel(job: FinanceJob): boolean {
+  return (job.lateCancelCents ?? 0) > 0;
 }
 
 export function isTripFee(job: FinanceJob): boolean {
@@ -454,9 +459,9 @@ export function filterJobs(jobs: FinanceJob[], filters: FinanceFilters, now = ne
     if (filters.paymentStatus === "refunded_full" && refundKind(job) !== "full") return false;
     if (filters.paymentStatus === "refunded_partial" && refundKind(job) !== "partial") return false;
     if (filters.paymentStatus && !filters.paymentStatus.startsWith("refunded_") && chip !== filters.paymentStatus) return false;
-    if (filters.fee === "late_cancel") return false;
+    if (filters.fee === "late_cancel" && !isLateCancel(job)) return false;
     if (filters.fee === "trip" && !isTripFee(job)) return false;
-    if (filters.fee === "normal" && isTripFee(job)) return false;
+    if (filters.fee === "normal" && (isTripFee(job) || isLateCancel(job))) return false;
     if (filters.hold && !holdWindow(job, filters.hold, now)) return false;
     if (filters.report === "yes" && !(job.openReport || job.openDispute)) return false;
     if (filters.report === "no" && (job.openReport || job.openDispute)) return false;
@@ -550,6 +555,7 @@ export function revenue(jobs: FinanceJob[]): {
   const stripe = countMoney(captured, (job) => job.stripeFeeCents).amount;
   const tripJobs = captured.filter(isTripFee);
   const trip = countMoney(tripJobs, (job) => job.capturedCents).amount;
+  const lateCancel = countMoney(captured.filter(isLateCancel), (job) => job.lateCancelCents).amount;
   const refunds = countMoney(
     jobs.filter((job) => (job.refundedCents ?? 0) > 0),
     (job) => job.refundedCents,
@@ -560,7 +566,7 @@ export function revenue(jobs: FinanceJob[]): {
     "cents" in stripe ? { cents: -stripe.cents } : stripe,
     "cents" in refunds ? { cents: -refunds.cents } : refunds,
   ]);
-  return { platform, service, stripe, trip, lateCancel: { notTracked: true }, refunds, net };
+  return { platform, service, stripe, trip, lateCancel, refunds, net };
 }
 
 export function changePercent(current: Money, previous: Money): string {

@@ -1,4 +1,4 @@
-export const bookingWindowDays = 5;
+export const bookingWindowDays = 6;
 
 export function localDateISO(date = new Date()): string {
   const year = date.getFullYear();
