@@ -48,7 +48,7 @@ function NavLinks({
       })}
       <li>
         <Link
-          href="/admin/payments"
+          href="/admin/finance"
           aria-current={current === "payments" ? "page" : undefined}
           className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
             current === "payments" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"

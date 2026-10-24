@@ -37,6 +37,7 @@ async function Payments() {
     <main className="px-4 py-8">
       <BackLink href="/admin" label="Admin" />
       <h1 className="font-display text-4xl font-semibold text-ink">Payments</h1>
+      <p className="mt-2"><Link href="/admin/finance" className="font-semibold text-brand">Open the payments report</Link></p>
       <p className="mt-2 text-base text-muted">Card holds, captures, and refunds. A shortfall means the Stripe fee was higher than the service fee.</p>
       {(jobs ?? []).length === 0 ? <p className="mt-6">No card payments yet.</p> : null}
       <ul className="mt-6 grid gap-3">

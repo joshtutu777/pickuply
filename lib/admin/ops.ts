@@ -462,7 +462,7 @@ export function adminNavCurrent(pathname: string, search: string): "overview" | 
   if (pathname.startsWith("/admin/funnel")) return "funnel";
   if (pathname.startsWith("/admin/drivers")) return "drivers";
   if (pathname.startsWith("/admin/settings")) return "settings";
-  if (pathname.startsWith("/admin/payments")) return "payments";
+  if (pathname.startsWith("/admin/finance") || pathname.startsWith("/admin/payments")) return "payments";
   if (pathname.startsWith("/admin/payouts")) return "payouts";
   const stage = new URLSearchParams(search).get("stage");
   if (stage === "jobs" || stage === "active") return "jobs";
