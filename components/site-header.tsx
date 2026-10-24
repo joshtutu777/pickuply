@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { AppNav } from "@/components/app-nav";
 import { SignOutButton } from "@/components/sign-out-button";
+import type { AppNavItem } from "@/lib/app-nav";
 
 const primaryLink =
   "min-h-12 items-center justify-center rounded-full bg-brand px-5 text-base font-semibold text-white transition-colors hover:bg-brand-dark";
@@ -16,6 +18,9 @@ export type HeaderState =
       unread: number;
       area: string | null;
       appNav: boolean;
+      appLabel: "Customer" | "Driver" | null;
+      appLinks: AppNavItem[];
+      messageUnread: number;
       homeHref: string;
       driveHref: string;
     };
@@ -23,7 +28,8 @@ export type HeaderState =
 export function SiteHeader({ state }: { state: HeaderState }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto w-full max-w-5xl px-4 py-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-3">
           <Link
             href={state.status === "signed-in" ? state.homeHref : "/"}
@@ -57,22 +63,20 @@ export function SiteHeader({ state }: { state: HeaderState }) {
                   {state.area ? <span className="text-xs font-medium text-muted">{state.area}</span> : null}
                 </span>
               ) : null}
+              {state.appNav ? null : (
               <Link
                 href={state.alertsHref}
                 aria-label={state.unread > 0 ? `Alerts, ${state.unread} unread` : "Alerts"}
-                className={`${navLink} relative ${state.appNav ? "max-sm:size-12 max-sm:px-0" : ""}`}
+                className={`${navLink} relative`}
               >
-                <span className={state.appNav ? "max-sm:sr-only" : ""}>Alerts</span>
+                <span>Alerts</span>
                 {state.unread > 0 ? (
-                  <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-brand px-1 text-xs text-white max-sm:ml-0">
+                  <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-brand px-1 text-xs text-white">
                     {state.unread > 9 ? "9+" : state.unread}
-                  </span>
-                ) : state.appNav ? (
-                  <span className="sm:hidden" aria-hidden="true">
-                    ⌁
                   </span>
                 ) : null}
               </Link>
+              )}
               <SignOutButton />
             </>
           ) : (
@@ -87,6 +91,15 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             Drive with us
           </Link>
         </nav>
+      </div>
+      {state.status === "signed-in" && state.appLabel ? (
+        <AppNav
+          items={state.appLinks}
+          label={state.appLabel}
+          alertUnread={state.unread}
+          messageUnread={state.messageUnread}
+        />
+      ) : null}
       </div>
     </header>
   );

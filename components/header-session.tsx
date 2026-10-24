@@ -5,15 +5,20 @@ import { getOptionalSession } from "@/lib/auth/session";
 import { cityFromArea } from "@/lib/jobs/next-action";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
+import { customerNav, driverNav } from "@/lib/app-nav";
 
 export async function HeaderSession() {
   const session = await getOptionalSession();
   if (!session) return <SiteHeader state={{ status: "signed-out" }} />;
   const supabase = await createClient();
-  const { count } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .is("read_at", null);
+  const [{ count }, inbox] = await Promise.all([
+    supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
+    supabase.rpc("my_inbox"),
+  ]);
+  const messageUnread = ((inbox.data ?? []) as { unread?: number }[]).reduce(
+    (sum, row) => sum + Number(row.unread ?? 0),
+    0,
+  );
   const mode = await readMode();
   const { data: driver } = await supabase
     .from("drivers")
@@ -49,6 +54,9 @@ export async function HeaderSession() {
         unread: count ?? 0,
         area,
         appNav: homeHref === "/account" || homeHref === "/driver",
+        appLabel: homeHref === "/driver" ? "Driver" : homeHref === "/account" ? "Customer" : null,
+        appLinks: homeHref === "/driver" ? driverNav : customerNav,
+        messageUnread,
         homeHref,
         driveHref: hasDriver ? "/driver" : "/driver/onboarding",
       }}

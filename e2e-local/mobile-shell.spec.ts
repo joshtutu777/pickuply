@@ -65,7 +65,9 @@ async function clearOfNav(page: Page, navName: string) {
       node.scrollTop = next;
     }, top);
     const covered = await page.evaluate((label) => {
-      const bar = document.querySelector(`nav[aria-label="${label}"]`);
+      const bar = [...document.querySelectorAll(`nav[aria-label="${label}"]`)].find(
+        (node) => node.getClientRects().length > 0,
+      );
       const root = document.querySelector("[data-app-scroll]");
       if (!bar || !root) return ["missing bar"];
       const linkTops = [...bar.querySelectorAll("a")].map((link) => link.getBoundingClientRect().top);
@@ -112,9 +114,9 @@ test("customer home, all jobs, messages, and safe area", async ({ page }) => {
   await expect(page).toHaveURL(/\/account$/);
   const nav = page.getByRole("navigation", { name: "Customer" });
   await expect(nav.getByRole("link", { name: "Home" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Jobs" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "New" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Requests" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Messages" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Alerts" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Profile" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Returning customer dresser/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Returning customer yard debris/ })).toBeVisible();
@@ -224,7 +226,8 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
   const nav = page.getByRole("navigation", { name: "Driver" });
   await expect(nav.getByRole("link", { name: "Home" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Jobs" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Earnings" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Messages" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Alerts" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Profile" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Driver home" })).toBeVisible();
   await expect(page.getByLabel("Earnings")).toBeVisible();

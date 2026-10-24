@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Desktop navigation (2026-10-23)
+
+At 768px and wider, a signed-in customer or driver sees Home, Requests or Jobs, Messages, Alerts, and Profile in the header. The phone bar stays under that width and uses the same destinations. Admin keeps a side menu from 768px up: Dashboard, Requests, Drivers, Messages, Alerts, and Settings. The logo still opens the current mode home and does not switch modes. The service worker does not cache pages.
+
 ## Driver feed sections (2026-10-23)
 
 The open driver feed was one list that polled every 25 seconds. An unassigned driver cannot read `jobs` under row-level security, so a subscription on that table would not wake the feed. A new signal row carries only a time. The signed-in driver refetches Matched for You and All Georgia Requests, and a late response cannot replace a newer one. The screen also refreshes on focus, reconnect, a manual button, a pull down, and a 20-second fallback while the tab is visible. Local migration `0052` is applied. It is not on the hosted database.

@@ -3,24 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-type Item = { href: string; label: string; icon: "home" | "jobs" | "plus" | "messages" | "profile" | "earnings"; center?: boolean };
-
-const customer: Item[] = [
-  { href: "/account", label: "Home", icon: "home" },
-  { href: "/account/jobs", label: "Jobs", icon: "jobs" },
-  { href: "/request", label: "New", icon: "plus", center: true },
-  { href: "/account/messages", label: "Messages", icon: "messages" },
-  { href: "/account/profile", label: "Profile", icon: "profile" },
-];
-
-const driver: Item[] = [
-  { href: "/driver", label: "Home", icon: "home" },
-  { href: "/driver#jobs", label: "Jobs", icon: "jobs" },
-  { href: "/driver/messages", label: "Messages", icon: "messages" },
-  { href: "/driver/earnings", label: "Earnings", icon: "earnings" },
-  { href: "/driver/profile", label: "Profile", icon: "profile" },
-];
+import { appNavActive, customerNav, driverNav, type AppNavIcon } from "@/lib/app-nav";
 
 const hidden = [
   "/request",
@@ -31,23 +14,19 @@ const hidden = [
   "/driver/training",
 ];
 
-function active(pathname: string, href: string): boolean {
-  const path = href.split("#")[0];
-  if (path === "/account") return pathname === "/account";
-  if (path === "/driver") return pathname === "/driver" && !href.includes("#");
-  if (href === "/driver#jobs") return false;
-  return pathname === path || pathname.startsWith(`${path}/`);
+function useHash() {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("hashchange", onStoreChange);
+      return () => window.removeEventListener("hashchange", onStoreChange);
+    },
+    () => window.location.hash,
+    () => "",
+  );
 }
 
-function NavIcon({ icon }: { icon: Item["icon"] }) {
+function NavIcon({ icon }: { icon: AppNavIcon }) {
   const common = "size-5";
-  if (icon === "plus") {
-    return (
-      <svg viewBox="0 0 24 24" className="size-7" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    );
-  }
   if (icon === "home") {
     return (
       <svg viewBox="0 0 24 24" className={common} aria-hidden="true">
@@ -69,10 +48,11 @@ function NavIcon({ icon }: { icon: Item["icon"] }) {
       </svg>
     );
   }
-  if (icon === "earnings") {
+  if (icon === "alerts") {
     return (
       <svg viewBox="0 0 24 24" className={common} aria-hidden="true">
-        <path d="M12 4v16M16 8.5c0-1.5-1.8-2.5-4-2.5s-4 1-4 2.5 1.8 2.5 4 2.5 4 1 4 2.5-1.8 2.5-4 2.5-4-1-4-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2H4.5L6 16Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M10 19a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     );
   }
@@ -87,11 +67,14 @@ function NavIcon({ icon }: { icon: Item["icon"] }) {
 export function BottomNav({
   role,
   messageUnread = 0,
+  alertUnread = 0,
 }: {
   role: "customer" | "driver" | "admin" | null;
   messageUnread?: number;
+  alertUnread?: number;
 }) {
   const pathname = usePathname();
+  const hash = useHash();
   const ready = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -101,44 +84,41 @@ export function BottomNav({
     const id = window.location.hash.replace("#", "");
     if (!id) return;
     document.getElementById(id)?.scrollIntoView({ block: "start" });
-  }, [pathname]);
+  }, [pathname, hash]);
   if (!ready || (role !== "customer" && role !== "driver")) return null;
   if (hidden.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
-  const customerArea = pathname === "/account" || pathname.startsWith("/account/");
-  const items = role === "driver" && !customerArea ? driver : customer;
-  const raised = items.some((item) => item.center);
+  const customerArea = pathname === "/account" || pathname.startsWith("/account/") || pathname.startsWith("/jobs/");
+  const items = role === "driver" && !customerArea ? driverNav : customerNav;
+  const label = items === driverNav ? "Driver" : "Customer";
 
   return (
     <nav
       data-mobile-nav=""
-      aria-label={items === driver ? "Driver" : "Customer"}
-      className={`z-30 shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden ${raised ? "pt-8" : "pt-2"}`}
+      aria-label={label}
+      className="z-30 shrink-0 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
     >
       <ul className="mx-auto flex max-w-md items-end justify-between rounded-full bg-ink px-2 py-2 text-white shadow-lg">
         {items.map((item) => {
-          const current = active(pathname, item.href);
+          const current = appNavActive(pathname, item.href, hash);
+          const count = item.icon === "alerts" ? alertUnread : item.icon === "messages" ? messageUnread : 0;
           return (
-            <li key={item.href} className={item.center ? "-mt-7" : ""}>
+            <li key={item.href}>
               <Link
                 href={item.href}
                 aria-current={current ? "page" : undefined}
                 className={`flex min-h-12 min-w-12 flex-col items-center justify-center rounded-full px-2 text-[11px] font-semibold ${
-                  item.center
-                    ? "size-14 bg-brand text-white"
-                    : current
-                      ? "bg-white/15 text-white"
-                      : "text-white/80"
+                  current ? "bg-white/15 text-white" : "text-white/80"
                 }`}
               >
                 <span className="relative">
                   <NavIcon icon={item.icon} />
-                  {item.icon === "messages" && messageUnread > 0 ? (
+                  {count > 0 ? (
                     <span className="absolute -top-1 -right-2 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] text-white">
-                      {messageUnread > 9 ? "9+" : messageUnread}
+                      {count > 9 ? "9+" : count}
                     </span>
                   ) : null}
                 </span>
-                <span className={item.center ? "sr-only" : "mt-0.5"}>{item.label}</span>
+                <span className="mt-0.5">{item.label}</span>
               </Link>
             </li>
           );

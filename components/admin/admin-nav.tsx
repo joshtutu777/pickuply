@@ -5,32 +5,26 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { adminNavCurrent } from "@/lib/admin/ops";
 
 const items = [
-  { id: "overview", href: "/admin", label: "Overview" },
-  { id: "requests", href: "/admin/requests", label: "Requests & Quotes" },
-  { id: "jobs", href: "/admin/requests?stage=jobs", label: "Jobs & Assignments" },
+  { id: "overview", href: "/admin", label: "Dashboard" },
+  { id: "requests", href: "/admin/requests", label: "Requests" },
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
   { id: "messages", href: "/admin/messages", label: "Messages" },
-  { id: "funnel", href: "/admin/funnel", label: "Funnel" },
+  { id: "alerts", href: "/admin/notifications", label: "Alerts" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
-  { id: "help", href: "/admin/help", label: "Help" },
 ] as const;
 
 function NavLinks({
   badges,
   current,
 }: {
-  badges: { overview: number; requests: number; jobs: number; drivers: number; messages: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number };
   current: ReturnType<typeof adminNavCurrent>;
 }) {
   return (
+    <nav aria-label="Admin">
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
-        const count =
-          item.id === "messages"
-            ? badges.messages
-            : item.id === "settings" || item.id === "funnel" || item.id === "help"
-              ? 0
-              : badges[item.id];
+        const count = item.id === "settings" ? 0 : badges[item.id];
         const active = current === item.id;
         return (
           <li key={item.id}>
@@ -64,6 +58,39 @@ function NavLinks({
       </li>
       <li>
         <Link
+          href="/admin/requests?stage=jobs"
+          aria-current={current === "jobs" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "jobs" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Jobs & Assignments
+        </Link>
+      </li>
+      <li>
+        <Link
+          href="/admin/funnel"
+          aria-current={current === "funnel" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "funnel" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Funnel
+        </Link>
+      </li>
+      <li>
+        <Link
+          href="/admin/help"
+          aria-current={current === "help" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "help" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Help
+        </Link>
+      </li>
+      <li>
+        <Link
           href="/admin/payouts"
           aria-current={current === "payouts" ? "page" : undefined}
           className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
@@ -74,13 +101,14 @@ function NavLinks({
         </Link>
       </li>
     </ul>
+    </nav>
   );
 }
 
 export function AdminNav({
   badges,
 }: {
-  badges: { overview: number; requests: number; jobs: number; drivers: number; messages: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number };
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();

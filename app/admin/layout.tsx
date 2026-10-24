@@ -31,12 +31,16 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
     (sum, thread) => sum + Number(thread.unread ?? 0),
     0,
   );
+  const { count: alertUnread } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .is("read_at", null);
   const badges = {
     overview: needs.length,
     requests: needs.filter((item) => item.kind === "request" || item.kind === "quote").length,
-    jobs: needs.filter((item) => item.kind === "open" || item.kind === "payment").length,
     drivers: needs.filter((item) => item.kind === "driver").length,
     messages: messageUnread,
+    alerts: alertUnread ?? 0,
   };
 
   return (
