@@ -1,22 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/notifications",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/payment-deadlines",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/auto-complete",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/transfers",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/cron/funnel-retention",
       "schedule": "0 4 * * *"
     }
