@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { headerInstallPlan, inAppBrowser, installCopy, showInstallPrompt, startDestination } from "./install";
+import { headerInstallPlan, inAppBrowser, installButtonLabel, installCopy, isIosSafari, showInstallPrompt, startDestination } from "./install";
 
 test("in-app browsers get open-in-browser instructions", () => {
   assert.equal(inAppBrowser("Mozilla/5.0 Instagram 123"), true);
@@ -42,6 +42,13 @@ test("the header install button follows the browser", () => {
   assert.equal(headerInstallPlan({ installed: true, userAgent: "Chrome", canPrompt: true }), "hidden");
   assert.equal(headerInstallPlan({ installed: false, userAgent: "Chrome", canPrompt: true }), "native");
   assert.equal(headerInstallPlan({ installed: false, userAgent: "iPhone", canPrompt: false }), "ios");
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "Mozilla/5.0 (iPhone) AppleWebKit Version/17.0 Mobile Safari", canPrompt: false }), "ios");
+  assert.equal(isIosSafari("Mozilla/5.0 (iPhone) AppleWebKit Version/17.0 Mobile Safari"), true);
+  assert.equal(headerInstallPlan({ installed: false, userAgent: "iPhone CriOS/120.0.0.0", canPrompt: false }), "ios-browser");
+  assert.equal(isIosSafari("iPhone CriOS/120.0.0.0"), false);
+  assert.equal(installButtonLabel("ios"), "Add Pickuply to Home Screen");
+  assert.equal(installButtonLabel("native"), "Install Pickuply");
+  assert.equal(headerInstallPlan({ installed: true, userAgent: "iPhone Safari", canPrompt: false }), "hidden");
   assert.equal(headerInstallPlan({ installed: false, userAgent: "Instagram", canPrompt: false }), "in-app");
   assert.equal(headerInstallPlan({ installed: false, userAgent: "Firefox", canPrompt: false }), "guidance");
 });
