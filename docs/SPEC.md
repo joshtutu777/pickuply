@@ -124,6 +124,9 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - `/privacy` and `/terms` are the published October 22, 2026 Privacy Policy and Terms of Service. The booking section matches the current offer and payment flow. A later legal review is optional and is not required before launch.
 - `/signup` opens phone sign-up. `/driver/apply` opens the driver application sign-up. Optional text consent is a separate unchecked box. The sign-in code does not depend on that box.
 - Vercel Hobby cannot run the payment, notification, auto-complete, or transfer jobs more than once a day. Those routes stay in the app. `docs/SCHEDULER.md` is the activation step for Supabase `pg_cron`. Paid bookings are not ready until that scheduler, or Vercel Pro, is actually running.
+- `NEXT_PUBLIC_BETA_MODE` is on unless it is set to `false`. That flag is separate from Stripe test mode. The header shows a Beta badge on the public site, customer pages, driver pages, and admin, with the sentence "Pickuply is currently in beta. We're improving the experience with feedback from our early customers and drivers."
+- Signed-in customers and drivers open **Send Feedback** from the desktop menu and from Profile. The phone bar does not gain another icon. `/feedback` requires a type, a subject, and details. Screenshots are not accepted. The saved row stores the signed-in user, role, time, route, app version, and a short device string. It does not store a card, a password, a token, an address, or a GPS point.
+- Admins review submissions at `/admin/feedback`. Internal notes are on a separate table. Customers and drivers cannot read them or anyone else's feedback. Statuses are New, Under Review, Planned, Resolved, and Closed. A submission does not send a text or an email.
 
 ### 4.5 Customer account
 - Job history with receipts and photos, saved addresses, repeat a job.

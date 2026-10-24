@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Beta feedback (2026-10-23)
+
+The header shows a Beta badge while `NEXT_PUBLIC_BETA_MODE` is not `false`. Customers and drivers send feedback at `/feedback` from the desktop menu and from Profile. The phone bar is unchanged. The form stores type, subject, details, the signed-in user, role, route, version, and a short device string. Screenshots are deferred because there is no private attachment path yet. Local migration `0056_beta_feedback.sql` is applied here and is not on the hosted database. Admin notes are a separate table. Only an admin can list every report, change status, or read notes. Duplicate reports in a 10-minute window are rejected, and a person can send at most eight in an hour. `/admin/feedback` shows the counts and filters. No text or email is sent.
+
 ## Launch readiness pass (2026-10-23)
 
 `/privacy` and `/terms` follow the Word documents in `docs/legal/`. The Word files stay untracked. The terms section on offers and payment was aligned with the current code: an offer is not a booking, the customer chooses the driver, the card is authorized at confirm, and capture is after delivery or 24 hours later. Arbitration, liability caps, and a published cancellation fee were not added.

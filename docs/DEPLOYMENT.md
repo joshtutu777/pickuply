@@ -9,6 +9,8 @@ Set these on the server. Do not put the values in git. `NEXT_PUBLIC_*` values ar
 | Name | Where |
 | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | Public site URL, no trailing slash |
+| `NEXT_PUBLIC_BETA_MODE` | Public. Set to `false` to hide the beta badge and Send Feedback. Any other value, including blank, stays on. Not the Stripe mode. |
+| `NEXT_PUBLIC_APP_VERSION` | Public label stored with feedback. Defaults to `beta`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only. Required for checkout session recording, Stripe webhooks, captures, refunds, transfers, cron, and the STOP webhook. Checkout shows "Service role is not configured" when this is empty. |

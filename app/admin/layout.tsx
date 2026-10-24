@@ -35,12 +35,17 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
     .from("notifications")
     .select("id", { count: "exact", head: true })
     .is("read_at", null);
+  const { count: feedbackNew } = await supabase
+    .from("beta_feedback")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
   const badges = {
     overview: needs.length,
     requests: needs.filter((item) => item.kind === "request" || item.kind === "quote").length,
     drivers: needs.filter((item) => item.kind === "driver").length,
     messages: messageUnread,
     alerts: alertUnread ?? 0,
+    feedback: feedbackNew ?? 0,
   };
 
   return (

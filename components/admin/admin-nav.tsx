@@ -10,6 +10,7 @@ const items = [
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
   { id: "messages", href: "/admin/messages", label: "Messages" },
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },
+  { id: "feedback", href: "/admin/feedback", label: "Feedback" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
 ] as const;
 
@@ -17,7 +18,7 @@ function NavLinks({
   badges,
   current,
 }: {
-  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
   current: ReturnType<typeof adminNavCurrent>;
 }) {
   return (
@@ -108,7 +109,7 @@ function NavLinks({
 export function AdminNav({
   badges,
 }: {
-  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
 }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
