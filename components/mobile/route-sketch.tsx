@@ -24,7 +24,7 @@ export function RouteSketch({
       </p>
       {updated ? (
         <p className="mt-1 text-sm text-muted">
-          Last updated <time dateTime={updated}>{new Date(updated).toLocaleString()}</time>
+          Last updated <time dateTime={updated} suppressHydrationWarning>{new Date(updated).toLocaleString()}</time>
         </p>
       ) : null}
     </section>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getOptionalSession } from "@/lib/auth/session";
 import { zones } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
@@ -45,16 +46,12 @@ const faqs = [
   },
 ];
 
-export default async function DrivePage() {
-  const session = await getOptionalSession();
-  if (session?.role === "driver") redirect("/driver");
-  if (session) {
-    const supabase = await createClient();
-    const { data } = await supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle();
-    if (data) redirect("/driver");
-  }
+export default function DrivePage() {
   return (
     <main className="flex-1">
+      <Suspense fallback={null}>
+        <SendExistingDriverHome />
+      </Suspense>
       <section className="px-4 pt-4 sm:pt-8">
         <div className="mx-auto max-w-3xl rounded-[2rem] bg-paper-raised px-5 py-8 ring-1 ring-line sm:px-10 sm:py-14">
           <p className="text-sm font-semibold tracking-wide text-brand uppercase">Drive</p>
@@ -143,4 +140,14 @@ export default async function DrivePage() {
       </section>
     </main>
   );
+}
+
+async function SendExistingDriverHome() {
+  const session = await getOptionalSession();
+  if (session?.role === "driver") redirect("/driver");
+  if (!session) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle();
+  if (data) redirect("/driver");
+  return null;
 }
