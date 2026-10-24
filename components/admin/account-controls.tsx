@@ -1,4 +1,5 @@
 import { reinstateAccount, suspendAccount } from "@/app/admin/accounts/actions";
+import { RestrictionLength } from "@/components/admin/restriction-length";
 import { formatInNewYork } from "@/lib/account/restriction";
 import { createClient } from "@/lib/supabase/server";
 
@@ -76,17 +77,7 @@ export async function AccountControls({
       <form action={suspendAccount} className="mt-4 space-y-3">
           <input type="hidden" name="profileId" value={profileId} />
           <input type="hidden" name="returnTo" value={returnTo} />
-          <label className="block text-base font-semibold text-ink" htmlFor={`kind-${profileId}`}>
-            Restriction
-            <select id={`kind-${profileId}`} name="kind" className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4">
-              <option value="temporary">Temporary</option>
-              <option value="indefinite">Indefinite</option>
-            </select>
-          </label>
-          <label className="block text-base font-semibold text-ink" htmlFor={`until-${profileId}`}>
-            Ends (Eastern time, temporary only)
-            <input id={`until-${profileId}`} name="expiresAt" type="datetime-local" className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4" />
-          </label>
+          <RestrictionLength id={`kind-${profileId}`} />
           <label className="block text-base font-semibold text-ink" htmlFor={`reason-${profileId}`}>
             Reason
             <textarea id={`reason-${profileId}`} name="reason" required className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />

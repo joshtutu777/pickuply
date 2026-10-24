@@ -26,14 +26,23 @@ export async function suspendAccount(formData: FormData) {
   const reason = String(formData.get("reason") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
   if (!/^[0-9a-f-]{36}$/i.test(target)) bounce(path, "Choose an account.");
-  if (kind !== "temporary" && kind !== "indefinite") bounce(path, "Choose how long the restriction lasts.");
+  const hours: Record<string, number> = { "hours-24": 24, "days-3": 72, "days-7": 168, "days-30": 720 };
+  let storedKind: "temporary" | "indefinite";
+  let expires: string | null = null;
+  if (kind === "indefinite") storedKind = "indefinite";
+  else if (hours[kind]) {
+    storedKind = "temporary";
+    expires = new Date(Date.now() + hours[kind] * 60 * 60 * 1000).toISOString();
+  } else if (kind === "custom") {
+    storedKind = "temporary";
+    expires = parseNyDateTime(String(formData.get("expiresAt") ?? ""));
+    if (!expires) bounce(path, "Choose when the temporary restriction ends. Use Eastern time.");
+  } else bounce(path, "Choose how long the restriction lasts.");
   if (reason.length < 3) bounce(path, "A reason is required.");
-  const expires = kind === "temporary" ? parseNyDateTime(String(formData.get("expiresAt") ?? "")) : null;
-  if (kind === "temporary" && !expires) bounce(path, "Choose when the temporary restriction ends. Use Eastern time.");
   const supabase = await createClient();
   const { error } = await supabase.rpc("suspend_account", {
     target,
-    kind,
+    kind: storedKind,
     reason,
     expires_at: expires,
     note: note || null,
