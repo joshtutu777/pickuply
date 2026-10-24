@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob } from "@/app/admin/requests/actions";
+import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
 import { CopyMessage } from "@/components/admin/copy-message";
@@ -44,7 +45,7 @@ async function RequestDetail({
   const supabase = await createClient();
   const { data: extra } = await supabase
     .from("jobs")
-    .select("item_value_cents, needs_value_approval, description, service, pricing_method, status, detail_request, paused_at")
+    .select("customer_id, assigned_driver_id, item_value_cents, needs_value_approval, description, service, pricing_method, status, detail_request, paused_at")
     .eq("id", id)
     .maybeSingle();
   const headerList = await headers();
@@ -246,6 +247,16 @@ async function RequestDetail({
       ) : extra?.status === "open" ? null : (
         <p className="mt-6 text-base text-muted">This request is not waiting for a first review.</p>
       )}
+      {extra?.customer_id ? (
+        <AccountControls profileId={extra.customer_id} returnTo={`/admin/requests/${id}`} label="Customer account" />
+      ) : null}
+      {extra?.assigned_driver_id ? (
+        <AccountControls
+          profileId={extra.assigned_driver_id}
+          returnTo={`/admin/requests/${id}`}
+          label="Driver account"
+        />
+      ) : null}
     </main>
   );
 }

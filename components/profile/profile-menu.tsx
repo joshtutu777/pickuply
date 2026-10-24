@@ -105,6 +105,12 @@ export function ProfileMenu({
           </Link>
         </li>
       </ul>
+      <div className="mt-8 border-t border-line pt-4">
+        <p className="text-sm font-semibold text-muted">Account management</p>
+        <Link href="/account/delete" className="mt-2 inline-flex min-h-12 items-center text-sm font-semibold text-danger">
+          Delete Account
+        </Link>
+      </div>
       <div className="mt-6">
         <SignOutButton />
       </div>

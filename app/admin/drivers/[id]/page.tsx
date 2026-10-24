@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { reopenDriver, requestDocuments, reviewDriver } from "@/app/admin/drivers/actions";
+import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { coverageSummary } from "@/lib/driver/coverage";
@@ -165,6 +166,7 @@ async function DriverDetail({
           Request documents
         </button>
       </form>
+      <AccountControls profileId={id} returnTo={`/admin/drivers/${id}`} label="Account restriction" />
       <form action={reviewDriver} className="mt-8 space-y-4">
         <input type="hidden" name="driverId" value={id} />
         <label className="block text-base font-semibold text-ink" htmlFor="note">

@@ -92,6 +92,17 @@ function NavLinks({
       </li>
       <li>
         <Link
+          href="/admin/accounts"
+          aria-current={current === "accounts" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "accounts" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Accounts
+        </Link>
+      </li>
+      <li>
+        <Link
           href="/admin/payouts"
           aria-current={current === "payouts" ? "page" : undefined}
           className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${

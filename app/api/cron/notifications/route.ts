@@ -14,6 +14,8 @@ export async function GET(request: Request) {
     const supabase = createServiceClient();
     const { error } = await supabase.rpc("scan_notification_reminders");
     if (error) return NextResponse.json({ ok: false }, { status: 500 });
+    const expired = await supabase.rpc("expire_due_suspensions");
+    if (expired.error) return NextResponse.json({ ok: false }, { status: 500 });
     const reviews = await supabase.rpc("note_review_windows");
     if (reviews.error) return NextResponse.json({ ok: false }, { status: 500 });
     await deliverPendingAlerts();

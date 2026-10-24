@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Account suspension and deletion (2026-10-24)
+
+Admins suspend and reinstate customers and drivers from the driver page, the request page, and `/admin/accounts`. Suspension is its own record. It is not Offline and it is not the driver Paused status. Open requests with no accepted offer are paused. Unaccepted offers are closed. Accepted jobs and payment rows stay. A person can still sign in and sees a restriction notice. Delete Account is at the bottom of Profile. Eligible accounts are anonymized. Accounts with an open job or open money stay pending. Restricted-phone blocking needs the database setting `pickuply.phone_hmac_secret`, which is not stored in the migration. Local migration `0060_account_suspension.sql` is not on the hosted database. The pass is in `docs/TEST_REPORT.md`.
+
 ## Reviews, new-driver hold, and self-dealing (2026-10-24)
 
 Completed jobs can be reviewed by the customer and the assigned driver. Reviews stay hidden until both are in or 14 days pass. Drivers with fewer than five completed jobs wait 48 hours before a transfer can become ready. A person cannot browse or offer on their own request. Driver document and chat photos are re-encoded to JPEG before upload so GPS data is not stored. Finance date windows use America/New_York midnight, including the 2026 daylight-saving change. Local migrations `0058_job_reviews.sql` and `0059_payout_hold_and_self_deal.sql` are not on the hosted database. The full pass is in `docs/TEST_REPORT.md`.
