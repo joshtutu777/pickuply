@@ -38,12 +38,14 @@ export function MessagePanel({
   closesAt,
   showQuickReplies = false,
   attachments = [],
+  reportHref = "/help",
 }: {
   threadId: string;
   initial: ChatMessage[];
   closesAt: string | null;
   showQuickReplies?: boolean;
   attachments?: ChatFile[];
+  reportHref?: string;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initial);
@@ -154,7 +156,10 @@ export function MessagePanel({
         ))}
       </ul>
       {closed ? (
-        <p className="mt-3 text-base text-muted">This conversation is closed.</p>
+        <p className="mt-3 text-base text-muted">
+          This conversation is closed. Need help? Visit <Link href="/help" className="font-semibold text-brand">Help</Link> or{" "}
+          <Link href={reportHref} className="font-semibold text-brand">Report a problem</Link>
+        </p>
       ) : (
         <form onSubmit={(event) => void send(event)} className="mt-3 grid gap-2">
           {showQuickReplies ? (

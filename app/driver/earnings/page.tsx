@@ -54,10 +54,10 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     .maybeSingle();
   const missing = requirementLabels(fresh?.requirements_due ?? []);
   const ready = Boolean(fresh?.payouts_enabled);
-  const [{ data: entries }, { data: bankPayout }] = await Promise.all([
+  const [{ data: entries }, { data: bankPayout }, { count: completedJobs }] = await Promise.all([
     supabase
       .from("ledger_entries")
-      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at")
+      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at, available_on")
       .eq("driver_id", session.userId)
       .order("created_at", { ascending: false }),
     supabase
@@ -67,7 +67,13 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_driver_id", session.userId)
+      .eq("status", "completed"),
   ]);
+  const newDriver = (completedJobs ?? 0) < 5;
   const totals = ledgerBuckets(entries ?? []);
   const weekAgo = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
   const week = (entries ?? []).filter((entry) => new Date(entry.created_at).getTime() >= weekAgo);
@@ -143,7 +149,16 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
               <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
               <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
-              {entry.hold_reason ? <p>{entry.hold_reason}</p> : null}
+              {ready ? <p>Scheduled — sends {sendWhen(entry)}</p> : null}
+              {!ready && (entry.status === "held" || entry.status === "held_until_onboarding") ? (
+                <>
+                  <p>Held — finish payout setup to get paid</p>
+                  {newDriver ? <p>Then sends 48 hours after completion ({sendWhen(entry)})</p> : null}
+                </>
+              ) : null}
+              {!ready && entry.status !== "held" && entry.status !== "held_until_onboarding" && entry.hold_reason ? (
+                <p>{entry.hold_reason}</p>
+              ) : null}
               {entry.status === "pending" && entry.hold_reason?.includes("48 hours") ? (
                 <p>Eligible 48 hours after this job was completed. A transfer is not a bank deposit.</p>
               ) : null}
@@ -158,6 +173,20 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       </p>
     </main>
   );
+}
+
+function sendWhen(entry: { available_on: string | null; created_at: string }) {
+  const when = entry.available_on
+    ? new Date(entry.available_on)
+    : new Date(new Date(entry.created_at).getTime() + 48 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(when);
 }
 
 function sumStatus(entries: { status: string; amount_cents: number }[], statuses: string[]) {

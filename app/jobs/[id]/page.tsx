@@ -155,6 +155,13 @@ async function JobEntry({
         />
       ) : null}
       {session?.role === "customer" && job.status === "item_check" ? <ItemDecision jobId={id} /> : null}
+      {session?.role === "customer" && job.customer_confirmed_at ? (
+        <section className="mx-auto mt-4 w-full max-w-xl px-4">
+          <p className="rounded-3xl bg-paper-raised p-4 text-lg font-semibold text-ink ring-1 ring-line">
+            Delivery confirmed — thanks!
+          </p>
+        </section>
+      ) : null}
       {session?.role === "customer" && job.status === "delivered" ? (
         <ConfirmDelivery jobId={id} confirmed={job.customer_confirmed_at != null} />
       ) : null}
