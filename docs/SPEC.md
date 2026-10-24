@@ -118,6 +118,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - **Report a problem** (during job and 7 days after).
 - **Cancel** (fee rules apply).
 - After delivery: **Got it** (captures payment) → review + optional tip.
+- When payment is due, the heading is **Confirm Your Booking** and the button is **Confirm Booking & Payment**. The breakdown is the selected driver's offer (driver earnings plus the platform fee), the service fee, additional charges, and the customer total. Trip, late-cancel, and dump charges are not in that total at booking. The card is authorized at confirm. The charge happens after the customer confirms delivery, or 24 hours later. If the authorization expires first, the card is not charged.
 
 ### 4.5 Customer account
 - Job history with receipts and photos, saved addresses, repeat a job.

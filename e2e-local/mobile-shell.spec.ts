@@ -191,7 +191,7 @@ test("an assigned job shows the real next step, chat, and no phone link", async 
     await page.goto(`/jobs/${quoteJobId}`);
     await expect(page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Chat" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Pay to confirm" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm Booking & Payment" })).toBeVisible();
     await expect(page.locator("a[href^='tel:']")).toHaveCount(0);
     await expect(page.locator("#messages")).toBeAttached();
     await page.goto("/account/messages");

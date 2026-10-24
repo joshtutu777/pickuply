@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Booking confirmation (2026-10-23)
+
+The assigned-job payment panel is headed Confirm Your Booking. The button says Confirm Booking & Payment. It lists the selected driver's offer, the service fee, additional charges (none at booking), and the customer total. The note says the card is authorized at confirm, charged after delivery is confirmed or 24 hours later, and is not charged if the authorization expires first. Checkout, capture, refunds, and payouts are unchanged.
+
 ## Customer offer counts (2026-10-23)
 
 My Requests shows how many active offers a request has and how many of those the customer has not viewed. An open request with none says "Waiting for driver offers." Cards with new offers are highlighted, and the Requests menu shows that number on desktop and on the phone bar. An offer is marked viewed only when its card is on screen in the offer list. The time is stored in `offer_views`, so another device sees the same state. Withdrawn, expired, declined, and chosen offers stay in history and are left out of the counts. Local migration `0054` is applied. It is not on the hosted database.
