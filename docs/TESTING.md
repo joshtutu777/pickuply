@@ -48,3 +48,5 @@ The script runs only when `.env.test.local` points Supabase at localhost or 127.
 ## Hosted
 
 Until Twilio is approved, add test numbers in the Supabase dashboard under Authentication, Phone, Test phone numbers. Do not copy local codes into the hosted project from this repo.
+
+The 13-account roster for a deployed test site is in `docs/DEPLOYED_TEST_ACCOUNTS.md`. Do not add those numbers to the production Supabase project.

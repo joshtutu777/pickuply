@@ -670,6 +670,10 @@ Local only. Profile keeps Sign out and adds the masked phone, mode switch, Help,
 
 Local UI only. The customer job page shows four milestones: Request & Price, Driver Confirmed, Pickup, and Delivered. Driver Confirmed stays incomplete until the job is assigned and the card is authorized. The old ten-step list is under View activity history. Driver screens still use the detailed tracker.
 
+## Deployed test roster (2026-10-24)
+
+Local only. Thirteen synthetic 555 numbers, 0301 through 0313, exist on local Supabase with roles, jobs, one held ledger row, and one dispute. No Stripe ids and no payouts are enabled. The production project behind pickuplyapp.com was not changed. Sign-in codes are not in git. Hosted use waits for a separate test Supabase project. See `docs/DEPLOYED_TEST_ACCOUNTS.md`.
+
 ## Walkthrough UX (2026-10-24)
 
 Local only. Address search works before sign-in. An authorization sends one notice to the customer and one to the driver. The pay button says Confirm booking. Before approval, phones show Get Ready above a read-only job feed. After Got it, “Delivery confirmed — thanks!” stays above the review. Closed chat links to Help and Report a problem. Earnings say held until payout setup, then the 48-hour send time, and Scheduled once payouts are ready. Announcement Reply opens Pickuply Support. Suspension defaults to no end date, with 24 hours, 3 days, 7 days, 30 days, and a custom Eastern date. iPhone Safari gets an Add to Home Screen panel.
