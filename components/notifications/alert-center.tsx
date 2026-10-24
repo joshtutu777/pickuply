@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { markAlertsRead, saveAlertPreferences } from "@/app/account/notification-actions";
+import { markAlertsRead, replyToAnnouncement, saveAlertPreferences } from "@/app/account/notification-actions";
 import { BackLink } from "@/components/back-link";
 import { EnablePush } from "@/components/notifications/enable-push";
 import { AppBadge } from "@/components/pwa/app-badge";
@@ -103,6 +103,13 @@ export async function AlertCenter({
                   ) : null}
                   <p className="mt-1 text-sm text-muted">{new Date(alert.created_at).toLocaleString()}</p>
                 </Link>
+                {alert.kind === "admin_announcement" ? (
+                  <form action={replyToAnnouncement} className="mt-3">
+                    <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+                      Reply
+                    </button>
+                  </form>
+                ) : null}
               </li>
             ))}
           </ul>

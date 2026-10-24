@@ -24,6 +24,14 @@ export async function saveAlertPreferences(formData: FormData) {
   redirect(error ? `${path}?error=save` : `${path}?saved=1`);
 }
 
+export async function replyToAnnouncement() {
+  const session = await requireSignedIn("/account/notifications");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("open_announcement_reply");
+  if (error) redirect(`${alertsPath(session.role)}?error=save`);
+  redirect("/support");
+}
+
 export async function markAlertsRead() {
   const session = await requireSignedIn("/account/notifications");
   const supabase = await createClient();
