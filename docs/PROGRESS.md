@@ -494,6 +494,16 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Launch readiness pass (2026-10-23)
+
+`/privacy` and `/terms` now follow the Word drafts in `docs/legal/`. The Word files stay untracked. The terms section on offers and payment was aligned with the current code: an offer is not a booking, the customer chooses the driver, the card is authorized at confirm, and capture is after delivery or 24 hours later. Arbitration, liability caps, and a published cancellation fee were not added. A lawyer still has to approve both pages.
+
+`/signup` redirects to phone sign-up. `/driver/apply` redirects to the driver application. The optional SMS checkbox is separate, unchecked, and worded for customers and drivers. Consent version `2026-10-23` turns on that person's optional texts. STOP is recorded by `POST /api/twilio/sms` and turns them off. Local migration `0055` is applied here and is not on the hosted database.
+
+`/drive` reads the session inside Suspense so the production build can prerender the public page. The help-route type errors cleared once Next regenerated `.next/types` with `/help` included. No type check was disabled.
+
+Vercel Hobby cannot run the five-minute and fifteen-minute crons. Those four routes were removed from `vercel.json` and are documented for `pg_cron` in `docs/SCHEDULER.md`. They are not scheduled on the hosted database. Paid bookings are not ready until that scheduler or Vercel Pro is running. Checkout still fails in this dev process when `SUPABASE_SERVICE_ROLE_KEY` is empty. That variable was not added to a secret file from here. Stripe still refuses any key that is not `sk_test_`.
+
 ## Booking confirmation (2026-10-23)
 
 The assigned-job payment panel is headed Confirm Your Booking. The button says Confirm Booking & Payment. It lists the selected driver's offer, the service fee, additional charges (none at booking), and the customer total. The note says the card is authorized at confirm, charged after delivery is confirmed or 24 hours later, and is not charged if the authorization expires first. Checkout, capture, refunds, and payouts are unchanged.
