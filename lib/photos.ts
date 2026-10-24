@@ -1,5 +1,6 @@
 import { photoMaxEdgePx, videoMaxBytes, videoMaxSeconds } from "./constants";
 
+/** Re-encodes a photo to JPEG so stored files do not keep GPS or other EXIF data. */
 export async function compressImage(file: File): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {

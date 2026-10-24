@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { TextField } from "@/components/request/fields";
 import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { validateFullName } from "@/lib/auth/name";
+import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 const services = [
@@ -43,12 +44,12 @@ async function uploadDoc(
   if (file.size > 5 * 1024 * 1024) {
     throw new Error("Each photo must be 5 MB or smaller.");
   }
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${userId}/${name}.${ext}`;
+  const prepared = await compressImage(file);
+  const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
     upsert: true,
-    contentType: file.type || "image/jpeg",
+    contentType: "image/jpeg",
   });
   if (error) throw new Error("We couldn't upload that photo. Try again.");
   return path;

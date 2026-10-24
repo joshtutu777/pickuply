@@ -18,6 +18,8 @@ export type OfferSummary = {
   service_fee_cents: number;
   expires_at: string;
   viewed?: boolean;
+  rating_avg?: number | null;
+  review_count?: number | null;
 };
 
 export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSummary[] }) {
@@ -77,12 +79,12 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
             className={`rounded-3xl bg-paper-raised p-4 ring-1 ${isNew ? "ring-2 ring-brand" : "ring-line"}`}
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-lg font-semibold text-ink">{offer.driver_first_name}</p>
+              <p className="text-lg font-semibold text-ink">
+                {offer.driver_first_name} — {driverReputation(offer)}
+              </p>
               {isNew ? <p className="text-sm font-semibold text-brand">New</p> : null}
             </div>
-            <p>
-              {offer.vehicle_label || "Vehicle"} · {offer.jobs_completed} jobs completed
-            </p>
+            <p>{offer.vehicle_label || "Vehicle"}</p>
             <p>Subtotal {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
             <p>Service fee {formatCents(offer.service_fee_cents)}</p>
             <p className="font-semibold">Total {formatCents(offer.customer_total_cents)}</p>
@@ -104,4 +106,14 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
       })}
     </section>
   );
+}
+
+function driverReputation(offer: OfferSummary): string {
+  const trips = offer.jobs_completed ?? 0;
+  const reviews = offer.review_count ?? 0;
+  if (reviews > 0 && offer.rating_avg != null) {
+    return `★ ${Number(offer.rating_avg).toFixed(1)} (${reviews} reviews) · ${trips} completed trips`;
+  }
+  if (trips === 0) return "New driver · No reviews yet";
+  return `${trips} completed trips · No reviews yet`;
 }

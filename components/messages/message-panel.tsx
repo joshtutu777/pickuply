@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { containsContact } from "@/lib/messages/contact";
+import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 export type ChatMessage = {
@@ -57,9 +58,14 @@ export function MessagePanel({
       setError("Choose a photo or PDF under 5 MB.");
       return;
     }
-    const path = `${threadId}/${crypto.randomUUID()}.${extension}`;
+    const image = extension !== "pdf";
+    const body = image ? await compressImage(file) : file;
+    const path = `${threadId}/${crypto.randomUUID()}.${image ? "jpg" : "pdf"}`;
     const supabase = createClient();
-    const uploaded = await supabase.storage.from("message-files").upload(path, file, { upsert: false });
+    const uploaded = await supabase.storage.from("message-files").upload(path, body, {
+      upsert: false,
+      contentType: image ? "image/jpeg" : "application/pdf",
+    });
     if (uploaded.error) {
       setError("That file could not be uploaded.");
       return;

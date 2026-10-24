@@ -282,12 +282,25 @@ function zonedParts(date: Date): { year: number; month: number; day: number; wee
 }
 
 export function midnightInNewYork(year: number, month: number, day: number): Date {
-  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const hour = Number(
-    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "2-digit", hourCycle: "h23" }).format(probe),
-  );
-  const offsetMinutes = hour * 60 - 12 * 60;
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMinutes * 60_000);
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  let guess = Date.UTC(year, month - 1, day, 5, 0, 0);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = formatted.formatToParts(new Date(guess));
+    const read = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
+    const seen = Date.UTC(read("year"), read("month") - 1, read("day"), read("hour"), read("minute"), 0);
+    const wanted = Date.UTC(year, month - 1, day, 0, 0, 0);
+    if (seen === wanted) return new Date(guess);
+    guess += wanted - seen;
+  }
+  return new Date(guess);
 }
 
 function ymd(parts: { year: number; month: number; day: number }): string {

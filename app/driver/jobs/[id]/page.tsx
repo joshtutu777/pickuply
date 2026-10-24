@@ -12,6 +12,7 @@ import { JobTrackerView } from "@/components/request/job-tracker";
 import { ProofForm } from "@/components/driver/proof-form";
 import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReportForm } from "@/components/request/report-form";
+import { ReviewPanel } from "@/components/reviews/review-panel";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -191,6 +192,9 @@ async function DriverJob({
         <p className="mt-4 text-base font-semibold text-ink">
           Earnings for this job {formatCents(ledger.amount_cents)}
         </p>
+      ) : null}
+      {job.status === "completed" ? (
+        <ReviewPanel jobId={job.id} userId={session.userId} nextPath={`/driver/jobs/${job.id}`} />
       ) : null}
       {next.nextStatus ? (
         <div className="mt-4 grid gap-3">

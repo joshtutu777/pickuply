@@ -11,6 +11,7 @@ import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { ProofGallery } from "@/components/request/proof-gallery";
+import { ReviewPanel } from "@/components/reviews/review-panel";
 import { ReportForm } from "@/components/request/report-form";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
@@ -156,6 +157,14 @@ async function JobEntry({
       {session?.role === "customer" && job.status === "item_check" ? <ItemDecision jobId={id} /> : null}
       {session?.role === "customer" && job.status === "delivered" ? (
         <ConfirmDelivery jobId={id} confirmed={job.customer_confirmed_at != null} />
+      ) : null}
+      {session && job.status === "completed" ? (
+        <ReviewPanel
+          jobId={id}
+          userId={session.userId}
+          nextPath={`/jobs/${id}`}
+          canModerate={session.role === "admin"}
+        />
       ) : null}
       {session?.role === "customer" && job.price_cents != null && job.status !== "requested" ? (
         <JobReceipt

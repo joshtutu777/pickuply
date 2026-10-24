@@ -88,14 +88,10 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
           <p className="mt-1 font-display text-3xl font-semibold">{formatCents(totals.completedCents)}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-            <p className="text-sm font-semibold text-muted">Pending transfer</p>
-            <p className="mt-1 text-xl font-semibold text-ink">{formatCents(totals.pendingCents)}</p>
-          </div>
-          <div className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-            <p className="text-sm font-semibold text-muted">Transferred</p>
-            <p className="mt-1 text-xl font-semibold text-ink">{formatCents(totals.transferredCents)}</p>
-          </div>
+          <MoneyBox label="Pending" cents={sumStatus(entries ?? [], ["pending"])} />
+          <MoneyBox label="Held" cents={sumStatus(entries ?? [], ["held", "held_until_onboarding"])} />
+          <MoneyBox label="Eligible for transfer" cents={sumStatus(entries ?? [], ["ready"])} />
+          <MoneyBox label="Transferred" cents={sumStatus(entries ?? [], ["transferred"])} />
         </div>
       </section>
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
@@ -148,6 +144,9 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
               <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
               {entry.hold_reason ? <p>{entry.hold_reason}</p> : null}
+              {entry.status === "pending" && entry.hold_reason?.includes("48 hours") ? (
+                <p>Eligible 48 hours after this job was completed. A transfer is not a bank deposit.</p>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -158,5 +157,18 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         </Link>
       </p>
     </main>
+  );
+}
+
+function sumStatus(entries: { status: string; amount_cents: number }[], statuses: string[]) {
+  return entries.filter((entry) => statuses.includes(entry.status)).reduce((sum, entry) => sum + entry.amount_cents, 0);
+}
+
+function MoneyBox({ label, cents }: { label: string; cents: number }) {
+  return (
+    <div className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      <p className="text-sm font-semibold text-muted">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-ink">{formatCents(cents)}</p>
+    </div>
   );
 }

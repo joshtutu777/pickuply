@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Reviews, new-driver hold, and self-dealing (2026-10-24)
+
+Completed jobs can be reviewed by the customer and the assigned driver. Reviews stay hidden until both are in or 14 days pass. Drivers with fewer than five completed jobs wait 48 hours before a transfer can become ready. A person cannot browse or offer on their own request. Driver document and chat photos are re-encoded to JPEG before upload so GPS data is not stored. Finance date windows use America/New_York midnight, including the 2026 daylight-saving change. Local migrations `0058_job_reviews.sql` and `0059_payout_hold_and_self_deal.sql` are not on the hosted database. The full pass is in `docs/TEST_REPORT.md`.
+
 ## Admin payments report (2026-10-24)
 
 `/admin/finance` is the Payments item in the admin menu. It reads jobs, payments, the ledger, disputes, and reports. It does not change capture, refund, or transfer rules. Stripe fees stay unavailable when the balance transaction was not stored. Late-cancel fees are not tracked. A bank payout is not stored on the job, so that column says Not tracked. Admin quotes are not stored separately from Get offers. Saved filters are in local migration `0057_admin_finance_views.sql`, which is not on the hosted database. The older Payments and Payouts pages remain, and payout actions stay on Payouts.

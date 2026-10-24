@@ -99,6 +99,13 @@ test("midnight in New York is 04:00 UTC during October daylight time", () => {
   assert.equal(midnightInNewYork(2026, 10, 24).toISOString(), "2026-10-24T04:00:00.000Z");
 });
 
+test("New York midnight follows the 2026 daylight-saving changes", () => {
+  assert.equal(midnightInNewYork(2026, 3, 8).toISOString(), "2026-03-08T05:00:00.000Z");
+  assert.equal(midnightInNewYork(2026, 3, 9).toISOString(), "2026-03-09T04:00:00.000Z");
+  assert.equal(midnightInNewYork(2026, 11, 1).toISOString(), "2026-11-01T04:00:00.000Z");
+  assert.equal(midnightInNewYork(2026, 11, 2).toISOString(), "2026-11-02T05:00:00.000Z");
+});
+
 test("each payment status uses the stored state", () => {
   assert.equal(paymentChip(job({ paymentStatus: "awaiting_payment", capturedCents: null })), "awaiting_payment");
   assert.equal(paymentChip(job({ paymentStatus: "authorized", capturedCents: null })), "held");

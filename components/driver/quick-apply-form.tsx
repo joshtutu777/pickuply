@@ -13,6 +13,7 @@ import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
+import { compressImage } from "@/lib/photos";
 
 const vehicles = [
   { id: "pickup", label: "Pickup" },
@@ -28,12 +29,12 @@ const controlClass =
 
 async function uploadDoc(userId: string, name: "profile" | "license", file: File): Promise<string> {
   if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${userId}/${name}.${ext}`;
+  const prepared = await compressImage(file);
+  const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
     upsert: true,
-    contentType: file.type || "image/jpeg",
+    contentType: "image/jpeg",
   });
   if (error) throw new Error("We couldn't upload that photo. Try again.");
   return path;
