@@ -68,10 +68,12 @@ export function BottomNav({
   role,
   messageUnread = 0,
   alertUnread = 0,
+  offerUnread = 0,
 }: {
   role: "customer" | "driver" | "admin" | null;
   messageUnread?: number;
   alertUnread?: number;
+  offerUnread?: number;
 }) {
   const pathname = usePathname();
   const hash = useHash();
@@ -100,12 +102,20 @@ export function BottomNav({
       <ul className="mx-auto flex max-w-md items-end justify-between rounded-full bg-ink px-2 py-2 text-white shadow-lg">
         {items.map((item) => {
           const current = appNavActive(pathname, item.href, hash);
-          const count = item.icon === "alerts" ? alertUnread : item.icon === "messages" ? messageUnread : 0;
+          const count =
+            item.icon === "alerts"
+              ? alertUnread
+              : item.icon === "messages"
+                ? messageUnread
+                : item.href === "/account/jobs"
+                  ? offerUnread
+                  : 0;
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
                 aria-current={current ? "page" : undefined}
+                aria-label={item.href === "/account/jobs" && count > 0 ? `Requests, ${count} new offers` : undefined}
                 className={`flex min-h-12 min-w-12 flex-col items-center justify-center rounded-full px-2 text-[11px] font-semibold ${
                   current ? "bg-white/15 text-white" : "text-white/80"
                 }`}

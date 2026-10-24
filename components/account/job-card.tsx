@@ -4,6 +4,7 @@ import { StatusPill } from "@/components/mobile/status-pill";
 import { serviceById, type ServiceId } from "@/lib/constants";
 import type { JobSummary } from "@/lib/data/job-queries";
 import { customerNextAction, shortJobId } from "@/lib/jobs/next-action";
+import { offerCountCopy } from "@/lib/jobs/offer-counts";
 import { buildJobTracker } from "@/lib/jobs/tracker";
 
 export function CustomerJobCard({
@@ -19,6 +20,7 @@ export function CustomerJobCard({
     paymentStatus: job.payment_status,
     pricingMethod: job.pricing_method,
   });
+  const offers = offerCountCopy(job.activeOffers, job.newOffers, job.status);
   const tracker = buildJobTracker({
     service: job.service,
     status: job.status,
@@ -31,7 +33,11 @@ export function CustomerJobCard({
   });
 
   return (
-    <article className={`rounded-3xl bg-paper-raised p-4 ring-1 ring-line ${featured ? "shadow-sm" : ""}`}>
+    <article
+      className={`rounded-3xl bg-paper-raised p-4 ring-1 ring-line ${featured ? "shadow-sm" : ""} ${
+        job.newOffers > 0 ? "ring-2 ring-brand" : ""
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
         <StatusPill status={job.status} />
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
@@ -58,6 +64,11 @@ export function CustomerJobCard({
             {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
           </p>
         )}
+        {offers.waiting ? <p className="mt-2 text-base font-semibold text-ink">Waiting for driver offers</p> : null}
+        {offers.received ? <p className="mt-2 text-base font-semibold text-ink">{offers.received}</p> : null}
+        {offers.unseen ? (
+          <p className={`text-base font-semibold ${job.newOffers > 0 ? "text-brand" : "text-muted"}`}>{offers.unseen}</p>
+        ) : null}
         <p className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">{action.label}</p>
       </Link>
       <div className="mt-3">

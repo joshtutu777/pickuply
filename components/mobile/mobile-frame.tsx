@@ -8,6 +8,7 @@ export async function MobileFrame() {
   const session = await getOptionalSession();
   let messageUnread = 0;
   let alertUnread = 0;
+  let offerUnread = 0;
   let surface: "customer" | "driver" | "admin" | null = session?.role ?? null;
   if (session) {
     const supabase = await createClient();
@@ -21,6 +22,13 @@ export async function MobileFrame() {
     const { data: driver } = await supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle();
     const home = homeFor({ role: session.role, mode, hasDriver: Boolean(driver) || session.role === "driver" });
     surface = home === "/driver" ? "driver" : home === "/admin" ? "admin" : "customer";
+    if (surface === "customer") {
+      const counts = await supabase.rpc("customer_offer_counts");
+      offerUnread = ((counts.data ?? []) as { new_offers?: number }[]).reduce(
+        (sum, row) => sum + Number(row.new_offers ?? 0),
+        0,
+      );
+    }
   }
-  return <BottomNav role={surface} messageUnread={messageUnread} alertUnread={alertUnread} />;
+  return <BottomNav role={surface} messageUnread={messageUnread} alertUnread={alertUnread} offerUnread={offerUnread} />;
 }

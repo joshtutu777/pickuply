@@ -21,6 +21,7 @@ export type HeaderState =
       appLabel: "Customer" | "Driver" | null;
       appLinks: AppNavItem[];
       messageUnread: number;
+      offerUnread: number;
       homeHref: string;
       driveHref: string;
     };
@@ -98,6 +99,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           label={state.appLabel}
           alertUnread={state.unread}
           messageUnread={state.messageUnread}
+          offerUnread={state.offerUnread}
         />
       ) : null}
       </div>

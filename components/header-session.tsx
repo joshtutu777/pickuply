@@ -5,6 +5,7 @@ import { getOptionalSession } from "@/lib/auth/session";
 import { cityFromArea } from "@/lib/jobs/next-action";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
+import { CustomerOfferWatch } from "@/components/account/offer-watch";
 import { customerNav, driverNav } from "@/lib/app-nav";
 
 export async function HeaderSession() {
@@ -27,6 +28,14 @@ export async function HeaderSession() {
     .maybeSingle();
   const hasDriver = Boolean(driver) || session.role === "driver";
   const homeHref = homeFor({ role: session.role, mode, hasDriver });
+  let offerUnread = 0;
+  if (homeHref === "/account") {
+    const counts = await supabase.rpc("customer_offer_counts");
+    offerUnread = ((counts.data ?? []) as { new_offers?: number }[]).reduce(
+      (sum, row) => sum + Number(row.new_offers ?? 0),
+      0,
+    );
+  }
   const alertsHref =
     homeHref === "/driver"
       ? "/driver/notifications"
@@ -46,6 +55,8 @@ export async function HeaderSession() {
     area = cityFromArea(data?.pickup_area);
   }
   return (
+    <>
+    {homeHref === "/account" ? <CustomerOfferWatch /> : null}
     <SiteHeader
       state={{
         status: "signed-in",
@@ -57,9 +68,11 @@ export async function HeaderSession() {
         appLabel: homeHref === "/driver" ? "Driver" : homeHref === "/account" ? "Customer" : null,
         appLinks: homeHref === "/driver" ? driverNav : customerNav,
         messageUnread,
+        offerUnread,
         homeHref,
         driveHref: hasDriver ? "/driver" : "/driver/onboarding",
       }}
     />
+    </>
   );
 }

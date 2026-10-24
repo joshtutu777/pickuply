@@ -37,7 +37,7 @@ async function JobsContent() {
         <section className="mt-8 rounded-3xl bg-paper-raised p-5 ring-1 ring-line">
           <h2 className="text-xl font-semibold text-ink">No requests yet</h2>
           <p className="mt-2 text-base leading-relaxed text-muted">
-            When you submit a request, it shows up here. Drivers do not see it until it is confirmed.
+            When you submit a request, it shows up here. Drivers can offer as soon as it is open.
           </p>
           <Link
             href="/request"

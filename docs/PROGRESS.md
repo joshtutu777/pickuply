@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Customer offer counts (2026-10-23)
+
+My Requests shows how many active offers a request has and how many of those the customer has not viewed. An open request with none says "Waiting for driver offers." Cards with new offers are highlighted, and the Requests menu shows that number on desktop and on the phone bar. An offer is marked viewed only when its card is on screen in the offer list. The time is stored in `offer_views`, so another device sees the same state. Withdrawn, expired, declined, and chosen offers stay in history and are left out of the counts. Local migration `0054` is applied. It is not on the hosted database.
+
 ## Driver offer form (2026-10-23)
 
 The driver offer form has one field, Offer Amount ($), and one Submit Offer button. It does not show a customer total or a fee breakdown. The server still stores the customer total from the existing fee schedule. Submitting an offer does not assign the driver. Settings can change the minimum offer: $35 for pickup and delivery, $50 for junk removal, $35 for store delivery, and $35 for free-item pickups. There is no twice-the-price maximum, and a counter no longer needs a written reason. A job can have five active offers. A driver can offer on more than one job. When both stair counts are zero, the card says "No stairs reported." Local migration `0053` is applied. It is not on the hosted database.

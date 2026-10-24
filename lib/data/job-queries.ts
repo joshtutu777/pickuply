@@ -18,6 +18,8 @@ export type JobSummary = {
   time_window: string | null;
   payment_status: string | null;
   dump_fee_cents: number | null;
+  activeOffers: number;
+  newOffers: number;
 };
 
 export type JobPhoto = {
@@ -92,15 +94,26 @@ export async function listOwnJobs(): Promise<{ jobs: JobSummary[]; error: boolea
     const supabase = await createClient();
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return { jobs: [], error: true };
-    const { data, error } = await supabase
-      .from("jobs")
-      .select(
-        "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents",
-      )
-      .eq("customer_id", auth.user.id)
-      .order("created_at", { ascending: false });
-    if (error) return { jobs: [], error: true };
-    return { jobs: data ?? [], error: false };
+    const [jobsResult, countsResult] = await Promise.all([
+      supabase
+        .from("jobs")
+        .select(
+          "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents",
+        )
+        .eq("customer_id", auth.user.id)
+        .order("created_at", { ascending: false }),
+      supabase.rpc("customer_offer_counts"),
+    ]);
+    if (jobsResult.error || countsResult.error) return { jobs: [], error: true };
+    const counts = new Map<string, { active: number; fresh: number }>();
+    for (const row of (countsResult.data ?? []) as { job_id: string; active_offers: number; new_offers: number }[]) {
+      counts.set(row.job_id, { active: Number(row.active_offers), fresh: Number(row.new_offers) });
+    }
+    const jobs = (jobsResult.data ?? []).map((job) => {
+      const count = counts.get(job.id);
+      return { ...job, activeOffers: count?.active ?? 0, newOffers: count?.fresh ?? 0 };
+    });
+    return { jobs, error: false };
   } catch {
     return { jobs: [], error: true };
   }

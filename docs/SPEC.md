@@ -105,7 +105,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - **Get Offers:** drivers send a price. The customer chooses one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. It does not charge the card. Claiming does not assign a Get Offers job that has no driver pay.
 - **Optional admin quote:** an admin can still set driver pay. The app adds the platform fee and service fee (status `quoted`). The customer sees the breakdown and accepts before the quote expires. Acceptance publishes the job (`open`). It does not assign a driver. An eligible Online driver then claims that priced job, which assigns that driver and sets `payment_status = awaiting_payment`.
 - **Name your price / Budget range:** the job is already `open`. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. Nothing is charged at that step.
-- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, and the **total price including the Pickuply fee**. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
+- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, and the **total price including the Pickuply fee**. A new offer stays new until that offer card is actually on screen. Opening My Requests or receiving an alert does not mark it viewed. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
 - Admin quotes expire after 24 hours; driver offers expire after **2 hours** (default) unless chosen. Customers can edit or withdraw a request before booking.
 - Quote/offer page shows: price breakdown, what's included, cancellation/trip fee policy, item value cap.
 
@@ -121,6 +121,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 4.5 Customer account
 - Job history with receipts and photos, saved addresses, repeat a job.
+- My Requests shows **Offers Received** for active offers and **New Offers** for active offers the customer has not viewed. An open request with none says **Waiting for driver offers**. A request with new offers is highlighted, and the Requests menu shows how many new offers are waiting. Withdrawn, expired, declined, and chosen offers are not in those counts. The viewed time is stored per offer and follows the customer to another device.
 
 ---
 
