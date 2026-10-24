@@ -67,6 +67,12 @@ If the secret is missing, new marketplace registration stops and deletion of a s
 
 The notifications cron calls `process_due_deletions()` and `cleanup_account_retention()` after the existing suspension cleanup. Those functions are service-role only. This pass does not add a hosted cron job or change `vercel.json`. Production still needs the scheduler in `docs/SCHEDULER.md` before those cleanups run on a host.
 
+## Announcements and the installed app
+
+The notifications cron also calls `execute_due_announcements()`. That does not send a text or a push during this local pass. Push for an announcement is stored as accepted by the provider and `push_displayed` stays false. Real push still needs the VAPID keys. Real texting still needs Twilio, `sms_enabled`, and a checked hosted inbound STOP webhook. Do not turn those on from this pass. Quiet hours are 8:00 AM to 9:00 PM America/New_York. A text outside that window is deferred to the next 8:00 AM. Promotional text consent is stored on `notification_preferences.promotional_sms` and starts off.
+
+The web app manifest uses `/app?source=pwa`. HTTPS is required for install and push on a phone. This local pass does not prove Android Chrome or iPhone Safari installation. Checkout already returns to `/jobs/{id}?paid=return` on this site. Connect onboarding returns to `/driver/earnings?connect=return`. If iPhone opens those in Safari, the person signs in again and the page is the job or earnings page.
+
 ## Scheduler
 
 See `docs/SCHEDULER.md`. Paid bookings are not ready until pg_cron is activated or the project is on Vercel Pro.

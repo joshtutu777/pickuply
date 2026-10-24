@@ -494,6 +494,10 @@ A driver can submit a short application. Approval does not allow Online, a claim
 
 Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
 
+## Communications and the installable app (2026-10-24)
+
+`/admin/communications` sends one-way announcements through in-app alerts, push, and text. Texting stays off. Push is not marked as shown on a phone. Private conversations stay in Messages. The manifest can be installed, and `/app` sends a signed-in person to the right home. Local migration `0062_admin_announcements.sql` is not on the hosted database. Phone installation was not run on a device.
+
 ## Account policy rules (2026-10-24)
 
 The nine approved account rules are now in the spec. A suspended driver can finish a job that is already in transit. An assigned job that has not started is flagged for an admin and is not cancelled or refunded. Suspension does not hold earnings by itself. Delete Account waits 14 days and can be cancelled during that time. Stop Driving is separate from Delete Account. Contact support on a restriction notice opens the existing help form. The last active admin cannot be removed. Local phone protection uses Vault, not a committed secret. Migration `0061_account_policy.sql` is local only. There is no `/admin/customers/[id]` page. Customer suspension stays on the request page and the accounts list.

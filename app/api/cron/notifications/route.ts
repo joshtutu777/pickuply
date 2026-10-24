@@ -22,6 +22,8 @@ export async function GET(request: Request) {
     if (deletions.error) return NextResponse.json({ ok: false }, { status: 500 });
     const retention = await supabase.rpc("cleanup_account_retention");
     if (retention.error) return NextResponse.json({ ok: false }, { status: 500 });
+    const announcements = await supabase.rpc("execute_due_announcements");
+    if (announcements.error) return NextResponse.json({ ok: false }, { status: 500 });
     await deliverPendingAlerts();
     return NextResponse.json({ ok: true });
   } catch {

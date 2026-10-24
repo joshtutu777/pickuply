@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
+import { UpdateBanner } from "@/components/pwa/update-banner";
 import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { SiteFooter } from "@/components/site-footer";
@@ -32,6 +33,13 @@ export const metadata: Metadata = {
     title: "Pickuply",
     statusBarStyle: "default",
   },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -48,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
+        <UpdateBanner />
         <script
           dangerouslySetInnerHTML={{
             __html: "if(location.pathname==='/')document.documentElement.dataset.landing='1'",

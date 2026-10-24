@@ -2,6 +2,7 @@ import Link from "next/link";
 import { markAlertsRead, saveAlertPreferences } from "@/app/account/notification-actions";
 import { BackLink } from "@/components/back-link";
 import { EnablePush } from "@/components/notifications/enable-push";
+import { AppBadge } from "@/components/pwa/app-badge";
 import { HomeScreenHint } from "@/components/notifications/home-screen-hint";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ export async function AlertCenter({
       .limit(50),
     supabase
       .from("notification_preferences")
-      .select("push_enabled, email_enabled, home_screen_hint_dismissed")
+      .select("push_enabled, email_enabled, home_screen_hint_dismissed, promotional_sms")
       .maybeSingle(),
   ]);
   const unread = (alerts ?? []).some((alert) => !alert.read_at);
@@ -39,6 +40,7 @@ export async function AlertCenter({
       <BackLink href={backHref} label={backLabel} />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Alerts</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Your alerts</h1>
+      <AppBadge count={(alerts ?? []).filter((alert) => !alert.read_at).length} />
       <HomeScreenHint dismissed={Boolean(prefs?.home_screen_hint_dismissed)} />
       <EnablePush publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
       {saved ? <p className="mt-4 text-base text-ink">Saved.</p> : null}
@@ -60,6 +62,10 @@ export async function AlertCenter({
         <p className="text-base text-muted">
           Text messages are off until Pickuply&apos;s texting registration is approved.
         </p>
+        <label className="flex min-h-12 items-start gap-3 text-base">
+          <input type="checkbox" name="promotional" defaultChecked={Boolean(prefs?.promotional_sms)} />
+          <span>I agree to receive promotional text messages from Pickuply. Message and data rates may apply. Message frequency varies. Reply STOP to opt out.</span>
+        </label>
         <button
           type="submit"
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"

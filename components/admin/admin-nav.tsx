@@ -9,6 +9,7 @@ const items = [
   { id: "requests", href: "/admin/requests", label: "Requests" },
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
   { id: "messages", href: "/admin/messages", label: "Messages" },
+  { id: "communications", href: "/admin/communications", label: "Communications" },
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },
   { id: "feedback", href: "/admin/feedback", label: "Feedback" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
@@ -25,7 +26,10 @@ function NavLinks({
     <nav aria-label="Admin">
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
-        const count = item.id === "settings" ? 0 : badges[item.id];
+        const count =
+          item.id === "overview" || item.id === "requests" || item.id === "drivers" || item.id === "messages" || item.id === "alerts" || item.id === "feedback"
+            ? badges[item.id]
+            : 0;
         const active = current === item.id;
         return (
           <li key={item.id}>

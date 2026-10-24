@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 import { RestrictionNotice } from "@/components/account/restriction-notice";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { BetaNotice } from "@/components/beta-notice";
 import { DriverHome } from "@/components/driver/driver-home";
 import { ReadyChecklist } from "@/components/driver/ready-checklist";
@@ -147,6 +148,7 @@ async function DriverContent({
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
+        <InstallPrompt audience="driver" />
         <RestrictionNotice surface="driver" />
         <BetaNotice from="/driver" />
         {approved && !application?.insurance_url ? (

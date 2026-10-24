@@ -17,6 +17,7 @@ export async function saveAlertPreferences(formData: FormData) {
   const { error } = await supabase.rpc("save_notification_preferences", {
     push_on: formData.get("push") === "on",
     email_on: formData.get("email") === "on",
+    promotional_on: formData.get("promotional") === "on",
   });
   const path = alertsPath(session.role);
   revalidatePath(path);

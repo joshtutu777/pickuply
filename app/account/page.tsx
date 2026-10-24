@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { RestrictionNotice } from "@/components/account/restriction-notice";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { CustomerJobCard } from "@/components/account/job-card";
 import { BetaNotice } from "@/components/beta-notice";
 import { ServiceTiles } from "@/components/mobile/service-tiles";
@@ -42,6 +43,7 @@ async function AccountContent({
         Hi, {firstName(session.fullName) ?? "there"}
       </h1>
       <p className="mt-2 text-base text-muted">You find it. We pick it up.</p>
+      <InstallPrompt audience="customer" hasRequest={jobs.length > 0} />
       <RestrictionNotice surface="customer" />
       <BetaNotice from="/account" />
       {singleQuery(params.error) === "forbidden" ? (

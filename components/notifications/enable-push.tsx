@@ -48,6 +48,9 @@ export function EnablePush({ publicKey }: { publicKey: string | null }) {
         Turn on alerts
       </button>
       {message ? <p className="mt-2 text-base text-muted">{message}</p> : null}
+      <p className="mt-2 text-base text-muted">
+        On iPhone, alerts need Pickuply installed from Safari, on iOS 16.4 or later. Tap Share, then Add to Home Screen, then open Pickuply from that icon and turn alerts on.
+      </p>
     </div>
   );
 }
