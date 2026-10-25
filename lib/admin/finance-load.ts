@@ -13,6 +13,7 @@ type JobRow = {
   pricing_method: "quote" | "fixed" | "range";
   pickup_area: string | null;
   price_cents: number | null;
+  driver_pay_cents: number | null;
   captured_cents: number | null;
   refunded_cents: number | null;
   platform_fee_cents: number | null;
@@ -30,7 +31,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
   const supabase = await createClient();
   let jobsQuery = supabase
     .from("jobs")
-    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, late_cancel_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at, is_test")
+    .select("id, customer_id, assigned_driver_id, service, status, pricing_method, pickup_area, price_cents, driver_pay_cents, captured_cents, refunded_cents, platform_fee_cents, service_fee_cents, trip_fee_cents, late_cancel_cents, payment_status, payment_due_at, created_at, updated_at, customer_confirmed_at, is_test")
     .not("payment_status", "is", null)
     .order("created_at", { ascending: false })
     .limit(2000);
@@ -97,6 +98,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
         pickupCity: area.city,
         pickupZip: area.zip,
         priceCents: row.price_cents,
+        driverPayCents: row.driver_pay_cents,
         capturedCents: row.captured_cents,
         refundedCents: row.refunded_cents,
         platformFeeCents: row.platform_fee_cents,

@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(32);
+select plan(33);
 
 do $$
 declare
@@ -150,43 +150,48 @@ insert into storage.objects (bucket_id, name, owner_id) values
 
 select is(
   (public.price_breakdown('accept', 3500)->>'driver_earnings_cents')::int,
-  2368,
-  'fixed accept $35 driver earnings use half-up service rounding'
+  2975,
+  'a posted $35 offer pays the driver 85 percent'
 );
 select is(
   (public.price_breakdown('accept', 3500)->>'platform_fee_cents')::int,
-  1000,
-  'fixed accept $35 platform fee is the $10 minimum'
+  525,
+  'a posted $35 offer keeps a 15 percent commission'
 );
 select is(
   (public.price_breakdown('accept', 3500)->>'service_fee_cents')::int,
-  132,
-  'fixed accept $35 service fee covers the rounded card charge'
+  135,
+  'a posted $35 offer adds card processing on top'
 );
 select is(
   (public.price_breakdown('accept', 15000)->>'driver_earnings_cents')::int,
-  13214,
-  'fixed accept $150 driver earnings'
+  12750,
+  'a posted $150 offer pays the driver $127.50'
 );
 select is(
   (public.price_breakdown('accept', 15000)->>'platform_fee_cents')::int,
-  1321,
-  'fixed accept $150 platform fee'
+  2250,
+  'a posted $150 offer keeps $22.50'
 );
 select is(
   (public.price_breakdown('accept', 15000)->>'service_fee_cents')::int,
-  465,
-  'fixed accept $150 service fee'
+  479,
+  'a posted $150 offer adds card processing on top'
 );
 select is(
   (public.price_breakdown('forward', 6000)->>'customer_total_cents')::int,
-  7240,
-  'a $60 earnings offer totals $72.40'
+  6210,
+  'a $60 customer offer totals $62.10 with card processing'
+);
+select is(
+  (public.price_breakdown('forward', 6000)->>'driver_earnings_cents')::int,
+  5100,
+  'a $60 customer offer pays the driver $51'
 );
 select is(
   (public.price_breakdown('forward', 12000)->>'customer_total_cents')::int,
-  13625,
-  'a $120 earnings offer totals $136.25'
+  12389,
+  'a $120 customer offer adds card processing on top'
 );
 
 select pg_temp.as_user('c1111111-1111-4111-8111-111111111111');

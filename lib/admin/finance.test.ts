@@ -7,6 +7,7 @@ import {
   listTotal,
   midnightInNewYork,
   paymentBuckets,
+  pricingBalances,
   paymentChip,
   revenue,
   sortJobs,
@@ -31,6 +32,7 @@ function job(overrides: Partial<FinanceJob> = {}): FinanceJob {
     pickupCity: "Austell",
     pickupZip: "30168",
     priceCents: 15000,
+    driverPayCents: 13035,
     capturedCents: 15000,
     refundedCents: 0,
     platformFeeCents: 1500,
@@ -170,6 +172,19 @@ test("sorting and attention use the stored deadlines", () => {
     captureBefore: "2026-10-24T20:00:00.000Z",
   });
   assert.ok(attentionIssues(expiring, now).includes("hold_expiring"));
+});
+
+test("stored offer parts add up and a completed ledger matches driver earnings", () => {
+  assert.equal(pricingBalances(job()), true);
+  assert.equal(pricingBalances(job({
+    jobStatus: "completed",
+    ledgerAmountCents: 13_035,
+  })), true);
+  assert.equal(pricingBalances(job({
+    jobStatus: "completed",
+    ledgerAmountCents: 10_000,
+  })), false);
+  assert.equal(pricingBalances(job({ platformFeeCents: 1 })), false);
 });
 
 test("a previous period of zero is not compared as a percent", () => {

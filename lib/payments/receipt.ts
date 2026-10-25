@@ -24,8 +24,8 @@ export function buildReceiptText(input: ReceiptInput): string {
     `Date ${input.when}`,
     `Service ${input.service}`,
     `Driver ${input.driverFirstName ?? "Assigned driver"}`,
-    `Driver subtotal ${money(input.driverSubtotalCents)}`,
-    `Service fee ${money(input.serviceFeeCents)}`,
+    `Offer ${money(input.driverSubtotalCents)}`,
+    `Card processing fee ${money(input.serviceFeeCents)}`,
     `Total ${money(input.totalCents)}`,
   ];
   if (input.tripFeeCents != null && input.tripFeeCents > 0) {

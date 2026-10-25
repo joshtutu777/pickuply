@@ -41,6 +41,7 @@ export type FinanceJob = {
   pickupCity: string | null;
   pickupZip: string | null;
   priceCents: number | null;
+  driverPayCents: number | null;
   capturedCents: number | null;
   refundedCents: number | null;
   platformFeeCents: number | null;
@@ -541,6 +542,23 @@ export function payoutBuckets(jobs: FinanceJob[]) {
     (typeof ledgerStatuses)[number],
     { count: number; amount: Money }
   >;
+}
+
+export function pricingBalances(job: FinanceJob): boolean {
+  if (
+    job.priceCents == null ||
+    job.driverPayCents == null ||
+    job.platformFeeCents == null ||
+    job.serviceFeeCents == null
+  ) {
+    return false;
+  }
+  const parts = job.driverPayCents + job.platformFeeCents + job.serviceFeeCents === job.priceCents;
+  const ledger =
+    job.ledgerAmountCents == null ||
+    job.jobStatus !== "completed" ||
+    job.ledgerAmountCents === job.driverPayCents;
+  return parts && ledger;
 }
 
 export function revenue(jobs: FinanceJob[]): {

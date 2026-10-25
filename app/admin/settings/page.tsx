@@ -33,8 +33,8 @@ async function SettingsContent({
   const supabase = await createClient();
   const { data } = await supabase.from("platform_settings").select("*").eq("id", 1).maybeSingle();
   const settings = data ?? {
-    platform_bps: 1000,
-    platform_min_cents: 1000,
+    platform_bps: 1500,
+    platform_min_cents: 0,
     service_bps: 290,
     service_fixed_cents: 30,
     payment_due_minutes: 30,
@@ -54,8 +54,9 @@ async function SettingsContent({
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Settings</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
-        The service fee covers card processing. The wording and card-surcharge rules need a review
-        before launch.
+        The commission is a percent of the customer offer and comes out of the driver's side. The
+        customer also pays the card-processing amount. Whether that processing amount can be charged
+        on every card needs a review before live payments.
       </p>
       <BackLink href="/admin" label="Admin" />
       {query.saved === "1" ? <p className="mt-4">Saved.</p> : null}
@@ -66,11 +67,11 @@ async function SettingsContent({
       ) : null}
       <form action={saveSettings} className="mt-6 space-y-4">
         <label className="block text-base font-semibold" htmlFor="platformBps">
-          Platform fee (basis points, 1000 = 10%)
+          Pickuply commission (basis points, 1500 = 15% of the offer)
           <input id="platformBps" name="platformBps" defaultValue={settings.platform_bps} className={controlClass} />
         </label>
         <label className="block text-base font-semibold" htmlFor="platformMin">
-          Platform minimum (dollars)
+          Unused minimum (dollars, keep at 0)
           <input
             id="platformMin"
             name="platformMin"
@@ -79,11 +80,11 @@ async function SettingsContent({
           />
         </label>
         <label className="block text-base font-semibold" htmlFor="serviceBps">
-          Service fee percent (basis points, 290 = 2.9%)
+          Card processing percent (basis points, 290 = 2.9%)
           <input id="serviceBps" name="serviceBps" defaultValue={settings.service_bps} className={controlClass} />
         </label>
         <label className="block text-base font-semibold" htmlFor="serviceFixed">
-          Service fee fixed amount (dollars)
+          Card processing fixed amount (dollars)
           <input
             id="serviceFixed"
             name="serviceFixed"

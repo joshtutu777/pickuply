@@ -15,7 +15,7 @@ export const customerTopics: HelpTopic[] = [
       },
       {
         q: "What is the platform fee?",
-        a: "The platform fee is 10% of the driver's earnings, with a $10 minimum. It is shown in the subtotal.",
+        a: "You pay the driver's offer plus a card processing fee. Pickuply's commission comes out of the offer. It is not added on top.",
       },
     ],
   },

@@ -192,8 +192,8 @@ export function JobStatus({
         <section className="mt-4 space-y-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
           <QuoteViewed service={job.service} />
           <h2 className="text-lg font-semibold text-ink">Your quote</h2>
-          <p>Subtotal {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
-          <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>
+          <p>Offer {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
+          <p>Card processing fee {formatCents(notice.quote.serviceFeeCents)}</p>
           <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
           <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
           <p>

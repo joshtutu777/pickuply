@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { acceptDriverTerms, dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import { services } from "@/lib/constants";
+import { offerBreakdown, type FeeSettings } from "@/lib/fees";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
@@ -63,22 +64,45 @@ function stairLabel(pickup: number, dropoff: number | null) {
   return `Stairs ${pickup} / ${dropoff}`;
 }
 
+function OfferMath({ cents, settings }: { cents: number; settings: FeeSettings }) {
+  if (cents <= 0) return null;
+  let price: ReturnType<typeof offerBreakdown>;
+  try {
+    price = offerBreakdown(cents, settings);
+  } catch {
+    return <p className="text-base text-danger">Enter an amount that can pay the driver.</p>;
+  }
+  const percent = settings.platformBps / 100;
+  return (
+    <div className="grid gap-1 rounded-2xl bg-paper p-3 text-base">
+      <p>This amount is the price the customer sees. It is not your take-home pay.</p>
+      <p>Offer amount {formatCents(cents)}</p>
+      <p>Pickuply fee ({Number.isInteger(percent) ? percent : percent.toFixed(2)}%) {formatCents(price.platformFeeCents)}</p>
+      <p className="font-semibold">Your estimated earnings {formatCents(price.driverEarningsCents)}</p>
+    </div>
+  );
+}
+
 function OfferActions({
   job,
   canAct,
   blockedReason,
+  fees,
   onDone,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
+  fees: FeeSettings;
   onDone: () => void;
 }) {
   const [amount, setAmount] = useState("");
+  const [reviewing, setReviewing] = useState(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
   const router = useRouter();
   const offerCents = parseDollarsToCents(amount) ?? 0;
   const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
+  const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
   async function send(kind: "accept" | "claim" | "offer") {
     setMessage(null);
@@ -96,8 +120,12 @@ function OfferActions({
       setMessage({ text: takenJobMessage(result.error.message), alert: true });
       return;
     }
+    const submitted = kind === "offer" || kind === "accept" ? offerBreakdown(kind === "accept" ? posted ?? 0 : offerCents, fees) : null;
+    setReviewing(false);
     setMessage({
-      text: kind === "claim" ? "You are assigned. Payment is still due." : "Offer submitted successfully.",
+      text: kind === "claim"
+        ? "You are assigned. Payment is still due."
+        : `Offer submitted successfully. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`,
       alert: false,
     });
     if (kind === "claim" || kind === "accept") {
@@ -120,33 +148,59 @@ function OfferActions({
         </button>
       ) : (
         <>
-          {job.pricing_method === "fixed" ? (
-            <button
-              type="button"
-              disabled={!canAct}
-              onClick={() => void send("accept")}
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
-            >
-              Accept posted price
-            </button>
+          {posted != null ? (
+            <>
+              <OfferMath cents={posted} settings={fees} />
+              <button
+                type="button"
+                disabled={!canAct}
+                onClick={() => void send("accept")}
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+              >
+                Accept posted price
+              </button>
+            </>
           ) : null}
           <label className="text-base font-semibold text-ink">
             Offer Amount ($)
             <input
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setReviewing(false);
+              }}
               inputMode="decimal"
               className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
             />
           </label>
-          <button
-            type="button"
-            disabled={!canAct || offerCents <= 0}
-            onClick={() => void send("offer")}
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
-          >
-            Submit Offer
-          </button>
+          <p className="text-base text-muted">The customer sees this amount. Pickuply&apos;s fee comes out of it.</p>
+          <OfferMath cents={offerCents} settings={fees} />
+          {reviewing ? (
+            <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">
+              <p className="font-semibold">Confirm this offer</p>
+              <OfferMath cents={offerCents} settings={fees} />
+              <button
+                type="button"
+                disabled={!canAct}
+                onClick={() => void send("offer")}
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+              >
+                Confirm offer
+              </button>
+              <button type="button" onClick={() => setReviewing(false)} className="inline-flex min-h-12 items-center font-semibold text-brand">
+                Edit offer
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={!canAct || offerCents <= 0}
+              onClick={() => setReviewing(true)}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+            >
+              Submit Offer
+            </button>
+          )}
         </>
       )}
       {blockedReason ? <p className="text-base text-ink">{blockedReason}</p> : null}
@@ -163,11 +217,13 @@ function JobCard({
   job,
   canAct,
   blockedReason,
+  fees,
   onDone,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
+  fees: FeeSettings;
   onDone: () => void;
 }) {
   return (
@@ -199,7 +255,7 @@ function JobCard({
       {job.earningsCents != null ? (
         <p className="font-semibold">Your earnings {formatCents(job.earningsCents)}</p>
       ) : null}
-      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} onDone={onDone} />
+      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} onDone={onDone} />
       {job.photos.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2">
           {job.photos.map((url) => (
@@ -225,6 +281,7 @@ export function DriverHome({
   termsAccepted,
   coverage,
   offlineAlerts,
+  fees,
   setup = null,
 }: {
   isOnline: boolean;
@@ -237,6 +294,7 @@ export function DriverHome({
   termsAccepted: boolean;
   coverage: CoverageDraft;
   offlineAlerts: boolean;
+  fees: FeeSettings;
   setup?: ReactNode;
 }) {
   const [online, setOnline] = useState(isOnline);
@@ -604,6 +662,7 @@ export function DriverHome({
                       job={job}
                       canAct={action.canAct}
                       blockedReason={action.blockedReason}
+                      fees={fees}
                       onDone={() => void loadFeed()}
                     />
                   );
@@ -672,6 +731,7 @@ export function DriverHome({
                   job={job}
                   canAct={action.canAct}
                   blockedReason={action.blockedReason}
+                  fees={fees}
                   onDone={() => void loadFeed()}
                 />
               );

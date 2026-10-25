@@ -47,7 +47,7 @@ function quoteCard(page: Page) {
   return page
     .locator("li")
     .filter({ hasText: "Austell, 30106" })
-    .filter({ hasText: "Your earnings $60" });
+    .filter({ hasText: "Your earnings $51" });
 }
 
 test("quote is accepted, published, and claimed by one eligible driver", async ({ browser }) => {

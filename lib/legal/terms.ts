@@ -38,8 +38,8 @@ export const termsSections: LegalSection[] = [
     id: "pricing",
     heading: "Pricing and service fees",
     paragraphs: [
-      "Before the customer confirms, Pickuply shows the selected driver's offer, the service fee, any additional charges that apply at booking, and the total. The driver's offer on that screen is driver earnings plus the platform fee. The platform fee starts at 10% of driver earnings with a $10 minimum. The service fee is the card-processing amount, starting from 2.9% plus 30 cents, and is labeled Service fee. The amounts on the screen are the amounts used for that booking.",
-      "When a driver accepts a posted fixed price, the customer total stays the posted total and the fees are calculated inside it. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
+      "Before the customer confirms, Pickuply shows the selected driver's offer, the card processing fee, any additional charges that apply at booking, and the total. The offer is the customer price. Pickuply's commission, starting at 15% of that offer, is taken from the driver's side and is not added again. The card processing amount starts from 2.9% plus 30 cents of the charge and is labeled Card processing fee. The amounts on the screen are the amounts used for that booking. A later change to the commission rate does not change a booking that already stored its own rate.",
+      "When a driver accepts a posted price, that posted amount is the offer. Card processing is added on top and shown before the customer confirms. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
     ],
   },
   {

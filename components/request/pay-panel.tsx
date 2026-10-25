@@ -34,7 +34,7 @@ export function PayPanel({
         {balanced ? (
           <>
             <p>{"Selected driver's offer "}{formatCents(offerCents)}</p>
-            <p>Service fee {formatCents(serviceFeeCents)}</p>
+            <p>Card processing fee {formatCents(serviceFeeCents)}</p>
             <p>{additionalCents === 0 ? "No additional charges" : `Additional charges ${formatCents(additionalCents)}`}</p>
           </>
         ) : null}

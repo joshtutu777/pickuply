@@ -176,6 +176,7 @@ test("an open driver feed shows a new request without a manual refresh", async (
     const card = driverPage.getByRole("region", { name: "Matched for You" }).locator("li").filter({ hasText: nearZip }).first();
     await card.getByLabel("Offer Amount ($)").fill("40");
     await card.getByRole("button", { name: "Submit Offer" }).click();
+    await card.getByRole("button", { name: "Confirm offer" }).click();
     await expect(card.getByText("Offer submitted successfully.")).toBeVisible();
     expect(sql(`select count(*) from public.job_offers where job_id = '${nearId}' and status = 'active'`)).toBe("1");
 

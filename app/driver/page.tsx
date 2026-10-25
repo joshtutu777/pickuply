@@ -11,6 +11,7 @@ import { ForbiddenAlert } from "@/components/forbidden-alert";
 import { LoadingMain } from "@/components/loading-main";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
+import { defaultFeeSettings } from "@/lib/fees";
 import { formatCents } from "@/lib/money";
 import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
@@ -125,13 +126,28 @@ async function DriverContent({
 
   if (session.role === "driver" || application) {
     let earnings: ReturnType<typeof ledgerBuckets> | null = null;
-    if (approved) {
-      const { data: ledger } = await supabase
-        .from("ledger_entries")
-        .select("status, amount_cents")
-        .eq("driver_id", session.userId);
-      if (ledger) earnings = ledgerBuckets(ledger);
-    }
+    const [{ data: ledger }, { data: feeRow }, { data: myOffers }] = await Promise.all([
+      approved
+        ? supabase.from("ledger_entries").select("status, amount_cents").eq("driver_id", session.userId)
+        : Promise.resolve({ data: null }),
+      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents").eq("id", 1).maybeSingle(),
+      supabase
+        .from("job_offers")
+        .select("id, driver_amount_cents, platform_fee_cents, status")
+        .eq("driver_id", session.userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+    if (ledger) earnings = ledgerBuckets(ledger);
+    const fees = feeRow
+      ? {
+          platformBps: feeRow.platform_bps,
+          platformMinCents: feeRow.platform_min_cents,
+          serviceBps: feeRow.service_bps,
+          serviceFixedCents: feeRow.service_fixed_cents,
+        }
+      : defaultFeeSettings;
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <DriverHome
@@ -145,6 +161,7 @@ async function DriverContent({
           termsAccepted={application?.terms_version === "driver-terms-v1"}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
+          fees={fees}
           setup={!approved ? checklist : null}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
@@ -196,6 +213,20 @@ async function DriverContent({
           <p className="mt-3 text-base text-muted">
             New drivers see jobs an admin invites them to. You will not see the full public feed yet.
           </p>
+        ) : null}
+        {(myOffers ?? []).length > 0 ? (
+          <section className="mt-6" aria-label="Active offers">
+            <h2 className="font-display text-2xl font-semibold text-ink">Active offers</h2>
+            <ul className="mt-3 grid gap-2">
+              {(myOffers ?? []).map((offer) => (
+                <li key={offer.id} className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
+                  <p>Offer amount {formatCents(offer.driver_amount_cents + offer.platform_fee_cents)}</p>
+                  <p>Pickuply fee {formatCents(offer.platform_fee_cents)}</p>
+                  <p className="font-semibold">Your estimated earnings {formatCents(offer.driver_amount_cents)}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         {earnings ? (
           <section className="mt-6 grid grid-cols-3 gap-2" aria-label="Earnings">

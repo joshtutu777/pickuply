@@ -47,7 +47,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, commission_bps, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents",
     )
     .eq("id", id)
     .maybeSingle();
@@ -124,7 +124,14 @@ async function DriverJob({
         {statusLabel(job.status)}
       </h1>
       <p className="mt-2 text-base text-muted">{job.service}</p>
-      {job.driver_pay_cents != null ? <p>Your earnings {formatCents(job.driver_pay_cents)}</p> : null}
+      {job.driver_pay_cents != null ? (
+        <div>
+          <p className="font-semibold">Your earnings {formatCents(job.driver_pay_cents)}</p>
+          {job.platform_fee_cents != null ? (
+            <p>Offer {formatCents(job.driver_pay_cents + job.platform_fee_cents)} · Pickuply fee {formatCents(job.platform_fee_cents)}{job.commission_bps != null ? ` (${job.commission_bps / 100}%)` : ""}</p>
+          ) : null}
+        </div>
+      ) : null}
       {job.payment_status ? <p>Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
       {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Waiting for customer payment</p>

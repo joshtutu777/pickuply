@@ -27,7 +27,7 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
   const supabase = await createClient();
   let jobsQuery = supabase
     .from("jobs")
-    .select("id, status, payment_status, price_cents, captured_cents, refunded_cents, service_fee_cents, is_test")
+    .select("id, status, payment_status, price_cents, driver_pay_cents, platform_fee_cents, captured_cents, refunded_cents, service_fee_cents, is_test")
     .in("payment_status", ["awaiting_payment", "authorized", "failed", "captured", "canceled", "refunded"])
     .order("updated_at", { ascending: false })
     .limit(50);
@@ -77,7 +77,8 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
                 {job.payment_status?.replaceAll("_", " ")}
               </p>
               <p>Total {formatCents(job.price_cents ?? 0)} · Captured {formatCents(job.captured_cents ?? 0)} · Refunded {formatCents(job.refunded_cents ?? 0)}</p>
-              <p>Stripe fee {fee?.stripe_fee_cents == null ? "not posted yet" : formatCents(fee.stripe_fee_cents)} · Service fee {formatCents(job.service_fee_cents ?? 0)}</p>
+              <p>Offer {job.driver_pay_cents == null ? "not set" : formatCents((job.driver_pay_cents ?? 0) + (job.platform_fee_cents ?? 0))} · Card processing {formatCents(job.service_fee_cents ?? 0)} · Pickuply commission {formatCents(job.platform_fee_cents ?? 0)} · Driver earnings {job.driver_pay_cents == null ? "not set" : formatCents(job.driver_pay_cents)}</p>
+              <p>Stripe fee {fee?.stripe_fee_cents == null ? "not posted yet" : formatCents(fee.stripe_fee_cents)} · Payment {job.payment_status ?? "not started"}</p>
               {fee?.fee_shortfall ? <p>The card fee was higher than the service fee.</p> : null}
               {fee?.capture_before ? <p>Authorization ends {new Date(fee.capture_before).toLocaleString()}.</p> : null}
             </li>

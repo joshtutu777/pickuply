@@ -182,6 +182,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       const card = driver.locator("li").filter({ hasText: "Hiram" }).first();
       await card.getByLabel("Offer Amount ($)").fill("60");
       await card.getByRole("button", { name: "Submit Offer" }).click();
+      await card.getByRole("button", { name: "Confirm offer" }).click();
       await expect(card.getByText("Offer submitted successfully.")).toBeVisible();
       await customer.reload();
       await expect(customer.getByText(/New driver/)).toBeVisible();

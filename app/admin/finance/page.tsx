@@ -22,6 +22,7 @@ import {
   parseFinanceFilters,
   paymentBuckets,
   paymentChip,
+  pricingBalances,
   payoutBuckets,
   payoutDue,
   previousWindow,
@@ -166,8 +167,8 @@ function Overview({ jobs, previous, filters, now }: { jobs: FinanceJob[]; previo
       </div>
       <h2 className="font-display text-2xl font-semibold">Pickuply revenue</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <MoneyStat label="Platform fees" value={money.platform} />
-        <MoneyStat label="Service fees" value={money.service} />
+        <MoneyStat label="Pickuply commission" value={money.platform} />
+        <MoneyStat label="Card processing fees" value={money.service} />
         <MoneyStat label="Stripe processing fees" value={money.stripe} />
         <MoneyStat label="Trip fees captured" value={money.trip} />
         <MoneyStat label="Late-cancel fees" value={money.lateCancel} />
@@ -202,7 +203,7 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
     <div className="mt-6 overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
-          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
+          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Offer", "Processing", "Commission", "Driver net", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
         </thead>
         <tbody>
           {jobs.map((job) => {
@@ -220,6 +221,10 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
                 </td>
                 <td className="py-2 pr-3">{job.driverFirst ?? "Unassigned"}</td>
                 <td className="py-2 pr-3">{chip ? chipLabel[chip] : "Unavailable"}</td>
+                <td className="py-2 pr-3">{job.driverPayCents == null || job.platformFeeCents == null ? "Unavailable" : showMoney({ cents: job.driverPayCents + job.platformFeeCents })}</td>
+                <td className="py-2 pr-3">{job.serviceFeeCents == null ? "Unavailable" : showMoney({ cents: job.serviceFeeCents })}</td>
+                <td className="py-2 pr-3">{job.platformFeeCents == null ? "Unavailable" : showMoney({ cents: job.platformFeeCents })}</td>
+                <td className="py-2 pr-3">{job.driverPayCents == null ? "Unavailable" : showMoney({ cents: job.driverPayCents })} {pricingBalances(job) ? "" : "Check"}</td>
                 <td className="py-2 pr-3">{job.priceCents == null ? "Unavailable" : showMoney({ cents: job.priceCents })}</td>
                 <td className="py-2 pr-3">{job.capturedCents == null ? "Unavailable" : showMoney({ cents: job.capturedCents })}</td>
                 <td className="py-2 pr-3">{job.refundedCents == null ? "Unavailable" : showMoney({ cents: job.refundedCents })}</td>

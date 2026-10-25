@@ -145,7 +145,7 @@ export function ReviewRequestForm({
       {pricingMethod === "quote" ? (
         <>
           <label className="block text-base font-semibold text-ink" htmlFor="driverPay">
-            Driver pay (dollars)
+            Customer offer (dollars)
             <input
               id="driverPay"
               name="driverPay"
@@ -157,10 +157,10 @@ export function ReviewRequestForm({
           </label>
           {shown ? (
             <div className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
-              <p>Driver pay {formatCents(shown.driver_earnings_cents)}</p>
-              <p>Platform fee {formatCents(shown.platform_fee_cents)}</p>
-              <p>Subtotal {formatCents(shown.subtotal_cents)}</p>
-              <p>Service fee {formatCents(shown.service_fee_cents)}</p>
+              <p>Offer {formatCents(shown.subtotal_cents)}</p>
+              <p>Pickuply commission {formatCents(shown.platform_fee_cents)}</p>
+              <p>Driver earnings {formatCents(shown.driver_earnings_cents)}</p>
+              <p>Card processing fee {formatCents(shown.service_fee_cents)}</p>
               <p className="font-semibold">Customer total {formatCents(shown.customer_total_cents)}</p>
             </div>
           ) : null}

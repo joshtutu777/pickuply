@@ -1,50 +1,51 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acceptFixedPrice, forwardFromEarnings } from "./fees";
+import { acceptFixedPrice, offerBreakdown } from "./fees";
 
-test("fixed accept $150 splits into the expected earnings, platform fee, and service fee", () => {
-  assert.deepEqual(acceptFixedPrice(15_000), {
-    driverEarningsCents: 13_214,
-    platformFeeCents: 1_321,
-    subtotalCents: 14_535,
-    serviceFeeCents: 465,
-    customerTotalCents: 15_000,
-  });
+test("$50 offer keeps $7.50 and pays the driver $42.50", () => {
+  const price = offerBreakdown(5_000);
+  assert.equal(price.platformFeeCents, 750);
+  assert.equal(price.driverEarningsCents, 4_250);
+  assert.equal(price.subtotalCents, 5_000);
+  assert.equal(price.driverEarningsCents + price.platformFeeCents, price.subtotalCents);
+  assert.equal(price.customerTotalCents, price.subtotalCents + price.serviceFeeCents);
 });
 
-test("fixed accept $35 keeps the posted total", () => {
-  // 2.9% of 3500 cents is 101.5. Half-up rounding makes that 102 cents, plus 30 cents.
-  // A service fee of 131 cents would not cover that rounded card charge.
-  const price = acceptFixedPrice(3_500);
-  assert.equal(price.customerTotalCents, 3_500);
-  assert.deepEqual(price, {
-    driverEarningsCents: 2_368,
-    platformFeeCents: 1_000,
-    subtotalCents: 3_368,
-    serviceFeeCents: 132,
-    customerTotalCents: 3_500,
-  });
+test("$100 offer keeps $15 and pays the driver $85", () => {
+  const price = offerBreakdown(10_000);
+  assert.equal(price.platformFeeCents, 1_500);
+  assert.equal(price.driverEarningsCents, 8_500);
 });
 
-test("an offer of $60 driver earnings becomes a $72.40 customer total", () => {
-  const price = forwardFromEarnings(6_000);
-  assert.equal(price.customerTotalCents, 7_240);
-  assert.equal(
-    price.driverEarningsCents + price.platformFeeCents + price.serviceFeeCents,
-    price.customerTotalCents,
-  );
+test("$200 offer keeps $30 and pays the driver $170", () => {
+  const price = offerBreakdown(20_000);
+  assert.equal(price.platformFeeCents, 3_000);
+  assert.equal(price.driverEarningsCents, 17_000);
 });
 
-test("an offer of $120 driver earnings becomes a $136.25 customer total", () => {
-  const price = forwardFromEarnings(12_000);
-  assert.equal(price.customerTotalCents, 13_625);
-  assert.equal(price.platformFeeCents, 1_200);
-  assert.equal(
-    price.driverEarningsCents + price.platformFeeCents + price.serviceFeeCents,
-    price.customerTotalCents,
-  );
+test("an odd-cent offer rounds driver earnings half up and gives the remainder to Pickuply", () => {
+  const price = offerBreakdown(5_001);
+  assert.equal(price.driverEarningsCents, 4_251);
+  assert.equal(price.platformFeeCents, 750);
+  assert.equal(price.driverEarningsCents + price.platformFeeCents, 5_001);
 });
 
-test("fixed accept rejects a total that cannot pay the driver", () => {
-  assert.throws(() => acceptFixedPrice(100), /driver earnings would be zero/);
+test("the customer is not charged the commission a second time", () => {
+  const price = offerBreakdown(5_000);
+  assert.equal(price.customerTotalCents - price.subtotalCents, price.serviceFeeCents);
+  assert.ok(price.serviceFeeCents > 0);
+  assert.equal(price.customerTotalCents, price.subtotalCents + price.serviceFeeCents);
+});
+
+test("a posted accept uses the same offer split", () => {
+  assert.deepEqual(acceptFixedPrice(5_000), offerBreakdown(5_000));
+});
+
+test("one cent cannot pay the driver when the commission rounds the share to zero", () => {
+  assert.throws(() => offerBreakdown(1, {
+    platformBps: 9_999,
+    platformMinCents: 0,
+    serviceBps: 290,
+    serviceFixedCents: 30,
+  }), /driver earnings would be zero/);
 });

@@ -85,8 +85,8 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
               {isNew ? <p className="text-sm font-semibold text-brand">New</p> : null}
             </div>
             <p>{offer.vehicle_label || "Vehicle"}</p>
-            <p>Subtotal {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
-            <p>Service fee {formatCents(offer.service_fee_cents)}</p>
+            <p>Offer {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
+            <p>Card processing fee {formatCents(offer.service_fee_cents)}</p>
             <p className="font-semibold">Total {formatCents(offer.customer_total_cents)}</p>
             {offer.outside_range ? <p>Outside your range</p> : null}
             {offer.reason ? <p>Reason: {offer.reason}</p> : null}
