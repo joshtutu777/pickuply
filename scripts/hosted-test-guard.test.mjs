@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { assertSafeTestTarget } from "./deployed-test-target.mjs";
-import { hostedRosterCleanupSql, hostedRosterPrecheckSql } from "./hosted-test-accounts-sql.mjs";
+import { hostedRosterClaimFreshSql, hostedRosterCleanupSql, hostedRosterPrecheckSql } from "./hosted-test-accounts-sql.mjs";
 import {
   assertHostedTestApproval,
   assertHostedTestTarget,
@@ -55,6 +55,12 @@ test("cleanup and precheck only touch test rows", () => {
   assert.match(cleanup, /is_test = true/);
   assert.match(cleanup, /refusing: cleanup found a real profile/);
   assert.doesNotMatch(cleanup, /payouts_enabled = true/);
+  const claim = hostedRosterClaimFreshSql();
+  assert.match(claim, /full_name is null/);
+  assert.match(claim, /role = 'customer'/);
+  assert.match(claim, /not exists/);
+  assert.match(claim, /refusing: a roster phone belongs to a real profile/);
+  assert.doesNotMatch(claim, /set role/);
 });
 test("a matching flag still refuses a different URL", () => {
   assert.equal(

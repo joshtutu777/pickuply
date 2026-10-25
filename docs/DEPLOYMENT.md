@@ -34,6 +34,18 @@ Set these on the server. Do not put the values in git. `NEXT_PUBLIC_*` values ar
 | `RESEND_API_KEY` | Server only, if email alerts are on. |
 | `RESEND_FROM` | Server only, if email alerts are on. |
 
+## Pricing release backup
+
+The hosted SQL dump taken on 2026-10-25 was restored into the disposable local database `pickuply_backup_check` and checked there. It was not loaded back onto the hosted project.
+
+That file is a schema and row dump. It does not contain storage file bytes, so photos and documents cannot be restored from it. It was taken with privileges omitted, so role grants and passwords are not in it. Restoring it onto the live database would also erase rows created after the dump. It is not the rollback for this release. Keep the file outside the git repo.
+
+## Pricing release rollback
+
+Redeploying the previous Vercel deployment restores the old application only. After migrations `0073` and `0074`, the database prices new offers as 15% taken out of the customer offer. The old application still treats the entered amount as driver earnings and adds a commission on top. Those two cannot run together.
+
+If no offer or job price was written after `0073`, the database can be returned to the previous pricing functions and to `platform_bps` 1000 and `platform_min_cents` 1000, and the previous Vercel deployment can be restored. If any new price was stored, leave the new database in place and move the application forward to the matching commit. Do not restore the SQL dump onto the hosted database.
+
 ## Stripe
 
 `lib/stripe.ts` throws unless `STRIPE_SECRET_KEY` starts with `sk_test_`. Do not switch to a live key for the first online test. Authorization is still manual capture. Capture, refunds, and transfers were not changed.

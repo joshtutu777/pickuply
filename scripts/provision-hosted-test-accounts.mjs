@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { deployedTestPhones } from "./deployed-test-target.mjs";
-import { hostedRosterCleanupSql, hostedRosterPrecheckSql } from "./hosted-test-accounts-sql.mjs";
+import { hostedRosterClaimFreshSql, hostedRosterCleanupSql, hostedRosterPrecheckSql } from "./hosted-test-accounts-sql.mjs";
 import { assertHostedTestApproval, assertHostedTestTarget } from "./hosted-test-guard.mjs";
 
 const docker = process.env.DOCKER_BIN || "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe";
@@ -106,7 +106,9 @@ async function main() {
     const id = await ensureAuthUser(url, service, phone, password);
     if (!id) fail("A test profile was not created.");
   }
-  hostedSql(hostedRosterPrecheckSql(), password);
+  // New sign-ups start as ordinary customers. Mark only an empty new profile.
+  // A profile that already has a name or any job fails this step before the fixture runs.
+  hostedSql(hostedRosterClaimFreshSql(), password);
   const fixture = readFileSync(path.join(process.cwd(), "scripts/sql/deployed-test-accounts.sql"), "utf8");
   hostedSql(fixture, password);
   const marked = hostedSql(

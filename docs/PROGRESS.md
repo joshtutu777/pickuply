@@ -720,6 +720,8 @@ The hosted dump from 2026-10-25 was restored into the disposable local database 
 
 `npm run typecheck` passed. `npm run test:unit` passed, 167 tests. `supabase test db` passed, 35 files and 598 tests. Hosted migrations were not applied, hosted accounts were not created, OTP settings were not changed, and the site was not deployed.
 
+The hosted provision script marks only an empty new customer profile. A roster phone that already has a name, another role, or any job stops the script before the fixture changes it. The backup limits and the database rollback are written in `docs/DEPLOYMENT.md`.
+
 ## License date (2026-10-24)
 
 A license or uploaded insurance date stays valid through the end of that calendar day in Georgia (`America/New_York`). `set_driver_online`, license upload, insurance upload, and quick apply compare that date with `georgia_today()` instead of UTC `current_date`. Approval, Driver Terms, suspension, and test-data isolation are unchanged. A genuinely expired license still blocks Online and names the date. Missing insurance still does not block Online. The full database suite passed, 33 files and 570 tests. Hosted project `uyhithfdmphilleusiom` now has version `0072`. No driver rows were changed, and the site was not redeployed.

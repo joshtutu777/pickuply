@@ -43,6 +43,45 @@ end $$;
 `;
 }
 
+// Marks only a brand-new empty customer created after the precheck.
+// A profile with a name, another role, a driver row, or any job is left alone.
+export function hostedRosterClaimFreshSql() {
+  return `
+update public.profiles
+set is_test = true
+where right(regexp_replace(phone, '\\D', '', 'g'), 10) in (${phoneList()})
+  and is_test = false
+  and role = 'customer'
+  and full_name is null
+  and deleted_at is null
+  and not exists (
+    select 1 from public.jobs
+    where customer_id = profiles.id or assigned_driver_id = profiles.id
+  )
+  and not exists (
+    select 1 from public.drivers where profile_id = profiles.id
+  )
+  and not exists (
+    select 1 from public.job_offers
+    where driver_id = profiles.id
+  )
+  and not exists (
+    select 1 from public.ledger_entries where driver_id = profiles.id
+  );
+
+do $$
+begin
+  if exists (
+    select 1 from public.profiles
+    where right(regexp_replace(phone, '\\D', '', 'g'), 10) in (${phoneList()})
+      and is_test is distinct from true
+  ) then
+    raise exception 'refusing: a roster phone belongs to a real profile';
+  end if;
+end $$;
+`;
+}
+
 export function hostedRosterCleanupSql() {
   return `
 do $$
