@@ -255,9 +255,10 @@ select throws_ok(
   null,
   'the feed has no description column'
 );
-select lives_ok(
+select throws_ok(
   $$select public.submit_offer('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'offer', 6000, 'stairs')$$,
-  'a driver can offer on an open Get Offers job'
+  'a quote is claimed after the customer accepts it',
+  'a driver claims an accepted quote instead of sending an offer'
 );
 
 reset role;

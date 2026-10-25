@@ -64,7 +64,10 @@ export async function startCheckout(formData: FormData) {
     const session = await getStripe().checkout.sessions.create(
       {
         mode: "payment",
+        // Card only. allowed_payment_method_types filters the dashboard list; excluding Bank and Klarna keeps them off Checkout.
         allowed_payment_method_types: ["card"],
+        excluded_payment_method_types: ["klarna", "link", "us_bank_account"],
+        wallet_options: { link: { display: "never" } },
         line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",

@@ -170,6 +170,7 @@ async function JobEntry({
           jobId={id}
           userId={session.userId}
           nextPath={`/jobs/${id}`}
+          skipHref="/account"
           canModerate={session.role === "admin"}
         />
       ) : null}

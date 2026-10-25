@@ -96,28 +96,28 @@ insert into public.jobs (
     'e5200000-0000-4000-8000-000000000002',
     'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
     'Albany, 31721', 'Albany, 31721', 'Near desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', null, 'light', null
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', null
   ),
   (
     'e5200000-0000-4000-8000-000000000011',
     'e5200000-0000-4000-8000-000000000002',
     'delivery', 'open', (select id from public.zones where slug = 'east_gwinnett'),
     'Savannah, 31401', 'Savannah, 31401', 'Far desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', null, 'light', null
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', null
   ),
   (
     'e5200000-0000-4000-8000-000000000012',
     'e5200000-0000-4000-8000-000000000002',
     'delivery', 'open', (select id from public.zones where slug = 'east_gwinnett'),
     'Savannah, 31401', 'Savannah, 31401', 'Paused desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', null, 'light', null
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', null
   ),
   (
     'e5200000-0000-4000-8000-000000000013',
     'e5200000-0000-4000-8000-000000000003',
     'delivery', 'open', (select id from public.zones where slug = 'east_gwinnett'),
     'Savannah, 31401', 'Savannah, 31401', 'Blocked desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', null, 'light', null
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', null
   ),
   (
     'e5200000-0000-4000-8000-000000000014',

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { hideReview, submitReview } from "@/app/jobs/review-actions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,11 +15,13 @@ export async function ReviewPanel({
   jobId,
   userId,
   nextPath,
+  skipHref,
   canModerate,
 }: {
   jobId: string;
   userId: string;
   nextPath: string;
+  skipHref?: string;
   canModerate?: boolean;
 }) {
   const supabase = await createClient();
@@ -59,9 +62,19 @@ export async function ReviewPanel({
             Comment, optional
             <textarea name="note" maxLength={1000} className="mt-1 min-h-24 w-full rounded-2xl border border-line px-3 py-2" />
           </label>
-          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
-            Send review
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+              Send review
+            </button>
+            {skipHref ? (
+              <Link
+                href={skipHref}
+                className="inline-flex min-h-12 items-center justify-center rounded-full px-6 font-semibold text-brand ring-1 ring-line"
+              >
+                Not now
+              </Link>
+            ) : null}
+          </div>
         </form>
       )}
       {others.map((review) => (

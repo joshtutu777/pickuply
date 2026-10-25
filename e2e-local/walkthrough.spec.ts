@@ -131,7 +131,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect(driver.getByRole("switch", { name: "You are Online" })).toBeVisible();
     }, [[admin, "admin-approved"], [driver, "driver-online"]]);
 
-    await record("03", "Customer posts a Get Offers pickup and the driver sees it", "A new customer, a photo, a Georgia address, and the job on the driver feed with no admin step.", async () => {
+    await record("03", "Customer posts a Name your price pickup and the driver sees it", "A new customer, a photo, a Georgia address, and the job on the driver feed with no admin step.", async () => {
       await customer.goto("/");
       await customer.getByRole("link", { name: "Post a pickup" }).first().click();
       await expect(customer.getByRole("heading", { name: "What do you need?" })).toBeVisible();
@@ -153,7 +153,8 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.getByLabel("Drop-off ZIP").fill("30141");
       await customer.getByRole("radio", { name: "ASAP" }).check();
       await customer.getByRole("button", { name: "Next", exact: true }).click();
-      await customer.getByRole("radio", { name: /Get Offers/ }).check();
+      await customer.getByRole("radio", { name: /Name your price/ }).check();
+      await customer.getByRole("textbox", { name: "Your price" }).fill("60");
       await customer.getByRole("button", { name: "Next", exact: true }).click();
       await customer.getByLabel("Your name").fill(customerPerson.name);
       await customer.getByLabel("Phone number").fill(customerPerson.phone);
@@ -180,9 +181,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
 
     await record("04", "Driver offers, customer confirms, and the test card is held", "New driver, vehicle, total, then Stripe 4242 shows the card authorized.", async () => {
       const card = driver.locator("li").filter({ hasText: "Hiram" }).first();
-      await card.getByLabel("Offer Amount ($)").fill("60");
-      await card.getByRole("button", { name: "Submit Offer" }).click();
-      await card.getByRole("button", { name: "Confirm offer" }).click();
+      await card.getByRole("button", { name: "Accept posted price" }).click();
       await expect(card.getByText("Offer submitted successfully.")).toBeVisible();
       await customer.reload();
       await expect(customer.getByText(/New driver/)).toBeVisible();
@@ -331,7 +330,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.getByLabel("Drop-off ZIP").fill("30126");
       await customer.getByRole("radio", { name: "ASAP" }).check();
       await customer.getByRole("button", { name: "Next", exact: true }).click();
-      await customer.getByRole("radio", { name: /Get Offers/ }).check();
+      await customer.getByRole("radio", { name: /Get a quote/ }).check();
       await customer.getByRole("button", { name: "Next", exact: true }).click();
       const repeatName = customer.getByLabel("Your name");
       if (await repeatName.isVisible().catch(() => false)) {
@@ -353,7 +352,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       const askedAt = Date.now();
       let retriedAsk = false;
       await expect.poll(async () => {
-        if (await admin.getByText(/Drivers can still see this request/).isVisible().catch(() => false)) return true;
+        if (await admin.getByText(/Drivers cannot see this quote until you send a price/).isVisible().catch(() => false)) return true;
         const ask = admin.getByRole("button", { name: "Ask for details" });
         if (!retriedAsk && Date.now() - askedAt > 8_000 && (await ask.isVisible().catch(() => false))) {
           retriedAsk = true;

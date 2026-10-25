@@ -810,7 +810,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
           <section className="grid gap-5">
             <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Your price</h1>
             <p className="text-base leading-relaxed text-muted">
-              Drivers see this request as soon as you send it. Nothing is booked until you choose an offer.
+              {draft.pricingMethod === "quote"
+                ? "Drivers do not see a quote until you accept Pickuply's price. Nothing is charged until a driver is booked."
+                : "Drivers see this request as soon as you send it. Nothing is booked until you choose an offer."}
             </p>
             <RadioCards
               legend="Pricing method"

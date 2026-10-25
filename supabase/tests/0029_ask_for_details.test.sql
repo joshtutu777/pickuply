@@ -128,8 +128,8 @@ select lives_ok(
 
 select is(
   (select status from public.jobs where id = 'd2900000-0000-4000-8000-000000000010'),
-  'open',
-  'a published request stays open'
+  'requested',
+  'a quote stays unpublished while details are requested'
 );
 
 select ok(
@@ -203,8 +203,8 @@ select is(
     where id = 'd2900000-0000-4000-8000-000000000010'
       and detail_request->>'answered_at' is not null
   ),
-  'open:medium',
-  'the answered request stays published with the size saved'
+  'requested:medium',
+  'an answered quote stays unpublished until a price is accepted'
 );
 
 select is(

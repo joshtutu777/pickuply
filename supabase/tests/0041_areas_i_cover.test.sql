@@ -102,28 +102,28 @@ select is(
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
   item_value_cents, stairs_pickup, stairs_dropoff, elevator, help_loading, preferred_date,
-  pricing_method, service_level, required_vehicle
+  pricing_method, offer_cents, service_level, required_vehicle
 ) values
   (
     'a4100000-0000-4000-8000-000000000010',
     'a4100000-0000-4000-8000-000000000003',
     'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
     'Austell, 30106', 'Smyrna, 30080', 'Near desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', 'light', 'pickup'
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', 'pickup'
   ),
   (
     'a4100000-0000-4000-8000-000000000011',
     'a4100000-0000-4000-8000-000000000003',
     'delivery', 'open', (select id from public.zones where slug = 'east_gwinnett'),
     'Savannah, 31401', 'Savannah, 31401', 'Far desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', 'light', 'pickup'
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', 'pickup'
   ),
   (
     'a4100000-0000-4000-8000-000000000012',
     'a4100000-0000-4000-8000-000000000003',
     'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
     'Alpharetta, 30004', 'Alpharetta, 30004', 'North desk', 1, 'medium',
-    0, 0, 0, false, false, 'asap', 'quote', 'light', 'pickup'
+    0, 0, 0, false, false, 'asap', 'fixed', 5000, 'light', 'pickup'
   );
 
 select pg_temp.as_user('a4100000-0000-4000-8000-000000000001');
@@ -226,14 +226,15 @@ values ('a4100000-0000-4000-8000-000000000001', 'pickup', true);
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
   item_value_cents, stairs_pickup, stairs_dropoff, elevator, help_loading, preferred_date,
-  pricing_method, service_level, required_vehicle
+  pricing_method, driver_pay_cents, platform_fee_cents, price_cents, quote_expires_at, service_level, required_vehicle
 ) values (
   'a4100000-0000-4000-8000-000000000013',
   'a4100000-0000-4000-8000-000000000003',
   'delivery', 'quoted', (select id from public.zones where slug = 'west_metro'),
   'Austell, 30106', 'Smyrna, 30080', 'Alert desk', 1, 'medium',
-  0, 0, 0, false, false, 'asap', 'quote', 'light', 'pickup'
+  0, 0, 0, false, false, 'asap', 'quote', 4250, 750, 5180, now() + interval '1 day', 'light', 'pickup'
 );
+select set_config('pickuply.quote_accepted', 'yes', true);
 update public.jobs set status = 'open' where id = 'a4100000-0000-4000-8000-000000000013';
 
 select is(

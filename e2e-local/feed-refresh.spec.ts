@@ -69,7 +69,9 @@ async function sendGetOffers(page: Page, city: string, zip: string) {
   await page.getByRole("group", { name: "I can help load" }).getByRole("radio", { name: "No" }).check();
   await page.getByRole("radio", { name: "ASAP" }).check();
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.getByRole("radio", { name: "Get Offers" }).check();
+  await page.getByRole("radio", { name: "Set a budget range" }).check();
+  await page.getByRole("textbox", { name: /^Minimum/ }).fill("35");
+  await page.getByRole("textbox", { name: /^Maximum/ }).fill("80");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
   await page.getByRole("button", { name: "Send request" }).click();

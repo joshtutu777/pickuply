@@ -108,25 +108,28 @@ where id in (
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
   item_value_cents, stairs_pickup, stairs_dropoff, elevator, help_loading, preferred_date,
-  pricing_method, offer_cents, service_level, required_vehicle
+  pricing_method, offer_cents, budget_min_cents, budget_max_cents, service_level, required_vehicle
 )
 select
   ('e5300000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid,
   'e5300000-0000-4000-8000-000000000007',
   service, 'open', (select id from public.zones where slug = 'west_metro'),
   'Albany, 31721', 'Albany, 31721', 'Offer desk', 1, 'medium',
-  0, 0, 0, false, false, 'asap', pricing, posted, 'light', null
+  0, 0, 0, false, false, 'asap', pricing, posted,
+  case when pricing = 'range' and service = 'junk' then 5000 when pricing = 'range' then 3500 else null end,
+  case when pricing = 'range' then 200000 else null end,
+  'light', null
 from (values
-  (10, 'delivery'::public.job_service, 'quote'::public.pricing_method, null::integer),
-  (11, 'delivery', 'quote', null),
-  (12, 'delivery', 'quote', null),
-  (13, 'delivery', 'quote', null),
-  (14, 'delivery', 'quote', null),
-  (15, 'delivery', 'quote', null),
-  (16, 'junk', 'quote', null),
-  (17, 'construction', 'quote', null),
+  (10, 'delivery'::public.job_service, 'range'::public.pricing_method, null::integer),
+  (11, 'delivery', 'range', null),
+  (12, 'delivery', 'range', null),
+  (13, 'delivery', 'range', null),
+  (14, 'delivery', 'range', null),
+  (15, 'delivery', 'range', null),
+  (16, 'junk', 'range', null),
+  (17, 'construction', 'range', null),
   (18, 'delivery', 'fixed', 4000),
-  (19, 'free_item', 'quote', null)
+  (19, 'free_item', 'range', null)
 ) as jobs(n, service, pricing, posted);
 
 select is(

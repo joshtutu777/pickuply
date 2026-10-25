@@ -94,12 +94,14 @@ insert into public.jobs (
 
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, description, pieces, size,
-  item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method
+  item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method,
+  budget_min_cents, budget_max_cents
 ) values (
   'c1730000-0000-4000-8000-000000000011',
   'c1730000-0000-4000-8000-000000000001',
   'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
-  'Austell 30168', 'new offer job', 1, 'medium', 0, 0, false, false, 'asap', 'quote'
+  'Austell 30168', 'new offer job', 1, 'medium', 0, 0, false, false, 'asap', 'range',
+  3500, 20000
 );
 
 select is(

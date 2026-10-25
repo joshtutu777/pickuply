@@ -40,7 +40,9 @@ async function AssignedLinks({ userId }: { userId: string }) {
     .order("updated_at", { ascending: false });
   if (!data || data.length === 0) return null;
   return (
-    <ul className="mt-4 space-y-2">
+    <section className="mt-4" aria-label="Your jobs">
+    <h2 className="font-display text-2xl font-semibold text-ink">Your jobs</h2>
+    <ul className="mt-3 space-y-2">
       {data.map((job) => (
         <li key={job.id}>
           <Link
@@ -52,6 +54,7 @@ async function AssignedLinks({ userId }: { userId: string }) {
         </li>
       ))}
     </ul>
+    </section>
   );
 }
 
