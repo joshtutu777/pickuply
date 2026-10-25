@@ -11,6 +11,7 @@ import { saveDriverPlace } from "@/lib/maps/save-places";
 import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
+import { profileEmailError } from "@/lib/validation/email";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/photos";
@@ -43,12 +44,15 @@ async function uploadDoc(userId: string, name: "profile" | "license", file: File
 export function QuickApplyForm({
   userId,
   defaultName = "",
+  defaultEmail = "",
 }: {
   userId: string;
   defaultName?: string;
+  defaultEmail?: string;
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(defaultName);
+  const [email, setEmail] = useState(defaultEmail);
   const [home, setHome] = useState<PlaceValue>(emptyPlace);
   const [coverage, setCoverage] = useState<CoverageDraft>(defaultCoverage);
   const [vehicleType, setVehicleType] = useState("pickup");
@@ -71,6 +75,11 @@ export function QuickApplyForm({
     event.preventDefault();
     if (!validateFullName(fullName)) {
       setError("Enter your full name.");
+      return;
+    }
+    const emailProblem = profileEmailError(email);
+    if (emailProblem) {
+      setError(emailProblem);
       return;
     }
     const addressError = manualAddressError(home);
@@ -123,6 +132,10 @@ export function QuickApplyForm({
         },
       });
       if (saveError) throw new Error(saveError.message);
+      if (email.trim()) {
+        const emailSave = await createClient().rpc("save_profile_email", { next_email: email.trim() });
+        if (emailSave.error) throw new Error("Your application was saved. We couldn't save the email.");
+      }
       const placeError = await saveDriverPlace(home);
       if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
@@ -138,6 +151,17 @@ export function QuickApplyForm({
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
+      <TextField
+        name="driverEmail"
+        label="Email address"
+        type="email"
+        inputMode="email"
+        autoComplete="email"
+        optional
+        hint="For booking updates and receipts."
+        value={email}
+        onChange={setEmail}
+      />
       <div className="flex items-center gap-2 text-base font-semibold text-ink">
         <MapPin aria-hidden="true" className="size-5 text-brand" />
         Home address

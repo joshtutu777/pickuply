@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { PlaceEditor } from "@/components/maps/place-editor";
+import { ProfileEmailForm } from "@/components/profile/email-form";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -23,7 +24,7 @@ async function ProfileContent() {
   const session = await requireSignedIn("/account/profile");
   const supabase = await createClient();
   const [{ data: profile }, { data: driver }, { data: places }] = await Promise.all([
-    supabase.from("profiles").select("phone").eq("id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
     supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
   ]);
@@ -46,6 +47,7 @@ async function ProfileContent() {
         </ul>
         <PlaceEditor kind="customer" />
       </section>
+      <ProfileEmailForm email={profile?.email ?? null} />
       <ProfileMenu
         phone={profile?.phone ?? null}
         role={session.role}

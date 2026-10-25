@@ -65,6 +65,19 @@ export async function createRequest(
     throw new RequestSubmitError("auth", "Sign in again before saving this request.");
   }
 
+  const email = draft.customerEmail.trim();
+  if (email) {
+    const saved = await supabase.rpc("save_profile_email", { next_email: email });
+    if (saved.error) {
+      throw new RequestSubmitError(
+        "rejected",
+        saved.error.message.includes("email is not valid")
+          ? "Enter a valid email, or leave it blank."
+          : "We couldn't save this request. Your draft is still here.",
+      );
+    }
+  }
+
   const id = submissionId();
   const payload = requestPayload(draft);
   payload.has_photo = photoIds.length > 0;

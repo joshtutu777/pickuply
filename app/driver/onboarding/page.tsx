@@ -29,11 +29,10 @@ async function OnboardingContent({
   const session = await requireSignedIn("/driver/onboarding");
   await searchParams;
   const supabase = await createClient();
-  const { data: driver } = await supabase
-    .from("drivers")
-    .select("profile_id")
-    .eq("profile_id", session.userId)
-    .maybeSingle();
+  const [{ data: driver }, { data: profile }] = await Promise.all([
+    supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle(),
+  ]);
 
   if (driver || session.role === "driver") redirect("/driver");
 
@@ -44,7 +43,11 @@ async function OnboardingContent({
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         Drive with Pickuply
       </h1>
-      <QuickApplyForm userId={session.userId} defaultName={session.fullName ?? ""} />
+      <QuickApplyForm
+        userId={session.userId}
+        defaultName={session.fullName ?? ""}
+        defaultEmail={profile?.email ?? ""}
+      />
     </main>
   );
 }

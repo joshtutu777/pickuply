@@ -14,6 +14,7 @@ import { isWithinBookingWindow } from "../dates";
 import { parseDollarsToCents } from "../money";
 import { normalizeUsPhone } from "../phone";
 import type { RequestDraft } from "../types";
+import { profileEmailError } from "./email";
 
 export type FieldErrors = Partial<Record<string, string>>;
 
@@ -207,10 +208,8 @@ function validateVerify(draft: RequestDraft, signedIn: boolean): FieldErrors {
       errors.customerPhone = "Enter a 10-digit US phone number.";
     }
   }
-  const email = draft.customerEmail.trim();
-  if (email && !z.string().email().safeParse(email).success) {
-    errors.customerEmail = "Enter a valid email, or leave it blank.";
-  }
+  const emailProblem = profileEmailError(draft.customerEmail);
+  if (emailProblem) errors.customerEmail = emailProblem;
   if (draft.hearAbout && !hearSchema.safeParse(draft.hearAbout).success) {
     errors.hearAbout = "Tell us how you heard about Pickuply.";
   }

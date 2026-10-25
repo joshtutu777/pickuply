@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fees } from "../constants";
 import { emptyDraft } from "../types";
+import { profileEmailError } from "./email";
 import { validateStep } from "./request";
 
 test("quote pricing needs no amount", () => {
@@ -43,6 +44,13 @@ test("a budget range must start at the service minimum and the max must be highe
   draft.budgetMinDollars = "50";
   assert.equal(validateStep("price", draft).budgetMinDollars, undefined);
   assert.equal(validateStep("price", draft).budgetMaxDollars, undefined);
+});
+
+test("profile email is optional and rejects a bad address", () => {
+  assert.equal(profileEmailError(""), null);
+  assert.equal(profileEmailError("   "), null);
+  assert.equal(profileEmailError("ada@example.com"), null);
+  assert.match(profileEmailError("not-an-email") ?? "", /valid email/);
 });
 
 test("phone numbers must be US numbers and email may be blank", () => {

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { AreaMap } from "@/components/maps/area-map";
 import { PlaceEditor } from "@/components/maps/place-editor";
+import { ProfileEmailForm } from "@/components/profile/email-form";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -26,7 +27,7 @@ async function ProfileContent() {
   if (session.role !== "driver") notFound();
   const supabase = await createClient();
   const [{ data: profile }, { data: driver }, { data: place }] = await Promise.all([
-    supabase.from("profiles").select("phone").eq("id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase
       .from("drivers")
       .select("home_city, home_zip, status, is_online")
@@ -77,6 +78,7 @@ async function ProfileContent() {
             : undefined
         }
       />
+      <ProfileEmailForm email={profile?.email ?? null} />
       <ProfileMenu
         phone={profile?.phone ?? null}
         role={session.role}

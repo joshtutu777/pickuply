@@ -89,6 +89,16 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const [stepIndex, setStepIndex] = useState(0);
   const funnelStarted = useRef(false);
   useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const profile = await supabase.from("profiles").select("email").eq("id", data.user.id).maybeSingle();
+      const email = typeof profile.data?.email === "string" ? profile.data.email.trim() : "";
+      if (!email) return;
+      setDraft((current) => (current.customerEmail.trim() ? current : { ...current, customerEmail: email }));
+    });
+  }, []);
+  useEffect(() => {
     const service = draft.service || null;
     const pricing = draft.pricingMethod || null;
     if (!funnelStarted.current) {
@@ -1206,19 +1216,20 @@ function ReviewStep({
             error={errors.customerPhone}
             onChange={(value) => update("customerPhone", value)}
           />
-          <TextField
-            label="Email"
-            name="customerEmail"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            optional
-            value={draft.customerEmail}
-            error={errors.customerEmail}
-            onChange={(value) => update("customerEmail", value)}
-          />
         </>
       )}
+      <TextField
+        label="Email address"
+        name="customerEmail"
+        type="email"
+        inputMode="email"
+        autoComplete="email"
+        optional
+        hint="For booking updates and receipts."
+        value={draft.customerEmail}
+        error={errors.customerEmail}
+        onChange={(value) => update("customerEmail", value)}
+      />
       <p className="text-base leading-relaxed text-ink">
         Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
         <Link href="/terms" className="font-semibold text-brand underline">

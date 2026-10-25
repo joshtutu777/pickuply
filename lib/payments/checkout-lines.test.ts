@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkoutLines } from "./checkout-lines";
+import { checkoutCustomerEmail, checkoutLines } from "./checkout-lines";
 
 test("checkout lists the offer and the card processing fee as separate lines", () => {
   const lines = checkoutLines(5_175, 5_000, 175);
@@ -15,6 +15,13 @@ test("checkout lists the offer and the card processing fee as separate lines", (
     lines.reduce((sum, item) => sum + item.price_data.unit_amount, 0),
     5_175,
   );
+});
+
+test("checkout gets a saved email and still starts when the profile has none", () => {
+  assert.equal(checkoutCustomerEmail("  ada@example.com  "), "ada@example.com");
+  assert.equal(checkoutCustomerEmail(""), undefined);
+  assert.equal(checkoutCustomerEmail(null), undefined);
+  assert.equal(checkoutCustomerEmail("   "), undefined);
 });
 
 test("a stored total that does not match the split is charged as one line", () => {

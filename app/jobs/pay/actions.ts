@@ -3,7 +3,7 @@
 import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { checkoutLines } from "@/lib/payments/checkout-lines";
+import { checkoutCustomerEmail, checkoutLines } from "@/lib/payments/checkout-lines";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
 import { getStripe } from "@/lib/stripe";
@@ -52,6 +52,11 @@ export async function startCheckout(formData: FormData) {
   const offerCents = (priced.data?.driver_pay_cents ?? 0) + (priced.data?.platform_fee_cents ?? 0);
   const processingCents = priced.data?.service_fee_cents ?? 0;
   const expiresAt = checkoutExpiresAt(new Date(row.due_at).getTime(), new Date().getTime());
+  const user = await supabase.auth.getUser();
+  const profile = user.data.user
+    ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
+    : null;
+  const customerEmail = checkoutCustomerEmail(profile?.data?.email);
   let sessionId = "";
   let sessionUrl: string | null = null;
   let checkoutLive = false;
@@ -66,6 +71,7 @@ export async function startCheckout(formData: FormData) {
           metadata: { job_id: jobId, driver_id: row.driver_id },
         },
         metadata: { job_id: jobId, driver_id: row.driver_id, attempt: String(row.attempt) },
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
         expires_at: expiresAt,
         success_url: `${origin}/jobs/${jobId}?paid=return`,
         cancel_url: `${origin}/jobs/${jobId}?paid=cancel`,
