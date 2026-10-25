@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -37,6 +37,17 @@ for (const line of text.split(/\r?\n/)) {
 if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   console.error(".env.test.local needs NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   process.exit(1);
+}
+
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+  const status = execFileSync("npx supabase status -o env", { encoding: "utf8", shell: true });
+  const service = status.match(/^SERVICE_ROLE_KEY="(.*)"$/m)?.[1] ?? "";
+  if (!service) {
+    console.error("Local Supabase did not provide a service role.");
+    process.exit(1);
+  }
+  env.SUPABASE_SERVICE_ROLE_KEY = service;
+  console.log("Using the local service role from supabase status.");
 }
 
 console.log(`Starting local app at http://127.0.0.1:3001 (${loaded} settings from .env.test.local).`);

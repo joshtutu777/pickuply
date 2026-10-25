@@ -58,15 +58,25 @@ function sql(statement) {
 }
 
 async function session(url, apiKey, person) {
+  const headers = { apikey: apiKey, "Content-Type": "application/json" };
+  const verifyFirst = await fetch(`${url}/auth/v1/verify`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ phone: person.phone, token: person.otp, type: "sms" }),
+  });
+  if (verifyFirst.ok) {
+    const body = await verifyFirst.json();
+    if (body.access_token) return body.access_token;
+  }
   const send = await fetch(`${url}/auth/v1/otp`, {
     method: "POST",
-    headers: { apikey: apiKey, "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ phone: person.phone }),
   });
   if (!send.ok) throw new Error(`Could not send a local code (${send.status}).`);
   const verify = await fetch(`${url}/auth/v1/verify`, {
     method: "POST",
-    headers: { apikey: apiKey, "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ phone: person.phone, token: person.otp, type: "sms" }),
   });
   if (!verify.ok) throw new Error(`Could not verify a local code (${verify.status}).`);
@@ -76,6 +86,8 @@ async function session(url, apiKey, person) {
 }
 
 async function createRequest(url, apiKey, token, requestId, payload) {
+  const existing = sql(`select count(*) from public.jobs where id = '${requestId}'`);
+  if (existing === "1") return;
   const response = await fetch(`${url}/rest/v1/rpc/create_customer_request`, {
     method: "POST",
     headers: {
@@ -174,7 +186,7 @@ await createRequest(url, apiKey, tokens[robin.phone], robinJunkId, {
   junk_special_items: { mattress: false, tires: false, appliances: false },
   pricing_method: "range",
   offer_cents: null,
-  budget_min_cents: "4000",
+  budget_min_cents: "5000",
   budget_max_cents: "8000",
 });
 
@@ -193,6 +205,65 @@ await createRequest(url, apiKey, tokens[nova.phone], novaRequestId, {
   budget_max_cents: null,
 });
 
+await session(url, apiKey, { phone: "+15555550126", otp: "101126", name: "Alex Admin" });
+await session(url, apiKey, { phone: "+15555550124", otp: "101124", name: "Pat Driver" });
+await session(url, apiKey, { phone: "+15555550125", otp: "101125", name: "Bea Driver" });
+
+sql(`
+update public.profiles
+set role = 'admin', full_name = 'Alex Admin'
+where right(regexp_replace(phone, '\\D', '', 'g'), 10) = '5555550126';
+
+update public.profiles
+set role = 'driver', full_name = case right(regexp_replace(phone, '\\D', '', 'g'), 10)
+  when '5555550124' then 'Pat Driver'
+  else 'Bea Driver'
+end
+where right(regexp_replace(phone, '\\D', '', 'g'), 10) in ('5555550124', '5555550125');
+
+insert into public.drivers (
+  profile_id, status, zone_id, service_level, services, max_distance_miles, is_online,
+  license_url, license_expires, insurance_url, insurance_expires, terms_version, terms_accepted_at,
+  training_completed_at
+)
+select
+  profiles.id,
+  'active',
+  (select id from public.zones where slug = 'west_metro'),
+  'full',
+  array['delivery']::public.job_service[],
+  25,
+  true,
+  profiles.id::text || '/license.jpg',
+  current_date + 30,
+  profiles.id::text || '/insurance.jpg',
+  current_date + 30,
+  'driver-terms-v1',
+  now(),
+  now()
+from public.profiles
+where right(regexp_replace(profiles.phone, '\\D', '', 'g'), 10) in ('5555550124', '5555550125')
+on conflict (profile_id) do update
+set status = 'active',
+    zone_id = excluded.zone_id,
+    services = excluded.services,
+    is_online = true,
+    license_url = excluded.license_url,
+    license_expires = excluded.license_expires,
+    insurance_url = excluded.insurance_url,
+    insurance_expires = excluded.insurance_expires,
+    training_completed_at = excluded.training_completed_at;
+
+insert into public.vehicles (driver_id, type, make, model, year, plate, cargo_length_in, photo_url, approved)
+select profiles.id, 'pickup', 'Ford', 'F150', 2018, 'TEST123', 72, profiles.id::text || '/vehicle.jpg', true
+from public.profiles
+where right(regexp_replace(profiles.phone, '\\D', '', 'g'), 10) in ('5555550124', '5555550125')
+  and not exists (
+    select 1 from public.vehicles
+    where vehicles.driver_id = profiles.id and vehicles.type = 'pickup' and vehicles.approved
+  );
+`);
+
 const count = sql(`
 select count(*)
 from public.jobs
@@ -201,7 +272,7 @@ where id in (
   '${robinJunkId}',
   '${novaRequestId}'
 )
-and status = 'requested';
+and status = 'open';
 `);
-if (count !== "3") throw new Error(`Expected 3 requested jobs, found ${count}.`);
+if (count !== "3") throw new Error(`Expected 3 open jobs, found ${count}.`);
 console.log("Seeded 3 local requests.");

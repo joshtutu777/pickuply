@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(18);
+select plan(19);
 
 do $$
 declare
@@ -186,6 +186,22 @@ select throws_ok(
   )$$,
   'offer amount is below the minimum',
   'a junk price under $50 is rejected'
+);
+
+select throws_ok(
+  $$insert into public.jobs (
+    id, customer_id, service, status, zone_id, pickup_area, description, pieces, size,
+    item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method,
+    offer_cents, budget_min_cents, budget_max_cents
+  ) values (
+    'c1730000-0000-4000-8000-000000000013',
+    'c1730000-0000-4000-8000-000000000001',
+    'junk', 'open', (select id from public.zones where slug = 'west_metro'),
+    'Austell 30168', 'low junk range', 1, 'medium', 0, 0, false, false, 'asap', 'range',
+    null, 4000, 8000
+  )$$,
+  'offer amount is below the minimum',
+  'a junk budget under $50 is rejected'
 );
 
 select * from finish();

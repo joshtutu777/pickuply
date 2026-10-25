@@ -32,6 +32,7 @@ export function ReviewRequestForm({
   detailsOpen = false,
   paused = false,
   askOnly = false,
+  zones,
 }: {
   jobId: string;
   pricingMethod: string;
@@ -39,6 +40,7 @@ export function ReviewRequestForm({
   detailsOpen?: boolean;
   paused?: boolean;
   askOnly?: boolean;
+  zones: { id: string; name: string }[];
 }) {
   const [driverPay, setDriverPay] = useState("");
   const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
@@ -114,6 +116,17 @@ export function ReviewRequestForm({
     <>
     <form action={reviewRequest} className="mt-8 space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
+      <label className="block text-base font-semibold text-ink" htmlFor="zoneId">
+        Zone
+        <select id="zoneId" name="zoneId" className={controlClass} defaultValue="">
+          <option value="">Choose a zone</option>
+          {zones.map((zone) => (
+            <option key={zone.id} value={zone.id}>
+              {zone.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="block text-base font-semibold text-ink" htmlFor="serviceLevel">
         Service level
         <select id="serviceLevel" name="serviceLevel" className={controlClass}>

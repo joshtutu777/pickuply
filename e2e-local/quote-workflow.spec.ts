@@ -59,6 +59,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(adminPage.getByText("Austell, 30106")).toBeVisible();
   await adminPage.locator("#serviceLevel").selectOption("light");
   await adminPage.locator("#requiredVehicle").selectOption("pickup");
+  await adminPage.locator("#zoneId").selectOption({ label: "West Metro" });
   await adminPage.locator("#driverPay").fill("60");
   await expect(adminPage.getByText(/Customer total \$/)).toBeVisible();
   await adminPage.locator("#preferredDate").fill("2026-10-30");
@@ -134,12 +135,25 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(firstCard).toBeVisible();
   await expect(firstCard.getByText(street)).toHaveCount(0);
 
-  const second = await open(browser, "/driver");
+  let holdSecondFeed = false;
+  const second = await open(browser, "/driver", async (page) => {
+    await page.context().route(/\/rpc\/driver_(matched_feed|georgia_page|georgia_count)/, async (route) => {
+      if (holdSecondFeed) {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+    // Keep the claimed job on this screen. A live update removes the card
+    // before the losing driver can try it and see the taken message.
+    await page.routeWebSocket(/realtime/, () => {});
+  });
   await signIn(second, bea);
   await expect(second.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const secondCard = quoteCard(second);
   await expect(secondCard).toBeVisible();
   await expect(secondCard.getByText(street)).toHaveCount(0);
+  holdSecondFeed = true;
 
   await firstCard.getByRole("button", { name: "Claim this job" }).click();
   await expect(first.locator(`a[href="/driver/jobs/${quoteJobId}"]`)).toBeVisible();
@@ -163,9 +177,10 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   ).toBe("assigned|awaiting_payment");
 });
 
-async function open(browser: Browser, path: string) {
+async function open(browser: Browser, path: string, prepare?: (page: Page) => Promise<void>) {
   const context = await browser.newContext();
   const page = await context.newPage();
+  if (prepare) await prepare(page);
   await page.goto(path);
   return page;
 }

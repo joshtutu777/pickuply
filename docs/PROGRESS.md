@@ -712,6 +712,14 @@ Local only. Pickuply's commission stays 15% of the customer-facing offer and is 
 
 Local only. Customers can enter an optional email on a new quote, and drivers can enter one on the application. The same `profiles.email` value is prefilled and can be changed in customer or driver profile settings. A blank value does not erase a saved address. The address is not marked verified, phone sign-in is unchanged, and outbound email stays off. Checkout passes a saved email to Stripe and still starts when there is none. Migration `0075` is local only. Hosted accounts were not provisioned, and the site was not deployed. `npm run typecheck` passed. `npm run test:unit` passed, 158 tests. `supabase test db` passed, 35 files and 597 tests. The hosted booking walk was not run.
 
+## Release blockers (2026-10-25)
+
+Local only. The junk seed budget is $50, and a junk budget of $40 is rejected by the database test. The quote-to-booking test passed: an admin sends a $60 offer in West Metro, the customer accepts, one eligible driver claims it, and the other driver is told the job was taken. The assigned driver sees the street and awaiting payment. The other driver does not see the street. The admin review form now asks for a zone, which sending a quote already required.
+
+The hosted dump from 2026-10-25 was restored into the disposable local database `pickuply_backup_check` and was not applied back to the hosted project. That copy has migrations 0001 through 0072, pricing settings 1000 / 1000 / 290 / 30, 9 profiles, 4 jobs, no payment or ledger rows, and 76 public policies. It has no storage file bytes and no grants. A separate hosted provision script and OTP merge script stay refused unless the exact project flag is passed. Neither was run. The current local provision script still refuses the hosted project.
+
+`npm run typecheck` passed. `npm run test:unit` passed, 167 tests. `supabase test db` passed, 35 files and 598 tests. Hosted migrations were not applied, hosted accounts were not created, OTP settings were not changed, and the site was not deployed.
+
 ## License date (2026-10-24)
 
 A license or uploaded insurance date stays valid through the end of that calendar day in Georgia (`America/New_York`). `set_driver_online`, license upload, insurance upload, and quick apply compare that date with `georgia_today()` instead of UTC `current_date`. Approval, Driver Terms, suspension, and test-data isolation are unchanged. A genuinely expired license still blocks Online and names the date. Missing insurance still does not block Online. The full database suite passed, 33 files and 570 tests. Hosted project `uyhithfdmphilleusiom` now has version `0072`. No driver rows were changed, and the site was not redeployed.

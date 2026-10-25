@@ -20,6 +20,11 @@ import { getJobDetail } from "@/lib/data/job-queries";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
+async function loadZones(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data } = await supabase.from("zones").select("id, name").eq("active", true).order("name");
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 export default function AdminRequestPage({
   params,
   searchParams,
@@ -241,6 +246,7 @@ async function RequestDetail({
           needsConfirm={needsConfirm}
           askOnly={extra.status === "open" && extra.pricing_method !== "quote"}
           paused={Boolean(extra.paused_at)}
+          zones={await loadZones(supabase)}
           detailsOpen={
             extra?.detail_request != null &&
             (extra.detail_request as { answered_at?: string | null }).answered_at == null
