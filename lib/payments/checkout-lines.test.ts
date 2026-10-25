@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkoutCustomerEmail, checkoutLines } from "./checkout-lines";
+import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "./checkout-lines";
 
 test("checkout lists the offer and the card processing fee as separate lines", () => {
   const lines = checkoutLines(5_175, 5_000, 175);
@@ -22,6 +22,15 @@ test("checkout gets a saved email and still starts when the profile has none", (
   assert.equal(checkoutCustomerEmail(""), undefined);
   assert.equal(checkoutCustomerEmail(null), undefined);
   assert.equal(checkoutCustomerEmail("   "), undefined);
+});
+
+test("checkout excludes bank, Klarna, and the other non-card methods", () => {
+  const excluded = new Set<string>(checkoutExcludedPaymentMethods);
+  assert.equal(excluded.has("card"), false);
+  assert.equal(excluded.has("link"), false);
+  assert.equal(excluded.has("klarna"), true);
+  assert.equal(excluded.has("us_bank_account"), true);
+  assert.equal(excluded.has("pay_by_bank"), true);
 });
 
 test("a stored total that does not match the split is charged as one line", () => {

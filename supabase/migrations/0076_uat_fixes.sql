@@ -86,6 +86,22 @@ create policy job_photos_insert_parties on public.job_photos
   );
 
 drop policy if exists job_photos_storage_admin_all on storage.objects;
+drop policy if exists job_photos_storage_admin_read on storage.objects;
+drop policy if exists job_photos_storage_admin_insert on storage.objects;
+create policy job_photos_storage_admin_read on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'job-photos'
+    and public.is_admin()
+    and public.test_lane_matches(public.job_is_test(public.storage_job_id(name)))
+  );
+create policy job_photos_storage_admin_insert on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'job-photos'
+    and public.is_admin()
+    and public.test_lane_matches(public.job_is_test(public.storage_job_id(name)))
+  );
 create policy job_photos_storage_admin_all
   on storage.objects
   for all

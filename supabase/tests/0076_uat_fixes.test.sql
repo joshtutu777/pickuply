@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(26);
+select plan(32);
 
 do $$
 declare
@@ -94,6 +94,20 @@ update public.jobs
 set status = 'assigned', assigned_driver_id = 'c1760000-0000-4000-8000-000000000002', payment_status = 'authorized'
 where id = 'c1760000-0000-4000-8000-000000000011';
 
+insert into public.job_photos (job_id, stage, storage_path, uploaded_by)
+values (
+  'c1760000-0000-4000-8000-000000000011',
+  'request',
+  'c1760000-0000-4000-8000-000000000011/request/lane.jpg',
+  'c1760000-0000-4000-8000-000000000001'
+);
+insert into storage.objects (bucket_id, name, owner_id)
+values (
+  'job-photos',
+  'c1760000-0000-4000-8000-000000000011/request/lane.jpg',
+  'c1760000-0000-4000-8000-000000000001'
+);
+
 select ok(public.contains_contact('Call me at 555-0100'), 'a short separated phone is contact');
 select ok(not public.contains_contact('2 items'), 'an item count is not contact');
 select ok(not public.contains_contact('ZIP 30106'), 'a ZIP is not contact');
@@ -105,6 +119,16 @@ select is(
   (select count(*)::int from public.job_private where job_id = 'c1760000-0000-4000-8000-000000000011'),
   0,
   'a synthetic admin cannot read a real private row'
+);
+select is(
+  (select count(*)::int from public.job_photos where job_id = 'c1760000-0000-4000-8000-000000000011'),
+  0,
+  'a synthetic admin cannot read a real job photo'
+);
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'job-photos' and name = 'c1760000-0000-4000-8000-000000000011/request/lane.jpg'),
+  0,
+  'a synthetic admin cannot read a real job photo file'
 );
 select is(
   (select count(*)::int from public.job_private where job_id = 'c1760000-0000-4000-8000-000000000012'),
@@ -120,6 +144,11 @@ select is(
   1,
   'a real admin can read a real private row'
 );
+select is(
+  (select count(*)::int from public.job_photos where job_id = 'c1760000-0000-4000-8000-000000000011'),
+  1,
+  'a real admin can read a real job photo'
+);
 reset role;
 
 select pg_temp.as_user('c1760000-0000-4000-8000-000000000001');
@@ -128,6 +157,11 @@ select is(
   (select count(*)::int from public.job_private where job_id = 'c1760000-0000-4000-8000-000000000011'),
   1,
   'a customer can read their own private row'
+);
+select is(
+  (select count(*)::int from public.job_photos where job_id = 'c1760000-0000-4000-8000-000000000011'),
+  1,
+  'a customer can read their own job photo'
 );
 reset role;
 
@@ -147,6 +181,11 @@ select is(
   0,
   'an unassigned driver cannot read the private row'
 );
+select is(
+  (select count(*)::int from public.job_photos where job_id = 'c1760000-0000-4000-8000-000000000011'),
+  0,
+  'an unassigned driver cannot read the job photo'
+);
 reset role;
 
 select pg_temp.as_user('c1760000-0000-4000-8000-000000000002');
@@ -155,6 +194,11 @@ select is(
   (select count(*)::int from public.job_private where job_id = 'c1760000-0000-4000-8000-000000000011'),
   1,
   'the assigned driver can read the private row'
+);
+select is(
+  (select count(*)::int from public.job_photos where job_id = 'c1760000-0000-4000-8000-000000000011'),
+  1,
+  'the assigned driver can read the job photo'
 );
 reset role;
 select pg_temp.clear_auth();

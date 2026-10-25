@@ -74,8 +74,9 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await driver.getByLabel("Street").fill("10 Test Street");
       await driver.getByLabel("City", { exact: true }).fill("Austell");
       await driver.getByLabel("ZIP", { exact: true }).fill("30106");
-      await driver.locator("#coverage-city").fill("Austell");
-      await driver.getByRole("button", { name: "Add city" }).click();
+      const coverageCity = driver.locator("#coverage-city");
+      await expect(coverageCity.locator("option", { hasText: "Austell" })).toBeAttached();
+      await coverageCity.selectOption("Austell");
       await driver.locator("#vehicleType").selectOption("pickup");
       await driver.getByRole("radio", { name: "Light load" }).check();
       await driver.locator("#licenseExpires").fill("2027-12-31");
@@ -291,6 +292,24 @@ test("three people walk a pickup from signup through delivery", async ({ browser
     }, [[customer, "got-it"], [driver, "delivered"]]);
 
     await record("06", "Reviews, scheduled earnings, and admin payments", "Both reviews save. Driver earnings show the 48-hour hold. Admin payments show the job amounts.", async () => {
+      const moneySnapshot = () => localSql(
+        `select status || '|' || payment_status || '|' || coalesce(driver_pay_cents::text, '') || '|' || (select count(*) from public.job_reviews where job_id = '${jobId}') || '|' || (select count(*) from public.ledger_entries where job_id = '${jobId}') from public.jobs where id = '${jobId}';`,
+      ).trim();
+      const beforeSkip = moneySnapshot();
+      await expect(customer.getByRole("link", { name: "Not now" })).toHaveAttribute("href", "/account");
+      await customer.getByRole("link", { name: "Not now" }).click();
+      await expect(customer).toHaveURL(/\/account/);
+      if (moneySnapshot() !== beforeSkip) throw new Error("Skipping the customer review changed the job.");
+      await customer.goto(`/jobs/${jobId}`);
+      await driver.reload();
+      await expect(driver.getByText(/Earnings status: Held/)).toBeVisible();
+      await expect(driver.getByRole("link", { name: "Earnings and payouts" })).toHaveAttribute("href", "/driver/earnings");
+      await expect(driver.getByRole("link", { name: "Not now" })).toHaveAttribute("href", "/driver");
+      const beforeDriverSkip = moneySnapshot();
+      await driver.getByRole("link", { name: "Not now" }).click();
+      await expect(driver).toHaveURL(/\/driver$/);
+      if (moneySnapshot() !== beforeDriverSkip) throw new Error("Skipping the driver review changed the job.");
+      await driver.goto(`/driver/jobs/${jobId}`);
       await customer.getByLabel("Stars").selectOption("5");
       await customer.getByLabel("Comment, optional").fill("Careful with the dresser.");
       await customer.getByRole("button", { name: "Send review" }).click();

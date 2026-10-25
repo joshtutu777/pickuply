@@ -183,7 +183,7 @@ test("an open driver feed shows a new request without a manual refresh", async (
     expect(sql(`select count(*) from public.job_offers where job_id = '${nearId}' and status = 'active'`)).toBe("1");
 
     await customerPage.goto(nearHref ?? "/account/jobs");
-    await expect(customerPage.getByRole("button", { name: "Choose this driver" })).toBeVisible();
+    await expect(customerPage.getByRole("button", { name: /^Choose / })).toBeVisible();
     await driverPage.screenshot({ path: testInfo.outputPath("driver-feed.png"), fullPage: true });
   } finally {
     sql(`update public.platform_settings set waves_enabled = ${wavesBefore === "true" ? "true" : "false"}`);
