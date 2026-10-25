@@ -165,20 +165,26 @@ function validateWhen(draft: RequestDraft): FieldErrors {
   return errors;
 }
 
+function offerFloorCents(service: RequestDraft["service"]): number {
+  return service === "junk" ? fees.junkMinimumCents : fees.minimumCents;
+}
+
 function validatePrice(draft: RequestDraft): FieldErrors {
   const errors: FieldErrors = {};
+  const floor = offerFloorCents(draft.service);
+  const floorLabel = floor === fees.junkMinimumCents ? "$50" : "$35";
   if (draft.pricingMethod === "quote") {
     // No amount.
   } else if (draft.pricingMethod === "fixed") {
     const cents = parseDollarsToCents(draft.offerDollars);
-    if (cents == null || cents < fees.minimumCents) {
-      errors.offerDollars = "Enter a price of at least $35.";
+    if (cents == null || cents < floor) {
+      errors.offerDollars = `Enter a price of at least ${floorLabel}.`;
     }
   } else if (draft.pricingMethod === "range") {
     const min = parseDollarsToCents(draft.budgetMinDollars);
     const max = parseDollarsToCents(draft.budgetMaxDollars);
-    if (min == null || min < fees.minimumCents) {
-      errors.budgetMinDollars = "Enter a minimum of at least $35.";
+    if (min == null || min < floor) {
+      errors.budgetMinDollars = `Enter a minimum of at least ${floorLabel}.`;
     }
     if (max == null) {
       errors.budgetMaxDollars = "Enter a maximum.";

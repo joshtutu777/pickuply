@@ -54,9 +54,9 @@ async function SettingsContent({
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Settings</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
-        The commission is a percent of the customer offer and comes out of the driver's side. The
-        customer also pays the card-processing amount. Whether that processing amount can be charged
-        on every card needs a review before live payments.
+        The commission is 15% of the customer offer and comes out of the driver's side. The customer
+        also pays the card-processing amount. Pickuply does not pay that processing amount. Whether
+        it can be charged on every card, including debit and prepaid, needs a review before live payments.
       </p>
       <BackLink href="/admin" label="Admin" />
       {query.saved === "1" ? <p className="mt-4">Saved.</p> : null}

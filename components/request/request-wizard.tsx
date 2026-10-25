@@ -807,7 +807,11 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               name="pricingMethod"
               value={draft.pricingMethod}
               error={errors.pricingMethod}
-              options={pricingMethods}
+              options={pricingMethods.map((method) =>
+                method.id === "fixed"
+                  ? { ...method, hint: `One amount, at least ${draft.service === "junk" ? "$50" : "$35"}.` }
+                  : method,
+              )}
               onChange={(id) => update("pricingMethod", id as RequestDraft["pricingMethod"])}
             />
             {draft.pricingMethod === "fixed" || draft.pricingMethod === "range" ? (
@@ -818,7 +822,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                 label="Your price"
                 name="offerDollars"
                 inputMode="decimal"
-                hint="Minimum $35."
+                hint={draft.service === "junk" ? "Minimum $50." : "Minimum $35."}
                 value={draft.offerDollars}
                 error={errors.offerDollars}
                 onChange={(value) => update("offerDollars", value)}
@@ -830,7 +834,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                   label="Minimum"
                   name="budgetMinDollars"
                   inputMode="decimal"
-                  hint="At least $35."
+                  hint={draft.service === "junk" ? "At least $50." : "At least $35."}
                   value={draft.budgetMinDollars}
                   error={errors.budgetMinDollars}
                   onChange={(value) => update("budgetMinDollars", value)}

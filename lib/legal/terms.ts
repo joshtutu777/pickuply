@@ -36,9 +36,10 @@ export const termsSections: LegalSection[] = [
   },
   {
     id: "pricing",
-    heading: "Pricing and service fees",
+    heading: "Pricing",
     paragraphs: [
-      "Before the customer confirms, Pickuply shows the selected driver's offer, the card processing fee, any additional charges that apply at booking, and the total. The offer is the customer price. Pickuply's commission, starting at 15% of that offer, is taken from the driver's side and is not added again. The card processing amount starts from 2.9% plus 30 cents of the charge and is labeled Card processing fee. The amounts on the screen are the amounts used for that booking. A later change to the commission rate does not change a booking that already stored its own rate.",
+      "Before the customer confirms, Pickuply shows the selected driver's offer, the card processing fee, any additional charges that apply at booking, and the total. The offer is the customer price. Pickuply's commission is 15% of that offer unless the booking already stored a different rate. That commission is deducted from the offer, and the driver receives the rest. At 15%, the driver receives 85%. The commission is not added again, and there is no separate Pickuply service fee. Pickup, free-item, and store pickup offers start at $35. Junk removal offers start at $50.",
+      "The customer pays the offer plus the card processing fee. Pickuply does not pay that processing fee. The processing amount starts from 2.9% plus 30 cents of the charge and is labeled Card processing fee. It is shown separately before confirmation. Charging that fee on every card, including debit and prepaid cards, has to be reviewed against card-network rules before live payments. The amounts on the screen are the amounts used for that booking. A later change to the commission rate does not change a booking that already stored its own rate.",
       "When a driver accepts a posted price, that posted amount is the offer. Card processing is added on top and shown before the customer confirms. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
     ],
   },

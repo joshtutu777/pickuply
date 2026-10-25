@@ -100,16 +100,17 @@ export const trustPoints = [
   "Card charged after delivery",
 ] as const;
 
-/** Locked v1 policies. Booking fees live in platform_settings. These defaults match that row and are not added on the request form. */
+/** Locked v1 policies. Offer math lives in lib/fees.ts and platform_settings. These defaults are not added again on the request form. */
 export const fees = {
   currency: "USD",
   minimumCents: 3_500,
+  junkMinimumCents: 5_000,
   lateCancelFeeCents: 1_500,
   tripFeeCents: 2_500,
   damageCoverageLimitCents: 25_000,
   itemValueCapCents: 100_000,
-  platformFeeRate: 0.1,
-  platformFeeMinimumCents: 1_000,
+  platformFeeRate: 0.15,
+  platformFeeMinimumCents: 0,
   serviceFeeBps: 290,
   serviceFeeFixedCents: 30,
   capture: "manual",

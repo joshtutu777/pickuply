@@ -35,6 +35,7 @@ export function PayPanel({
           <>
             <p>{"Selected driver's offer "}{formatCents(offerCents)}</p>
             <p>Card processing fee {formatCents(serviceFeeCents)}</p>
+            <p className="text-muted">This processing fee is added to the offer. Pickuply does not add another service fee.</p>
             <p>{additionalCents === 0 ? "No additional charges" : `Additional charges ${formatCents(additionalCents)}`}</p>
           </>
         ) : null}

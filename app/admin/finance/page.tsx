@@ -166,9 +166,12 @@ function Overview({ jobs, previous, filters, now }: { jobs: FinanceJob[]; previo
         ))}
       </div>
       <h2 className="font-display text-2xl font-semibold">Pickuply revenue</h2>
+      <p className="text-base text-muted">
+        Commission is deducted from the offer. Customers pay card processing on top. Pickuply does not absorb that fee, and it is not a second platform fee. Net is commission plus card processing collected, minus Stripe&apos;s fee and refunds.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyStat label="Pickuply commission" value={money.platform} />
-        <MoneyStat label="Card processing fees" value={money.service} />
+        <MoneyStat label="Card processing collected" value={money.service} />
         <MoneyStat label="Stripe processing fees" value={money.stripe} />
         <MoneyStat label="Trip fees captured" value={money.trip} />
         <MoneyStat label="Late-cancel fees" value={money.lateCancel} />

@@ -86,7 +86,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold text-ink">Earnings</h1>
       <p className="mt-3 text-base text-muted">
-        These totals are your earnings after the Pickuply fee. A card authorization is not earnings until the payment is captured.
+        These totals are your earnings after the Pickuply commission. A card authorization is not earnings until the payment is captured.
       </p>
       <section className="mt-6 grid gap-3" aria-label="Earnings summary">
         <div className="rounded-3xl bg-brand p-4 text-white">

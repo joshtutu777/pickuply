@@ -77,7 +77,7 @@ function OfferMath({ cents, settings }: { cents: number; settings: FeeSettings }
     <div className="grid gap-1 rounded-2xl bg-paper p-3 text-base">
       <p>This amount is the price the customer sees. It is not your take-home pay.</p>
       <p>Offer amount {formatCents(cents)}</p>
-      <p>Pickuply fee ({Number.isInteger(percent) ? percent : percent.toFixed(2)}%) {formatCents(price.platformFeeCents)}</p>
+      <p>Pickuply commission ({Number.isInteger(percent) ? percent : percent.toFixed(2)}%) {formatCents(price.platformFeeCents)}</p>
       <p className="font-semibold">Your estimated earnings {formatCents(price.driverEarningsCents)}</p>
     </div>
   );
@@ -173,7 +173,7 @@ function OfferActions({
               className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
             />
           </label>
-          <p className="text-base text-muted">The customer sees this amount. Pickuply&apos;s fee comes out of it.</p>
+          <p className="text-base text-muted">The customer sees this amount. Pickuply&apos;s commission comes out of it.</p>
           <OfferMath cents={offerCents} settings={fees} />
           {reviewing ? (
             <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">

@@ -1,6 +1,10 @@
--- Commission is a percent of the customer-facing offer, taken from the driver.
--- The customer pays that offer plus card processing. Existing job and offer
--- cents are left as stored. New rows record the commission rate used.
+-- Commission is 15% of the customer-facing offer, deducted from that offer.
+-- The driver receives the other 85%, rounded half up. The customer pays the
+-- offer plus the card processing fee. Pickuply does not absorb that fee.
+-- There is no extra platform fee, service fee, or commission minimum.
+-- This file does not rewrite price, earnings, commission, or processing cents
+-- already stored on jobs or offers. New offers store the commission rate used.
+-- Offer floors stay $35, and $50 for junk removal.
 
 alter table public.platform_settings
   alter column platform_bps set default 1500,
@@ -44,6 +48,9 @@ begin
   end if;
   platform := amount_cents - earnings;
   total := public.smallest_covered_total(amount_cents, settings.service_bps, settings.service_fixed_cents);
+  if total < amount_cents then
+    raise exception 'card processing cannot be taken from the offer';
+  end if;
   return jsonb_build_object(
     'driver_earnings_cents', earnings,
     'platform_fee_cents', platform,
@@ -567,3 +574,36 @@ begin
   return new;
 end;
 $$;
+
+-- A posted customer price has to meet the service minimum. Older rows are not rewritten.
+create or replace function public.guard_posted_offer_floor()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  floor_cents integer;
+begin
+  if coalesce(public.is_migration_session(), false) then
+    return new;
+  end if;
+  floor_cents := public.offer_minimum_cents(new.service);
+  if new.pricing_method = 'fixed'
+    and new.offer_cents is not null
+    and new.offer_cents < floor_cents then
+    raise exception 'offer amount is below the minimum' using errcode = '23514';
+  end if;
+  if new.pricing_method = 'range'
+    and new.budget_min_cents is not null
+    and new.budget_min_cents < floor_cents then
+    raise exception 'offer amount is below the minimum' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists jobs_posted_offer_floor on public.jobs;
+create trigger jobs_posted_offer_floor
+  before insert on public.jobs
+  for each row execute function public.guard_posted_offer_floor();

@@ -11,11 +11,11 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "How is the price chosen?",
-        a: "You can ask for a quote, name a price, or set a budget range. The price is locked before anyone is booked. The lowest trip is $35.",
+        a: "You can ask for a quote, name a price, or set a budget range. The price is locked before anyone is booked. Pickup, free-item, and store pickup offers start at $35. Junk removal offers start at $50.",
       },
       {
-        q: "What is the platform fee?",
-        a: "You pay the driver's offer plus a card processing fee. Pickuply's commission comes out of the offer. It is not added on top.",
+        q: "What do I pay?",
+        a: "You pay the driver's offer plus a separate card processing fee. Pickuply's 15% commission comes out of that offer. It is not added again, and Pickuply does not pay the processing fee for you. There is no extra Pickuply service fee.",
       },
     ],
   },
@@ -123,6 +123,10 @@ export const driverTopics: HelpTopic[] = [
       {
         q: "Do I need Stripe before I take a job?",
         a: "No. Payout setup does not block going Online or accepting a job. Earnings stay held until payouts are set up.",
+      },
+      {
+        q: "What do I earn from an offer?",
+        a: "The amount you enter is the price the customer sees. Pickuply keeps 15% of that offer. You see that fee and your estimated earnings before you confirm. The customer also pays a separate card processing fee.",
       },
     ],
   },

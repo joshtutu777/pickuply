@@ -28,19 +28,19 @@ test("a fixed price under $35 is rejected", () => {
   assert.equal(validateStep("price", draft).offerDollars, undefined);
 });
 
-test("a budget range must start at $35 and the max must be higher", () => {
+test("a budget range must start at the service minimum and the max must be higher", () => {
   const draft = emptyDraft("junk");
   draft.pricingMethod = "range";
-  draft.budgetMinDollars = "35";
-  draft.budgetMaxDollars = "35";
+  draft.budgetMinDollars = "50";
+  draft.budgetMaxDollars = "50";
   draft.customerName = "Ada";
   draft.customerPhone = "14045551212";
   draft.hearAbout = "other";
   assert.match(validateStep("price", draft).budgetMaxDollars ?? "", /greater than/);
-  draft.budgetMinDollars = "20";
+  draft.budgetMinDollars = "35";
   draft.budgetMaxDollars = "80";
-  assert.match(validateStep("price", draft).budgetMinDollars ?? "", /at least \$35/);
-  draft.budgetMinDollars = "40";
+  assert.match(validateStep("price", draft).budgetMinDollars ?? "", /at least \$50/);
+  draft.budgetMinDollars = "50";
   assert.equal(validateStep("price", draft).budgetMinDollars, undefined);
   assert.equal(validateStep("price", draft).budgetMaxDollars, undefined);
 });

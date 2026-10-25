@@ -128,7 +128,7 @@ async function DriverJob({
         <div>
           <p className="font-semibold">Your earnings {formatCents(job.driver_pay_cents)}</p>
           {job.platform_fee_cents != null ? (
-            <p>Offer {formatCents(job.driver_pay_cents + job.platform_fee_cents)} · Pickuply fee {formatCents(job.platform_fee_cents)}{job.commission_bps != null ? ` (${job.commission_bps / 100}%)` : ""}</p>
+            <p>Offer {formatCents(job.driver_pay_cents + job.platform_fee_cents)} · Pickuply commission {formatCents(job.platform_fee_cents)}{job.commission_bps != null ? ` (${job.commission_bps / 100}%)` : ""}</p>
           ) : null}
         </div>
       ) : null}

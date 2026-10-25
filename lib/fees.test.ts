@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acceptFixedPrice, offerBreakdown } from "./fees";
+import { acceptFixedPrice, defaultFeeSettings, offerBreakdown } from "./fees";
 
 test("$50 offer keeps $7.50 and pays the driver $42.50", () => {
   const price = offerBreakdown(5_000);
@@ -30,15 +30,23 @@ test("an odd-cent offer rounds driver earnings half up and gives the remainder t
   assert.equal(price.driverEarningsCents + price.platformFeeCents, 5_001);
 });
 
-test("the customer is not charged the commission a second time", () => {
+test("the customer pays processing on top and Pickuply does not absorb it", () => {
   const price = offerBreakdown(5_000);
   assert.equal(price.customerTotalCents - price.subtotalCents, price.serviceFeeCents);
   assert.ok(price.serviceFeeCents > 0);
+  assert.equal(price.driverEarningsCents + price.platformFeeCents, price.subtotalCents);
   assert.equal(price.customerTotalCents, price.subtotalCents + price.serviceFeeCents);
 });
 
 test("a posted accept uses the same offer split", () => {
   assert.deepEqual(acceptFixedPrice(5_000), offerBreakdown(5_000));
+});
+
+test("a commission minimum does not change the split or add a fee", () => {
+  const price = offerBreakdown(5_000, { ...defaultFeeSettings, platformMinCents: 1_000 });
+  assert.deepEqual(price, offerBreakdown(5_000));
+  assert.equal(price.platformFeeCents, 750);
+  assert.equal(price.driverEarningsCents, 4_250);
 });
 
 test("one cent cannot pay the driver when the commission rounds the share to zero", () => {

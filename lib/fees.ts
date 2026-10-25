@@ -4,9 +4,12 @@
  *
  * The amount a driver or admin enters is the customer-facing offer.
  * Driver earnings = round half up(offer × (100% − commission)).
- * Pickuply commission = offer − driver earnings. It is not added again.
- * The customer pays the offer plus the card-processing amount only.
- * That processing amount is the smallest cent total whose separately rounded
+ * Pickuply commission = offer − driver earnings. It comes out of the offer.
+ * The customer pays that offer plus the card-processing amount. Pickuply does
+ * not pay the processing amount out of the commission or the driver earnings.
+ * There is no extra platform fee, service fee, or commission minimum.
+ * platformMinCents is kept so older settings rows still load. It is not applied.
+ * The processing amount is the smallest cent total whose separately rounded
  * percent plus the fixed amount still covers the offer.
  * Half-up: (numerator + denominator/2) / denominator for positive integers.
  */
@@ -80,6 +83,9 @@ export function offerBreakdown(
     throw new Error("driver earnings would be zero");
   }
   const total = smallestCoveredTotal(offerCents, settings);
+  if (total < offerCents) {
+    throw new Error("card processing cannot be taken from the offer");
+  }
   return {
     driverEarningsCents,
     platformFeeCents: offerCents - driverEarningsCents,

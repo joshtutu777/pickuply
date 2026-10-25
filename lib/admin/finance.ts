@@ -561,6 +561,7 @@ export function pricingBalances(job: FinanceJob): boolean {
   return parts && ledger;
 }
 
+/** Commission stays inside the offer. Card processing collected is the customer's separate fee, not a second Pickuply fee. */
 export function revenue(jobs: FinanceJob[]): {
   platform: Money;
   service: Money;

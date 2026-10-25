@@ -62,7 +62,7 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
         <IncludeTestData include={lane === "all"} path="/admin/payments" search={lane === "all" ? "includeTest=1" : ""} />
       )}
       <p className="mt-2"><Link href="/admin/finance" className="font-semibold text-brand">Open the payments report</Link></p>
-      <p className="mt-2 text-base text-muted">Card holds, captures, and refunds. A shortfall means the Stripe fee was higher than the service fee.</p>
+      <p className="mt-2 text-base text-muted">Card holds, captures, and refunds. A shortfall means Stripe&apos;s fee was higher than the card processing collected from the customer.</p>
       {(jobs ?? []).length === 0 ? <p className="mt-6">No card payments yet.</p> : null}
       <ul className="mt-6 grid gap-3">
         {(jobs ?? []).map((job) => {
@@ -79,7 +79,7 @@ async function Payments({ searchParams }: { searchParams: Promise<Record<string,
               <p>Total {formatCents(job.price_cents ?? 0)} · Captured {formatCents(job.captured_cents ?? 0)} · Refunded {formatCents(job.refunded_cents ?? 0)}</p>
               <p>Offer {job.driver_pay_cents == null ? "not set" : formatCents((job.driver_pay_cents ?? 0) + (job.platform_fee_cents ?? 0))} · Card processing {formatCents(job.service_fee_cents ?? 0)} · Pickuply commission {formatCents(job.platform_fee_cents ?? 0)} · Driver earnings {job.driver_pay_cents == null ? "not set" : formatCents(job.driver_pay_cents)}</p>
               <p>Stripe fee {fee?.stripe_fee_cents == null ? "not posted yet" : formatCents(fee.stripe_fee_cents)} · Payment {job.payment_status ?? "not started"}</p>
-              {fee?.fee_shortfall ? <p>The card fee was higher than the service fee.</p> : null}
+              {fee?.fee_shortfall ? <p>Stripe&apos;s fee was higher than the card processing collected.</p> : null}
               {fee?.capture_before ? <p>Authorization ends {new Date(fee.capture_before).toLocaleString()}.</p> : null}
             </li>
           );

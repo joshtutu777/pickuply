@@ -702,7 +702,11 @@ Checked on the live site: street search returns house numbers and fills street, 
 
 ## Offer commission (2026-10-24)
 
-Local only. A driver offer is the customer price. Pickuply keeps 15% of that offer and the driver receives the other 85%, rounded half up. The customer pays the offer plus card processing. The rate is stored on the offer and copied to the job. Older rows keep the cents already saved. Migration `0073` is applied on the local database only. The full database suite passed, 34 files and 587 tests. Application unit tests passed. The hosted database was not changed, and the site was not deployed.
+Local only. A driver offer is the customer price. Pickuply keeps 15% of that offer and the driver receives the other 85%, rounded half up. The customer pays the offer plus card processing. Pickuply does not absorb that processing fee, and there is no extra service fee. Offer floors stay $35, and $50 for junk removal. The rate is stored on the offer and copied to the job. Older rows keep the cents already saved. Migration `0073` is applied on the local database only. The hosted database was not changed, and the site was not deployed.
+
+## Pricing clarification (2026-10-25)
+
+Local only. Pickuply's commission stays 15% of the customer-facing offer and is deducted from that offer. The driver receives the other 85%, rounded half up. The customer pays the offer plus the card processing fee. Pickuply does not absorb that fee, and there is no extra platform or service fee. Offer floors stay $35, and $50 for junk removal. Drivers see the commission and estimated earnings before they confirm an offer. Checkout lists the stored offer and the stored card processing fee on separate lines when those amounts add up to the stored total. A stored total that does not match is charged as one line, so older jobs are not repriced. Migration `0073` already had this split. Its header now states that stored cents are left alone. The posted-price floor was in that file but missing from the local database, so `0074` installs the same guard here. It does not rewrite stored cents. The hosted database was not changed, and the site was not deployed. Card-network rules for charging this fee, including on debit and prepaid cards, still need a review before live payments. `npm run typecheck` passed. `npm run test:unit` passed, 156 tests. `supabase test db` passed, 34 files and 589 tests.
 
 ## License date (2026-10-24)
 

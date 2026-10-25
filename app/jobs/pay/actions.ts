@@ -3,6 +3,7 @@
 import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { checkoutLines } from "@/lib/payments/checkout-lines";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
 import { getStripe } from "@/lib/stripe";
@@ -43,6 +44,13 @@ export async function startCheckout(formData: FormData) {
     driver_id: string;
     due_at: string;
   };
+  const priced = await supabase
+    .from("jobs")
+    .select("driver_pay_cents, platform_fee_cents, service_fee_cents")
+    .eq("id", jobId)
+    .maybeSingle();
+  const offerCents = (priced.data?.driver_pay_cents ?? 0) + (priced.data?.platform_fee_cents ?? 0);
+  const processingCents = priced.data?.service_fee_cents ?? 0;
   const expiresAt = checkoutExpiresAt(new Date(row.due_at).getTime(), new Date().getTime());
   let sessionId = "";
   let sessionUrl: string | null = null;
@@ -52,16 +60,7 @@ export async function startCheckout(formData: FormData) {
       {
         mode: "payment",
         allowed_payment_method_types: ["card"],
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: "usd",
-              unit_amount: row.amount_cents,
-              product_data: { name: "Pickuply job" },
-            },
-          },
-        ],
+        line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",
           metadata: { job_id: jobId, driver_id: row.driver_id },

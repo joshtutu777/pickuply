@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(16);
+select plan(18);
 
 do $$
 declare
@@ -58,6 +58,12 @@ select is(
   (public.price_breakdown('forward', 5000)->>'customer_total_cents')::int,
   5000 + (public.price_breakdown('forward', 5000)->>'service_fee_cents')::int,
   'the customer pays the offer plus card processing only'
+);
+select ok(
+  (public.price_breakdown('forward', 5000)->>'service_fee_cents')::int > 0
+    and (public.price_breakdown('forward', 5000)->>'driver_earnings_cents')::int
+      + (public.price_breakdown('forward', 5000)->>'platform_fee_cents')::int = 5000,
+  'processing is added for the customer and the commission stays inside the offer'
 );
 
 select pg_temp.make_user('c1730000-0000-4000-8000-000000000001', 'fee-customer@pickuply.test');
@@ -165,6 +171,21 @@ select is(
    where job_id = 'c1730000-0000-4000-8000-000000000011' and kind = 'assigned'),
   'The customer chose you for a job in Austell 30168. Your earnings are $85.',
   'the assignment notice includes the stored driver earnings'
+);
+
+select pg_temp.as_user('c1730000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$insert into public.jobs (
+    id, customer_id, service, status, zone_id, pickup_area, description, pieces, size,
+    item_value_cents, stairs_pickup, elevator, help_loading, preferred_date, pricing_method, offer_cents
+  ) values (
+    'c1730000-0000-4000-8000-000000000012',
+    'c1730000-0000-4000-8000-000000000001',
+    'junk', 'open', (select id from public.zones where slug = 'west_metro'),
+    'Austell 30168', 'low junk price', 1, 'medium', 0, 0, false, false, 'asap', 'fixed', 4000
+  )$$,
+  'offer amount is below the minimum',
+  'a junk price under $50 is rejected'
 );
 
 select * from finish();
