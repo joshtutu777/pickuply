@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { codeSentMessage, maskUsPhone, normalizeUsPhone } from "./phone";
+import { codeSentMessage, formatUsPhone, maskUsPhone, normalizeUsPhone } from "./phone";
 
 const phone = "+15555550100";
 
@@ -13,6 +13,12 @@ test("normalizes US numbers to +1 and ten digits", () => {
   assert.equal(normalizeUsPhone("+44 20 7946 0958"), null);
   assert.equal(normalizeUsPhone(""), null);
   assert.equal(normalizeUsPhone("not a phone"), null);
+});
+
+test("shows the signed-in person's full number", () => {
+  assert.equal(formatUsPhone("(555) 555-0100"), "(555) 555-0100");
+  assert.equal(formatUsPhone("+15555550100"), "(555) 555-0100");
+  assert.equal(formatUsPhone("123"), null);
 });
 
 test("masks every digit except the last four", () => {

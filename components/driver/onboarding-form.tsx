@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { TextField } from "@/components/request/fields";
+import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { validateFullName } from "@/lib/auth/name";
+import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 const services = [
@@ -42,12 +44,12 @@ async function uploadDoc(
   if (file.size > 5 * 1024 * 1024) {
     throw new Error("Each photo must be 5 MB or smaller.");
   }
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${userId}/${name}.${ext}`;
+  const prepared = await compressImage(file);
+  const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
     upsert: true,
-    contentType: file.type || "image/jpeg",
+    contentType: "image/jpeg",
   });
   if (error) throw new Error("We couldn't upload that photo. Try again.");
   return path;
@@ -81,6 +83,7 @@ export function OnboardingForm({
   const [licenseExpires, setLicenseExpires] = useState("");
   const [insuranceExpires, setInsuranceExpires] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("zelle");
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [payoutHandle, setPayoutHandle] = useState("");
   const [agreements, setAgreements] = useState<string[]>([]);
   const [signature, setSignature] = useState("");
@@ -153,6 +156,16 @@ export function OnboardingForm({
         setError(saveError.message);
         setPending(false);
         return;
+      }
+      if (smsOptIn) {
+        const consentError = await recordOptionalSmsConsent("driver_onboarding");
+        if (consentError) {
+          setError(
+            "Your application was saved. We couldn't save your text-message choice, so optional texts stay off.",
+          );
+          setPending(false);
+          return;
+        }
       }
       router.push("/driver/onboarding?submitted=1");
       router.refresh();
@@ -373,6 +386,7 @@ export function OnboardingForm({
         />
       </section>
 
+      <SmsConsent audience="driver" checked={smsOptIn} onChange={setSmsOptIn} />
       {error ? (
         <p role="alert" className="text-base font-medium text-danger">
           {error}

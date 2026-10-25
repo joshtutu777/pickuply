@@ -322,6 +322,12 @@ A read-only comparison after that apply matched the local schema on functions, p
 | `supabase/migrations/0011_request_photo_access.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0010`. | Replaces the `0009` request-photo policies with `request_photo_visible`. |
 | `supabase/migrations/0012_quote_expiry.sql` | 2026-10-22 | Applied earlier by the same local migration. | Applied. | Hosted: Management API, after `0011`. | A quote with no expiry can still be accepted. A past expiry is rejected. |
 | `supabase/migrations/0013_assignment_documents.sql` | 2026-10-22 | Applied earlier by `supabase migration up --local`. | Applied. | Hosted: Management API, after `0012`. | Assignment, vehicle approval, and document expiry after approval go through the audited paths. |
+| `supabase/migrations/0014_sms_consent.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Optional SMS consent is a separate unchecked checkbox. A phone number is not consent. |
+| `supabase/migrations/0015_job_tracker.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Customers see only the assigned driver's first name, profile photo, and vehicle. Notifications move to 0016. |
+| `supabase/migrations/0016_notifications.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Texting stays off until an admin enables it. |
+| `supabase/migrations/0017_messages.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Messages cannot contain a phone number or email. |
+| `supabase/migrations/0018_proof_reports.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | A report holds capture and payout. It does not refund a card. |
+| `supabase/migrations/0019_notification_dedupe.sql` | 2026-10-22 | Applied by `supabase migration up --local`. | Not applied. | Local only. Waiting for approval before the hosted project. | Fixes an alert insert that blocked saving a new job. |
 
 ## Step 3c — save real requests (2026-10-22)
 
@@ -386,6 +392,336 @@ Migration `0013_assignment_documents.sql` closes the gaps found in review: docum
 
 `0007` through `0013` were applied to the hosted database through the Management API, one file at a time, in order. `0001` through `0006` were not run again. None of the seven calls failed.
 
+## SMS consent for Twilio review (2026-10-22)
+
+`/login` and driver onboarding show the SMS disclosure, links to `/privacy` and `/terms`, and an unchecked optional checkbox. Entering a phone number does not opt anyone in. A checked box calls `record_sms_consent` after sign-in or after the application is saved, and the row stores the profile, time, disclosure version `2026-10-22`, and source `login` or `driver_onboarding`. Existing phone OTP is unchanged, and no SMS is sent from this step.
+
+`supabase/migrations/0014_sms_consent.sql` is written and applied locally only. It has not been applied to the hosted project.
+
 `platform_settings` id 1 is present with platform 1000 bps, platform minimum 1000 cents, service 290 bps, service fixed 30 cents, and a 30 minute payment deadline.
 
 The read-only fingerprint matched on columns (166), constraints (56), indexes (27), functions (43), function grants (78), table grants (226), policies (41), triggers (22), row level security (15), enums (61), and the `job-photos` and `driver-docs` buckets. Digests were identical. The comparison still leaves out the local-only platform objects `storage.iceberg_namespaces`, `storage.iceberg_tables`, and the `enforce_versioning_status_transition` trigger.
+
+## Admin operations dashboard (2026-10-22)
+
+`/admin` is now the operations dashboard. Summary cards, the needs-action list, driver counts, and the latest 25 job and audit events come from the signed-in admin's Supabase session. Existing request review, quotes, publishing, invitations, assignment, driver review, and settings stay on their current pages. `/admin/requests` is the searchable list. Jobs & Assignments opens that list on open and in-progress jobs. Payments is labeled "Coming in Step 5" and is not a link. Customers is omitted. No new migration. This is local only and has not been applied or deployed to the hosted project.
+
+## Step 6a — job tracker (2026-10-22)
+
+The request page, each active account card, and the assigned driver's job page share one progress list: request received, price confirmed, driver confirmed, payment confirmed, heading to pickup, arrived, item checked, picked up, delivered, and completed. Junk jobs say "Load picked up" and "Hauled away", and add "Disposal receipt uploaded" when a dump fee is stored. Cancelled and disputed jobs say so. A rescheduled or reassigned event would show that label, but those workflows are not built. Once a driver is assigned, the customer sees that driver's first name, profile photo, and vehicle through `assigned_driver_card`. The driver moves the job with `advance_job`. Item pickup still waits for the customer, and payment still cannot be collected until Step 5.
+
+`0015_job_tracker.sql` is local only. Notifications, messages, and proof are planned as `0016`, `0017`, and `0018` because this tracker function had to come first. `0014` remains local only.
+
+## Step 6b — notifications (2026-10-22)
+
+Each person gets an in-app alert list with an unread count in the header. A database trigger writes the alert when a request, quote, offer, assignment, payment, or job step changes. Online drivers in the job's zone are told about a new open job. Admins are told about new requests, driver applications, no offers after 20 minutes, and a missed payment deadline. The 20-minute and payment checks run from `/api/cron/notifications` every five minutes and require `CRON_SECRET`. Push uses a service worker and VAPID keys. Email uses Resend when `RESEND_API_KEY` and `RESEND_FROM` are set. Texting has a Twilio path, but `sms_enabled` defaults to off and an admin has to turn it on. The copy-ready admin text on a request is unchanged. No-show alerts are not part of this step.
+
+`0016_notifications.sql` is local only.
+
+## Step 6c — messages (2026-10-22)
+
+A job conversation opens when a driver is assigned and closes 24 hours after the job is completed. The customer, the assigned driver, and an admin can read and post. The screen checks for a phone number or email and will not send one. Drivers get four quick replies. Contact support on a job, the account page, and the driver job page opens one support thread and shows the support phone and email from settings when those are saved. The admin dashboard lists open threads with unread counts. New messages create an in-app alert that does not include the message text.
+
+`0017_messages.sql` is local only. Proof and reports are planned as `0018`.
+
+## Step 6d — proof and disputes (2026-10-22)
+
+Drivers add pickup, drop-off, and receipt proof from the job page. Photos are redrawn in the browser before upload, which drops the original location data. A video has to be 30 seconds or less and is re-recorded in the browser for the same reason. Proof cannot be deleted or replaced. Approximate location stays off unless an admin turns it on, the driver checks the box, and the stored point is rounded to two decimals. Only an admin can read that point.
+
+A problem report during the job, or within 7 days after completion, marks the job disputed and holds capture and payout creation. It does not change a payment that is already captured, and it does not create a Stripe refund. An admin records the outcome, amount, reason, and whether the holds come off. A driver pause is one of those outcomes. Strikes are not built. Cancellation fees, rescheduling, no-shows, and reassignment are still waiting until after Step 5 payments.
+
+`0018_proof_reports.sql` is local only. `0014` through `0019` are not on the hosted project. `0019` only renames the way an alert is inserted after an argument name blocked a new job from being saved. Local pgTAP `0018_proof_reports.test.sql` passed 12 tests: proof counts differ by service, a report leaves a completed capture alone, and a dispute blocks a new capture, a new payout, and deleting a photo. A customer cannot read the rounded proof location.
+
+## Local verification before Step 5 (2026-10-22)
+
+The local database was reset and migrations `0001` through `0019` were applied in order. The full pgTAP suite passed: 6 files, 210 tests. That is the earlier 192 assertions plus SMS consent (6) and proof/reports (12). Lint, typecheck, 63 unit tests, and the production build passed.
+
+Local Playwright passed 23 tests. One hosted admin sign-in test was skipped because those credentials stay in `.env.local`. The local walk signed in with the placeholder numbers, chose a driver, confirmed the tracker through payment, blocked a phone number in chat, exchanged a message, and filed a problem report that left the job disputed. The admin dashboard suite passed against the same local database.
+
+A claimed job now shows up in the driver's assigned list without a manual reload. The job page waits for a request-time render before formatting dates, so prerender no longer stops on the current time. "Last update" and whether a conversation is closed are read in the browser.
+
+## Untested edge cases
+
+- Hosted pages still use the hosted database, so the new tracker, alerts, messages, proof, and reports were not clicked through in the hosted browser. The same walk passed on the local database.
+- Push delivery needs VAPID keys, and email delivery needs Resend. Those sends were not exercised.
+- Texting stays off. The Twilio call was not made.
+- The iPhone Home Screen hint is shown only on an iPhone browser, which was not opened here.
+- A video re-record depends on the browser supporting capture of a playing video.
+- Two reports on one job keep the holds on, and a resolution that releases only one hold leaves the other.
+- Step 5 calls the capture hold before it captures a card. A refund outcome on a dispute starts the Stripe refund before the holds come off. The signed-in Stripe test walk, including a real transfer, has not been run.
+
+## Step 5 — payments (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0020` through `0024` are applied on the local database.
+
+Drivers start Stripe Express payout setup from the driver home and the earnings page. The app stores the Connect account id and status fields only. Saving that row uses the service role because a driver must not be able to mark payouts as enabled. That is the only new use of the service role outside webhooks and cron.
+
+After a driver is assigned, the customer sees the driver, the subtotal, the service fee, the total, and a countdown, then pays with Checkout. The card is authorized, not captured. If fewer than 30 minutes remain, Checkout uses Stripe's 30-minute minimum, and an authorization that arrives after the job was reopened or reassigned is released. The payment-deadline cron reopens an unpaid job. Quote jobs stay at the same driver pay. A chosen offer expires.
+
+The customer approves or rejects the pickup photo. Rejection records the trip fee and captures only that amount. "Got it", or 24 hours after delivery, captures the full authorization if it is still inside `capture_before`. A cancel before work starts is free before payment and releases the whole hold after authorization. The $15 late-cancel fee is not built. When it is, it will be one partial capture on this same authorization.
+
+Driver earnings are one ledger line. A junk disposal estimate is not added. Transfers wait for the payout delay, a finished Connect account, no dispute hold, and `available_on`. The transfer idempotency key is the ledger id. A transfer is not a bank payout. Admins can record an outside payment, refund, reverse a transfer, or deduct a named future earning. None of those happen by themselves.
+
+Manual cron checks, with `CRON_SECRET` from the environment: `/api/cron/payment-deadlines` every five minutes, `/api/cron/auto-complete` and `/api/cron/transfers` every fifteen minutes.
+
+Not run in the first pass: the Stripe test-card walk. That walk is recorded below.
+
+## Step 5 verification (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0025`, `0026`, and `0027` are applied on the local database after `0001` through `0024`.
+
+`0025` adds a seconds payout delay for tests, card-dispute rows, dispute outcomes, and the ledger and refund alerts. `0026` fixes refund recording: the refund id argument had the same name as the column, so Postgres rejected the update. `0027` fixes the same kind of bug on authorization: the charge id was not saved, the webhook returned 500, and the job stayed unpaid.
+
+This Stripe test account uses Accounts v2 with Managed Risk. Stripe collects the losses, so a new payout account is an Express dashboard merchant with card payments requested. The customer's card is still charged on the platform account. The connected account is only there to receive a transfer. A recipient account for separate charges and transfers was rejected until the platform accepts loss liability in the Dashboard. Express terms cannot be accepted through the API, and the hosted form is behind a captcha, so payouts stayed off in the automated walk. The transfer cron ran and left the ledger `held_until_onboarding` with no transfer id.
+
+Checkout's hosted pay button was covered by a verification modal. The test opens the real Checkout page, then confirms that same session with Stripe's test card token: `tok_visa` for 4242, `tok_chargeDeclined` for the declined card, and `tok_createDispute` for the chargeback card.
+
+`stripe listen` on this machine needs `--all-snapshot`. The Connect webhook secret was not in `.env.local`. The test server used the listener secret for both webhook endpoints. Receipt email was not sent because Resend is not configured. The receipt on the job page was shown.
+
+Full local pgTAP: 8 files, 230 tests, pass. Lint, typecheck, 77 unit tests, and the production build passed. Playwright against the local database passed 12 payment tests, including the three crons called with `CRON_SECRET`.
+
+## Shorter request and driver application (2026-10-22)
+
+Local only. Not pushed, and not applied to the hosted database. Migrations `0028` through `0031` are on the local database.
+
+A customer request is four screens. Size, pieces, item value, purchase questions, junk materials, and store info are optional. Junk load size is shown and optional; without it the estimate says the price is confirmed after review. The estimate sentence ends with "Final price confirmed after review." A signed-in customer skips name, phone, and the code. The draft still omits phone, email, and street addresses.
+
+An admin can ask for a checklist of missing details. Quote and publish stay blocked until the customer answers and the request returns to review.
+
+A driver can submit a short application. Approval does not allow Online, a claim, an offer, or an invited job until insurance, an approved vehicle, services, the agreement, and training are done. Payout setup stays optional for claiming. `/admin/funnel` counts those steps. Raw events are deleted after 90 days and do not store names, phones, emails, or addresses.
+
+## Mobile home refresh (2026-10-22)
+
+Local UI only. No schema, pricing, payment, or eligibility changes. Customers get a home dashboard, an all-requests list, and a messages list that opens only threads that already exist. Drivers get the same card language, and earnings are split from the ledger into completed, pending transfer, and transferred. A card authorization is not counted. The phone bar is hidden on the request form, login, quick apply, and the readiness checklist. On a phone it sits in the page flow, with the raised New button inside that band, so the first screen and the last form scroll clear of it.
+
+## Communications and the installable app (2026-10-24)
+
+`/admin/communications` sends one-way announcements through in-app alerts, push, and text. Texting stays off. Push is not marked as shown on a phone. Private conversations stay in Messages. The manifest can be installed, and `/app` sends a signed-in person to the right home. Local migration `0062_admin_announcements.sql` is not on the hosted database. Phone installation was not run on a device.
+
+## Customer records and phone recovery (2026-10-24)
+
+`/admin/customers` lists people and `/admin/customers/[id]` shows the profile, phone, jobs, payments, reviews, help, messages, suspension history, deletion status, and audit history. A missing phone-protection secret no longer blocks sign-up or deletion. It is skipped, audited, and shown as a red banner on `/admin`. A quiet phone of 12 months asks "Is this your account?" after the code. Dispute photos stay 365 days after the dispute is resolved. Keep two admins. `scripts/promote-admin.sql` is the last-resort recovery script and is not a migration. Local migration `0063_account_followups.sql` is not on the hosted database.
+
+## Account policy rules (2026-10-24)
+
+The nine approved account rules are now in the spec. A suspended driver can finish a job that is already in transit. An assigned job that has not started is flagged for an admin and is not cancelled or refunded. Suspension does not hold earnings by itself. Delete Account waits 14 days and can be cancelled during that time. Stop Driving is separate from Delete Account. Contact support on a restriction notice opens the existing help form. The last active admin cannot be removed. Local phone protection uses Vault, not a committed secret. Migration `0061_account_policy.sql` is local only. Customer records are now at `/admin/customers`. Suspension also stays on the request page and the accounts list.
+
+## Account suspension and deletion (2026-10-24)
+
+Admins suspend and reinstate customers and drivers from the driver page, the request page, and `/admin/accounts`. Suspension is its own record. It is not Offline and it is not the driver Paused status. Open requests with no accepted offer are paused. Unaccepted offers are closed. Accepted jobs and payment rows stay. A person can still sign in and sees a restriction notice. Delete Account is at the bottom of Profile. Eligible accounts are anonymized. Accounts with an open job or open money stay pending. Restricted-phone blocking needs the database setting `pickuply.phone_hmac_secret`, which is not stored in the migration. Local migration `0060_account_suspension.sql` is not on the hosted database. The pass is in `docs/TEST_REPORT.md`.
+
+## Reviews, new-driver hold, and self-dealing (2026-10-24)
+
+Completed jobs can be reviewed by the customer and the assigned driver. Reviews stay hidden until both are in or 14 days pass. Drivers with fewer than five completed jobs wait 48 hours before a transfer can become ready. A person cannot browse or offer on their own request. Driver document and chat photos are re-encoded to JPEG before upload so GPS data is not stored. Finance date windows use America/New_York midnight, including the 2026 daylight-saving change. Local migrations `0058_job_reviews.sql` and `0059_payout_hold_and_self_deal.sql` are not on the hosted database. The full pass is in `docs/TEST_REPORT.md`.
+
+## Admin payments report (2026-10-24)
+
+`/admin/finance` is the Payments item in the admin menu. It reads jobs, payments, the ledger, disputes, and reports. It does not change capture, refund, or transfer rules. Stripe fees stay unavailable when the balance transaction was not stored. Late-cancel fees are not tracked. A bank payout is not stored on the job, so that column says Not tracked. Admin quotes are not stored separately from Get offers. Saved filters are in local migration `0057_admin_finance_views.sql`, which is not on the hosted database. The older Payments and Payouts pages remain, and payout actions stay on Payouts.
+
+## Landing page (2026-10-24)
+
+The public home page follows `design-reference/pickuply-landing-updated/index.html`. That folder is gitignored. The four service drawings are copied to `public/images/landing/`. No photographs were in the reference folder, so the cards use those drawings plus the original icons. Post a pickup opens `/request`. Drive with us and Apply to drive open `/drive`. Sign in opens `/login`. The app header and footer, including the Admin link, are not shown on the home page. Step 2 says customers can name a price, set a budget, or get offers, and then choose. A Georgia outline says Serving Georgia and has no driver locations.
+
+## Payment lifecycle check (2026-10-24)
+
+Local only. Not pushed, and not applied to the hosted database. No payment rule, fee, capture, refund, or transfer rule was changed.
+
+The Stripe Playwright suite ran against the local database with Stripe test cards. `stripe listen` forwarded test webhooks to the local app. The listener secret stayed in a temp file. `.env.local` and `.env.test.local` were not edited. The service role used by that test server is the local Supabase key injected by `playwright.stripe.config.ts`. The normal dev server still has an empty `SUPABASE_SERVICE_ROLE_KEY`, so Checkout there still stops with "Service role is not configured."
+
+Fourteen tests passed. Eleven passed in one run. The 24-hour and expired-authorization tests failed in that run because `jobs_guard` sets `updated_at` to now on every update, so a plain backdate did not stick. The rerun sets the role to replica for that one update, and both passed. The refund-before-transfer test missed "I've arrived" once and passed on the rerun. That was a timing miss, not a second charge.
+
+Verified in Stripe test mode: a fixed-price request opened, the assigned test driver accepted the posted price, the customer chose that driver, Checkout authorized `tok_visa` without capturing, the driver moved the job through pickup and delivery, "Got it" captured once and stored the Stripe fee, and the transfer cron left one ledger row `held_until_onboarding` with no transfer id. The same capture happened from `/api/cron/auto-complete` after a delivered job was 25 hours old, and a second cron call did not capture again. An authorization with `capture_before` in the past stayed `authorized` on the same PaymentIntent, created no ledger row, and notified admin. A declined card stayed failed. A late authorization after the payment window was released. Rejecting the item captured only the $25 trip fee. A problem report blocked capture. An admin refund before capture canceled the hold. A refund before transfer reduced the ledger. A refund after a recorded transfer created a recovery and did not deduct the ledger. A test dispute held the ledger. An expired Checkout session could be started again.
+
+Not verified: a Stripe transfer to a finished Connect account, a bank payout, an insufficient-funds card as its own case, a forced failed capture other than the expired hold, a duplicate live webhook, a driver or customer cancel before pickup, and one driver opening another driver's job. Database test `0025_payments.test.sql` still covers the ledger, dispute hold, and refund rules. It is not a card charge. Express payout setup still stops at Stripe's hosted test form, so a transfer id was not created. A transfer would not be a bank deposit anyway.
+
+Paid bookings are not launch-ready. The four frequent cron routes are not scheduled. Stripe still refuses any key that is not `sk_test_`.
+
+## Ask for details on a published request (2026-10-24)
+
+A published request stays `open` when an admin asks for details. Drivers can still send offers unless the admin pauses it. Only an admin quote waits for the answer. A paused request is hidden, and a new offer is rejected by the database. The question goes to Pickuply Support and to the customer's alerts, with an Add details button that opens `/jobs/{id}/edit`. Pause until updated is optional. A customer update publishes a paused request again and tells drivers who already offered to review the offer. Local migration `0066_published_details.sql` is not on the hosted database.
+
+## Beta feedback (2026-10-23)
+
+The header shows a Beta badge while `NEXT_PUBLIC_BETA_MODE` is not `false`. Customers and drivers send feedback at `/feedback` from the desktop menu and from Profile. The phone bar is unchanged. The form stores type, subject, details, the signed-in user, role, route, version, and a short device string. Screenshots are deferred because there is no private attachment path yet. Local migration `0056_beta_feedback.sql` is applied here and is not on the hosted database. Admin notes are a separate table. Only an admin can list every report, change status, or read notes. Duplicate reports in a 10-minute window are rejected, and a person can send at most eight in an hour. `/admin/feedback` shows the counts and filters. No text or email is sent.
+
+## Launch readiness pass (2026-10-23)
+
+`/privacy` and `/terms` follow the Word documents in `docs/legal/`. The Word files stay untracked. The terms section on offers and payment was aligned with the current code: an offer is not a booking, the customer chooses the driver, the card is authorized at confirm, and capture is after delivery or 24 hours later. Arbitration, liability caps, and a published cancellation fee were not added.
+
+## Published legal pages (2026-10-23)
+
+The public Privacy Policy and Terms no longer say that lawyer approval is required or that the pages are drafts. The effective date stays October 22, 2026. The operator name is Pickuply and the contact is info@pickuplyapp.com, matching the source documents. Insurance, cancellation, damage, and dispute wording was not given new dollar amounts, arbitration, or a liability cap. A later legal review can still be done, and it is not a launch requirement. `/terms/driver` remains a placeholder.
+
+`/signup` redirects to phone sign-up. `/driver/apply` redirects to the driver application. The optional SMS checkbox is separate, unchecked, and worded for customers and drivers. Consent version `2026-10-23` turns on that person's optional texts. STOP is recorded by `POST /api/twilio/sms` and turns them off. Local migration `0055` is applied here and is not on the hosted database.
+
+`/drive` reads the session inside Suspense so the production build can prerender the public page. The help-route type errors cleared once Next regenerated `.next/types` with `/help` included. No type check was disabled.
+
+Vercel Hobby cannot run the five-minute and fifteen-minute crons. Those four routes were removed from `vercel.json` and are documented for `pg_cron` in `docs/SCHEDULER.md`. They are not scheduled on the hosted database. Paid bookings are not ready until that scheduler or Vercel Pro is running. Checkout still fails in this dev process when `SUPABASE_SERVICE_ROLE_KEY` is empty. That variable was not added to a secret file from here. Stripe still refuses any key that is not `sk_test_`.
+
+## Booking confirmation (2026-10-23)
+
+The assigned-job payment panel is headed Confirm Your Booking. The button says Confirm Booking & Payment. It lists the selected driver's offer, the service fee, additional charges (none at booking), and the customer total. The note says the card is authorized at confirm, charged after delivery is confirmed or 24 hours later, and is not charged if the authorization expires first. Checkout, capture, refunds, and payouts are unchanged.
+
+## Customer offer counts (2026-10-23)
+
+My Requests shows how many active offers a request has and how many of those the customer has not viewed. An open request with none says "Waiting for driver offers." Cards with new offers are highlighted, and the Requests menu shows that number on desktop and on the phone bar. An offer is marked viewed only when its card is on screen in the offer list. The time is stored in `offer_views`, so another device sees the same state. Withdrawn, expired, declined, and chosen offers stay in history and are left out of the counts. Local migration `0054` is applied. It is not on the hosted database.
+
+## Driver offer form (2026-10-23)
+
+The driver offer form has one field, Offer Amount ($), and one Submit Offer button. It does not show a customer total or a fee breakdown. The server still stores the customer total from the existing fee schedule. Submitting an offer does not assign the driver. Settings can change the minimum offer: $35 for pickup and delivery, $50 for junk removal, $35 for store delivery, and $35 for free-item pickups. There is no twice-the-price maximum, and a counter no longer needs a written reason. A job can have five active offers. A driver can offer on more than one job. When both stair counts are zero, the card says "No stairs reported." Local migration `0053` is applied. It is not on the hosted database.
+
+## Desktop navigation (2026-10-23)
+
+At 768px and wider, a signed-in customer or driver sees Home, Requests or Jobs, Messages, Alerts, and Profile in the header. The phone bar stays under that width and uses the same destinations. Admin keeps a side menu from 768px up: Dashboard, Requests, Drivers, Messages, Alerts, and Settings. The logo still opens the current mode home and does not switch modes. The service worker does not cache pages.
+
+## Driver feed sections (2026-10-23)
+
+The open driver feed was one list that polled every 25 seconds. An unassigned driver cannot read `jobs` under row-level security, so a subscription on that table would not wake the feed. A new signal row carries only a time. The signed-in driver refetches Matched for You and All Georgia Requests, and a late response cannot replace a newer one. The screen also refreshes on focus, reconnect, a manual button, a pull down, and a 20-second fallback while the tab is visible. Local migration `0052` is applied. It is not on the hosted database.
+
+## Waves stay off (2026-10-23)
+
+Settings has Waves enabled, and it starts off. While it is off, an open request is not held for a wave or an invitation. A job can have five active offers. A driver can offer on more than one job. Online drivers whose Areas I cover match get a new-job alert, and Offline drivers with Job alerts while Offline on get one too. Turning waves on follows `docs/WAVES.md`. Visibility uses the time the request opened.
+
+## Requests publish on submit (2026-10-23)
+
+A valid customer request is `open` as soon as it is saved. Get Offers, fixed price, and budget range no longer wait for an admin to approve them. Drivers send an offer on a Get Offers job, and the customer chooses it. Claim still assigns only an optional admin quote that already has driver pay. The admin request screen no longer asks for a zone or an approval. Pause, invite a driver, and an optional admin quote stay, and each one is audited. Local requests that were still `requested` were published and written to `audit_log`. Request photos can still be attached while that request is open.
+
+## Navigation homes (2026-10-23)
+
+A person with a driver record lands on /driver after login unless they used Switch to customer. Drive with us and Quick Apply send an existing applicant to the driver home. The logo goes to that same home. Signed-out visitors still open the public landing page.
+
+## Google Maps (2026-10-23)
+
+Browser maps use the Maps JavaScript API. MapLibre and MapTiler are removed after tiles rendered on desktop and an iPhone-sized screen. Unassigned drivers still see one-mile circles around pickup ZIP centroids. Exact pins stay on the customer job, the assigned driver job, and the admin request. The request form previews verified pickup and drop-off pins and moves the pin when the address changes. A typed address stays unverified and does not invent a pin. Places latitude and longitude are limited to a 30-day cache by Google's current terms. Place IDs can be stored. Active jobs keep their coordinates so the map can still open. The Routes API is not enabled. OpenRouteService is unchanged and is not called from the new map. A job page can still draw a straight line between its own pins.
+
+## Current Driver Terms (2026-10-23)
+
+Online now requires `driver-terms-v1`, not an older agreement timestamp. Driver home shows a review-and-accept card. The Online error links to Review. Accepting stores the version and the time and does not happen automatically.
+
+## Messages inbox (2026-10-23)
+
+An admin document request was posted on the support thread, but Messages only listed job chats and the alert opened Driver home. The inbox now includes Pickuply Support. The alert opens that conversation. Admin, driver, and customer lists use a bold title and an unread dot. Seen appears on the sender's last message after the other person opens the thread. Admin Messages shows unread counts, driver and customer chats, and open help cases. Upload now opens the matching document page. A saved document notifies admin. Chat files stay private.
+
+## Approve anyway (2026-10-23)
+
+An admin who approves a driver with a missing license, insurance file, or vehicle sees the missing item, an insurance warning, and must check Approve anyway. The audit row stores the admin, the time, the missing list, and the confirmation. Approval still leaves the driver Offline. A missing insurance upload does not block Online. An insurance date that is already past does. Paid work without verified coverage can conflict with the driver's own policy and with commercial auto or cargo insurance. This override does not make that coverage optional under those rules.
+
+## Three-item checklist (2026-10-23)
+
+Get Ready to Drive is Vehicle, Insurance, and Training. License and Driver Terms stay on Quick Apply. Services and equipment are on the driver profile. A car or SUV starts with Pickup & Delivery and Store Delivery. Other vehicles also start with Junk Removal. The driver can change those services.
+
+## Address search (2026-10-23)
+
+The Duluth house was dropped because MapTiler ZIP context ids do not start with `postal`, and “Use this address anyway” did not keep a typed street. Search now uses Google Places when `GOOGLE_PLACES_API_KEY` is set. A typed Georgia street, city, and ZIP can be saved without a match. Unverified addresses store no coordinates. ZIP 30097 is in the Georgia table.
+
+## Driver signup terms (2026-10-23)
+
+Quick Apply no longer asks for a service area. The home ZIP picks the nearest zone. The driver must check the Driver Terms box. The accepted version is `driver-terms-v1`, stored with the time. The box starts unchecked. Signup icons sit beside the text labels.
+
+## Maps and addresses (2026-10-23)
+
+Quick Apply now asks for a Georgia home address. The street stays on a private record. The ZIP is what coverage and unassigned distances use. Trip length is stored to the nearest half mile, as driving miles when a routing key is set and as a labeled straight line otherwise. The feed can show one-mile circles around pickup ZIP centers. An address that was not matched is flagged for admin. Missing coordinates show “—”.
+
+## West Metro fallback (2026-10-23)
+
+Drivers with no home ZIP are measured from Austell 30106 in West Metro, and from Lawrenceville 30043 in East Gwinnett. Five local drivers had no home ZIP. Each got an audit row for that fallback. Their saved 25-mile coverage was left in place.
+
+## Areas I cover (2026-10-23)
+
+Drivers save one coverage preference: Georgia cities, ZIP codes, and a radius, combined with OR. The feed uses it unless Show all Georgia jobs is on. Alerts ignore that switch and follow coverage only. Unassigned distances are ZIP-centroid miles, rounded to the nearest mile. Existing local drivers were backfilled to 25 miles from home, or from the zone center when they had no home ZIP.
+
+## Claim race (2026-10-23)
+
+A second claim said the driver could not claim because eligibility ran before the job was checked. The driver was still eligible; the job was already assigned. `claim_job` now locks the job and reports it taken before eligibility. The driver home shows “Sorry, another driver just took this job.” The database test uses two eligible drivers: one wins, the other gets “job already taken.”
+
+## Georgia feed (2026-10-23)
+
+Pickup and drop-off ZIP codes must be in the Georgia centroid table. Drivers see every open job, including outside their zone, and can filter the feed. Accepting requires an active driver, Online, and a matching vehicle. A job that has been open for 20 minutes with no driver is marked for admin.
+
+## Back navigation (2026-10-23)
+
+Every Get Ready to Drive step has “← Get Ready to Drive” at the top and in a bar at the bottom. Saving a step returns to the checklist and shows Saved. Customer, driver, admin, and help detail pages have a back link to their parent.
+
+## Online switch (2026-10-23)
+
+The Driver home control is a switch. It stays Offline or Online until the server confirms the change. A failed check is written under the switch and links to the checklist. A newly approved driver sees the approval prompt until the first time they go Online, or until they dismiss it. After that, Offline says they will not get new job alerts.
+
+## Help requests (2026-10-23)
+
+Customers use `/help` instead of starting a chat with admin. A request gets a case number (HR-####), a status of Open, Waiting on you, or Resolved, and an optional private photo. The person sees their own requests. An admin sees the queue at `/admin/help`, replies, changes the status, and can open the related job. Replies and status changes are audit-logged. Drivers also get driver topics and still have Pickuply Support.
+
+## Driver review and messages (2026-10-23)
+
+Local only. Approve driver marks the vehicle eligible, leaves the driver Offline, and sends an in-app notice. Request documents flags checklist items and posts the note in Pickuply Support. Customers cannot start that thread. Job chat closes when the job is completed or cancelled. The original chat text stays available to admin; everyone else sees phone numbers and emails replaced.
+
+## Driver readiness (2026-10-23)
+
+Local only. Quick Apply already stored the license photo and vehicle type, but the checklist ignored both and Online still demanded a separately approved vehicle. The checklist now reads those same rows. License is its own line. Payout setup is a card, not a step. A removed driver contacts support. Only an admin can reopen that application. Existing local `approved_new` drivers were moved to `active` and left Offline, with an audit row.
+
+## Pending driver mode (2026-10-23)
+
+Local only. The profile mode button already calls the server action directly in 19d773f. A pending applicant who switches to driving stays on driver home and sees the application status plus the Get Ready to Drive checklist. Checklist steps under `/driver/ready` stay open to that applicant. Paused and removed drivers see that status in plain language. Earnings, alerts, and payout setup stay limited to the driver role, so a pending or removed applicant does not get them.
+
+## Profile, mode, and four-step job actions (2026-10-22)
+
+Local only. Profile keeps Sign out and adds the masked phone, mode switch, Help, Terms, and Privacy. The Online switch is the first control on driver home and follows the server result. A cookie remembers customer or driver mode and does not change the role. New signups enter a first name. Fresh local phones 555-555-0201 through 0205 stay unused by tests. Their codes are gitignored. The customer and driver job screens share four milestones, and Driver Confirmed stays current until the trip starts.
+
+## Customer tracking (2026-10-22)
+
+Local UI only. The customer job page shows four milestones: Request & Price, Driver Confirmed, Pickup, and Delivered. Driver Confirmed stays incomplete until the job is assigned and the card is authorized. The old ten-step list is under View activity history. Driver screens still use the detailed tracker.
+
+## Test account isolation (2026-10-24)
+
+Local only. Profiles and jobs carry `is_test`. Test and real accounts cannot book each other. Feeds, offers, alerts, feed signals, messages, and announcements stay in one lane. A test admin cannot read or change real rows. Admin totals hide test rows unless Include test data is on. `/admin/test-data` previews counts and retires test rows after a confirmation phrase. Payments, ledger lines, messages, and the audit log stay. Test earnings are excluded from transfers, and a test job cannot store a live Stripe payment. A fresh local database applied `0001` through `0071` and the full database suite passed, 32 files and 553 tests. `0060` creates the phone-restriction function before the function that calls it, and `0071` does not grant drivers a direct call to the eligibility function. Refund and card-dispute lists on `/admin/payments` follow the same test-data filter as the rest of admin. Include test data is a normal link, so the filter change loads as its own page. The suite was run again after that change and passed, 32 files and 553 tests.
+
+## Hosted migrations (2026-10-24)
+
+Project `uyhithfdmphilleusiom`. Versions `0001` through `0013` were recorded as already applied and were not run again. Versions `0014` through `0071` were applied from this working tree, one file at a time. The history table has 71 versions and no gaps. Every public table has row level security. The original three accounts, one job, one private row, two photos, two zones, and one settings row are still there. `0049` published that job from `requested` to `open` and wrote one audit row, `publish_waiting_request`. There is a second job event. `pg_cron` and `pg_net` are still off. The phone protection secret is not in Vault yet. The site was not deployed.
+
+## Deployed test roster (2026-10-24)
+
+Local only. Thirteen synthetic 555 numbers, 0301 through 0313, exist on local Supabase with roles, jobs, one held ledger row, and one dispute. The provision script marks them `is_test`. No Stripe ids and no payouts are enabled. The production project behind pickuplyapp.com was not changed. Sign-in codes are not in git. Using that project for these accounts is approved in principle and still needs a separate OK before any hosted write. See `docs/DEPLOYED_TEST_ACCOUNTS.md`.
+
+## Walkthrough UX (2026-10-24)
+
+Local only. Address search works before sign-in. An authorization sends one notice to the customer and one to the driver. The pay button says Confirm booking. Before approval, phones show Get Ready above a read-only job feed. After Got it, “Delivery confirmed — thanks!” stays above the review. Closed chat links to Help and Report a problem. Earnings say held until payout setup, then the 48-hour send time, and Scheduled once payouts are ready. Announcement Reply opens Pickuply Support. Suspension defaults to no end date, with 24 hours, 3 days, 7 days, 30 days, and a custom Eastern date. iPhone Safari gets an Add to Home Screen panel.
+
+## Untested after Step 5
+
+- A transfer that Stripe actually creates, and the driver's bank payout after that. This sandbox cannot finish Express terms without a person passing the captcha.
+- Receipt email. Resend is not configured.
+- The 24-hour auto-complete path on a delivered job. The cron was called and returned ok.
+- A customer cancel click. The release-before-capture refund was tested.
+- Hosted deploy. Do not apply `0014` through `0027` or deploy until that is approved.
+
+## Live test site (2026-10-24)
+
+`https://pickuplyapp.com` is the testing site. Production on the Vercel project `pickuply` was already Ready and serving that domain. The address, phone, and coverage fixes were already committed and pushed as `2765d42`. No secret values were copied into Vercel from this pass.
+
+Checked on the live site: street search returns house numbers and fills street, city, and ZIP on desktop and a phone-sized screen. The signed-in test customer sees a formatted phone. Signed-out profile and admin pages redirect away. The Areas I cover dropdown on driver application loads 629 Georgia cities and can select more than one, on desktop and a phone-sized screen. The application was not submitted. Messages opens and shows no conversations for that account. Google Places stays server-only. The browser map still uses the text fallback because Vercel has `GOOGLE_MAPS_API_KEY` and the app reads `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`. Stripe, Twilio, Resend, push, driving miles, and the cron secret are not on Vercel. Stripe keys in `.env.local` are test keys. The local webhook secret must not be reused for the hosted endpoint.
+
+## Offer commission (2026-10-24)
+
+Local only. A driver offer is the customer price. Pickuply keeps 15% of that offer and the driver receives the other 85%, rounded half up. The customer pays the offer plus card processing. Pickuply does not absorb that processing fee, and there is no extra service fee. Offer floors stay $35, and $50 for junk removal. The rate is stored on the offer and copied to the job. Older rows keep the cents already saved. Migration `0073` is applied on the local database only. The hosted database was not changed, and the site was not deployed.
+
+## Pricing clarification (2026-10-25)
+
+Local only. Pickuply's commission stays 15% of the customer-facing offer and is deducted from that offer. The driver receives the other 85%, rounded half up. The customer pays the offer plus the card processing fee. Pickuply does not absorb that fee, and there is no extra platform or service fee. Offer floors stay $35, and $50 for junk removal. Drivers see the commission and estimated earnings before they confirm an offer. Checkout lists the stored offer and the stored card processing fee on separate lines when those amounts add up to the stored total. A stored total that does not match is charged as one line, so older jobs are not repriced. Migration `0073` already had this split. Its header now states that stored cents are left alone. The posted-price floor was in that file but missing from the local database, so `0074` installs the same guard here. It does not rewrite stored cents. The hosted database was not changed, and the site was not deployed. Card-network rules for charging this fee, including on debit and prepaid cards, still need a review before live payments. `npm run typecheck` passed. `npm run test:unit` passed, 156 tests. `supabase test db` passed, 34 files and 589 tests.
+
+## Profile email (2026-10-25)
+
+Local only. Customers can enter an optional email on a new quote, and drivers can enter one on the application. The same `profiles.email` value is prefilled and can be changed in customer or driver profile settings. A blank value does not erase a saved address. The address is not marked verified, phone sign-in is unchanged, and outbound email stays off. Checkout passes a saved email to Stripe and still starts when there is none. Migration `0075` is local only. Hosted accounts were not provisioned, and the site was not deployed. `npm run typecheck` passed. `npm run test:unit` passed, 158 tests. `supabase test db` passed, 35 files and 597 tests. The hosted booking walk was not run.
+
+## Release blockers (2026-10-25)
+
+Local only. The junk seed budget is $50, and a junk budget of $40 is rejected by the database test. The quote-to-booking test passed: an admin sends a $60 offer in West Metro, the customer accepts, one eligible driver claims it, and the other driver is told the job was taken. The assigned driver sees the street and awaiting payment. The other driver does not see the street. The admin review form now asks for a zone, which sending a quote already required.
+
+The hosted dump from 2026-10-25 was restored into the disposable local database `pickuply_backup_check` and was not applied back to the hosted project. That copy has migrations 0001 through 0072, pricing settings 1000 / 1000 / 290 / 30, 9 profiles, 4 jobs, no payment or ledger rows, and 76 public policies. It has no storage file bytes and no grants. A separate hosted provision script and OTP merge script stay refused unless the exact project flag is passed. Neither was run. The current local provision script still refuses the hosted project.
+
+`npm run typecheck` passed. `npm run test:unit` passed, 167 tests. `supabase test db` passed, 35 files and 598 tests. Hosted migrations were not applied, hosted accounts were not created, OTP settings were not changed, and the site was not deployed.
+
+The hosted provision script marks only an empty new customer profile. A roster phone that already has a name, another role, or any job stops the script before the fixture changes it. The backup limits and the database rollback are written in `docs/DEPLOYMENT.md`.
+
+## License date (2026-10-24)
+
+A license or uploaded insurance date stays valid through the end of that calendar day in Georgia (`America/New_York`). `set_driver_online`, license upload, insurance upload, and quick apply compare that date with `georgia_today()` instead of UTC `current_date`. Approval, Driver Terms, suspension, and test-data isolation are unchanged. A genuinely expired license still blocks Online and names the date. Missing insurance still does not block Online. The full database suite passed, 33 files and 570 tests. Hosted project `uyhithfdmphilleusiom` now has version `0072`. No driver rows were changed, and the site was not redeployed.

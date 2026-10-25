@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fees } from "../constants";
 import { emptyDraft } from "../types";
+import { profileEmailError } from "./email";
 import { validateStep } from "./request";
 
 test("quote pricing needs no amount", () => {
@@ -10,7 +11,7 @@ test("quote pricing needs no amount", () => {
   draft.customerName = "Ada";
   draft.customerPhone = "(404) 555-1212";
   draft.hearAbout = "nextdoor";
-  const errors = validateStep("contact", draft);
+  const errors = validateStep("price", draft);
   assert.equal(errors.pricingMethod, undefined);
   assert.equal(errors.offerDollars, undefined);
 });
@@ -22,27 +23,34 @@ test("a fixed price under $35 is rejected", () => {
   draft.customerName = "Ada";
   draft.customerPhone = "4045551212";
   draft.hearAbout = "friend";
-  const errors = validateStep("contact", draft);
+  const errors = validateStep("price", draft);
   assert.match(errors.offerDollars ?? "", /at least \$35/);
   draft.offerDollars = "35";
-  assert.equal(validateStep("contact", draft).offerDollars, undefined);
+  assert.equal(validateStep("price", draft).offerDollars, undefined);
 });
 
-test("a budget range must start at $35 and the max must be higher", () => {
+test("a budget range must start at the service minimum and the max must be higher", () => {
   const draft = emptyDraft("junk");
   draft.pricingMethod = "range";
-  draft.budgetMinDollars = "35";
-  draft.budgetMaxDollars = "35";
+  draft.budgetMinDollars = "50";
+  draft.budgetMaxDollars = "50";
   draft.customerName = "Ada";
   draft.customerPhone = "14045551212";
   draft.hearAbout = "other";
-  assert.match(validateStep("contact", draft).budgetMaxDollars ?? "", /greater than/);
-  draft.budgetMinDollars = "20";
+  assert.match(validateStep("price", draft).budgetMaxDollars ?? "", /greater than/);
+  draft.budgetMinDollars = "35";
   draft.budgetMaxDollars = "80";
-  assert.match(validateStep("contact", draft).budgetMinDollars ?? "", /at least \$35/);
-  draft.budgetMinDollars = "40";
-  assert.equal(validateStep("contact", draft).budgetMinDollars, undefined);
-  assert.equal(validateStep("contact", draft).budgetMaxDollars, undefined);
+  assert.match(validateStep("price", draft).budgetMinDollars ?? "", /at least \$50/);
+  draft.budgetMinDollars = "50";
+  assert.equal(validateStep("price", draft).budgetMinDollars, undefined);
+  assert.equal(validateStep("price", draft).budgetMaxDollars, undefined);
+});
+
+test("profile email is optional and rejects a bad address", () => {
+  assert.equal(profileEmailError(""), null);
+  assert.equal(profileEmailError("   "), null);
+  assert.equal(profileEmailError("ada@example.com"), null);
+  assert.match(profileEmailError("not-an-email") ?? "", /valid email/);
 });
 
 test("phone numbers must be US numbers and email may be blank", () => {
@@ -52,11 +60,12 @@ test("phone numbers must be US numbers and email may be blank", () => {
   draft.customerPhone = "555";
   draft.customerEmail = "";
   draft.hearAbout = "facebook";
-  assert.match(validateStep("contact", draft).customerPhone ?? "", /10-digit/);
+  assert.match(validateStep("verify", draft).customerPhone ?? "", /10-digit/);
   draft.customerPhone = "404-555-1212";
   draft.customerEmail = "not-an-email";
-  assert.equal(validateStep("contact", draft).customerPhone, undefined);
-  assert.match(validateStep("contact", draft).customerEmail ?? "", /valid email/);
+  draft.agreedToTerms = true;
+  assert.equal(validateStep("verify", draft).customerPhone, undefined);
+  assert.match(validateStep("verify", draft).customerEmail ?? "", /valid email/);
 });
 
 test("item value over the cap is allowed", () => {
@@ -68,12 +77,20 @@ test("item value over the cap is allowed", () => {
   draft.alreadyPaid = "yes";
   draft.sellerHolding = "yes";
   draft.wantsItemCheck = "no";
-  assert.equal(validateStep("item", draft).itemValue, undefined);
+  assert.equal(validateStep("what", draft).itemValue, undefined);
+});
+
+test("a photo can stand in for a description", () => {
+  const draft = emptyDraft("delivery");
+  assert.match(validateStep("what", draft, { photoCount: 0 }).description ?? "", /photo or a short/);
+  assert.equal(validateStep("what", draft, { photoCount: 1 }).description, undefined);
 });
 
 test("terms must be accepted on review", () => {
   const draft = emptyDraft("delivery");
-  assert.match(validateStep("review", draft).agreedToTerms ?? "", /Agree/);
+  draft.customerName = "Ada";
+  draft.customerPhone = "4045551212";
+  assert.match(validateStep("verify", draft).agreedToTerms ?? "", /Agree/);
   draft.agreedToTerms = true;
-  assert.equal(validateStep("review", draft).agreedToTerms, undefined);
+  assert.equal(validateStep("verify", draft).agreedToTerms, undefined);
 });

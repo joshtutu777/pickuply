@@ -4,6 +4,8 @@ Work through these steps **in order**. Paste each prompt into Cursor's Agent cha
 
 Before each new step, start a **fresh chat** and begin with: *"Read docs/SPEC.md, docs/PROGRESS.md, and the project rules."*
 
+The October 2026 work in `docs/PROGRESS.md` uses a later step numbering than the list below. Tracking, notifications, messages, and proof or disputes are built locally. Rescheduling, no-shows, and reassignment wait until after Step 5 payments. A dispute records a refund decision and does not call Stripe until the payment step connects it. The late-cancel fee (later Step 6e) is one partial capture of that fee on the existing card authorization, and the rest of the hold is released. It is not a new charge, and cards are not saved for a later off-session charge. If the payment was already captured, refund the difference.
+
 ---
 
 ## Phase 0 — Accounts to create first

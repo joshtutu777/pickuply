@@ -39,6 +39,8 @@ export function serviceFromQuery(value: string | undefined): ServiceId | null {
     : null;
 }
 
+export const driverTermsVersion = "driver-terms-v1";
+
 export function serviceById(id: ServiceId) {
   const service = services.find((item) => item.id === id);
   if (!service) throw new Error(`Unknown service: ${id}`);
@@ -86,28 +88,29 @@ export function zoneForCity(city: string): ZoneSlug | null {
 }
 
 export const howItWorks = [
-  "Send a photo or listing",
-  "Get a locked price",
-  "A verified driver picks it up",
-  "Pay only when it arrives",
+  "Tell us what you need",
+  "Drivers send offers",
+  "You choose who to book",
+  "Your card is charged after delivery",
 ] as const;
 
 export const trustPoints = [
-  "Verified drivers",
-  "Price locked before pickup",
-  "Card charged only after delivery",
+  "You choose the driver",
+  "Price shown before you book",
+  "Card charged after delivery",
 ] as const;
 
-/** Locked v1 policies. Booking fees live in platform_settings. These defaults match that row and are not added on the request form. */
+/** Locked v1 policies. Offer math lives in lib/fees.ts and platform_settings. These defaults are not added again on the request form. */
 export const fees = {
   currency: "USD",
   minimumCents: 3_500,
+  junkMinimumCents: 5_000,
   lateCancelFeeCents: 1_500,
   tripFeeCents: 2_500,
   damageCoverageLimitCents: 25_000,
   itemValueCapCents: 100_000,
-  platformFeeRate: 0.1,
-  platformFeeMinimumCents: 1_000,
+  platformFeeRate: 0.15,
+  platformFeeMinimumCents: 0,
   serviceFeeBps: 290,
   serviceFeeFixedCents: 30,
   capture: "manual",
@@ -175,7 +178,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "We'll review your request and send you a price. Nothing is charged until you accept.";
+  "Drivers set the price and you choose who to book. Nothing is charged until you accept an offer.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
@@ -183,7 +186,7 @@ export const driverPricingCopy =
 export const pricingMethods = [
   {
     id: "quote",
-    label: "Get a quote",
+    label: "Get Offers",
     hint: quotePricingCopy,
   },
   {
@@ -212,14 +215,14 @@ export const privacyAreaNote =
 export const maxPhotos = 8;
 export const photoMaxEdgePx = 1600;
 export const photoMaxBytes = 5 * 1024 * 1024;
+export const videoMaxSeconds = 30;
+export const videoMaxBytes = 8 * 1024 * 1024;
 
 export const requestSteps = [
-  { id: "service", label: "Service" },
-  { id: "item", label: "Item" },
-  { id: "where", label: "Where" },
-  { id: "access", label: "Access and when" },
-  { id: "contact", label: "Contact and price" },
-  { id: "review", label: "Review" },
+  { id: "what", label: "What" },
+  { id: "where", label: "Where and when" },
+  { id: "price", label: "Your price" },
+  { id: "verify", label: "Verify" },
 ] as const;
 
 export type RequestStepId = (typeof requestSteps)[number]["id"];

@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { PlaceholderPage } from "@/components/placeholder-page";
+import { LegalDocument } from "@/components/legal-document";
+import { termsEffective, termsSections } from "@/lib/legal/terms";
 
 export const metadata: Metadata = {
-  title: "Terms",
+  title: "Terms of Service",
 };
 
 export default function TermsPage() {
-  return (
-    <PlaceholderPage
-      eyebrow="Legal"
-      title="Terms"
-      description="The terms of use will be posted here."
-    />
-  );
+  return <LegalDocument title="Terms of Service" effective={termsEffective} sections={termsSections} />;
 }

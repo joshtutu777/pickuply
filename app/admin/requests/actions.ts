@@ -3,7 +3,49 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
+import { requestRefund } from "@/lib/payments/refunds";
+import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
+
+const detailItems = ["stairs", "size", "pieces", "item_value", "access_notes", "photos"] as const;
+
+export async function askForDetails(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const note = String(formData.get("note") ?? "");
+  const items = formData
+    .getAll("item")
+    .map(String)
+    .filter((item): item is (typeof detailItems)[number] =>
+      detailItems.includes(item as (typeof detailItems)[number]),
+    );
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("ask_for_details", {
+    target_job: jobId,
+    items,
+    note,
+    should_pause: formData.get("pauseUntilUpdated") === "on",
+  });
+  if (error) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function pauseRequest(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const shouldPause = String(formData.get("paused") ?? "") !== "no";
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("pause_request", {
+    target_job: jobId,
+    should_pause: shouldPause,
+  });
+  if (error) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
 
 export async function reviewRequest(formData: FormData) {
   await connection();
@@ -32,6 +74,22 @@ export async function reviewRequest(formData: FormData) {
   if (error) {
     redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
   }
+  if (action === "quote") {
+    await recordFunnelServer({ event: "quote_sent", step: "sent", pricing: "quote" });
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function assignCoveringDriver(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const driverId = String(formData.get("driverId") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_assign_driver", {
+    target_job: jobId,
+    target_driver: driverId,
+  });
+  if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 
@@ -45,6 +103,34 @@ export async function inviteDriver(formData: FormData) {
     target_driver: driverId,
   });
   if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function overrideJobStatus(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const nextStatus = String(formData.get("nextStatus") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_override_status", {
+    target_job: jobId,
+    next_status: nextStatus,
+    reason,
+  });
+  if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The status could not be changed.")}`);
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function refundJob(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const amount = Math.round(Number(formData.get("amount") || 0) * 100);
+  const reason = String(formData.get("reason") ?? "");
+  try {
+    await requestRefund(jobId, amount, reason);
+  } catch {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The refund could not be completed.")}`);
+  }
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 

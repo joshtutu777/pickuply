@@ -1,0 +1,46 @@
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+
+type ThreadSummary = {
+  thread_id: string;
+  kind: string;
+  label: string;
+  unread: number;
+  last_at: string | null;
+};
+
+export async function AdminMessageList({ includeTest = false }: { includeTest?: boolean }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_open_threads", { include_test: includeTest });
+  if (error) return null;
+  const threads = (data ?? []) as ThreadSummary[];
+
+  return (
+    <section className="order-4" aria-labelledby="messages-heading">
+      <h2 id="messages-heading" className="font-display text-3xl font-semibold text-ink">
+        Messages
+      </h2>
+      {threads.length === 0 ? (
+        <p className="mt-4 text-base text-muted">No open conversations.</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {threads.map((thread) => (
+            <li key={thread.thread_id} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+              <Link href={`/admin/messages/${thread.thread_id}`} className="flex min-h-12 items-center justify-between gap-3">
+                <span>
+                  <span className={`block text-lg text-ink ${thread.unread > 0 ? "font-bold" : "font-semibold"}`}>
+                    {thread.label}
+                  </span>
+                  <span className="text-base text-muted">
+                    {thread.unread > 0 ? (thread.unread === 1 ? "1 unread" : `${thread.unread} unread`) : "Read"}
+                  </span>
+                </span>
+                {thread.unread > 0 ? <span className="size-3 shrink-0 rounded-full bg-brand" aria-hidden="true" /> : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

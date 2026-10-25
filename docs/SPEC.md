@@ -50,17 +50,17 @@ A user has exactly one role. Admin role is set manually in the database (never s
 |---|---|
 | App type | Mobile-first web app, installable PWA, push notifications |
 | Sign-in | Phone number + 6-digit text code (passwordless) for everyone. Email optional |
-| Pricing | Customer chooses one of **three pricing methods**: Get a quote, Name your price (fixed offer), or Set a budget range. See §7.1. Every price is locked before booking |
-| Who responds | **Get a quote:** only the admin sends the quote (customer price, driver pay, pickup window). Drivers do not price these jobs. The customer must accept before the job is published. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
-| Platform fee | **10% of driver earnings, minimum $10**, shown in the subtotal. Admin-configurable. |
-| Driver matching | Admin reviews each request. Quote jobs are published to eligible drivers only after the customer accepts the admin's quote. Fixed and range jobs are published after admin approval. Nothing is booked or charged until the customer accepts the admin's quote or chooses a driver's offer. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
-| Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, sets `payment_status = awaiting_payment` and a payment deadline (default 30 minutes). Work cannot start until payment is `authorized` or `paid`. Capture still happens after delivery. **Not launch-ready until Step 5 payments.** |
-| Driver payouts | Manual: Zelle or Cash App within **24 hours** of completion. Admin marks "Paid" in the app. (Stripe Connect is v2) |
+| Pricing | Customer chooses one of **three pricing methods**: Get Offers, Name your price (fixed offer), or Set a budget range. See §7.1. Every price is locked before booking |
+| Who responds | **Get Offers:** drivers send a price. The customer chooses an offer. An admin quote is optional and is not required before drivers see the job. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
+| Platform fee | **15% of the customer-facing offer**, deducted from the driver. No minimum. Admin-configurable. Not added on top of the customer price. |
+| Driver matching | A request that passes validation is open to eligible drivers immediately. No admin approval is required. Waves stay off unless an admin turns them on. While waves are off, every eligible driver can see every open request, with no wave delay and no invitation limit. While waves are on, `docs/WAVES.md` decides who sees a request. A job can have five active offers at a time. A driver can offer on more than one open job. An admin can still pause a request, send it to a driver, or send an optional quote. Those actions are audited. Nothing is booked or charged until the customer chooses a driver's offer, or accepts an optional admin quote and a driver claims it. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
+| Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, starts a payment deadline (default 30 minutes). The customer pays by card on Stripe Checkout. The card is authorized, not captured. Work cannot start until payment is `authorized`. Capture happens after the customer confirms delivery, or 24 hours after delivery if they do not. If the authorization expires, stop and flag an admin. Do not start a new charge automatically. |
+| Driver payouts | Stripe Connect Express. One account per driver. The app stores the account id and status only, never bank details. After a captured payment, the driver's earnings are a ledger line. A transfer to that Connect account is not a deposit in their bank. Earnings stay held until payout setup is finished, unless an admin records a payment outside Stripe. |
 | Background checks | **None in v1.** Verification = ID/license, insurance, vehicle photo, personal call with admin. Never claim background checks in UI copy |
 | Minimum fee | $35 |
 | Damage coverage limit | $250 per job |
-| Late cancel fee | $15 (after a driver is assigned) — goes to the driver |
-| Trip fee | $25 if the customer rejects the item at the pickup item check |
+| Late cancel fee | $15 after a driver is assigned and before work starts, once that workflow is built. It is one partial capture of the fee on the existing authorization, and the rest of the hold is released. It is not a new charge, and the card is not saved for a later charge. If the payment was already captured, refund the difference. |
+| Trip fee | $25 if the customer rejects the item at the pickup item check. That amount is the only capture, and the rest of the authorization is released. |
 | Auto-complete | 24 hours after "Delivered" unless the customer reports a problem |
 | Item value cap | $1,000 per job during the pilot (admin can override) |
 
@@ -74,11 +74,12 @@ Hazardous materials, chemicals, propane tanks, paint/solvents (junk), weapons, d
 Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 4.1 Landing page
-- Headline: "You Find It. We Pick It Up." Subheadline: "Found it. Bought it. Can't pick it up? We'll bring it home."
-- Four service cards: Pickup & Delivery · Free-Item Pickups · Junk Removal & Hauling ("Old furniture, junk, and yard debris. Send a photo and we'll get you a price.") · Construction Store Deliveries. Each links to `/request?service=...`
-- "Have a truck? Drive with Pickuply" link to driver onboarding
-- Trust strip: Verified drivers · Price locked before pickup · Card charged only after delivery
-- How it works (4 steps), price ranges, testimonials (later)
+- Headline: "Say yes to the deal. We'll do the rest." The public tagline "You Find It. We Pick It Up." stays in the footer.
+- Post a pickup opens `/request`. Drive with us and Apply to drive open `/drive`. Sign in opens `/login`.
+- Four service cards, in this order, each opening the matching request: Pickup & Delivery; Free-Item Pickups; Store Pickup & Delivery; Junk Removal & Hauling ("Old furniture, junk, and yard debris. Send a photo and get offers.").
+- The section before the services is text only. The hero has no photograph.
+- How it works step 2 is "Set your price / Receive offers": name a price, set a budget, or get offers, then the customer chooses.
+- A Georgia outline says Serving Georgia. It does not show driver locations.
 
 ### 4.2 Request form (guest)
 | Section | Fields |
@@ -92,20 +93,22 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 | Junk only | Load size (single item, ¼, ½, full), materials, includes mattress/tires/appliances? |
 | Item value | Approximate value. Over $1,000 is allowed but flagged `needs_value_approval` with the warning "Items over $1,000 need approval before booking." |
 | Construction only | Store name, optional order/pickup number |
-| Pricing method (required) | **Get a quote** (no amount). Copy: "We'll review your request and send you a price. Nothing is charged until you accept." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
-| Contact | Name, phone (required), email (optional), "How did you hear about us?" (Nextdoor, Facebook, friend, landlord/property manager, other) |
+| Pricing method (required) | **Get Offers** (no amount). Copy: "Drivers set the price and you choose who to book. Nothing is charged until you accept an offer." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
+| Contact | Name, phone (required), email address (optional, helper text "For booking updates and receipts."), "How did you hear about us?" (Nextdoor, Facebook, friend, landlord/property manager, other). A saved email is stored once on `profiles.email` for both customer and driver use, prefilled on the next request, and can be changed in Profile. A blank field does not erase a saved email. The address is not marked verified. |
 
-- Shows a **typical price range** as guidance (see §7), labeled: "Typical price for jobs like this within 10 miles: $X–$Y. Distance and details may change the final price." If required inputs are missing, show "We'll confirm a price after reviewing your request" instead of a number. The estimate never changes the customer's chosen pricing method or amounts.
+- Shows a **typical price range** as guidance (see §7), labeled: "Typical price for jobs like this within 10 miles: $X–$Y. Final price confirmed after review." If required inputs are missing, show "We'll confirm a price after reviewing your request" instead of a number. The estimate never changes the customer's chosen pricing method or amounts.
 - The draft is saved in the browser until the phone is verified, then attached to the account. Phone, email, and exact street addresses are never written to browser storage (kept in memory only).
-- Submitting = phone verification (text code) → request created with status `requested`.
+- Submitting = phone verification (text code) → request created with status `open`. Drivers can see it immediately. Nothing is booked.
 - Customer agrees to terms (prohibited items, fees, damage policy, photos) at submission.
 
 ### 4.3 Quotes, offers, and booking
-- Admin reviews every new request first (prohibited items, safety, zone, completeness, item value). Fixed and range jobs are published after that approval. Quote jobs stay unpublished until the customer accepts the admin's quote.
-- **Get a quote:** admin sets driver pay, and the app adds the platform fee and service fee (status `quoted`). The customer sees the breakdown and accepts before the quote expires. Acceptance publishes the job (`open`). It does not assign a driver and it does not charge the card. An eligible Online driver then claims the open job, which assigns that driver and sets `payment_status = awaiting_payment`.
-- **Name your price / Budget range:** admin approval publishes the job (`open`) without booking. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. Nothing is charged at that step.
-- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, and the **total price including the Pickuply fee**. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
+- A request that passes validation is published (`open`) when it is saved. Admin approval is not a step. An admin can pause it, send it to one driver, or send an optional quote. Each of those is audited.
+- **Get Offers:** drivers send a price. The customer chooses one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. It does not charge the card. Claiming does not assign a Get Offers job that has no driver pay.
+- **Optional admin quote:** an admin enters the customer offer. The commission comes out of that offer and card processing is added on top (status `quoted`). The customer sees the breakdown and accepts before the quote expires. Acceptance publishes the job (`open`). It does not assign a driver. An eligible Online driver then claims that priced job, which assigns that driver and sets `payment_status = awaiting_payment`.
+- **Name your price / Budget range:** the job is already `open`. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. Nothing is charged at that step.
+- **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, the offer, the card processing fee, and the total. Pickuply's commission is not added again. A new offer stays new until that offer card is actually on screen. Opening My Requests or receiving an alert does not mark it viewed. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
 - Admin quotes expire after 24 hours; driver offers expire after **2 hours** (default) unless chosen. Customers can edit or withdraw a request before booking.
+- An admin can ask for more details on a published request. The question is a Pickuply Support message and an alert. Both include an Add details button that opens the request edit form. Pause until updated is optional and off by default. When it is off, drivers can still see the request and send offers. Only an admin quote waits for the answer. When it is on, drivers do not see the request and the database rejects a new offer until the customer updates it, and then it is visible again. A customer edit before booking tells every driver who already sent an offer: “Request updated — review your offer.”
 - Quote/offer page shows: price breakdown, what's included, cancellation/trip fee policy, item value cap.
 
 ### 4.4 Job status page
@@ -117,9 +120,34 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 - **Report a problem** (during job and 7 days after).
 - **Cancel** (fee rules apply).
 - After delivery: **Got it** (captures payment) → review + optional tip.
+- When payment is due, the heading is **Confirm Your Booking** and the button is **Confirm booking**, with “You won't be charged until your item is delivered” under it. The offer button stays **Choose** plus the driver's first name. The breakdown is the selected driver's offer, the card processing fee, additional charges, and the customer total. Pickuply's commission is already inside the offer. Trip, late-cancel, and dump charges are not in that total at booking. Checkout charges that stored total. When the stored offer and card processing fee add up to it, Checkout lists those two amounts on separate lines. If the customer has a saved profile email, Checkout receives that address. A missing email does not block Checkout, and Stripe's returned address is not written back onto the profile. After authorization the job page says the amount is held and charged only after delivery. It does not say “Payment confirmed.” The charge happens after the customer confirms delivery, or 24 hours later. If the authorization expires first, the card is not charged.
+
+### 4.6 Public pages and text consent
+- `/privacy` and `/terms` are the published October 22, 2026 Privacy Policy and Terms of Service. The booking section matches the current offer and payment flow. A later legal review is optional and is not required before launch.
+- `/signup` opens phone sign-up. `/driver/apply` opens the driver application sign-up. Optional text consent is a separate unchecked box. The sign-in code does not depend on that box.
+- Vercel Hobby cannot run the payment, notification, auto-complete, or transfer jobs more than once a day. Those routes stay in the app. `docs/SCHEDULER.md` is the activation step for Supabase `pg_cron`. Paid bookings are not ready until that scheduler, or Vercel Pro, is actually running.
+- `NEXT_PUBLIC_BETA_MODE` is on unless it is set to `false`. That flag is separate from Stripe test mode. The header shows a Beta badge on the public site, customer pages, driver pages, and admin, with the sentence "Pickuply is currently in beta. We're improving the experience with feedback from our early customers and drivers."
+- Signed-in customers and drivers open **Send Feedback** from the desktop menu and from Profile. The phone bar does not gain another icon. `/feedback` requires a type, a subject, and details. Screenshots are not accepted. The saved row stores the signed-in user, role, time, route, app version, and a short device string. It does not store a card, a password, a token, an address, or a GPS point.
+- Admins review submissions at `/admin/feedback`. Internal notes are on a separate table. Customers and drivers cannot read them or anyone else's feedback. Statuses are New, Under Review, Planned, Resolved, and Closed. A submission does not send a text or an email.
+- Admin Payments at `/admin/finance` totals authorized, captured, released, refunded, and disputed amounts from stored rows. A missing amount is shown as unavailable. A Stripe transfer is not labeled as a bank payout.
+- After a job is completed, the customer and the assigned driver can each leave one 1–5 star review with an optional comment. Each review stays hidden until both are in, or until 14 days after completion. An admin can hide a review. The stars and words are not rewritten. Offer cards show the driver's completed trips and the average of published customer reviews.
+- A driver with fewer than five completed jobs waits 48 hours after completion before a Stripe transfer can become ready. A driver with five or more completed jobs keeps the existing payout delay. Open disputes and missing payout setup still hold the transfer. A person cannot see or take their own request as a driver.
+- An admin can suspend a customer or driver for a period or with no end date. The person can still sign in and sees their own restriction, with Contact support opening the existing help request. Open requests with no driver are paused. Unaccepted offers are closed and are not restored. Suspension does not hold or forfeit earnings. A payout still waits for a report, an open dispute, an authorized payout hold, the new-driver 48-hour rule, or the other existing payout rules.
+- A suspended driver who has already picked up the item, meaning the job is `in_transit`, can finish that delivery and send the job-specific updates that delivery needs. No new offers or bookings are allowed. Admins are notified. An assigned job that has not started is flagged for an admin to give to another driver. It is not cancelled, refunded, captured, or charged a new fee. Until an admin reassigns it, the booking price, status, driver, and payment cannot be changed. The message is "This booking requires assistance from Pickuply support."
+- Delete Account starts a 14-day grace period. The person can cancel during those 14 days after a recent phone sign-in. The existing notification path tells them about the request and the cancellation. After 14 days, deletion runs only when every blocker is clear. A blocker keeps the request pending and does not restart the 14 days. The cleanup can run more than once and still deletes the account once. An admin cannot finish it early.
+- Deletion stays pending while the same account, as a customer or a driver, has an active job, a payment hold, a capture waiting, an open payment, a pending refund, a pending or held driver payout, an open dispute, or a recovery balance. Nothing is cancelled, forgiven, or forfeited to make deletion finish.
+- Financial, transaction, ledger, and audit records stay for seven years in de-identified form. They are not deleted by the cleanup. Photos and documents are deleted 90 days after the account is deleted, except when the job has a dispute or another legal hold. Restricted-phone records are the HMAC only. They last until the temporary suspension ends, or three years for an indefinite restriction. An expired temporary suspension does not become a registration ban. A missing phone-protection secret blocks new registration and blocks deletion of a restricted account. It does not block people who already have accounts.
+- A person with a driver record can choose Stop Driving under Profile, Account management. That is separate from Delete Account. The customer account, the phone sign-in, customer requests, and customer payment history stay. New driver offers and assignments stop, and unaccepted offers are closed. Driver-only personal details are removed when no active job, payout, dispute, or recovery is open. Those details stay until that is resolved. The sign-in user is not deleted.
+- A deleted phone can register again as a new account. The old profile, roles, reviews, and privileges are not restored. A number that is still in the restricted-phone records is refused, with a neutral support message. The last active admin cannot be suspended, deleted, or demoted. Another active admin has to exist first, and the database enforces that.
+- The phone-protection secret is not stored in a migration. Local development uses Supabase Vault. Hosted setup is in `docs/DEPLOYMENT.md`. If the secret is missing, sign-up and deletion still work, the restricted-phone check is skipped, the event is audited, and `/admin` shows a red banner. The deletion and photo cleanup run from the existing notifications job. Photos tied to a dispute stay until 365 days after the dispute is resolved, then follow the 90-day deletion rule. A phone with no marketplace activity for 12 months asks "Is this your account?" after the code, using only a first-initial and the last pickup city and month. "No, start a new account" freezes the old account for admin review. Hosted scheduling was not turned on.
+- Synthetic accounts have `profiles.is_test`. A job created by a test customer is a test job. Test and real accounts cannot be booked together. A test driver does not see a real job, and a real driver does not see a test job. The same split applies to offers, job alerts, feed refresh signals, and messages. A test admin cannot read or change real account data and cannot change Pickuply settings. A real admin sees normal totals without test rows. Include test data on an admin view is off until that admin turns it on. Bulk announcements to real people leave test accounts out. A test admin's announcement reaches only test accounts. Test accounts do not get SMS, email, or push. Their Stripe rows cannot be live-mode, and their earnings are not transferred. `/admin/test-data` previews the counts, then retires test profiles and jobs after the admin types DELETE TEST DATA. It removes alerts, push subscriptions, and funnel events. It keeps payments, ledger lines, messages, and the audit log.
+- Admin Communications at `/admin/communications` sends announcements. Each announcement alert has Reply, which opens that person's private Pickuply Support conversation and creates it if they do not have one yet. Customers still cannot start support from `/support` on their own. Private conversations stay in the existing Messages inbox. Channels are in-app alerts, push for devices that allowed alerts, and text. Texting stays off. Push is recorded when the provider would accept it, which is not the same as the phone showing it. Audiences include online drivers, drivers whose Areas I Cover include a city, and customers with an active accepted job. Suspended people are left out of promotional sends. Account support can name them. A scheduled send checks eligibility again at send time. Eastern Time is stored in UTC. Texts, once texting is on, wait for 8:00 AM to 9:00 PM America/New_York, start with "Pickuply:", and promotional texts include "Reply STOP to opt out." Promotional text consent is a separate unchecked box on Alerts. Limits: 20 immediate sends an hour, 5 bulk sends an hour, 10 bulk sends a day, 2 all-user sends a day, 3 announcements a day per person (account notices are not counted), 1,000 people, 20 waiting announcements, and 30 days ahead. Audiences also include drivers who are missing a license, insurance, training, or agreement, and customers who have never had an accepted booking.
+- Pickuply can be installed from the home screen. The public header and the home-page menu include an install button. It is hidden when the app is already running on the home screen. Android and desktop use the browser install prompt after a click. iPhone Safari says “Add Pickuply to Home Screen” and opens a three-step panel: Share, Add to Home Screen, then Add. Other iPhone browsers are told to open Safari. Facebook, Instagram, Messenger, TikTok, and other embedded browsers show open-in-browser instructions and a copy-link fallback. If the browser cannot install, the button explains what to do instead of failing. The driver install card and the customer banner stay as they are. The manifest starts at `/app?source=pwa`, which sends a signed-in person to the customer, driver, or admin home. Alerts are requested only from the Turn on alerts button. The installed app does not cache job or payment pages. Offline shows a fallback and does not take a booking. A new version shows "New version available — Refresh" and does not reload by itself during payment.
+- A local Stripe test-mode walk authorized a card and captured it once, both when the customer confirmed delivery and when the 24-hour job ran after the customer did not. An authorization that was already past `capture_before` was not captured and did not start a new charge. Driver earnings stayed held until payout setup. That walk is not a bank payout. Paid bookings stay not launch-ready until the scheduler in `docs/SCHEDULER.md` is actually running, and the normal app process still needs a server-only service role key before Checkout can record a payment.
 
 ### 4.5 Customer account
 - Job history with receipts and photos, saved addresses, repeat a job.
+- My Requests shows **Offers Received** for active offers and **New Offers** for active offers the customer has not viewed. An open request with none says **Waiting for driver offers**. A request with new offers is highlighted, and the Requests menu shows how many new offers are waiting. Withdrawn, expired, declined, and chosen offers are not in those counts. The viewed time is stored per offer and follows the customer to another device.
 
 ---
 
@@ -127,7 +155,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 5.1 Onboarding
 1. **Sign in** with phone + code
-2. **Profile:** full name, profile photo (shown to customers), home city, zone, max distance (10/15/25 miles)
+2. **Profile:** full name, profile photo (shown to customers), Georgia home address, and Areas I Cover. Quick Apply does not ask for a separate service area. The home ZIP selects the stored zone. The driver checks “I agree to the Pickuply Driver Terms” (`driver-terms-v1`). The box is never pre-checked.
 3. **Vehicle(s):** type (car, SUV, pickup, van, box truck, trailer), make/model/year, plate, bed/cargo length, photo. Can add more than one
 4. **Capabilities:** service level `light` (no heavy lifting, no stairs) or `full` (heavy items, stairs); helper name + phone (optional); equipment (blankets, straps, dolly, ramp)
 5. **Services offered:** delivery / junk / free_item / construction
@@ -148,38 +176,52 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 |---|---|
 | `applied` | Profile started |
 | `pending_review` | Documents submitted |
-| `approved_new` | Can take admin-assigned jobs only |
+| `approved_new` | Legacy invite-only stage. New approvals use `active` and stay Offline until the driver switches Online. The enum and invitation checks remain for old rows. |
 | `active` | Sees and accepts live jobs |
 | `paused` | Expired documents, strikes, low rating, or admin action |
 | `removed` | Permanently removed |
 
 ### 5.3 Availability
-- **Online/Offline toggle** at the top of Driver Home, status visible everywhere in the driver app (also on the Jobs tab).
-- Going **Online** checks: status is `active` (or `approved_new` for assigned jobs), license and insurance not expired, at least one approved vehicle. If a check fails, show what's missing.
+- Get Ready to Drive steps show “← Get Ready to Drive” at the top and in a bottom bar. Saving a step returns to the checklist and shows Saved.
+- **Online/Offline switch** at the top of Driver Home (`role="switch"`). The knob moves only after the server confirms. A failed check is named under the switch, with a link to the checklist. A driver who has not accepted the current Driver Terms version, including someone who signed up before `driver-terms-v1`, sees “Review and accept the updated Driver Terms” at the top of Driver home. Online stays blocked until they accept. Acceptance stores that version and the time. Pickuply never checks the box or accepts the terms for them. A newly approved driver who is still Offline sees “You're ready to drive! Switch Online whenever you're ready to start accepting jobs.” until they go Online once or dismiss it. A missing insurance upload shows “Add your insurance card.” and does not block the switch. An expired policy blocks the switch and names the date. After that, Offline says they will not get new job alerts.
+- Going **Online** checks: status is `active` (legacy `approved_new` rows still pass), an unexpired driver license, and accepted Driver Terms. A missing insurance upload does not block Online after an admin approves the driver. An insurance policy that was uploaded and then expires does block Online, and the message includes the date. Approval never turns the driver Online. The driver sees “You're ready to drive! Switch Online whenever you're ready to start accepting jobs.” If a document is missing, the admin sees the missing item, checks Approve anyway, and the audit log stores the admin, the time, and the missing list. Stripe payout setup does not block Online or accepting a job.
 - **Offline:** stops new job alerts; accepted jobs stay active.
 - Drivers may **browse** eligible jobs while Offline but can only **accept** while Online.
 - Weekly schedule (time blocks) + optional "unavailable until" date.
 - Alert preferences: push, text, or both.
 
-### 5.4 Job feed (eligibility)
-A driver sees a published job only if ALL are true:
-- The job status is `open`. Quote jobs become `open` only after the customer accepts the admin's quote. Fixed and range jobs become `open` after admin approval. `requested` and `quoted` jobs are not discoverable
-- Job zone = driver zone, and pickup is within the driver's max distance when coordinates exist. If coordinates exist but the distance cannot be checked, the job is hidden
-- Driver offers that service
-- Job service level is set and is ≤ driver level (`full` jobs → only `full` drivers)
-- The job names a required vehicle, and the driver has an approved vehicle of that type
-- Driver status is `active`. `approved_new` drivers see only open jobs that have a row in `job_driver_invitations` for them. An invitation is not an assignment and does not set `assigned_driver_id`
-- Driver is not paused, removed, pending, or globally blocked, and this customer has no `customer_driver_blocks` row for them
-- Drivers may browse while Offline. Accepting or offering requires Online
+### 5.4 Job feed
+Pickuply serves Georgia ZIP codes for pickup and drop-off. A ZIP that is not in the Georgia centroid table is rejected. The zones table stays for driver home areas.
+
+Areas I cover is one saved preference. Quick Apply asks for it right after the home address. The default is within 25 miles of the driver's home. A driver can add Georgia cities, Georgia ZIP codes, and a radius of 10, 25, 50, or 100 miles measured from home or from one Georgia ZIP. At least one of those is required. The same preference is edited from Profile → Areas I cover, from the job feed, and inside the Services checklist step. Saving on those screens happens immediately. Coverage is edited from Profile and the job feed. It is not a checklist item. The checklist is three items: Vehicle, Insurance, and Training. License and Driver Terms are collected at Quick Apply. Services and equipment are edited from Profile. Stripe payout setup is the separate “Set up payouts to get paid” card, and it does not block Online.
+
+The feed has two sections. Matched for You lists open jobs whose pickup matches any saved city, ZIP, or radius. Those choices are combined with OR. That section is grouped into Today, Tomorrow, Later this week, and Later, and it shows a count. If nothing matches, it says “No jobs in your areas right now — see all Georgia requests below.” All Georgia Requests lists the other eligible open jobs in Georgia and does not repeat a matched job. It sorts by nearest pickup unless the driver chooses newest, highest pay, soonest, or farthest. Service, distance, pickup date, and vehicle fit filter that section on the server before each page of 20. The header reads “Showing jobs in: Austell, Smyrna +25 mi · Edit”. While waves are off, a new open request appears in the matching section for every eligible driver. While waves are on, a job appears in either section only after that driver’s wave releases it.
+
+New-job alerts go only to drivers whose saved coverage matches the pickup: Online drivers, and Offline drivers with Job alerts while Offline on. Drivers outside those areas still see the request under All Georgia Requests while waves are off. They do not get that push. Accepting still requires an active driver, Online, and a matching vehicle. Exact addresses stay hidden until assignment.
+
+Distance for an unassigned driver is the straight-line miles between ZIP centroids, rounded to the nearest mile, and shown as “~X mi”. The driver's point is the home ZIP centroid, or the zone center when no home ZIP is saved (West Metro uses Austell 30106, East Gwinnett uses Lawrenceville 30043). A radius measured from another ZIP uses that ZIP's centroid instead. The pickup point is always the pickup ZIP centroid, never an exact pickup coordinate, so the number cannot be used to find the street. Exact coordinates are used only after the driver is assigned. The feed does not return coordinates, street addresses, or the driver's home address.
+
+Quick Apply asks for a Georgia home address, not only a ZIP. Search uses Google Places when `GOOGLE_PLACES_API_KEY` is set. If the search misses a house, the driver types the street, city, and ZIP and chooses “Use this address anyway.” A ZIP in the Georgia table is accepted, marked not verified, and stored with no invented coordinates. The search runs on the server. The street, apartment, and notes stay on a private home record that only that driver and an admin can read. The ZIP from that address is what coverage and unassigned distances use. Choosing “Use this address anyway” saves the street and marks it not verified for admin. Browser maps use the Google Maps JavaScript API. A driver who is not assigned sees ZIP-centroid circles, not the house. The assigned driver, the customer, and an admin see the exact pins. Places latitude and longitude may be cached for 30 days under Google's current Places terms. Place IDs may be kept and refreshed. Pickuply does not delete coordinates on an active job. Coverage miles stay on Pickuply's Georgia ZIP table. OpenRouteService is not a Google API and is not given new Places coordinates from the map.
+
+Customer saved addresses live on the customer profile. A driver sees a street only after assignment, through the private job record. The job stores the trip length rounded to the nearest half mile: driving miles when a routing key is set, otherwise a labeled straight line. The driver feed can switch between a list and a map of roughly one-mile circles around pickup ZIP centers. Assigned jobs show pins and a route to the customer, the assigned driver, and admin. There is no live driver location. If a coordinate cannot be saved, the distance shows “—”.
+
+Admin driver list and driver review show the same summary, for example “Austell, Smyrna +25 mi”. On an open job, admin sees the active drivers whose coverage includes that pickup and can assign one. The driver list can be filtered the same way.
+
+Every driver except a removed driver can open the feed. A customer block still hides that customer's jobs. A blocked profile sees nothing. Drivers who are not active yet see the feed their coverage allows and cannot accept. The database says “Finish setup to accept jobs.” A vehicle that does not match stays on the card with its actions off, and the database rejects the accept. Active drivers can accept, offer, and counter. Legacy `approved_new` rows still need an invitation before they can accept. Drivers may browse while Offline. Accepting or offering requires Online.
+
+Cards show the service, the vehicle the job needs, one or two people, stairs, trip miles, and the rounded miles from the driver's home ZIP centroid.
+
+An open job with no driver for 20 minutes is marked “No driver yet” for admin.
 
 Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. An eligible driver may also see request-stage item photos through a database policy and a short-lived signed URL. Cards do not show pickup, drop-off, report, or private document images, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned. This request-photo exception is intentional and is enforced in the database, not by hiding fields in the page.
 
 ### 5.5 Accepting, offering, and countering (no double booking)
-- **Admin-priced jobs** (Get a quote): **Accept** calls a single database function that atomically assigns the job only if it is still `open` and the driver is eligible and Online. Anyone else gets "Job already taken."
-- **Fixed-price jobs:** driver taps **Accept $X**, which creates an offer at that price, or **Counter** with a new amount and a required reason (for example, "3 flights of stairs not mentioned"). Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
-- **Budget-range jobs:** driver taps **Offer** with an amount inside the range, or **Counter** outside it with a required reason. Offers outside the range are stored with `outside_range`. The customer chooses the offer.
-- Drivers enter **their own earnings** on a counter or range offer. The app adds the platform fee and the service fee and shows the customer total. A Fixed Accept keeps the posted total and shows the driver their earnings before they accept. Drivers always see exactly what they'll earn.
-- Limits: one active offer per driver per job (they can withdraw and resubmit once); counters can't exceed 2× the customer's fixed price or range max; offers expire after 2 hours.
+- **Get Offers:** the driver enters an offer amount and taps Submit Offer. That does not book the job. The customer chooses the offer.
+- **Optional admin-priced jobs:** **Claim** calls a single database function that locks the job and, if it is no longer `open` or it has no driver pay, does not assign it. If another driver already took it, the app shows "Sorry, another driver just took this job." Eligibility (active, Online, matching vehicle) is checked only while the job is still open.
+- **Fixed-price jobs:** the driver can accept the posted price, or submit a different offer amount. Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
+- **Budget-range jobs:** the driver submits an offer amount. An amount outside the range is stored as a counter with `outside_range`. The customer chooses the offer.
+- The driver form asks for the customer-facing offer. As the amount changes, it shows the offer, the Pickuply commission, and estimated earnings. The driver confirms that breakdown before it is sent. The server calculates the split. A client cannot submit its own earnings figure.
+- Limits: one active offer per driver per job (they can withdraw and resubmit once); five active offers per job; no maximum multiple of the customer's price; offers expire after 2 hours. Minimum offer amounts are editable in Settings and start at $35 for pickup and delivery, $50 for junk removal, $35 for store delivery, and $35 for free-item pickups.
 - Only **Online**, eligible drivers can accept or offer. Final assignment uses the same atomic database function, so only one driver can be assigned.
 - After booking, any price change requires a request in the app and the other party's approval. Drivers can never charge unilaterally.
 - Driver and customer both get assignment confirmation.
@@ -196,6 +238,9 @@ If the customer rejects the item: job ends, $25 trip fee captured, driver paid t
 
 ### 5.7 Earnings
 Completed jobs, pending payouts, paid payouts, totals by week.
+
+### 5.8 Help
+Customers do not start a chat with admin. They use `/help`. Answers come from the written rules in this spec. A request gets a case number (HR-####), a status of Open, Waiting on you, or Resolved, and an optional private photo. The customer sees only their own requests. An admin sees every request, replies, changes the status, and can open the related job. An active job links to Report a problem. Drivers have their own topics and keep the driver support thread.
 
 ---
 
@@ -229,7 +274,11 @@ Every status change writes a **job event** (who, what, when, extra data). Every 
 | Driver no-show | Admin alerted, job reassigned, customer gets a credit; 2 strikes |
 
 ### Payment authorization note
-Card authorizations expire after ~7 days. For jobs scheduled more than 5 days out, authorize closer to the date (store the card, authorize 48h before). v1 may simply limit booking to within 5 days.
+Pickups can be scheduled at most 6 days ahead during the pilot. The request form and the database both reject a later date. A later option, not built yet, is to save the card and authorize it 2 days before pickup.
+
+A late cancel after assignment is one $15 capture of the existing hold. If the driver is on the way or further along, $10 goes to the driver and $5 stays with Pickuply. Otherwise Pickuply keeps the $15. There is no fee when the card was not authorized, or when the customer cancels before a driver is assigned. The trip fee stays $25: $20 to the driver and $5 to Pickuply. A customer can ask to reschedule once, free, before the driver is on the way. The driver has 2 hours to accept or decline. A decline opens the job again at the same price. A customer no-show fee waits for an admin after the driver has arrived, waited 15 minutes, and added a photo. A driver who is not on the way 30 minutes after the window starts does not cause a customer charge. Damage reports are due within 48 hours of delivery. Pickup photos are the before evidence. Damage already visible at pickup is not covered. An admin reviews it. There is no automatic refund. Verified damage can be refunded up to $250 for that job, and driver-fault amounts can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
+
+Rate limits: 5 sign-in codes per number per hour, 10 per network per hour, 10 new requests per customer per day, 30 offers per driver per hour, 60 messages per person per hour and 10 per minute, and 5 help requests per day.
 
 ---
 
@@ -238,20 +287,18 @@ Card authorizations expire after ~7 days. For jobs scheduled more than 5 days ou
 ### 7.1 Pricing methods
 | Method | Customer enters | Stored as | Who responds |
 |---|---|---|---|
-| Get a quote | Nothing | `pricing_method = 'quote'` and no customer amount | Admin sends the only price. The customer must accept it before drivers see the job |
-| Name your price | One amount, min $35 | `'fixed'`, `offer_cents` | Drivers accept or counter. The original `offer_cents` stays. The customer chooses the offer |
-| Set a budget range | Min (≥ $35) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within the range or counter outside it (`outside_range`). The original range stays. The customer chooses the offer |
+| Get Offers | Nothing | `pricing_method = 'quote'` and no customer amount | Drivers send offers as soon as the request is open. The customer chooses one. An admin quote is optional |
+| Name your price | One amount, min $35, or $50 for junk removal | `'fixed'`, `offer_cents` | Drivers accept or counter. The original `offer_cents` stays. The customer chooses the offer |
+| Set a budget range | Min (≥ $35, or ≥ $50 for junk removal) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within the range or counter outside it (`outside_range`). The original range stays. The customer chooses the offer |
 
-Two fees, both stored in integer cents and configurable in `platform_settings`:
+The driver or admin enters the customer-facing offer. Commission and card processing are stored in integer cents. The commission rate used for that offer is stored on the offer and copied to the job, so a later settings change does not rewrite it. Older jobs keep the cents already saved.
 
-- **Platform fee** = max(round(10% × driver earnings), $10).
-- **Subtotal** = driver earnings + platform fee.
-- **Service fee** covers card processing. Default 2.9% + 30¢. The customer total is the smallest cent amount whose separately rounded 2.9% plus 30¢ covers the subtotal. Service fee = customer total − subtotal. The label is "Service fee". Wording and card-surcharge rules need a review before launch.
-- **Fixed Accept** keeps the customer's posted total. The service fee is round(2.9% × that total) + 30¢, then the subtotal is split into driver earnings and the platform fee. Rounding pennies stay in driver earnings. Reject the price if driver earnings would be zero or less.
-- **Fixed Counter and range offer/counter:** the driver enters earnings and the app computes the customer total.
-- **Quote:** the admin sets driver pay. The platform fee and service fee are calculated on top. The customer sees the full breakdown before accepting.
+- **Driver earnings** = round half up(offer × 85%). Default commission is 15% of the offer, deducted from that offer.
+- **Pickuply commission** = offer − driver earnings. It is not added to the customer price. There is no second platform fee and no separate Pickuply service fee.
+- **Card processing** is paid by the customer on top of the offer. Pickuply does not absorb it. Default 2.9% + 30¢. The customer total is the smallest cent amount whose separately rounded 2.9% plus 30¢ covers the offer. Processing fee = customer total − offer. The label is "Card processing fee". Charging this amount on debit, prepaid, or every card type needs a review before live payments. Do not rename the fee to avoid that review.
+- **Fixed Accept, counter, range, and quote** all use that offer. A posted price is the offer, and processing is added on top. The admin enters the customer offer, not driver take-home pay.
 
-Rounding is half up on integer cents: `(numerator + denominator / 2) / denominator`. Example: a $60 earnings offer totals $72.40. A $120 earnings offer totals $136.25. A posted $150 Accept stays $150 and splits to $132.14 earnings, $13.21 platform fee, and $4.65 service fee. A posted $35 Accept stays $35. 2.9% of 3500 cents is 101.5, which half-up rounds to 102, so the service fee is $1.32 and driver earnings are $23.68 (the $10 platform minimum applies).
+Rounding is half up on integer cents: `(numerator + denominator / 2) / denominator`. A $50 offer keeps $7.50 and pays the driver $42.50. A $100 offer keeps $15 and pays the driver $85. A $200 offer keeps $30 and pays the driver $170. A $50.01 offer pays the driver $42.51 and keeps $7.50. A $60 offer pays the driver $51 and totals $62.10 after card processing.
 
 The total is always shown before the customer accepts. There is no auto-booking.
 
@@ -278,7 +325,7 @@ The total is always shown before the customer accepts. There is no auto-booking.
 
 Free-item pickups: priced like Light Load, ASAP by default. Construction deliveries: priced like Full Service.
 
-**Driver pay:** for admin-quoted jobs, the admin enters driver earnings and the fees are calculated on top. Junk dump fees are recorded separately. For fixed/range jobs, the driver enters earnings on a counter or offer, and the customer total is calculated forward. A Fixed Accept keeps the posted customer total. Tips go 100% to the driver.
+**Driver pay:** the entered amount is the customer-facing offer. Driver earnings are that offer minus the stored commission. For junk jobs, those earnings must cover disposal. `dump_fee_cents` is an informational estimate for the admin. The disposal receipt is proof of disposal, not a reason to pay the driver anything beyond those earnings. Card processing is added on top of the offer and shown before the customer pays. Tips go 100% to the driver.
 
 Store `driver_earnings` (as `driver_pay_cents` / `driver_amount_cents`), `platform_fee_cents`, `service_fee_cents`, and the customer total separately. The original posted price or range stays unchanged.
 
@@ -297,6 +344,8 @@ Show drivers' average rating, completed jobs, review count. Never show private r
 ---
 
 ## 9. Reports, disputes, and strikes
+
+Built locally on 2026-10-22, with these differences from the workflow below: a report holds capture and payout creation and marks the job disputed, but it does not reverse money that already moved and it does not call Stripe. Refunds wait for Step 5. Critical reports alert an admin immediately. A driver is paused only when an admin chooses that outcome. Strikes are not built yet.
 
 ### Customer reports a driver/job problem
 Available from the active job, job history (7 days after completion), or driver profile on their booking.
@@ -358,6 +407,10 @@ All admin actions are permission-checked on the server and audit-logged.
 
 ## 11. Notifications
 
+A new message appears in the recipient's Messages inbox and as a bell alert. The alert opens that conversation. Opening the conversation marks it read. Seen shows on the sender's last message after the other person opens it. Customers reply to an admin message or use Help. They cannot start an admin chat. A resolved support thread stays read-only. Document requests include Upload now for the matching profile field, and a successful upload notifies admin. Photos and PDFs in an admin conversation stay in a private bucket.
+
+Built locally on 2026-10-22. Alerts are stored in the app, push is ready when VAPID keys are set, and email is ready when Resend is set. Texting is wired and stays off until an admin turns it on after Twilio approval. The one-time iPhone Home Screen note is on the alerts page. Job messages open at assignment and close 24 hours after completion. Proof photos are private, locked after upload, and any optional location is rounded and visible only to an admin.
+
 | Event | Customer | Driver | Admin |
 |---|---|---|---|
 | Request submitted | ✔ confirmation | | ✔ new request |
@@ -379,7 +432,7 @@ Push uses Web Push (VAPID). On iPhone, push works only after "Add to Home Screen
 
 ## 12. Privacy and safety rules (must hold everywhere)
 
-- Drivers discover open jobs only through `driver_job_feed`. That feed returns structured fields (service, size, pieces, city/ZIP, distance, stairs, schedule, and the relevant price). It does not return free-text descriptions, notes, listing links, order numbers, photos, exact addresses, names, phone numbers, email, or access notes. Those free-text fields and photos can contain private details even when the customer did not mean to include them.
+- Drivers discover open jobs only through `driver_matched_feed`, `driver_georgia_page`, and `driver_job_feed`. Those functions return structured fields (service, size, pieces, city/ZIP, distance, stairs, schedule, and the relevant price). They do not return free-text descriptions, notes, listing links, order numbers, photos, exact addresses, names, phone numbers, email, or access notes. Those free-text fields and photos can contain private details even when the customer did not mean to include them.
 - Exact addresses, phone numbers, email, and names are visible only to: the customer, the **assigned** driver (from assignment until 24h after completion), and admin.
 - Request, pickup, drop-off, and report photos stay private to the customer, the assigned driver, and admin. Eligible drivers who are only browsing do not receive them.
 - Phone numbers are never shown between customer and driver; they talk through in-app messages.
@@ -413,12 +466,12 @@ Push uses Web Push (VAPID). On iPhone, push works only after "Add to Home Screen
 - `drivers` — profile_id, status, zone_id, home_city, max_distance_miles, service_level, services[], equipment[], helper_name, helper_phone, license_url, license_expires, insurance_url, insurance_expires, payout_method, payout_handle, w9_received, agreement_signed_at, is_online, last_location, new_driver_jobs_completed, rating_avg, rating_count, alert_prefs
 - `vehicles` — id, driver_id, type, make, model, year, plate, cargo_length_in, photo_url, approved
 - `availability_blocks` — driver_id, weekday, start_time, end_time
-- `jobs` — id, customer_id, service, status, zone_id, pickup_area (city/ZIP), dropoff_area (city/ZIP), distance_miles, description, pieces, size (`small`/`medium`/`large`/`xl`), item_value_cents, needs_value_approval, listing_url, already_paid, seller_holding, wants_item_check, stairs_pickup, stairs_dropoff, elevator, help_loading, junk_load_size, junk_materials, junk_special_items, store_name, store_order_number, preferred_date, time_window, notes, **pricing_method** (`quote`/`fixed`/`range`), **offer_cents**, **budget_min_cents**, **budget_max_cents**, service_level, required_vehicle, price_cents (admin quote or chosen total), driver_pay_cents, platform_fee_cents, dump_fee_cents, quote_expires_at, assigned_driver_id (set only when a driver is actually assigned), accepted_offer_id, stripe_payment_intent_id, payment_status, captured_cents, source, created_at. Status changes are recorded in `job_events`. The customer's pricing columns are immutable after insert. Only an admin can set or change `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, and `quote_expires_at`
-- `job_offers` — id, job_id, driver_id, kind (`accept`/`offer`/`counter`), driver_amount_cents, platform_fee_cents, customer_total_cents, reason, outside_range, available_at, status (`active`/`withdrawn`/`expired`/`chosen`/`declined`), expires_at, created_at. Allowed only when the job's `pricing_method` is `fixed` or `range`. Inserting an offer does not assign the driver or change the customer's price
+- `jobs` — id, customer_id, service, status, zone_id, pickup_area (city/ZIP), dropoff_area (city/ZIP), distance_miles, description, pieces, size (`small`/`medium`/`large`/`xl`), item_value_cents, needs_value_approval, listing_url, already_paid, seller_holding, wants_item_check, stairs_pickup, stairs_dropoff, elevator, help_loading, junk_load_size, junk_materials, junk_special_items, store_name, store_order_number, preferred_date, time_window, notes, **pricing_method** (`quote`/`fixed`/`range`), **offer_cents**, **budget_min_cents**, **budget_max_cents**, service_level, required_vehicle, price_cents (customer total: the offer plus card processing), driver_pay_cents (driver earnings after the stored commission), platform_fee_cents (commission deducted from the offer), service_fee_cents (card processing added on top), commission_bps (the rate stored for that job; null on older rows), dump_fee_cents, quote_expires_at, assigned_driver_id (set only when a driver is actually assigned), accepted_offer_id, stripe_payment_intent_id, payment_status, captured_cents, source, created_at. Status changes are recorded in `job_events`. The customer's pricing columns are immutable after insert. Only an admin can set or change `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `service_fee_cents`, `commission_bps`, `dump_fee_cents`, and `quote_expires_at`. Older rows keep the cents already saved.
+- `job_offers` — id, job_id, driver_id, kind (`accept`/`offer`/`counter`), driver_amount_cents (driver earnings), platform_fee_cents (commission), service_fee_cents (card processing), customer_total_cents (offer plus card processing), commission_bps, reason, outside_range, available_at, status (`active`/`withdrawn`/`expired`/`chosen`/`declined`), expires_at, created_at. Allowed on open quote, fixed, and range jobs. Inserting an offer does not assign the driver or change the customer's posted price. Older offers keep the cents already saved.
 - `job_private` — job_id, pickup_address, dropoff_address, pickup_lat/lng, dropoff_lat/lng, customer_name, customer_phone, customer_email, access_notes (RLS: customer, assigned driver, admin only)
 - `customer_driver_blocks` — customer_id, driver_id, created_at. One row per pair. The customer manages only their own blocks. A blocked driver cannot discover or offer on that customer's jobs
 - `job_driver_invitations` — job_id, driver_id, invited_by, created_at. This is how an admin lets an `approved_new` driver see one open job. It is not an assignment and does not set `assigned_driver_id`
-- `driver_job_feed()` — the only discovery path for drivers. `SECURITY DEFINER`, executable by signed-in users, and it takes no driver id argument. It checks the signed-in driver, role, status, zone, service, level, approved vehicle, blocks, invitation, and `open` status inside the function. It returns no free-text customer fields and no photo paths
+- `driver_matched_feed()`, `driver_georgia_page()`, and `driver_job_feed()` — the discovery path for drivers. Each is `SECURITY DEFINER`, executable by signed-in users, and takes no driver id argument. The section feeds check the signed-in driver, status, blocks, wave release, and `open` status inside the function. All Georgia Requests also applies the service, distance, date, and vehicle filters before the page. They return no free-text customer fields and no photo paths
 - `job_photos` — id, job_id, stage (`request`, `pickup`, `dropoff`, `dump_receipt`, `report`), storage_path, uploaded_by, created_at
 - `job_events` — id, job_id, actor_id, type, data (jsonb), created_at
 - `messages` — id, job_id, sender_id, body, created_at, read_at

@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import Script from "next/script";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
+import { UpdateBanner } from "@/components/pwa/update-banner";
+import { MarketingSlot } from "@/components/marketing-chrome";
+import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -30,6 +34,13 @@ export const metadata: Metadata = {
     title: "Pickuply",
     statusBarStyle: "default",
   },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -44,13 +55,29 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
+        <UpdateBanner />
+        <Script id="landing-flag" strategy="beforeInteractive">
+          {`if(location.pathname==='/')document.documentElement.dataset.landing='1'`}
+        </Script>
         <Suspense fallback={<SiteHeader state={{ status: "signed-out" }} />}>
-          <HeaderSession />
+          <MarketingSlot>
+            <HeaderSession />
+          </MarketingSlot>
         </Suspense>
-        {children}
-        <SiteFooter />
+        <div data-app-scroll className="flex min-h-0 w-full flex-1 flex-col">
+          {children}
+          <Suspense fallback={<SiteFooter />}>
+            <MarketingSlot>
+              <SiteFooter />
+            </MarketingSlot>
+          </Suspense>
+        </div>
+        <Suspense fallback={null}>
+          <MobileFrame />
+        </Suspense>
       </body>
     </html>
   );

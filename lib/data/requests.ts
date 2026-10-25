@@ -1,7 +1,9 @@
+import { validateFullName } from "../auth/name";
 import { photoMaxBytes } from "../constants";
 import { loadPhoto } from "../photo-store";
 import { createClient } from "../supabase/client";
 import type { RequestDraft } from "../types";
+import { saveJobPlaces } from "../maps/save-places";
 import { requestPayload } from "./request-payload";
 
 const submissionKey = "pickuply.submission-id";
@@ -63,16 +65,45 @@ export async function createRequest(
     throw new RequestSubmitError("auth", "Sign in again before saving this request.");
   }
 
+  const email = draft.customerEmail.trim();
+  if (email) {
+    const saved = await supabase.rpc("save_profile_email", { next_email: email });
+    if (saved.error) {
+      throw new RequestSubmitError(
+        "rejected",
+        saved.error.message.includes("email is not valid")
+          ? "Enter a valid email, or leave it blank."
+          : "We couldn't save this request. Your draft is still here.",
+      );
+    }
+  }
+
   const id = submissionId();
   const payload = requestPayload(draft);
+  payload.has_photo = photoIds.length > 0;
   const created = await supabase.rpc("create_customer_request", {
     request_id: id,
     payload,
   });
+  if (!created.error && created.data) {
+    await saveJobPlaces(id, {
+      pickupUnit: draft.pickupUnit,
+      dropoffUnit: draft.dropoffUnit,
+      pickupLat: draft.pickupLat,
+      pickupLng: draft.pickupLng,
+      dropoffLat: draft.dropoffLat,
+      dropoffLng: draft.dropoffLng,
+      pickupVerified: draft.pickupVerified,
+      dropoffVerified: draft.dropoffVerified,
+    });
+  }
   if (created.error || !created.data) {
     const message = created.error?.message ?? "";
     if (/sign in required|jwt|session/i.test(message)) {
       throw new RequestSubmitError("auth", "Sign in again before saving this request.");
+    }
+    if (/Georgia ZIP/i.test(message)) {
+      throw new RequestSubmitError("rejected", "Pickuply currently serves Georgia ZIP codes only.");
     }
     if (/already saved with different details/i.test(message)) {
       throw new RequestSubmitError(
@@ -87,6 +118,17 @@ export async function createRequest(
       "rejected",
       "We couldn't save this request. Your draft is still here.",
     );
+  }
+
+  // The request already asked for a name. Keep it on the profile so account
+  // pages don't send this person back to the name step.
+  const name = validateFullName(draft.customerName);
+  if (name) {
+    const profile = await supabase.from("profiles").select("full_name").eq("id", user.data.user.id).maybeSingle();
+    const current = typeof profile.data?.full_name === "string" ? profile.data.full_name.trim() : "";
+    if (!profile.error && profile.data && !current) {
+      await supabase.from("profiles").update({ full_name: name }).eq("id", user.data.user.id);
+    }
   }
 
   const recorded = await supabase

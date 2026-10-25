@@ -25,14 +25,18 @@ test("local marketplace assignment does not charge or reveal the address", async
   await onboard(driver2.page, people.driver2.name);
   promoteAdmin();
 
-  await admin.page.goto("/admin/drivers");
-  await admin.page.getByRole("link", { name: /Pat Driver/ }).click();
-  await admin.page.getByRole("button", { name: "Approve as active" }).click();
-  await admin.page.waitForURL(/saved=1/);
-  await admin.page.goto("/admin/drivers");
-  await admin.page.getByRole("link", { name: /Bea Driver/ }).click();
-  await admin.page.getByRole("button", { name: "Approve as active" }).click();
-  await admin.page.waitForURL(/saved=1/);
+  async function approveDriver(name: RegExp) {
+    await admin.page.goto("/admin/drivers");
+    await admin.page.getByRole("link", { name }).click();
+    const approveAnyway = admin.page.getByRole("checkbox", { name: "Approve anyway" });
+    if (await approveAnyway.isVisible()) await approveAnyway.check();
+    await admin.page.getByRole("button", { name: "Approve driver" }).click();
+    await admin.page.waitForURL(/saved=1/);
+  }
+  await approveDriver(/Pat Driver/);
+  await approveDriver(/Bea Driver/);
+  finishChecklist(people.driver.phone);
+  finishChecklist(people.driver2.phone);
 
   const fixedId = await createRequest(customer.context, {
     description: "TEST fixed desk",
@@ -62,7 +66,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await driver.page.goto("/driver");
   const fixedCard = driver.page.locator("li").filter({ hasText: "Austell 30168" });
   await fixedCard.getByRole("button", { name: "Accept posted price" }).click();
-  await expect(fixedCard.getByText("Offer sent. The customer chooses.")).toBeVisible();
+  await expect(fixedCard.getByText("Offer submitted successfully.")).toBeVisible();
 
   await customer.page.goto(`/jobs/${fixedId}`);
   await customer.page.getByRole("button", { name: "Choose this driver" }).click();
@@ -70,7 +74,7 @@ test("local marketplace assignment does not charge or reveal the address", async
 
   await driver.page.goto(`/driver/jobs/${fixedId}`);
   await expect(driver.page.getByText("100 Market Street, Austell, GA 30168")).toBeVisible();
-  await expect(driver.page.getByText("awaiting payment")).toBeVisible();
+  await expect(driver.page.getByText("Payment: awaiting payment")).toBeVisible();
 
   await driver2.page.goto("/driver");
   await expect(driver2.page.getByText("Austell 30168")).toHaveCount(0);
@@ -87,7 +91,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await driver.page.goto("/driver");
   const quoteCard = driver.page.locator("li").filter({ hasText: "Lithia Springs 30122" });
   await quoteCard.getByRole("button", { name: "Claim this job" }).click();
-  await expect(quoteCard.getByText("You are assigned. Payment is still due.")).toBeVisible();
+  await expect(driver.page.locator(`a[href="/driver/jobs/${quoteId}"]`)).toContainText("assigned");
 
   await driver2.page.goto("/driver");
   await expect(driver2.page.getByText("Lithia Springs 30122")).toHaveCount(0);
@@ -116,6 +120,40 @@ test("local marketplace assignment does not charge or reveal the address", async
   expect(jobPayment(fixedId).status).toBe("assigned");
   expect(stripeUrls).toEqual([]);
 
+  await customer.page.goto(`/jobs/${fixedId}`);
+  const progress = customer.page.getByRole("region", { name: "Job progress" });
+  await expect(progress.getByLabel("Step 2 of 4: Driver Confirmed")).toBeVisible();
+  await expect(progress.getByText("Pay to confirm this driver. Work starts after the card is authorized.")).toBeVisible();
+  await progress.getByText("See full history").click();
+  await expect(progress.getByRole("listitem").filter({ hasText: "Request received" })).toBeVisible();
+
+  const messages = customer.page.getByRole("region", { name: "Messages" });
+  const message = messages.getByRole("textbox", { name: "Message", exact: true });
+  await message.fill("call me at 404-555-0100");
+  await expect(messages.getByText("Remove the phone number or email before sending.")).toBeVisible();
+  await expect(messages.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+  await message.fill("Please use the side door");
+  await messages.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(messages.getByText("Please use the side door")).toBeVisible();
+
+  const driverMessages = driver.page.getByRole("region", { name: "Messages" });
+  await driver.page.goto(`/driver/jobs/${fixedId}`);
+  await expect(driverMessages.getByText("Please use the side door")).toBeVisible();
+  await driverMessages.getByRole("button", { name: "I'm outside" }).click();
+  await driverMessages.getByRole("button", { name: "Send" }).click();
+  await expect(driverMessages.locator("li").filter({ hasText: "I'm outside" })).toBeVisible();
+
+  await customer.page.reload();
+  await expect(customer.page.getByRole("region", { name: "Messages" }).locator("li").filter({ hasText: "I'm outside" })).toBeVisible();
+  await customer.page.locator("#report-category").selectOption("damaged");
+  await customer.page.locator("#report-description").fill("The desk corner is cracked.");
+  await customer.page.locator("#report-outcome").selectOption("repair");
+  await customer.page.getByRole("button", { name: "Send report" }).click();
+  await expect(customer.page.getByText("Report saved.")).toBeVisible();
+  await customer.page.reload();
+  await expect(customer.page.getByRole("heading", { name: "Disputed" })).toBeVisible();
+  expect(jobPayment(fixedId).status).toBe("disputed");
+
   await customer.context.close();
   await driver.context.close();
   await driver2.context.close();
@@ -139,7 +177,8 @@ async function signedIn(
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("Full name").fill(person.name);
+    await page.getByLabel("First name").fill(person.name);
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"));
   }
@@ -149,33 +188,40 @@ async function signedIn(
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
   await page.locator("#fullName").fill(name);
-  await page.getByLabel("Home city").fill("Austell");
-  await page.locator("#zone").selectOption({ label: "West Metro" });
-  await page.getByLabel("Make").fill("Ford");
-  await page.getByLabel("Model").fill("F150");
-  await page.getByLabel("Year").fill("2018");
-  await page.getByLabel("Plate").fill("TEST123");
-  await page.getByLabel("Cargo length (inches)").fill("72");
-  await page.getByLabel("License expiration").fill("2027-12-31");
-  await page.getByLabel("Insurance expiration").fill("2027-12-31");
-  await page.locator("#payoutHandle").fill("$test-driver");
-  const files = page.locator("input[type=file]");
+  await page.getByLabel("Street").fill("10 Test Street");
+  await page.getByLabel("City").fill("Austell");
+  await page.getByLabel("ZIP").fill("30106");
+  await page.locator("#vehicleType").selectOption("pickup");
+  await page.getByRole("radio", { name: "Light load" }).check();
+  await page.locator("#licenseExpires").fill("2027-12-31");
   const photo = { name: "photo.png", mimeType: "image/png", buffer: png };
-  await files.nth(0).setInputFiles(photo);
-  await files.nth(1).setInputFiles(photo);
-  await files.nth(2).setInputFiles(photo);
-  await files.nth(3).setInputFiles(photo);
-  for (const label of [
-    "I am an independent contractor, not an employee of Pickuply.",
-    "I will follow the locked price, photograph pickup and drop-off, and refuse prohibited items.",
-    "The documents and vehicle details I submit are accurate.",
-    "Pay me at the Zelle or Cash App handle above. I will not take payment from the customer.",
-  ]) {
-    await page.getByRole("checkbox", { name: label }).check();
-  }
-  await page.locator("#signature").fill(name);
+  await page.locator("#profilePhoto").setInputFiles(photo);
+  await page.locator("#licensePhoto").setInputFiles(photo);
+  await page.getByRole("checkbox", { name: "Pickuply can contact me about this application." }).check();
+  await page.getByRole("checkbox", { name: /Pickuply Driver Terms/ }).check();
   await page.getByRole("button", { name: "Submit application" }).click();
-  await page.waitForURL(/submitted=1/);
+  await page.waitForURL(/\/driver\?saved=applied/);
+}
+
+function finishChecklist(phone: string) {
+  localSql(`
+    update public.drivers as drivers
+    set insurance_url = drivers.profile_id::text || '/insurance.jpg',
+        insurance_expires = '2027-12-31',
+        agreement_signed_at = now(),
+        agreement_signature = 'signed',
+        agreement_version = '2026-10',
+        training_completed_at = now(),
+        services = '{delivery}',
+        kit_saved_at = now()
+    from auth.users
+    where drivers.profile_id = auth.users.id
+      and auth.users.phone in ('1${phone}', '+1${phone}');
+    update public.vehicles
+    set make = 'Ford', model = 'F150', year = 2018, plate = 'TEST123',
+        cargo_length_in = 72, photo_url = driver_id::text || '/vehicle.jpg', approved = true
+    where driver_id in (select id from auth.users where phone in ('1${phone}', '+1${phone}'));
+  `);
 }
 
 function promoteAdmin() {
@@ -276,31 +322,31 @@ async function accessToken(context: BrowserContext) {
 }
 
 async function publish(page: Page, jobId: string, kind: "fixed" | "quote") {
+  if (kind === "fixed") {
+    const status = localSql(`select status from public.jobs where id = '${jobId}'`).trim();
+    expect(status).toBe("open");
+    return;
+  }
   await page.goto(`/admin/requests/${jobId}`);
-  await page.locator("#zoneId").selectOption({ label: "West Metro" });
   await page.locator("#serviceLevel").selectOption("light");
   await page.locator("#requiredVehicle").selectOption("pickup");
-  if (kind === "quote") {
-    await page.locator("#driverPay").fill("60");
-    await page.locator("#preferredDate").fill("2026-10-30");
-    await page.locator("#timeWindow").selectOption("morning");
-    await page.getByRole("button", { name: "Send quote" }).click();
-  } else {
-    await page.getByRole("button", { name: "Approve and publish" }).click();
-  }
+  await page.locator("#driverPay").fill("60");
+  await page.locator("#preferredDate").fill("2026-10-30");
+  await page.locator("#timeWindow").selectOption("morning");
+  await page.getByRole("button", { name: "Send quote" }).click();
   await page.waitForURL(/saved=1|error=/);
   await expect(page).not.toHaveURL(/error=/);
 }
 
 async function goOnline(page: Page) {
   await page.goto("/driver");
-  await page.getByRole("button", { name: "You are Offline" }).click();
-  await expect(page.getByRole("button", { name: "You are Online" })).toBeVisible();
+  await page.getByRole("switch", { name: "You are Offline" }).click();
+  await expect(page.getByRole("switch", { name: "You are Online" })).toBeVisible();
 }
 
 function jobPayment(jobId: string) {
   const output = localSql(
-    `select status || '|' || payment_status || '|' || (payment_due_at is not null)::text || '|' || (stripe_payment_intent_id is not null)::text || '|' || (assigned_driver_id is not null)::text from public.jobs where id = '${jobId}'`,
+    `select j.status || '|' || coalesce(j.payment_status, '') || '|' || (j.payment_due_at is not null)::text || '|' || (p.payment_intent_id is not null)::text || '|' || (j.assigned_driver_id is not null)::text from public.jobs j left join public.job_payments p on p.job_id = j.id where j.id = '${jobId}'`,
   );
   const line = output
     .split(/\r?\n/)
@@ -320,6 +366,7 @@ function jobPayment(jobId: string) {
 function resetLocalPeople() {
   const phones = "('15555550123', '+15555550123', '15555550124', '+15555550124', '15555550125', '+15555550125', '15555550126', '+15555550126')";
   localSql(`
+    alter table public.job_photos disable trigger job_photos_lock;
     delete from public.job_events
     where actor_id in (select id from auth.users where phone in ${phones})
       or job_id in (
@@ -332,15 +379,31 @@ function resetLocalPeople() {
       or assigned_driver_id in (select id from auth.users where phone in ${phones});
     delete from public.job_offers
     where driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.driver_bank_payouts
+    where driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.job_photos
+    where job_id in (
+      select id from public.jobs
+      where customer_id in (select id from auth.users where phone in ${phones})
+        or assigned_driver_id in (select id from auth.users where phone in ${phones})
+    );
     delete from public.jobs
     where customer_id in (select id from auth.users where phone in ${phones})
       or assigned_driver_id in (select id from auth.users where phone in ${phones});
+    delete from public.messages
+    where sender_id in (select id from auth.users where phone in ${phones});
+    delete from public.message_reads
+    where profile_id in (select id from auth.users where phone in ${phones});
+    delete from public.message_threads
+    where requester_id in (select id from auth.users where phone in ${phones})
+      or driver_id in (select id from auth.users where phone in ${phones});
     delete from public.audit_log
     where actor_id in (select id from auth.users where phone in ${phones})
       or target_id in (select id from auth.users where phone in ${phones});
     delete from public.profiles
     where id in (select id from auth.users where phone in ${phones});
     delete from auth.users where phone in ${phones};
+    alter table public.job_photos enable trigger job_photos_lock;
   `);
 }
 

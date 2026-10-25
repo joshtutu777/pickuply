@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/funnel-retention",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}

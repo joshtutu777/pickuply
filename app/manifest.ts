@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Pickuply",
     short_name: "Pickuply",
     description: "Found it. Bought it. Can't pick it up? We'll bring it home.",
-    start_url: "/",
+    start_url: "/app?source=pwa",
     scope: "/",
     display: "standalone",
     background_color: "#f4f1ea",
@@ -22,6 +22,12 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
+      },
+      {
+        src: "/icons/icon-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

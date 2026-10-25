@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 
@@ -27,6 +28,7 @@ async function TrainingContent() {
   await requireSignedIn("/driver/training");
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/driver" label="Driver home" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Quick training</h1>
       <ol className="mt-6 list-decimal space-y-4 pl-5 text-base leading-relaxed text-ink">

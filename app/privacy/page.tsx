@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { PlaceholderPage } from "@/components/placeholder-page";
+import { LegalDocument } from "@/components/legal-document";
+import { privacyEffective, privacySections } from "@/lib/legal/privacy";
 
 export const metadata: Metadata = {
-  title: "Privacy",
+  title: "Privacy Policy",
 };
 
 export default function PrivacyPage() {
-  return (
-    <PlaceholderPage
-      eyebrow="Legal"
-      title="Privacy"
-      description="How Pickuply handles personal information will be posted here."
-    />
-  );
+  return <LegalDocument title="Privacy Policy" effective={privacyEffective} sections={privacySections} />;
 }

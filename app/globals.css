@@ -31,9 +31,34 @@ html {
   background: var(--paper);
 }
 
+html[data-landing] [data-app-header],
+html[data-landing] [data-app-footer] {
+  display: none;
+}
+
 body {
   background: var(--paper);
   color: var(--ink);
+}
+
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (max-width: 767px) {
+  body:has([data-mobile-nav]) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:has([data-mobile-nav]) [data-app-scroll] {
+    overflow-y: auto;
+    padding-bottom: 0.75rem;
+  }
 }
 
 :focus-visible {

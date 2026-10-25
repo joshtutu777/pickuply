@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { OnboardingForm } from "@/components/driver/onboarding-form";
+import { BackLink } from "@/components/back-link";
+import { QuickApplyForm } from "@/components/driver/quick-apply-form";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -26,56 +27,27 @@ async function OnboardingContent({
   searchParams: PageProps<"/driver/onboarding">["searchParams"];
 }) {
   const session = await requireSignedIn("/driver/onboarding");
-  const params = await searchParams;
-  const submitted = params.submitted === "1";
+  await searchParams;
   const supabase = await createClient();
-  const [{ data: zones }, { data: driver }] = await Promise.all([
-    supabase.from("zones").select("id, name").eq("active", true).order("name"),
-    supabase
-      .from("drivers")
-      .select("status, review_note")
-      .eq("profile_id", session.userId)
-      .maybeSingle(),
+  const [{ data: driver }, { data: profile }] = await Promise.all([
+    supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle(),
   ]);
 
-  const waiting = driver?.status === "pending_review" && submitted;
-  const closed = driver?.status === "removed";
-  const approved = driver?.status === "active" || driver?.status === "approved_new";
+  if (driver || session.role === "driver") redirect("/driver");
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <BackLink href="/account" label="Account" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         Drive with Pickuply
       </h1>
-      {waiting ? (
-        <div className="mt-6 space-y-4 text-base leading-relaxed text-ink">
-          <p>Your application is in for review. We will look at your documents before you can take jobs.</p>
-          <Link href="/driver/training" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Read the short training
-          </Link>
-        </div>
-      ) : null}
-      {approved ? (
-        <p className="mt-6 text-base leading-relaxed text-ink">
-          Your driver account is approved.{" "}
-          <Link href="/driver" className="font-semibold text-brand">
-            Go to driver home
-          </Link>
-        </p>
-      ) : null}
-      {closed ? (
-        <p className="mt-6 text-base leading-relaxed text-ink">
-          This application was closed. You can submit it again below if something changed.
-        </p>
-      ) : null}
-      {!waiting && !approved ? (
-        <OnboardingForm
-          userId={session.userId}
-          zones={zones ?? []}
-          reviewNote={driver?.status === "pending_review" ? driver.review_note : null}
-        />
-      ) : null}
+      <QuickApplyForm
+        userId={session.userId}
+        defaultName={session.fullName ?? ""}
+        defaultEmail={profile?.email ?? ""}
+      />
     </main>
   );
 }

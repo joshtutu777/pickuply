@@ -311,12 +311,12 @@ select is(
 );
 
 select ok(
-  (select status = 'requested' and customer_id = 'a1111111-1111-4111-8111-111111111111'
+  (select status = 'open' and customer_id = 'a1111111-1111-4111-8111-111111111111'
     and price_cents is null and driver_pay_cents is null and platform_fee_cents is null
     and dump_fee_cents is null and quote_expires_at is null and assigned_driver_id is null
     and offer_cents is null
     from public.jobs where id = 'e1111111-1111-4111-8111-111111111111'),
-  'a quote stays requested with no price, fee, or driver'
+  'a quote opens with no price, fee, or driver'
 );
 select is(
   (select offer_cents from public.jobs where id = 'e2222222-2222-4222-8222-222222222222'),
@@ -522,7 +522,7 @@ select pg_temp.as_user('d4444444-4444-4444-8444-444444444444');
 select is(
   (select count(*)::int from public.jobs where id = 'e1111111-1111-4111-8111-111111111111'),
   0,
-  'a driver cannot read a requested job'
+  'a driver cannot read an unassigned job'
 );
 select is(
   (select count(*)::int from public.job_private where job_id = 'e1111111-1111-4111-8111-111111111111'),
@@ -532,8 +532,8 @@ select is(
 select is(
   (select count(*)::int from public.driver_job_feed()
     where id = 'e1111111-1111-4111-8111-111111111111'),
-  0,
-  'a requested job stays out of the driver feed'
+  1,
+  'an open request is in the driver feed'
 );
 
 select pg_temp.as_user('c3333333-3333-4333-8333-333333333333');

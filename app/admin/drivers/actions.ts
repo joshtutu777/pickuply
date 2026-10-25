@@ -2,6 +2,7 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
 const decisions = new Set([
@@ -27,7 +28,53 @@ export async function reviewDriver(formData: FormData) {
     target_driver: driverId,
     decision,
     note,
+    approve_anyway: formData.get("approveAnyway") === "on",
   });
+  if (error) {
+    const message = error.message.includes("confirm approve anyway")
+      ? "Check Approve anyway to approve this driver with a missing document."
+      : error.message;
+    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(message)}`);
+  }
+  if (decision === "approve_new" || decision === "approve_active") {
+    await recordFunnelServer({ event: "driver_approved", step: decision });
+  }
+  redirect(`/admin/drivers/${driverId}?saved=1`);
+}
+
+export async function requestDocuments(formData: FormData) {
+  await connection();
+  const driverId = String(formData.get("driverId") ?? "");
+  const note = String(formData.get("note") ?? "");
+  const items = formData.getAll("item").map(String);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_driver_documents", {
+    target_driver: driverId,
+    items,
+    note,
+  });
+  if (error) {
+    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/drivers/${driverId}?saved=1`);
+}
+
+export async function reopenDriver(formData: FormData) {
+  await connection();
+  const driverId = String(formData.get("driverId") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reopen_driver_application", { target_driver: driverId });
+  if (error) {
+    redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/drivers/${driverId}?saved=1`);
+}
+
+export async function approveVehicle(formData: FormData) {
+  await connection();
+  const driverId = String(formData.get("driverId") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("approve_driver_vehicle", { target_driver: driverId });
   if (error) {
     redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(error.message)}`);
   }

@@ -1,12 +1,16 @@
 /**
- * Booking fees in integer cents. The database functions in
- * supabase/migrations/0008_admin_publish.sql use this same arithmetic.
+ * Booking fees in integer cents. supabase/migrations/0073_offer_commission.sql
+ * uses this same arithmetic.
  *
- * Platform fee = max(round(platform percent × driver earnings), minimum).
- * Subtotal = driver earnings + platform fee.
- * Forward customer total is the smallest cent amount whose separately rounded
- * service percent plus the fixed service fee still covers the subtotal.
- * Fixed Accept keeps the posted customer total and solves backward.
+ * The amount a driver or admin enters is the customer-facing offer.
+ * Driver earnings = round half up(offer × (100% − commission)).
+ * Pickuply commission = offer − driver earnings. It comes out of the offer.
+ * The customer pays that offer plus the card-processing amount. Pickuply does
+ * not pay the processing amount out of the commission or the driver earnings.
+ * There is no extra platform fee, service fee, or commission minimum.
+ * platformMinCents is kept so older settings rows still load. It is not applied.
+ * The processing amount is the smallest cent total whose separately rounded
+ * percent plus the fixed amount still covers the offer.
  * Half-up: (numerator + denominator/2) / denominator for positive integers.
  */
 
@@ -26,8 +30,8 @@ export type PriceBreakdown = {
 };
 
 export const defaultFeeSettings: FeeSettings = {
-  platformBps: 1_000,
-  platformMinCents: 1_000,
+  platformBps: 1_500,
+  platformMinCents: 0,
   serviceBps: 290,
   serviceFixedCents: 30,
 };
@@ -43,99 +47,66 @@ export function percentOfCents(cents: number, bps: number): number {
   return roundHalfUp(cents * bps, 10_000);
 }
 
-export function platformFeeCents(earningsCents: number, settings: FeeSettings): number {
-  return Math.max(percentOfCents(earningsCents, settings.platformBps), settings.platformMinCents);
-}
-
 export function serviceChargeCents(customerTotalCents: number, settings: FeeSettings): number {
   return percentOfCents(customerTotalCents, settings.serviceBps) + settings.serviceFixedCents;
 }
 
-function smallestCoveredTotal(subtotalCents: number, settings: FeeSettings): number {
+function smallestCoveredTotal(offerCents: number, settings: FeeSettings): number {
   const denominator = 10_000 - settings.serviceBps;
-  let total = roundHalfUp((subtotalCents + settings.serviceFixedCents) * 10_000, denominator);
-  if (total < subtotalCents) total = subtotalCents;
+  let total = roundHalfUp((offerCents + settings.serviceFixedCents) * 10_000, denominator);
+  if (total < offerCents) total = offerCents;
   while (
-    total > subtotalCents &&
-    total - 1 - serviceChargeCents(total - 1, settings) >= subtotalCents
+    total > offerCents &&
+    total - 1 - serviceChargeCents(total - 1, settings) >= offerCents
   ) {
     total -= 1;
   }
-  while (total - serviceChargeCents(total, settings) < subtotalCents) {
+  while (total - serviceChargeCents(total, settings) < offerCents) {
     total += 1;
   }
   return total;
 }
 
-export function splitSubtotal(
-  subtotalCents: number,
-  settings: FeeSettings,
-): { driverEarningsCents: number; platformFeeCents: number } {
-  const withMinimum = subtotalCents - settings.platformMinCents;
-  if (withMinimum > 0 && platformFeeCents(withMinimum, settings) === settings.platformMinCents) {
-    return {
-      driverEarningsCents: withMinimum,
-      platformFeeCents: settings.platformMinCents,
-    };
-  }
-
-  let earnings = roundHalfUp(subtotalCents * 10_000, 10_000 + settings.platformBps);
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const fee = platformFeeCents(earnings, settings);
-    const gap = subtotalCents - (earnings + fee);
-    if (gap === 0 && earnings > 0) {
-      return { driverEarningsCents: earnings, platformFeeCents: fee };
-    }
-    earnings += gap;
-  }
-  throw new Error("could not split the subtotal");
-}
-
-/** Driver enters earnings. Fees are added on top. */
-export function forwardFromEarnings(
-  earningsCents: number,
+/** The entered amount is the customer-facing offer, not driver take-home pay. */
+export function offerBreakdown(
+  offerCents: number,
   settings: FeeSettings = defaultFeeSettings,
 ): PriceBreakdown {
-  if (!Number.isInteger(earningsCents) || earningsCents <= 0) {
-    throw new Error("driver earnings must be a positive number of cents");
+  if (!Number.isInteger(offerCents) || offerCents <= 0) {
+    throw new Error("offer amount must be a positive number of cents");
   }
-  const platform = platformFeeCents(earningsCents, settings);
-  const subtotal = earningsCents + platform;
-  const total = smallestCoveredTotal(subtotal, settings);
+  if (!Number.isInteger(settings.platformBps) || settings.platformBps < 0 || settings.platformBps >= 10_000) {
+    throw new Error("commission rate is not valid");
+  }
+  const driverEarningsCents = percentOfCents(offerCents, 10_000 - settings.platformBps);
+  if (driverEarningsCents <= 0) {
+    throw new Error("driver earnings would be zero");
+  }
+  const total = smallestCoveredTotal(offerCents, settings);
+  if (total < offerCents) {
+    throw new Error("card processing cannot be taken from the offer");
+  }
   return {
-    driverEarningsCents: earningsCents,
-    platformFeeCents: platform,
-    subtotalCents: subtotal,
-    serviceFeeCents: total - subtotal,
+    driverEarningsCents,
+    platformFeeCents: offerCents - driverEarningsCents,
+    subtotalCents: offerCents,
+    serviceFeeCents: total - offerCents,
     customerTotalCents: total,
   };
 }
 
-/** The posted customer total stays unchanged. Driver earnings absorb rounding pennies. */
-export function acceptFixedPrice(
-  customerTotalCents: number,
+/** @deprecated The argument is the customer-facing offer. */
+export function forwardFromEarnings(
+  offerCents: number,
   settings: FeeSettings = defaultFeeSettings,
 ): PriceBreakdown {
-  if (!Number.isInteger(customerTotalCents) || customerTotalCents <= 0) {
-    throw new Error("customer total must be a positive number of cents");
-  }
-  const serviceFee = serviceChargeCents(customerTotalCents, settings);
-  const subtotal = customerTotalCents - serviceFee;
-  if (subtotal <= settings.platformMinCents) {
-    throw new Error("driver earnings would be zero");
-  }
-  const split = splitSubtotal(subtotal, settings);
-  if (split.driverEarningsCents <= 0) {
-    throw new Error("driver earnings would be zero");
-  }
-  if (split.driverEarningsCents + split.platformFeeCents + serviceFee !== customerTotalCents) {
-    throw new Error("price parts do not add up");
-  }
-  return {
-    driverEarningsCents: split.driverEarningsCents,
-    platformFeeCents: split.platformFeeCents,
-    subtotalCents: subtotal,
-    serviceFeeCents: serviceFee,
-    customerTotalCents,
-  };
+  return offerBreakdown(offerCents, settings);
+}
+
+/** A posted price is the customer-facing offer. Processing is added on top. */
+export function acceptFixedPrice(
+  offerCents: number,
+  settings: FeeSettings = defaultFeeSettings,
+): PriceBreakdown {
+  return offerBreakdown(offerCents, settings);
 }

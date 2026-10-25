@@ -86,7 +86,7 @@ test.describe("phone sign-in", () => {
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect.poll(() => new URL(page.url()).pathname).toBe("/");
-    await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await page.goto("/account");
     await expect(page).toHaveURL(/\/login\?/);
   });
@@ -206,7 +206,12 @@ async function signIn(page: Page, phone: string, otp: string) {
 }
 
 async function signInOnPage(page: Page, phone: string, otp: string) {
-  await page.getByLabel("Mobile number").fill(phone);
+  await page.waitForFunction(() =>
+    Object.keys(document.querySelector("#phone") ?? {}).some((key) => key.startsWith("__react")),
+  );
+  const phoneInput = page.locator("#phone");
+  await phoneInput.fill(phone);
+  await expect(phoneInput).toHaveValue(phone);
   await waitForCodeWindow();
   await page.getByRole("button", { name: "Text me a code" }).click();
   await expect(page.getByText(/Enter the 6-digit code for \(•••\) •••-\d{4}\./)).toBeVisible();
@@ -219,7 +224,8 @@ async function signInOnPage(page: Page, phone: string, otp: string) {
     { timeout: 20_000 },
   );
   if (new URL(page.url()).pathname === "/login/name") {
-    await page.getByLabel("Full name").fill("Test Customer");
+    await page.getByLabel("First name").fill("Test Customer");
+    await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname !== "/login/name" && !url.pathname.startsWith("/auth"));
   }

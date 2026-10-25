@@ -257,7 +257,7 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
@@ -265,9 +265,35 @@ template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
 max_frequency = "5s"
 
-# Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# Local only. These numbers never send a text.
+# 5555550199 is the dedicated driver signup test.
+# 5555550177 is Robin Returning. 5555550188 is Nova Customer.
+[auth.sms.test_otp]
+5555550123 = "101123"
+15555550123 = "101123"
+5555550124 = "101124"
+15555550124 = "101124"
+5555550125 = "101125"
+15555550125 = "101125"
+5555550126 = "101126"
+15555550126 = "101126"
+5555550177 = "101177"
+15555550177 = "101177"
+5555550188 = "101188"
+15555550188 = "101188"
+5555550199 = "101199"
+15555550199 = "101199"
+# Fresh local numbers. The codes live in gitignored .env and .env.test.local.
+5555550201 = "env(PICKUPLY_TEST_OTP_0201)"
+15555550201 = "env(PICKUPLY_TEST_OTP_0201)"
+5555550202 = "env(PICKUPLY_TEST_OTP_0202)"
+15555550202 = "env(PICKUPLY_TEST_OTP_0202)"
+5555550203 = "env(PICKUPLY_TEST_OTP_0203)"
+15555550203 = "env(PICKUPLY_TEST_OTP_0203)"
+5555550204 = "env(PICKUPLY_TEST_OTP_0204)"
+15555550204 = "env(PICKUPLY_TEST_OTP_0204)"
+5555550205 = "env(PICKUPLY_TEST_OTP_0205)"
+15555550205 = "env(PICKUPLY_TEST_OTP_0205)"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -287,12 +313,13 @@ max_frequency = "5s"
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
+# Local Auth needs a provider selected even when every test number uses a fixed code.
+# These values are placeholders. They are not a Twilio account.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
-# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+enabled = true
+account_sid = "AClocalonly00000000000000000000"
+message_service_sid = "MGlocalonly00000000000000000000"
+auth_token = "local-only-not-a-twilio-token"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]

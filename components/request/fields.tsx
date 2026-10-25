@@ -40,13 +40,19 @@ export function TextField({
   max?: string;
 }) {
   const errorId = `${name}-error`;
+  const hintId = hint ? `${name}-hint` : undefined;
+  const describedBy = [hintId, error ? errorId : undefined].filter(Boolean).join(" ");
   return (
     <label className="block" htmlFor={name}>
       <span className="text-base font-semibold text-ink">
         {label}
         {optional ? <span className="font-normal text-muted"> (optional)</span> : null}
       </span>
-      {hint ? <span className="mt-1 block text-sm leading-relaxed text-muted">{hint}</span> : null}
+      {hint ? (
+        <span id={hintId} className="mt-1 block text-sm leading-relaxed text-muted">
+          {hint}
+        </span>
+      ) : null}
       <input
         id={name}
         name={name}
@@ -58,7 +64,7 @@ export function TextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         className={controlClass}
       />
       <FieldError id={errorId} message={error} />

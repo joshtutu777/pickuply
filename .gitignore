@@ -46,3 +46,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local phone HMAC secret. Never commit.
+.local/
+
+# Design references stay on this machine.
+docs/design/reference/
+design-reference/

@@ -8,35 +8,10 @@ async function next(page: Page) {
 
 async function chooseService(page: Page, name: string) {
   await page.getByRole("radio", { name: new RegExp(name) }).check();
-  await next(page);
 }
 
-async function fillItem(
-  page: Page,
-  options: { service: "delivery" | "junk" | "free_item" | "construction" },
-) {
-  await page.getByLabel("What needs a ride?").fill("Oak dresser from Marketplace");
-  await page.getByLabel("Number of pieces").fill(options.service === "construction" ? "2" : "1");
-  await page.getByRole("radio", { name: "Medium" }).check();
-  await page.getByLabel("Approximate item value").fill("80");
-  if (options.service === "delivery") {
-    await page.getByRole("group", { name: "Already paid?" }).getByRole("radio", { name: "Yes" }).check();
-    await page
-      .getByRole("group", { name: "Is the seller holding it?" })
-      .getByRole("radio", { name: "Yes" })
-      .check();
-    await page
-      .getByRole("group", { name: "Want a video item check before pickup?" })
-      .getByRole("radio", { name: "Yes" })
-      .check();
-  }
-  if (options.service === "junk") {
-    await page.getByRole("radio", { name: "1/4 truck" }).check();
-    await page.getByLabel("Materials").fill("Wood furniture");
-  }
-  if (options.service === "construction") {
-    await page.getByLabel("Store name").fill("Home Depot");
-  }
+async function fillWhat(page: Page, description = "Oak dresser from Marketplace") {
+  await page.getByLabel("What needs a ride?").fill(description);
   await next(page);
 }
 
@@ -49,24 +24,13 @@ async function fillWhere(page: Page, service: "delivery" | "junk" | "free_item" 
     await page.getByLabel("Drop-off city").fill("Smyrna");
     await page.getByLabel("Drop-off ZIP").fill("30080");
   }
-  await next(page);
-}
-
-async function fillAccess(page: Page) {
-  await page.getByRole("group", { name: "Stairs at pickup" }).getByRole("radio", { name: "None" }).check();
-  const dropoff = page.getByRole("group", { name: "Stairs at drop-off" });
-  if (await dropoff.count()) {
-    await dropoff.getByRole("radio", { name: "None" }).check();
-  }
-  await page.getByRole("group", { name: "Is there an elevator?" }).getByRole("radio", { name: "No" }).check();
-  await page.getByRole("group", { name: "Can someone help load?" }).getByRole("radio", { name: "Yes" }).check();
   await page.getByRole("radio", { name: "ASAP" }).check();
   await next(page);
 }
 
-async function fillContact(page: Page, pricing: "quote" | "fixed" | "range") {
+async function fillPrice(page: Page, pricing: "quote" | "fixed" | "range") {
   const label =
-    pricing === "quote" ? "Get a quote" : pricing === "fixed" ? "Name your price" : "Set a budget range";
+    pricing === "quote" ? "Get Offers" : pricing === "fixed" ? "Name your price" : "Set a budget range";
   await page.getByRole("radio", { name: new RegExp(label) }).check();
   if (pricing === "fixed") {
     await page.getByRole("textbox", { name: "Your price" }).fill("40");
@@ -75,16 +39,19 @@ async function fillContact(page: Page, pricing: "quote" | "fixed" | "range") {
     await page.getByRole("textbox", { name: /^Minimum/ }).fill("40");
     await page.getByRole("textbox", { name: /^Maximum/ }).fill("80");
   }
-  await page.getByLabel("Your name").fill("Ada Lovelace");
-  await page.getByLabel("Phone number").fill("4045551212");
-  await page.getByLabel("Email").fill("ada@example.com");
-  await page.getByRole("radio", { name: "Nextdoor" }).check();
   await next(page);
 }
 
+async function fillContact(page: Page) {
+  await page.getByLabel("Your name").fill("Ada Lovelace");
+  await page.getByLabel("Phone number").fill("4045551212");
+  await page.getByLabel("Email").fill("ada@example.com");
+}
+
 async function agreeAndReachPhone(page: Page) {
-  await page.getByRole("checkbox", { name: /late cancel fee/i }).check();
-  await page.getByRole("button", { name: "Submit" }).click();
+  await fillContact(page);
+  await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();
   await expect(page.getByLabel("Mobile number")).toHaveValue("4045551212");
   await expect(page.getByRole("button", { name: "Text me a code" })).toBeVisible();
@@ -107,22 +74,16 @@ test("required fields explain what is missing", async ({ page }) => {
 
 test("junk hides drop-off and delivery shows purchase questions", async ({ page }) => {
   await page.goto("/request?service=junk");
-  await next(page);
   await expect(page.getByRole("group", { name: "Load size" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Already paid?" })).toHaveCount(0);
   await page.getByLabel("What needs a ride?").fill("Old couch");
-    await page.getByRole("radio", { name: "Large", exact: true }).check();
-  await page.getByLabel("Approximate item value").fill("0");
-  await page.getByRole("radio", { name: "Single item" }).check();
-  await page.getByLabel("Materials").fill("Fabric and wood");
   await next(page);
   await expect(page.getByLabel("Drop-off street address")).toHaveCount(0);
   await expect(page.getByText("Junk removal does not need a drop-off address.")).toBeVisible();
 
   await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("radio", { name: /Pickup & Delivery/ }).check();
-  await next(page);
+  await page.getByText("Add details (optional)").click();
   await expect(page.getByRole("group", { name: "Already paid?" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Load size" })).toHaveCount(0);
 });
@@ -133,10 +94,7 @@ test("back and next keep what was typed", async ({ page }) => {
   await expect(page.getByRole("group", { name: "Already paid?" })).toHaveCount(0);
   await page.getByLabel("What needs a ride?").fill("Free bookshelf");
   await next(page);
-  await expect(page.getByText("Choose an approximate size.")).toBeVisible();
-    await page.getByRole("radio", { name: "Large", exact: true }).check();
-  await page.getByLabel("Approximate item value").fill("0");
-  await next(page);
+  await expect(page.getByLabel("Pickup street address")).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByLabel("What needs a ride?")).toHaveValue("Free bookshelf");
 });
@@ -144,15 +102,14 @@ test("back and next keep what was typed", async ({ page }) => {
 test("review shows the request and requires the terms checkbox", async ({ page }) => {
   await page.goto("/request");
   await chooseService(page, "Pickup & Delivery");
-  await fillItem(page, { service: "delivery" });
+  await fillWhat(page);
   await fillWhere(page, "delivery");
-  await fillAccess(page);
-  await fillContact(page, "quote");
-  await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
+  await fillPrice(page, "quote");
+  await expect(page.getByRole("heading", { name: "Check and send" })).toBeVisible();
   await expect(page.getByText("Oak dresser from Marketplace")).toBeVisible();
-  await expect(page.getByText("Get a quote")).toBeVisible();
-  await expect(page.getByText("Hazardous materials")).toBeVisible();
-  await page.getByRole("button", { name: "Submit" }).click();
+  await expect(page.getByText("Get Offers")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Terms, fees, and prohibited items" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Agree to the terms to submit.")).toBeVisible();
   await expect(page).toHaveURL(/\/request/);
 });
@@ -160,22 +117,21 @@ test("review shows the request and requires the terms checkbox", async ({ page }
 test("a reload restores the item but not phone, email, or street addresses", async ({ page }) => {
   await page.goto("/request");
   await chooseService(page, "Pickup & Delivery");
-  await fillItem(page, { service: "delivery" });
+  await fillWhat(page);
   await page.getByLabel("Pickup street address").fill("10 Secret Street");
   await page.getByLabel("Pickup city").fill("Austell");
   await page.getByLabel("Pickup ZIP").fill("30106");
   await page.getByLabel("Drop-off street address").fill("20 Hidden Avenue");
   await page.getByLabel("Drop-off city").fill("Smyrna");
   await page.getByLabel("Drop-off ZIP").fill("30080");
+  await page.getByRole("radio", { name: "ASAP" }).check();
   await next(page);
-  await fillAccess(page);
-  await page.getByRole("radio", { name: /Get a quote/ }).check();
+  await fillPrice(page, "quote");
   await page.getByLabel("Your name").fill("Ada Lovelace");
   await page.getByLabel("Phone number").fill("4045551212");
   await page.getByLabel("Email").fill("ada@example.com");
   await page.reload();
   await page.getByRole("button", { name: "Continue your request" }).click();
-  await next(page);
   await expect(page.getByLabel("What needs a ride?")).toHaveValue("Oak dresser from Marketplace");
   await next(page);
   await expect(page.getByLabel("Pickup street address")).toHaveValue("");
@@ -183,6 +139,7 @@ test("a reload restores the item but not phone, email, or street addresses", asy
   await expect(page.getByLabel("Pickup city")).toHaveValue("Austell");
   await page.getByLabel("Pickup street address").fill("10 Secret Street");
   await page.getByLabel("Drop-off street address").fill("20 Hidden Avenue");
+  await page.getByRole("radio", { name: "ASAP" }).check();
   await next(page);
   await next(page);
   await expect(page.getByLabel("Phone number")).toHaveValue("");
@@ -192,10 +149,8 @@ test("a reload restores the item but not phone, email, or street addresses", asy
 
 test("fixed, range, and quote pricing are validated and shown", async ({ page }) => {
   await page.goto("/request?service=delivery");
-  await next(page);
-  await fillItem(page, { service: "delivery" });
+  await fillWhat(page);
   await fillWhere(page, "delivery");
-  await fillAccess(page);
 
   await page.getByRole("radio", { name: /Name your price/ }).check();
   await expect(page.getByRole("checkbox", { name: "Book the first driver who accepts my price" })).toHaveCount(0);
@@ -205,9 +160,6 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
     ),
   ).toBeVisible();
   await page.getByRole("textbox", { name: "Your price" }).fill("20");
-  await page.getByLabel("Your name").fill("Ada Lovelace");
-  await page.getByLabel("Phone number").fill("4045551212");
-  await page.getByRole("radio", { name: "Facebook" }).check();
   await next(page);
   await expect(page.getByText("Enter a price of at least $35.")).toBeVisible();
 
@@ -215,7 +167,7 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await next(page);
   await expect(page.getByText("$40")).toBeVisible();
   await expect(page.getByText("You will choose before booking.")).toBeVisible();
-  await page.getByRole("button", { name: "Edit Contact and price" }).click();
+  await page.getByRole("button", { name: "Edit Your price" }).click();
 
   await page.getByRole("radio", { name: /Set a budget range/ }).check();
   await expect(page.getByRole("checkbox", { name: "Book the first driver who accepts my price" })).toHaveCount(0);
@@ -226,16 +178,16 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
   await page.getByRole("textbox", { name: /^Maximum/ }).fill("90");
   await next(page);
   await expect(page.getByText("$35–$90")).toBeVisible();
-  await page.getByRole("button", { name: "Edit Contact and price" }).click();
+  await page.getByRole("button", { name: "Edit Your price" }).click();
 
-  await page.getByRole("radio", { name: /Get a quote/ }).check();
+  await page.getByRole("radio", { name: /Get Offers/ }).check();
   await expect(
-    page.getByText("We'll review your request and send you a price. Nothing is charged until you accept."),
+    page.getByRole("paragraph").filter({ hasText: "This is not an instant guaranteed quote." }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Your price" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /^Minimum/ })).toHaveCount(0);
   await next(page);
-  await expect(page.getByText("Get a quote", { exact: true })).toBeVisible();
+  await expect(page.getByText("Get Offers", { exact: true })).toBeVisible();
 });
 
 test("each service reaches phone confirmation without saving a job", async ({ page }) => {
@@ -252,10 +204,9 @@ test("each service reaches phone confirmation without saving a job", async ({ pa
   for (const item of services) {
     await page.goto("/request");
     await chooseService(page, item.name);
-    await fillItem(page, { service: item.service });
+    await fillWhat(page);
     await fillWhere(page, item.service);
-    await fillAccess(page);
-    await fillContact(page, "quote");
+    await fillPrice(page, "quote");
     await agreeAndReachPhone(page);
     const stored = await page.evaluate(() => localStorage.getItem("pickuply.request-draft") ?? "");
     expect(stored).not.toContain("10 Secret Street");

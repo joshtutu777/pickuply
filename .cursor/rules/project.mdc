@@ -36,8 +36,9 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 - Admin quote and price changes run as the signed-in admin (`is_admin()`), never as the service role. The service role is only for webhooks, cron, and system tasks. It must still be able to update payment and job status where the spec requires a system step.
 - Every table has **RLS enabled**. Default deny; add explicit policies.
 - **Drivers must never see exact addresses, customer names, or phone numbers** until they are the assigned driver. Approximate area (city/ZIP) only in job feeds. Exact data lives in `job_private`.
-- Customers and drivers never see each other's phone numbers; use in-app messages.
-- Photos and documents go in **private** storage buckets, served with short-lived signed URLs to job participants and admin only.
+- Customers and drivers never see each other's phone numbers; use in-app messages. A message that contains a phone number or email is rejected.
+- Photos and documents go in **private** storage buckets, served with short-lived signed URLs to job participants and admin only. Proof photos cannot be deleted or replaced. Optional proof location is off by default, rounded, and visible only to an admin.
+- A problem report marks the job disputed and blocks capture and payout creation. It never reverses money that already moved. Stripe refunds wait for Step 5.
 - All mutations that change money, job status, driver status, or roles happen **server-side** with permission checks. Never trust role or price values sent from the browser.
 - Job claiming and offer selection must be **atomic in the database** (`claim_job` and `choose_offer` functions) so two drivers can't get the same job.
 - Every job status change writes a row to `job_events`; every admin action writes to `audit_log`.
@@ -47,11 +48,11 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 ## Money rules
 - Store all money as integer **cents**.
 - No card is collected, authorized, or held before the customer confirms a driver. Confirming an offer, or a driver claiming an accepted quote job, sets `payment_status = awaiting_payment` and `payment_due_at` (default 30 minutes, configurable). Step 5 releases the assignment if payment is not completed. Drivers cannot start work (`en_route` or later) unless payment is `authorized` or `paid`. Capture still happens after delivery. This workflow is not launch-ready until Step 5 payments.
-- Fees: $15 late cancel (after assignment), $25 trip fee (item rejected at pickup), $35 minimum price. Damage coverage limit $250.
-- Driver payouts are recorded in the `payouts` table and paid manually (Zelle/Cash App) within 24 hours; admin marks them paid.
+- Fees: $15 late cancel (after assignment), $25 trip fee (item rejected at pickup). Customer-facing offers start at $35 for pickup, free-item, and store pickup, and $50 for junk removal. Damage coverage limit $250.
+- Driver earnings are a ledger line after a verified capture. Disposal estimates are not a second payout. A Stripe transfer to a Connect account is not a bank deposit. Earnings stay held until payout setup is finished, unless an admin records a payment outside Stripe. Recovering money after a transfer takes a separate admin action.
 - Customers choose a pricing method: Get a quote (only an admin sends the price; the customer must accept it before drivers see the job), Name your price, or Set a budget range (drivers accept, offer, or counter with a required reason). An offer is never a booking until the customer chooses it. There is no auto-booking.
 - Drivers discover jobs only through `driver_job_feed`. That feed must not include exact addresses, names, phone, email, access notes, or free-text descriptions. Request-stage photos are visible only to an eligible driver through a database policy and a short-lived signed URL. Pickup, drop-off, report, and private document images stay hidden.
-- Two fees, stored separately in integer cents and configurable on `/admin/settings`: platform fee is 10% of driver earnings, minimum $10; service fee covers card processing (default 2.9% + 30¢) and is labeled "Service fee". Forward totals use the smallest cent amount that covers the separately rounded processing charge. Fixed Accept keeps the posted customer total and solves backward. Service-fee wording and card surcharge rules need review before launch. Always show the customer the breakdown before they accept.
+- Two amounts, stored separately in integer cents and configurable on `/admin/settings`: Pickuply commission is 15% of the customer-facing offer and is deducted from the driver, with no minimum. The customer pays that offer plus card processing (default 2.9% + 30¢), labeled "Card processing fee". Pickuply does not absorb that processing fee, and there is no extra Pickuply service fee. The processing amount is the smallest cent total that covers the separately rounded charge. A posted accept uses the posted amount as the offer and adds processing on top. Each offer stores the commission rate so a later change does not rewrite it. Card-surcharge rules, including debit and prepaid cards, need review before live payments. Always show the customer the breakdown before they accept.
 - Drivers can never change a price after booking. Price adjustments require the other party's approval in the app.
 
 ## UI rules
@@ -67,3 +68,12 @@ You are helping build **Pickuply** (working name, formerly DeliveryMatch): a loc
 - `components/` reusable UI
 - `supabase/migrations/` numbered SQL migration files — never edit an applied migration; add a new one
 - Keep constants (zones, statuses, fees, report categories, strike points) in one place: `lib/constants.ts` and the database
+
+## Live test configuration
+`https://pickuplyapp.com` is the live testing site. When a feature needs an API key or environment variable:
+- Add the name to `.env.local.example` with an empty value. Never commit a real value.
+- Do not copy secret values into Git, client code, or chat. `NEXT_PUBLIC_*` is visible in the browser. Every other value stays server-only.
+- Give the owner a table: variable name, where the working value is, Production and Preview, server-only or public. The owner pastes each value into Vercel.
+- Verify with `vercel env ls` (names only) and by using the feature on pickuplyapp.com. A key that exists but is unused by the code does not count.
+- Keep Stripe on test keys (`sk_test_` and `pk_test_`). Do not turn on live payments, live texts, or other chargeable production actions without an explicit OK.
+- The local Stripe CLI webhook secret is not the secret for pickuplyapp.com. A hosted webhook needs its own test-mode endpoint.

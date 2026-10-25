@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { safeNextParam } from "@/lib/auth/access";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { SignInSmsNotice, SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
+import { allowOtpSend } from "@/app/login/otp-limit";
 
 const RESEND_MS = 30_000;
 
@@ -23,8 +25,17 @@ function authConfigured(): boolean {
   );
 }
 
-export function LoginForm({ next, notice }: { next: string; notice: string }) {
+export function LoginForm({
+  next,
+  intent,
+  notice,
+}: {
+  next: string;
+  intent: string;
+  notice: string;
+}) {
   const safeNext = safeNextParam(next) ?? "";
+  const driver = intent === "driver";
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("");
   const [sentPhone, setSentPhone] = useState("");
@@ -32,6 +43,8 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [cooling, setCooling] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [signedInTo, setSignedInTo] = useState("");
   const codeRef = useRef<HTMLInputElement>(null);
   const configured = authConfigured();
   const sentCopy = sentPhone ? codeSentMessage(sentPhone) : null;
@@ -63,6 +76,11 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
     setPending(true);
     setError("");
     try {
+      const limited = await allowOtpSend(normalized);
+      if (limited) {
+        setError(limited);
+        return;
+      }
       const supabase = createClient();
       const { error: sendError } = await supabase.auth.signInWithOtp({
         phone: normalized,
@@ -103,9 +121,20 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
         setPending(false);
         return;
       }
-      const destination = safeNext
-        ? `/auth/continue?${new URLSearchParams({ next: safeNext }).toString()}`
-        : "/auth/continue";
+      const params = new URLSearchParams();
+      if (safeNext) params.set("next", safeNext);
+      if (driver) params.set("intent", "driver");
+      const query = params.toString();
+      const destination = query ? `/auth/continue?${query}` : "/auth/continue";
+      if (smsOptIn) {
+        const consentError = await recordOptionalSmsConsent("login");
+        if (consentError) {
+          setSignedInTo(destination);
+          setError("We couldn't save your text-message choice. Optional texts stay off.");
+          setPending(false);
+          return;
+        }
+      }
       window.location.assign(destination);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "";
@@ -118,10 +147,13 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Account</p>
-      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Log in</h1>
+      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+        {driver ? "Sign up to drive with Pickuply" : "Log in or sign up"}
+      </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        Enter your mobile number. We&apos;ll text you a 6-digit code. Every number gets the same
-        message.
+        {driver
+          ? "Verify your phone to start your driver application. It takes about 5 minutes."
+          : "Enter your mobile number and we'll text you a 6-digit code."}
       </p>
       {notice ? (
         <p role="alert" className="mt-6 text-base font-medium text-danger">
@@ -159,6 +191,7 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
               disabled={!configured || pending || cooling}
             />
           </label>
+          <SmsConsent audience={driver ? "driver" : "customer"} checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="phone-error" role="alert" className="text-sm font-medium text-danger">
               {error}
@@ -167,6 +200,7 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
           <button type="submit" className={primaryButton} disabled={!configured || pending || cooling}>
             Text me a code
           </button>
+          <SignInSmsNotice />
           {cooling ? (
             <p className="text-sm leading-relaxed text-muted">You can resend a code in 30 seconds.</p>
           ) : null}
@@ -200,14 +234,21 @@ export function LoginForm({ next, notice }: { next: string; notice: string }) {
               disabled={pending}
             />
           </label>
+          <SmsConsent audience={driver ? "driver" : "customer"} checked={smsOptIn} onChange={setSmsOptIn} />
           {error ? (
             <p id="code-error" role="alert" className="text-sm font-medium text-danger">
               {error}
             </p>
           ) : null}
+          {signedInTo ? (
+            <a href={signedInTo} className="text-base font-semibold text-brand underline underline-offset-4">
+              Continue without optional texts
+            </a>
+          ) : null}
           <button type="submit" className={primaryButton} disabled={pending}>
             Verify and continue
           </button>
+          <SignInSmsNotice />
           <button
             type="button"
             className={secondaryButton}

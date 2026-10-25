@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { reviewRequest } from "@/app/admin/requests/actions";
+import { askForDetails, reviewRequest } from "@/app/admin/requests/actions";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,16 +16,31 @@ type Breakdown = {
 const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
 
+const detailChoices = [
+  ["stairs", "Stairs"],
+  ["size", "Item size"],
+  ["pieces", "Number of pieces"],
+  ["item_value", "Item value"],
+  ["access_notes", "Access notes"],
+  ["photos", "More photos"],
+] as const;
+
 export function ReviewRequestForm({
   jobId,
-  zones,
   pricingMethod,
   needsConfirm,
+  detailsOpen = false,
+  paused = false,
+  askOnly = false,
+  zones,
 }: {
   jobId: string;
-  zones: { id: string; name: string }[];
   pricingMethod: string;
   needsConfirm: boolean;
+  detailsOpen?: boolean;
+  paused?: boolean;
+  askOnly?: boolean;
+  zones: { id: string; name: string }[];
 }) {
   const [driverPay, setDriverPay] = useState("");
   const [breakdown, setBreakdown] = useState<{ cents: number; body: Breakdown } | null>(null);
@@ -45,12 +60,66 @@ export function ReviewRequestForm({
     };
   }, [cents]);
 
+  const waiting = detailsOpen ? (
+    <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
+      {paused
+        ? "Waiting on the customer. Drivers cannot see this request until they update it."
+        : "Waiting on the customer. Drivers can still see this request and send offers. An admin quote waits for the answer."}
+    </p>
+  ) : null;
+
+  const askForm = detailsOpen ? null : (
+    <form action={askForDetails} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      <h2 className="text-lg font-semibold text-ink">Ask for details</h2>
+      <input type="hidden" name="jobId" value={jobId} />
+      <fieldset className="space-y-2">
+        <legend className="text-base font-semibold text-ink">What do you need?</legend>
+        {detailChoices.map(([value, label]) => (
+          <label key={value} className="flex min-h-12 items-center gap-3 text-base">
+            <input type="checkbox" name="item" value={value} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <label className="block text-base font-semibold text-ink" htmlFor="detail-note">
+        Note for the customer
+        <textarea id="detail-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3" />
+      </label>
+      <label className="flex min-h-12 items-start gap-3 text-base">
+        <input className="mt-1" type="checkbox" name="pauseUntilUpdated" />
+        <span>
+          Pause until updated
+          <span className="mt-1 block text-sm font-normal text-muted">
+            Drivers will not see this request until the customer updates it. Leave this off to keep it visible.
+          </span>
+        </span>
+      </label>
+      <button
+        type="submit"
+        className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+      >
+        Ask for details
+      </button>
+    </form>
+  );
+
+  if (askOnly) {
+    return (
+      <>
+        {waiting}
+        {askForm}
+      </>
+    );
+  }
+
   return (
+    <>
     <form action={reviewRequest} className="mt-8 space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
       <label className="block text-base font-semibold text-ink" htmlFor="zoneId">
         Zone
-        <select id="zoneId" name="zoneId" className={controlClass} required>
+        <select id="zoneId" name="zoneId" className={controlClass} defaultValue="">
+          <option value="">Choose a zone</option>
           {zones.map((zone) => (
             <option key={zone.id} value={zone.id}>
               {zone.name}
@@ -89,7 +158,7 @@ export function ReviewRequestForm({
       {pricingMethod === "quote" ? (
         <>
           <label className="block text-base font-semibold text-ink" htmlFor="driverPay">
-            Driver pay (dollars)
+            Customer offer (dollars)
             <input
               id="driverPay"
               name="driverPay"
@@ -101,10 +170,10 @@ export function ReviewRequestForm({
           </label>
           {shown ? (
             <div className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
-              <p>Driver pay {formatCents(shown.driver_earnings_cents)}</p>
-              <p>Platform fee {formatCents(shown.platform_fee_cents)}</p>
-              <p>Subtotal {formatCents(shown.subtotal_cents)}</p>
-              <p>Service fee {formatCents(shown.service_fee_cents)}</p>
+              <p>Offer {formatCents(shown.subtotal_cents)}</p>
+              <p>Pickuply commission {formatCents(shown.platform_fee_cents)}</p>
+              <p>Driver earnings {formatCents(shown.driver_earnings_cents)}</p>
+              <p>Card processing fee {formatCents(shown.service_fee_cents)}</p>
               <p className="font-semibold">Customer total {formatCents(shown.customer_total_cents)}</p>
             </div>
           ) : null}
@@ -126,20 +195,19 @@ export function ReviewRequestForm({
           </label>
         </>
       ) : null}
-      <label className="block text-base font-semibold text-ink" htmlFor="note">
-        Note for the customer
-        <textarea id="note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3" />
+      <label className="block text-base font-semibold text-ink" htmlFor="decline-note">
+        Reason if you decline
+        <textarea id="decline-note" name="note" className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3" />
       </label>
-      <div className="grid gap-3">
-        {pricingMethod === "quote" ? (
+      {detailsOpen ? waiting : pricingMethod === "quote" ? (
+        <div className="grid gap-3">
           <SubmitButton action="quote" label="Send quote" />
-        ) : (
-          <SubmitButton action="publish" label="Approve and publish" />
-        )}
-        <SubmitButton action="changes" label="Request changes" />
-        <SubmitButton action="decline" label="Decline" />
-      </div>
+        </div>
+      ) : null}
+      <SubmitButton action="decline" label="Decline" />
     </form>
+    {askForm}
+    </>
   );
 }
 
