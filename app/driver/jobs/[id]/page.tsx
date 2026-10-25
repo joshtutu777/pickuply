@@ -18,6 +18,7 @@ import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
 import { buildJobTracker, customerProgress, nextDriverAction } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
+import { earningsAvailability } from "@/lib/payments/earnings";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -196,12 +197,29 @@ async function DriverJob({
         </p>
       ) : null}
       {job.status === "completed" && ledger && !["recovery_due", "recovered"].includes(ledger.status) ? (
-        <p className="mt-4 text-base font-semibold text-ink">
-          Earnings for this job {formatCents(ledger.amount_cents)}
+        <div className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <p className="text-base font-semibold text-ink">
+            Earnings for this job {formatCents(ledger.amount_cents)}
+          </p>
+          <p className="mt-1 text-base text-ink">Earnings status: {earningsAvailability(ledger.status).label}</p>
+          <p className="mt-1 text-base text-ink">{earningsAvailability(ledger.status).detail}</p>
+          <Link href="/driver/earnings" className="mt-2 inline-flex min-h-12 items-center font-semibold text-brand">
+            Earnings and payouts
+          </Link>
+        </div>
+      ) : null}
+      {job.status === "completed" && !ledger ? (
+        <p className="mt-4 text-base text-ink">
+          Earnings for this job are still being recorded. They are not available to pay out yet.
         </p>
       ) : null}
       {job.status === "completed" ? (
-        <ReviewPanel jobId={job.id} userId={session.userId} nextPath={`/driver/jobs/${job.id}`} />
+        <ReviewPanel
+          jobId={job.id}
+          userId={session.userId}
+          nextPath={`/driver/jobs/${job.id}`}
+          skipHref="/driver"
+        />
       ) : null}
       {next.nextStatus ? (
         <div className="mt-4 grid gap-3">

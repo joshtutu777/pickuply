@@ -3,7 +3,7 @@
 import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { checkoutCustomerEmail, checkoutLines } from "@/lib/payments/checkout-lines";
+import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
 import { getStripe } from "@/lib/stripe";
@@ -64,7 +64,10 @@ export async function startCheckout(formData: FormData) {
     const session = await getStripe().checkout.sessions.create(
       {
         mode: "payment",
-        allowed_payment_method_types: ["card"],
+        // Card only. Stripe rejects a static method list and rejects allowed plus excluded together.
+        // Link is a wallet, so it stays off through wallet_options.
+        excluded_payment_method_types: [...checkoutExcludedPaymentMethods],
+        wallet_options: { link: { display: "never" } },
         line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",

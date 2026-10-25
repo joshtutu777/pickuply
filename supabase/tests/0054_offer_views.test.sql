@@ -98,13 +98,13 @@ where id in (
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
   item_value_cents, stairs_pickup, stairs_dropoff, elevator, help_loading, preferred_date,
-  pricing_method, service_level, required_vehicle
+  pricing_method, budget_min_cents, budget_max_cents, service_level, required_vehicle
 ) values (
   'e5400000-0000-4000-8000-000000000010',
   'e5400000-0000-4000-8000-000000000004',
   'delivery', 'open', (select id from public.zones where slug = 'west_metro'),
   'Albany, 31721', 'Albany, 31721', 'View desk', 1, 'medium',
-  0, 0, 0, false, false, 'asap', 'quote', 'light', null
+  0, 0, 0, false, false, 'asap', 'range', 3500, 200000, 'light', null
 );
 
 select pg_temp.as_user('e5400000-0000-4000-8000-000000000001');

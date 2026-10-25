@@ -166,6 +166,7 @@ set status = 'assigned',
     driver_pay_cents = 5000,
     platform_fee_cents = 1000,
     service_fee_cents = 354,
+    commission_bps = 1667,
     payment_status = 'awaiting_payment',
     payment_due_at = now() + interval '30 minutes'
 where id = 'c1300000-0000-4000-8000-000000000303';
@@ -177,6 +178,7 @@ set status = 'assigned',
     driver_pay_cents = 5000,
     platform_fee_cents = 1000,
     service_fee_cents = 354,
+    commission_bps = 1667,
     payment_status = 'authorized'
 where id = 'c1300000-0000-4000-8000-000000000304';
 
@@ -193,6 +195,7 @@ set status = 'assigned',
     driver_pay_cents = 5000,
     platform_fee_cents = 1000,
     service_fee_cents = 354,
+    commission_bps = 1667,
     payment_status = 'authorized'
 where id = 'c1300000-0000-4000-8000-000000000305';
 

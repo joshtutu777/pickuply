@@ -64,7 +64,9 @@ export function ReviewRequestForm({
     <p className="rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">
       {paused
         ? "Waiting on the customer. Drivers cannot see this request until they update it."
-        : "Waiting on the customer. Drivers can still see this request and send offers. An admin quote waits for the answer."}
+        : pricingMethod === "quote"
+          ? "Waiting on the customer. Drivers cannot see this quote until you send a price and the customer accepts it."
+          : "Waiting on the customer. Drivers can still see this request and send offers."}
     </p>
   ) : null;
 
@@ -90,7 +92,9 @@ export function ReviewRequestForm({
         <span>
           Pause until updated
           <span className="mt-1 block text-sm font-normal text-muted">
-            Drivers will not see this request until the customer updates it. Leave this off to keep it visible.
+            {pricingMethod === "quote"
+              ? "Drivers still will not see this quote until you send a price and the customer accepts it."
+              : "Drivers will not see this request until the customer updates it. Leave this off to keep it visible."}
           </span>
         </span>
       </label>
