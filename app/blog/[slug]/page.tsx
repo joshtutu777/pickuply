@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { LoadingMain } from "@/components/loading-main";
 import { ArticleView } from "@/components/blog/article-view";
@@ -34,6 +34,17 @@ async function publishedArticle(slug: string): Promise<Article | null> {
     .eq("slug", slug)
     .maybeSingle();
   return data;
+}
+
+async function redirectForOldSlug(slug: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("blog_posts")
+    .select("slug")
+    .eq("status", "published")
+    .contains("previous_slugs", [slug])
+    .maybeSingle();
+  if (data?.slug) permanentRedirect(articlePath(data.slug));
 }
 
 export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): Promise<Metadata> {
@@ -71,6 +82,7 @@ export default function BlogArticlePage({ params }: PageProps<"/blog/[slug]">) {
 async function PublishedArticle({ params }: { params: PageProps<"/blog/[slug]">["params"] }) {
   const { slug } = await params;
   const article = await publishedArticle(slug);
+  if (!article) await redirectForOldSlug(slug);
   if (!article) notFound();
   const site = publicSiteUrl();
   const data: Record<string, unknown> = {

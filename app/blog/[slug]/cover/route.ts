@@ -8,5 +8,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   if (!data?.cover_path) return new NextResponse(null, { status: 404 });
   const file = data.cover_path.split("/").at(-1);
   if (!file) return new NextResponse(null, { status: 404 });
-  return NextResponse.redirect(new URL(`/blog/media/${data.id}/${file}`, _request.url), 302);
+  const response = NextResponse.redirect(new URL(`/blog/media/${data.id}/${file}`, _request.url), 302);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

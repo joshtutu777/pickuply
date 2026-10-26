@@ -178,6 +178,29 @@ export function parseArticleFields(input: {
   };
 }
 
+export function keptSlugs(previous: string[], currentSlug: string, nextSlug: string, keepRedirect: boolean): string[] {
+  const kept = previous.filter((slug) => slug !== nextSlug && slug !== currentSlug);
+  if (keepRedirect && currentSlug !== nextSlug) kept.push(currentSlug);
+  return kept.slice(-20);
+}
+
+export function referencedImagePaths(coverPath: string | null, blocks: ArticleBlock[]): string[] {
+  const paths = blocks.flatMap((block) => (block.type === "image" ? [block.path] : []));
+  if (coverPath) paths.push(coverPath);
+  return paths;
+}
+
+export function droppedImagePaths(before: string[], after: string[]): string[] {
+  const kept = new Set(after);
+  return before.filter((path) => !kept.has(path));
+}
+
+export function articleStatus(intent: string, current: "draft" | "published" | null): "draft" | "published" {
+  if (intent === "publish") return "published";
+  if (intent === "draft") return "draft";
+  return current ?? "draft";
+}
+
 export function blogPageNumber(value: string | undefined): number {
   const page = Number(value ?? "1");
   if (!Number.isInteger(page) || page < 1) return 1;
