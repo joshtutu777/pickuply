@@ -10,6 +10,8 @@ import { recordFunnel } from "@/lib/funnel";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
+import { georgiaSectionNote, rpcCount } from "@/lib/driver/georgia-feed";
+import { offerMaySubmit, showOfflineOfferNotice } from "@/lib/driver/offer-gate";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { createClient } from "@/lib/supabase/client";
 
@@ -49,12 +51,6 @@ function toCard(job: FeedJob): FeedCard {
   return { ...job, photos: [], earningsCents: job.driver_pay_cents };
 }
 
-function countFrom(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value);
-  return 0;
-}
-
 type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null };
 
 function stairLabel(pickup: number, dropoff: number | null) {
@@ -82,27 +78,56 @@ function OfferMath({ cents, settings }: { cents: number; settings: FeeSettings }
 
 function OfferActions({
   job,
-  canAct,
+  approved,
+  online,
+  vehicleOk,
   blockedReason,
   fees,
   onDone,
+  onGoOnline,
 }: {
   job: FeedCard;
-  canAct: boolean;
+  approved: boolean;
+  online: boolean;
+  vehicleOk: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
   onDone: () => void;
+  onGoOnline: () => Promise<{ online: boolean; error: string | null }>;
 }) {
   const [amount, setAmount] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [goingOnline, setGoingOnline] = useState(false);
+  const noticeRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const offerCents = parseDollarsToCents(amount) ?? 0;
   const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
   const driverQuote = job.pricing_method === "quote" && !claimable;
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
+  const maySubmit = offerMaySubmit({ online, approved, vehicleOk });
+  const showOffline = showOfflineOfferNotice({ online, approved });
+
+  function holdForOnline() {
+    noticeRef.current?.scrollIntoView({ block: "start" });
+    noticeRef.current?.focus();
+  }
+
+  async function becomeOnline() {
+    setGoingOnline(true);
+    setOnlineError(null);
+    const result = await onGoOnline();
+    setGoingOnline(false);
+    if (!result.online) setOnlineError(result.error ?? "You are still Offline.");
+  }
+
   async function send(kind: "accept" | "claim" | "offer") {
+    if (!maySubmit) {
+      if (showOffline) holdForOnline();
+      return;
+    }
     setMessage(null);
     const supabase = createClient();
     const result =
@@ -137,10 +162,24 @@ function OfferActions({
 
   return (
     <div className="mt-3 grid gap-3">
+      {showOffline ? (
+        <div ref={noticeRef} tabIndex={-1} role="alert" className="rounded-2xl bg-paper p-3 ring-1 ring-line">
+          <p className="font-semibold text-ink">You&apos;re currently offline. Go online to submit an offer.</p>
+          <button
+            type="button"
+            disabled={goingOnline}
+            onClick={() => void becomeOnline()}
+            className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white disabled:opacity-60"
+          >
+            Go Online
+          </button>
+          {onlineError ? <p className="mt-2 text-base text-danger">{onlineError}</p> : null}
+        </div>
+      ) : null}
       {claimable ? (
         <button
           type="button"
-          disabled={!canAct}
+          disabled={!approved || !vehicleOk}
           onClick={() => void send("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
@@ -153,7 +192,7 @@ function OfferActions({
               <OfferMath cents={posted} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct}
+                disabled={!approved || !vehicleOk}
                 onClick={() => void send("accept")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
@@ -180,7 +219,7 @@ function OfferActions({
               <OfferMath cents={offerCents} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct}
+                disabled={!approved || !vehicleOk}
                 onClick={() => void send("offer")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
@@ -193,8 +232,14 @@ function OfferActions({
           ) : (
             <button
               type="button"
-              disabled={!canAct || offerCents <= 0}
-              onClick={() => setReviewing(true)}
+              disabled={!approved || !vehicleOk || offerCents <= 0}
+              onClick={() => {
+                if (!maySubmit) {
+                  holdForOnline();
+                  return;
+                }
+                setReviewing(true);
+              }}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
             >
               {driverQuote ? "Send quote" : "Submit Offer"}
@@ -214,16 +259,22 @@ function OfferActions({
 
 function JobCard({
   job,
-  canAct,
+  approved,
+  online,
+  vehicleOk,
   blockedReason,
   fees,
   onDone,
+  onGoOnline,
 }: {
   job: FeedCard;
-  canAct: boolean;
+  approved: boolean;
+  online: boolean;
+  vehicleOk: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
   onDone: () => void;
+  onGoOnline: () => Promise<{ online: boolean; error: string | null }>;
 }) {
   return (
     <li id={`job-${job.id}`} className="scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
@@ -254,7 +305,16 @@ function JobCard({
       {job.earningsCents != null ? (
         <p className="font-semibold">Your Estimated Earnings: {formatCents(job.earningsCents)}</p>
       ) : null}
-      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} onDone={onDone} />
+      <OfferActions
+        job={job}
+        approved={approved}
+        online={online}
+        vehicleOk={vehicleOk}
+        blockedReason={blockedReason}
+        fees={fees}
+        onDone={onDone}
+        onGoOnline={onGoOnline}
+      />
       {job.photos.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2">
           {job.photos.map((url) => (
@@ -390,8 +450,8 @@ export function DriverHome({
     setMatched(matchedRows.map(toCard));
     setGeorgia(pageRows.map(toCard));
     setGeorgiaHasMore(((pageResult.data ?? []) as FeedJob[]).length > 20);
-    setGeorgiaTotal(countFrom(filteredCount.data));
-    setGeorgiaOpenTotal(countFrom(openCount.data));
+    setGeorgiaTotal(rpcCount(filteredCount.data));
+    setGeorgiaOpenTotal(rpcCount(openCount.data));
     setUpdatedAt(new Date());
     setFeedError(null);
     setRefreshing(false);
@@ -475,6 +535,24 @@ export function DriverHome({
     return () => observer.disconnect();
   }, [georgiaHasMore, georgia.length, loadMore]);
 
+  async function goOnline(): Promise<{ online: boolean; error: string | null }> {
+    setBusy(true);
+    setSwitchError(null);
+    const supabase = createClient();
+    const { error: onlineError } = await supabase.rpc("set_driver_online", { go_online: true });
+    const confirmed = await supabase.from("drivers").select("is_online").eq("profile_id", userId).maybeSingle();
+    const nowOnline = Boolean(confirmed.data?.is_online);
+    setBusy(false);
+    setOnline(nowOnline);
+    if (onlineError || !nowOnline) {
+      const text = onlineError?.message ?? "You are still Offline.";
+      setSwitchError(text);
+      return { online: false, error: text };
+    }
+    void recordFunnel({ event: "driver_online", step: "online" });
+    return { online: true, error: null };
+  }
+
   async function toggleOnline() {
     setBusy(true);
     setSwitchError(null);
@@ -494,14 +572,17 @@ export function DriverHome({
 
   const termsError = switchError?.includes("Driver Terms") ?? false;
   const visibleJobs = [...matched, ...georgia];
-  const jobAction = (job: FeedCard) => ({
-    canAct: online && approved && (!job.required_vehicle || job.required_vehicle === vehicleType),
-    blockedReason: !approved
-      ? "Finish setup to accept jobs."
-      : job.required_vehicle && job.required_vehicle !== vehicleType
-        ? "This job needs a different vehicle."
-        : null,
-  });
+  const jobAction = (job: FeedCard) => {
+    const vehicleOk = !job.required_vehicle || job.required_vehicle === vehicleType;
+    return {
+      vehicleOk,
+      blockedReason: !approved
+        ? "Finish setup to accept jobs."
+        : !vehicleOk
+          ? "This job needs a different vehicle."
+          : null,
+    };
+  };
 
   return (
     <>
@@ -585,11 +666,13 @@ export function DriverHome({
         if (end - pullStart.current > 80 && window.scrollY < 8) void loadFeed();
       }}
     >
-      <p className="mt-4 text-base text-muted">
+      <p className="mt-4 text-base font-semibold text-ink">You are {online ? "Online" : "Offline"}.</p>
+      <p className="mt-1 text-base text-muted">
         {approved
           ? "You can browse while Offline. Claiming or offering requires Online."
           : "Browse only until Pickuply approves you. You cannot take a job yet."}
       </p>
+      <p className="mt-3 text-lg font-semibold text-ink">Available Jobs ({matched.length + georgia.length})</p>
       <div className="mt-4">
         <p className="text-base text-ink">
           Showing jobs in: {summary || "your areas"}{" "}
@@ -659,10 +742,13 @@ export function DriverHome({
                     <JobCard
                       key={job.id}
                       job={job}
-                      canAct={action.canAct}
+                      approved={approved}
+                      online={online}
+                      vehicleOk={action.vehicleOk}
                       blockedReason={action.blockedReason}
                       fees={fees}
                       onDone={() => void loadFeed()}
+                      onGoOnline={goOnline}
                     />
                   );
                 })}
@@ -673,6 +759,7 @@ export function DriverHome({
       </section>
       <section aria-label="All Georgia Requests" className="mt-8">
         <h2 className="font-display text-2xl font-semibold text-ink">All Georgia Requests ({georgiaTotal})</h2>
+        <p className="mt-1 text-base text-ink">Open jobs outside your saved areas. Jobs in your areas stay under Matched for You.</p>
         <div className="mt-4 grid gap-3">
           <label className="block text-base font-semibold text-ink">
             Sort
@@ -717,8 +804,22 @@ export function DriverHome({
             Only jobs my vehicle fits
           </label>
         </div>
-        {updatedAt && georgia.length === 0 && georgiaOpenTotal > 0 ? (
-          <p className="mt-4 text-base text-muted">No requests match these filters.</p>
+        {georgiaSectionNote({
+          loaded: updatedAt != null,
+          matched: matched.length,
+          shown: georgia.length,
+          filteredTotal: georgiaTotal,
+          unfilteredTotal: georgiaOpenTotal,
+        }) ? (
+          <p className="mt-4 text-base text-muted">
+            {georgiaSectionNote({
+              loaded: updatedAt != null,
+              matched: matched.length,
+              shown: georgia.length,
+              filteredTotal: georgiaTotal,
+              unfilteredTotal: georgiaOpenTotal,
+            })}
+          </p>
         ) : null}
         {georgia.length > 0 ? (
           <ul className="mt-4 space-y-4">
@@ -728,10 +829,13 @@ export function DriverHome({
                 <JobCard
                   key={job.id}
                   job={job}
-                  canAct={action.canAct}
+                  approved={approved}
+                  online={online}
+                  vehicleOk={action.vehicleOk}
                   blockedReason={action.blockedReason}
                   fees={fees}
                   onDone={() => void loadFeed()}
+                  onGoOnline={goOnline}
                 />
               );
             })}

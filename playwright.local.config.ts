@@ -131,5 +131,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /transaction-ux\.spec\.ts/,
     },
+    {
+      name: "local-offline",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /offline-offer\.spec\.ts/,
+    },
   ],
 });
