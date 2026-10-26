@@ -112,6 +112,7 @@ async function JobEntry({
           paymentStatus: job.payment_status,
           createdAt: job.created_at,
           dumpFeeCents: job.dump_fee_cents,
+          requireDisposalReceipt: job.require_disposal_receipt,
           hasDumpReceipt: job.has_dump_receipt,
           events: job.events.map((event) => ({
             type: event.type,

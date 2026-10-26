@@ -67,6 +67,7 @@ export function buildJobTracker(input: {
   paymentStatus: string | null;
   createdAt: string;
   dumpFeeCents: number | null;
+  requireDisposalReceipt?: boolean;
   hasDumpReceipt: boolean;
   events: TrackEvent[];
 }): JobTracker {
@@ -90,7 +91,8 @@ export function buildJobTracker(input: {
   );
   const statusAt = (toStatus: string) =>
     earliest(input.events, (event) => event.type === "status" && event.toStatus === toStatus);
-  const receiptRequired = junk && (input.dumpFeeCents ?? 0) > 0;
+  const receiptRequired =
+    junk && ((input.dumpFeeCents ?? 0) > 0 || input.requireDisposalReceipt === true);
 
   const paymentDone = paid.has(input.paymentStatus ?? "");
   const currentId = stopped
@@ -307,6 +309,7 @@ export function nextDriverAction(input: {
   paymentStatus: string | null;
   service: string;
   dropoffArrived?: boolean;
+  reviewExpired?: boolean;
 }): { label: string; nextStatus: string | null; waiting: string | null } {
   const paymentReady = paid.has(input.paymentStatus ?? "");
   if (input.status === "assigned" && !paymentReady) {
@@ -324,6 +327,9 @@ export function nextDriverAction(input: {
   }
   if (input.status === "arrived") {
     return { label: "Item loaded — head to drop-off", nextStatus: "item_check", waiting: null };
+  }
+  if (input.status === "item_check" && input.reviewExpired) {
+    return { label: "Arrived at drop-off", nextStatus: "at_dropoff", waiting: null };
   }
   if (input.status === "item_check") {
     return {

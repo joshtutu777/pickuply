@@ -44,6 +44,31 @@ test("junk job uses haul labels and shows a receipt step when a dump fee exists"
   assert.equal(tracker.steps.find((step) => step.id === "picked_up")?.label, "Load picked up");
   assert.equal(tracker.steps.find((step) => step.id === "delivered")?.label, "Hauled away");
   assert.equal(tracker.steps.find((step) => step.id === "receipt")?.state, "current");
+
+  const flagged = buildJobTracker({
+    service: "junk",
+    status: "delivered",
+    pricingMethod: "fixed",
+    paymentStatus: "authorized",
+    createdAt: created,
+    dumpFeeCents: 0,
+    requireDisposalReceipt: true,
+    hasDumpReceipt: false,
+    events: [],
+  });
+  assert.ok(flagged.steps.some((step) => step.id === "receipt"));
+
+  const haulOnly = buildJobTracker({
+    service: "junk",
+    status: "delivered",
+    pricingMethod: "fixed",
+    paymentStatus: "authorized",
+    createdAt: created,
+    dumpFeeCents: 0,
+    hasDumpReceipt: false,
+    events: [],
+  });
+  assert.equal(haulOnly.steps.some((step) => step.id === "receipt"), false);
 });
 
 test("cancelled and disputed jobs are called out", () => {

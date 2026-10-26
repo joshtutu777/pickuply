@@ -80,6 +80,7 @@ async function DriverJob({
     paymentStatus: job.payment_status,
     createdAt: job.created_at,
     dumpFeeCents: job.dump_fee_cents,
+    requireDisposalReceipt: job.require_disposal_receipt,
     hasDumpReceipt: (receipts ?? []).length > 0,
     events: (events ?? []).map((event) => {
       const data = event.data as { to?: string } | null;
@@ -95,12 +96,19 @@ async function DriverJob({
     .select("proof_location_enabled")
     .eq("id", 1)
     .maybeSingle();
+  const reviewExpired =
+    job.status === "item_check" &&
+    job.pickup_review_until != null &&
+    new Date(job.pickup_review_until).getTime() <= Date.now();
   const next = nextDriverAction({
     status: job.status,
     paymentStatus: job.payment_status,
     service: job.service,
     dropoffArrived: job.dropoff_arrived_at != null,
+    reviewExpired,
   });
+  const disposalReceipt =
+    job.service === "junk" && ((job.dump_fee_cents ?? 0) > 0 || job.require_disposal_receipt);
   const retired = job.test_retired_at != null;
   const needsProof = next.nextStatus === "item_check" || next.nextStatus === "delivered";
   const jobAmount = job.driver_pay_cents != null && job.platform_fee_cents != null
@@ -139,7 +147,7 @@ async function DriverJob({
           {needsProof ? (
             <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
           ) : null}
-          {job.service === "junk" && job.require_disposal_receipt && next.nextStatus === "delivered" ? (
+          {disposalReceipt && next.nextStatus === "delivered" ? (
             <p className="text-base text-ink">Add the disposal receipt photo before marking this delivered.</p>
           ) : null}
         </div>
@@ -152,9 +160,9 @@ async function DriverJob({
           {next.label}
         </button>
       ) : null}
-      {!retired && job.status === "item_check" && job.pickup_review_until ? (
+      {!retired && job.status === "item_check" && job.pickup_review_until && !reviewExpired ? (
         <div className="mt-3">
-          <ReviewCountdown jobId={job.id} until={job.pickup_review_until} />
+          <ReviewCountdown until={job.pickup_review_until} />
         </div>
       ) : null}
       {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (

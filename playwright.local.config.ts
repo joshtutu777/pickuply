@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
@@ -32,6 +33,20 @@ for (const [key, value] of Object.entries(testEnv)) {
   process.env[key] = value;
 }
 
+function localServiceRole(): string {
+  const text = execFileSync("npx supabase status -o env", { encoding: "utf8", shell: true });
+  for (const line of text.split(/\r?\n/)) {
+    const eq = line.indexOf("=");
+    if (eq <= 0 || line.slice(0, eq) !== "SERVICE_ROLE_KEY") continue;
+    return line.slice(eq + 1).replace(/^"|"$/g, "");
+  }
+  return "";
+}
+
+const serviceRole = localServiceRole();
+
+const port = process.env.PLAYWRIGHT_PORT ?? "3001";
+
 export default defineConfig({
   testDir: "./e2e-local",
   fullyParallel: false,
@@ -41,12 +56,12 @@ export default defineConfig({
   timeout: 240_000,
   expect: { timeout: 45_000 },
   use: {
-    baseURL: "http://127.0.0.1:3001",
+    baseURL: `http://127.0.0.1:${port}`,
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3001",
-    url: "http://127.0.0.1:3001",
+    command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
+    url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
@@ -54,6 +69,7 @@ export default defineConfig({
       NODE_ENV: "development",
       NEXT_PUBLIC_SUPABASE_URL: testEnv.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: testEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: serviceRole || testEnv.SUPABASE_SERVICE_ROLE_KEY,
     },
   },
   projects: [

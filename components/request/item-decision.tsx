@@ -8,7 +8,7 @@ export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUnti
       <div className="grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Pickup review</h2>
         <p>Look at the pickup photo. Tell us within 10 minutes if something is wrong.</p>
-        {reviewUntil ? <ReviewCountdown jobId={jobId} until={reviewUntil} /> : null}
+        {reviewUntil ? <ReviewCountdown until={reviewUntil} /> : null}
         <form action={decidePickup}>
           <input type="hidden" name="jobId" value={jobId} />
           <input type="hidden" name="decision" value="approve" />

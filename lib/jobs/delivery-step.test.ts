@@ -29,4 +29,20 @@ test("delivered is the button only after the driver has arrived at the drop-off"
   });
   assert.equal(delivered.label, "Delivered");
   assert.equal(delivered.nextStatus, "delivered");
+
+  const waiting = nextDriverAction({
+    status: "item_check",
+    paymentStatus: "authorized",
+    service: "delivery",
+  });
+  assert.equal(waiting.nextStatus, null);
+
+  const expired = nextDriverAction({
+    status: "item_check",
+    paymentStatus: "authorized",
+    service: "delivery",
+    reviewExpired: true,
+  });
+  assert.equal(expired.label, "Arrived at drop-off");
+  assert.equal(expired.nextStatus, "at_dropoff");
 });

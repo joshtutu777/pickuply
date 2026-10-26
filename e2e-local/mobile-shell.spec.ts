@@ -232,7 +232,7 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
   await expect(page.getByRole("heading", { name: "Driver home" })).toBeVisible();
   await expect(page.getByLabel("Earnings")).toBeVisible();
   await page.goto("/driver/jobs");
-  await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Jobs", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "My jobs" })).toBeVisible();
   await expect(page.getByText(street)).toHaveCount(0);
 

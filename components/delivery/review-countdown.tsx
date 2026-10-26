@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { closePickupReview } from "@/app/driver/jobs/actions";
 
-export function ReviewCountdown({ jobId, until }: { jobId: string; until: string }) {
+export function ReviewCountdown({ until }: { until: string }) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
-  const [closing, setClosing] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
   const remaining = new Date(until).getTime() - now;
 
   useEffect(() => {
@@ -16,12 +15,10 @@ export function ReviewCountdown({ jobId, until }: { jobId: string; until: string
   }, []);
 
   useEffect(() => {
-    if (remaining > 0 || closing) return;
-    setClosing(true);
-    const data = new FormData();
-    data.set("jobId", jobId);
-    void closePickupReview(data).then(() => router.refresh());
-  }, [closing, jobId, remaining, router]);
+    if (remaining > 0 || refreshed) return;
+    setRefreshed(true);
+    router.refresh();
+  }, [refreshed, remaining, router]);
 
   if (remaining <= 0) return <p className="text-base text-ink">Pickup review is closing.</p>;
   const seconds = Math.max(0, Math.ceil(remaining / 1000));
