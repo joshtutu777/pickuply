@@ -21,7 +21,10 @@ export function SiteFooter() {
             Privacy
           </Link>
           <Link href="/contact" className={footerLink}>
-            Contact
+            Support
+          </Link>
+          <Link href="/blog" className={footerLink}>
+            Blog
           </Link>
           <Link href="/help" className={footerLink}>
             Help
