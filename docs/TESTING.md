@@ -45,6 +45,16 @@ The script runs only when `.env.test.local` points Supabase at localhost or 127.
 4. Enter a first name and agree to the Terms and Privacy Policy.
 5. The account says No pickups yet. Choose Request a pickup.
 
+## Fresh signup on pickuplyapp.com
+
+These three numbers have no account yet. Sign up on https://pickuplyapp.com and enter the code that was saved for that number. No text is sent. The profile is created when the code is confirmed, with no name, and `is_test` is set because the number is a 555-555 test number. Do not put the codes in git.
+
+| Number | Use |
+| --- | --- |
+| 555-555-0401 | New customer |
+| 555-555-0402 | New driver |
+| 555-555-0403 | Spare |
+
 ## Hosted
 
 Until Twilio is approved, add test numbers in the Supabase dashboard under Authentication, Phone, Test phone numbers. Do not copy local codes into the hosted project from this repo.
