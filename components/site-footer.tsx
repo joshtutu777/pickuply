@@ -23,6 +23,9 @@ export function SiteFooter() {
           <Link href="/contact" className={footerLink}>
             Contact
           </Link>
+          <Link href="/blog" className={footerLink}>
+            Blog
+          </Link>
           <Link href="/help" className={footerLink}>
             Help
           </Link>

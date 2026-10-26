@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { HomeArticles } from "@/components/blog/home-articles";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export const metadata: Metadata = {
@@ -7,5 +9,13 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <LandingPage />;
+  return (
+    <LandingPage
+      blog={
+        <Suspense fallback={null}>
+          <HomeArticles />
+        </Suspense>
+      }
+    />
+  );
 }
