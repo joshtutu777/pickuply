@@ -60,7 +60,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
-        <AnalyticsRoot />
+        <Suspense fallback={null}>
+          <AnalyticsRoot />
+        </Suspense>
         <UpdateBanner />
         <Script id="landing-flag" strategy="beforeInteractive">
           {`if(location.pathname==='/')document.documentElement.dataset.landing='1'`}
