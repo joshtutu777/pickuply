@@ -264,15 +264,11 @@ where right(regexp_replace(profiles.phone, '\\D', '', 'g'), 10) in ('5555550124'
   );
 `);
 
-const count = sql(`
-select count(*)
-from public.jobs
-where id in (
-  '${robinQuoteId}',
-  '${robinJunkId}',
-  '${novaRequestId}'
-)
-and status = 'open';
+const seeded = sql(`
+select
+  (select status from public.jobs where id = '${robinQuoteId}')
+  || '|' ||
+  (select count(*)::text from public.jobs where id in ('${robinJunkId}', '${novaRequestId}') and status = 'open');
 `);
-if (count !== "3") throw new Error(`Expected 3 open jobs, found ${count}.`);
+if (seeded !== "requested|2") throw new Error(`Expected a requested quote and 2 open jobs, found ${seeded}.`);
 console.log("Seeded 3 local requests.");

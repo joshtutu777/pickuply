@@ -73,6 +73,10 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await customer.goto(`/jobs/${quoteJobId}`);
   await expect(customer.getByRole("heading", { name: "Quoted" })).toBeVisible();
   await expect(customer.getByRole("button", { name: "Accept quote" })).toBeVisible();
+  await expect(
+    customer.getByText("We're preparing your price. Drivers can't see this request until you accept it."),
+  ).toBeVisible();
+  await expect(customer.getByText("Drivers can send offers. You choose who to book.")).toHaveCount(0);
 
   sql(
     `update public.jobs set quote_expires_at = now() - interval '1 minute' where id = '${quoteJobId}'`,
@@ -88,6 +92,9 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await customer.reload();
   await customer.getByRole("button", { name: "Accept quote" }).click();
   await expect(customer.getByRole("heading", { name: "Open for drivers" })).toBeVisible();
+  await expect(
+    customer.getByText("Drivers can see this request. Nothing is booked until one is assigned.", { exact: true }),
+  ).toBeVisible();
   expect(sql(`select status || '|' || coalesce(assigned_driver_id::text, 'none') from public.jobs where id = '${quoteJobId}'`)).toBe(
     "open|none",
   );
@@ -135,15 +142,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(firstCard).toBeVisible();
   await expect(firstCard.getByText(street)).toHaveCount(0);
 
-  let holdSecondFeed = false;
   const second = await open(browser, "/driver", async (page) => {
-    await page.context().route(/\/rpc\/driver_(matched_feed|georgia_page|georgia_count)/, async (route) => {
-      if (holdSecondFeed) {
-        await route.abort();
-        return;
-      }
-      await route.continue();
-    });
     // Keep the claimed job on this screen. A live update removes the card
     // before the losing driver can try it and see the taken message.
     await page.routeWebSocket(/realtime/, () => {});
@@ -153,7 +152,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   const secondCard = quoteCard(second);
   await expect(secondCard).toBeVisible();
   await expect(secondCard.getByText(street)).toHaveCount(0);
-  holdSecondFeed = true;
+  await second.context().route(/\/rpc\/driver_(matched_feed|georgia_page|georgia_count)/, (route) => route.abort());
 
   await firstCard.getByRole("button", { name: "Claim this job" }).click();
   await expect(first.locator(`a[href="/driver/jobs/${quoteJobId}"]`)).toBeVisible();
@@ -169,6 +168,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
 
   await first.goto(`/driver/jobs/${quoteJobId}`);
   await expect(first.getByText(street)).toBeVisible();
+  await expect(first.getByText("We're preparing your price")).toHaveCount(0);
   await expect(first.getByText("Payment: awaiting payment")).toBeVisible();
   expect(
     sql(
