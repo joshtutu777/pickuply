@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -21,7 +22,8 @@ const outcomes = [
   ["note", "Just letting you know"],
 ] as const;
 
-export function ReportForm({ jobId }: { jobId: string }) {
+export function ReportForm({ jobId, embedded = false }: { jobId: string; embedded?: boolean }) {
+  const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -60,6 +62,7 @@ export function ReportForm({ jobId }: { jobId: string }) {
       }
       form.reset();
       setMessage("Report saved. Pickuply will review it. Money that already moved is not reversed automatically.");
+      router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The report could not be saved.");
     } finally {
@@ -68,7 +71,7 @@ export function ReportForm({ jobId }: { jobId: string }) {
   }
 
   return (
-    <form id="report" onSubmit={(event) => void submit(event)} className="mt-6 grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+    <form id="report" onSubmit={(event) => void submit(event)} className={`${embedded ? "" : "mt-6"} grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line`}>
       <h2 className="text-lg font-semibold text-ink">Report a problem</h2>
       <p className="text-base text-ink">
         Damage must be reported within 48 hours of delivery, with photos. Pickup photos are the before picture. Damage that was already visible at pickup is not covered. Pickuply reviews the report. Nothing is refunded automatically. Customer-packed or disassembled items, loose parts, and normal wear are not covered.

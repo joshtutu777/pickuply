@@ -55,6 +55,7 @@ export function JobStatus({
   tracker,
   driver,
   routeLine,
+  review,
   children,
 }: {
   job: JobDetail;
@@ -64,6 +65,7 @@ export function JobStatus({
   tracker: JobTracker;
   driver?: DriverCard | null;
   routeLine?: [number, number][];
+  review?: ReactNode;
   children?: ReactNode;
 }) {
   const service = serviceById(job.service as ServiceId);
@@ -85,9 +87,10 @@ export function JobStatus({
         <StatusPill status={job.status} />
       </div>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
-        {statusLabel(job.status)}
+        {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
       </h1>
-      {stage ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
+      {stage && job.status !== "completed" ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
+      {review}
       <p className="mt-2 text-lg text-ink">{service.name}</p>
       {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
       <p className="text-base text-ink">

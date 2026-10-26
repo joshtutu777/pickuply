@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { confirmDelivery, decidePickup } from "@/app/jobs/actions";
 import { ReviewCountdown } from "@/components/delivery/review-countdown";
+import { DropoffProof } from "@/components/request/proof-gallery";
+import { ReportToggle } from "@/components/request/report-toggle";
 
 export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUntil?: string | null }) {
   return (
@@ -48,29 +50,29 @@ export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUnti
   );
 }
 
-export function ConfirmDelivery({ jobId, confirmed }: { jobId: string; confirmed: boolean }) {
+export function DropoffReview({ jobId, confirmed }: { jobId: string; confirmed: boolean }) {
   return (
-    <section className="mx-auto mt-4 w-full max-w-xl px-4">
-      <div className="grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-        <h2 className="text-lg font-semibold text-ink">Confirm your delivery</h2>
-        <p>If you do not respond, this finishes 24 hours after delivery.</p>
-        {confirmed ? (
-          <p>You confirmed this delivery.</p>
-        ) : (
+    <section className="mt-4 grid gap-3 rounded-3xl bg-brand-soft p-4 ring-2 ring-brand" aria-label="Drop-off Review">
+      <h2 className="font-display text-2xl font-semibold text-ink">Drop-off Review</h2>
+      <p>Look at the drop-off photo. Confirm the delivery, or report a problem.</p>
+      <DropoffProof jobId={jobId} />
+      {confirmed ? (
+        <p className="text-lg font-semibold text-ink">Delivery complete</p>
+      ) : (
+        <>
           <form action={confirmDelivery}>
             <input type="hidden" name="jobId" value={jobId} />
             <button
               type="submit"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+              className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white"
             >
-              Confirm delivery
+              Confirm Delivery
             </button>
           </form>
-        )}
-        <Link href="#report" className="inline-flex min-h-12 items-center font-semibold text-brand">
-          Report a problem
-        </Link>
-      </div>
+          <ReportToggle jobId={jobId} />
+        </>
+      )}
+      <p className="text-base text-ink">If you do not respond, this finishes 24 hours after delivery.</p>
     </section>
   );
 }

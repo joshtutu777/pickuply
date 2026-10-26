@@ -14,6 +14,7 @@ import { NoShowWait } from "@/components/delivery/no-show-wait";
 import { ReviewCountdown } from "@/components/delivery/review-countdown";
 import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
+import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
@@ -119,13 +120,14 @@ async function DriverJob({
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-4">
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
+      <JobStatusWatch jobId={job.id} status={job.status} />
       <BackLink href="/driver/jobs" label="Jobs" />
       <div className="flex items-center justify-between gap-3">
         <StatusPill status={job.status} />
         <p className="text-sm font-semibold text-muted">{job.service.replaceAll("_", " ")}</p>
       </div>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
-        {statusLabel(job.status)}
+        {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
       </h1>
       <p className="mt-1 text-base text-ink">
         {job.pickup_area}
@@ -151,6 +153,14 @@ async function DriverJob({
             <p className="text-base text-ink">Add the disposal receipt photo before marking this delivered.</p>
           ) : null}
         </div>
+      ) : !retired && job.status === "completed" ? (
+        <p className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white">
+          Delivery complete
+        </p>
+      ) : !retired && job.status === "delivered" ? (
+        <p className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-paper px-6 text-lg font-semibold text-muted ring-1 ring-line">
+          Awaiting customer confirmation
+        </p>
       ) : !retired && next.waiting ? (
         <button
           type="button"

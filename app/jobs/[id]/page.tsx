@@ -5,7 +5,8 @@ import { connection } from "next/server";
 import { BackLink } from "@/components/back-link";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { PayPanel } from "@/components/request/pay-panel";
-import { ConfirmDelivery, ItemDecision } from "@/components/request/item-decision";
+import { DropoffReview, ItemDecision } from "@/components/request/item-decision";
+import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { JobReceipt } from "@/components/request/job-receipt";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
@@ -85,7 +86,6 @@ async function JobEntry({
       ? { lat: job.private.dropoff_lat, lng: job.private.dropoff_lng }
       : null;
   const route = await measureTrip(pickup, dropoff);
-  const contextualReport = job.status === "item_check" || job.status === "delivered";
   const payReady =
     session?.role === "customer" &&
     job.status === "assigned" &&
@@ -96,6 +96,7 @@ async function JobEntry({
   return (
     <>
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
+      {session?.role === "customer" ? <JobStatusWatch jobId={id} status={job.status} /> : null}
       <div className="mx-auto w-full max-w-xl px-4 pt-4">
         <BackLink href="/account/jobs" label="Jobs" />
       </div>
@@ -121,6 +122,11 @@ async function JobEntry({
           })),
         })}
         driver={driver}
+        review={
+          session?.role === "customer" && job.status === "delivered" ? (
+            <DropoffReview jobId={id} confirmed={job.customer_confirmed_at != null} />
+          ) : null
+        }
       >
         {payReady ? (
           <PayPanel
@@ -140,23 +146,13 @@ async function JobEntry({
           />
         ) : null}
       </JobStatus>
-      {session?.role === "customer" && (job.status === "item_check" || job.status === "delivered") ? (
-        <div className="mx-auto w-full max-w-xl px-4">
-          <ProofGallery jobId={id} />
-        </div>
-      ) : null}
       {session?.role === "customer" && job.status === "item_check" ? (
-        <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} />
-      ) : null}
-      {session?.role === "customer" && job.customer_confirmed_at ? (
-        <section className="mx-auto mt-4 w-full max-w-xl px-4">
-          <p className="rounded-3xl bg-paper-raised p-4 text-lg font-semibold text-ink ring-1 ring-line">
-            Delivery confirmed — thanks!
-          </p>
-        </section>
-      ) : null}
-      {session?.role === "customer" && job.status === "delivered" ? (
-        <ConfirmDelivery jobId={id} confirmed={job.customer_confirmed_at != null} />
+        <>
+          <div className="mx-auto w-full max-w-xl px-4">
+            <ProofGallery jobId={id} />
+          </div>
+          <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} />
+        </>
       ) : null}
       {query.saved === "1" ? (
         <p className="mx-auto mt-4 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
@@ -169,7 +165,7 @@ async function JobEntry({
           <JobMessages jobId={id} />
         </div>
         {job.status !== "item_check" && job.status !== "delivered" ? <ProofGallery jobId={id} /> : null}
-        {contextualReport && session?.role === "customer" ? <ReportForm jobId={id} /> : null}
+        {job.status === "item_check" && session?.role === "customer" ? <ReportForm jobId={id} /> : null}
         <p className="mt-4">
           <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
             Help

@@ -1,19 +1,56 @@
 import { createClient } from "@/lib/supabase/server";
 
-export async function ProofGallery({ jobId }: { jobId: string }) {
+type ProofPhoto = {
+  id: string;
+  stage: string;
+  captured_at: string;
+  note: string | null;
+  media_kind: string | null;
+  url: string;
+};
+
+async function proofPhotos(jobId: string, stages: string[]): Promise<ProofPhoto[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("job_photos")
     .select("id, storage_path, stage, captured_at, note, media_kind")
     .eq("job_id", jobId)
-    .in("stage", ["pickup", "dropoff", "dump_receipt"])
+    .in("stage", stages)
     .order("created_at", { ascending: true });
-  const photos = [];
+  const photos: ProofPhoto[] = [];
   for (const photo of data ?? []) {
     const signed = await supabase.storage.from("job-photos").createSignedUrl(photo.storage_path, 300);
     if (!signed.data?.signedUrl) continue;
-    photos.push({ ...photo, url: signed.data.signedUrl });
+    photos.push({
+      id: photo.id,
+      stage: photo.stage,
+      captured_at: photo.captured_at,
+      note: photo.note,
+      media_kind: photo.media_kind,
+      url: signed.data.signedUrl,
+    });
   }
+  return photos;
+}
+
+export async function DropoffProof({ jobId }: { jobId: string }) {
+  const photos = await proofPhotos(jobId, ["dropoff"]);
+  if (photos.length === 0) return null;
+  return (
+    <ul className="grid gap-3">
+      {photos.map((photo) => (
+        <li key={photo.id}>
+          {/* Signed URL. It expires and is not a public file address. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt="Drop-off proof" className="aspect-square w-full rounded-2xl object-cover" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export async function ProofGallery({ jobId }: { jobId: string }) {
+  const photos = await proofPhotos(jobId, ["pickup", "dropoff", "dump_receipt"]);
   if (photos.length === 0) return null;
   return (
     <section className="mt-6" aria-label="Proof">

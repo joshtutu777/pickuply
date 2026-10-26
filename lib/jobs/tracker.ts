@@ -239,7 +239,7 @@ function customerAction(input: {
   if (input.status === "open" && input.pricingMethod !== "quote") return "Choose driver";
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) return "Add card";
   if (input.status === "item_check") return "Looks good";
-  if (input.status === "delivered") return "Confirm delivery";
+  if (input.status === "delivered") return "Confirm Delivery";
   return null;
 }
 
@@ -293,7 +293,7 @@ export function customerStageLine(input: {
 }): string | null {
   const name = input.driverName?.trim() || "Your driver";
   if (input.status === "disputed") return "Delivery paused while Pickuply reviews your report.";
-  if (input.status === "completed") return "Delivery completed.";
+  if (input.status === "completed") return "Delivery complete.";
   if (input.status === "delivered") return "Confirm your delivery.";
   if (input.status === "in_transit" && input.dropoffArrived) return `${name} has arrived. Please meet them.`;
   if (input.status === "in_transit") return "Your item is on the way.";
@@ -346,10 +346,13 @@ export function nextDriverAction(input: {
   }
   if (input.status === "delivered") {
     return {
-      label: "Waiting for customer to confirm",
+      label: "Awaiting customer confirmation",
       nextStatus: null,
-      waiting: "Waiting for customer to confirm. If they don't, this finishes 24 hours after delivery.",
+      waiting: "Awaiting customer confirmation",
     };
+  }
+  if (input.status === "completed") {
+    return { label: "Delivery complete", nextStatus: null, waiting: null };
   }
   return { label: "Update", nextStatus: null, waiting: null };
 }

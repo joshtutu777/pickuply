@@ -55,6 +55,47 @@ test("the Online switch is the first control on driver home", async ({ page }) =
   await page.screenshot({ path: "test-results/profile-mode/driver-online.png" });
 });
 
+test("a delivered job opens on Drop-off Review", async ({ page }) => {
+  const jobId = "01770000-0000-4000-8000-000000000001";
+  const setStatus = (status: string) => {
+    sql(
+      `select set_config('pickuply.system_payment', 'yes', true); update public.jobs set status = '${status}', payment_status = 'authorized' where id = '${jobId}';`,
+    );
+  };
+  setStatus("delivered");
+  try {
+    await page.goto(`/login?next=/jobs/${jobId}`);
+    await signIn(page, robin);
+    const status = page.getByRole("heading", { name: "Delivered" });
+    const review = page.getByRole("heading", { name: "Drop-off Review" });
+    await expect(status).toBeVisible();
+    await expect(review).toBeVisible();
+    const statusBox = await status.boundingBox();
+    const reviewBox = await review.boundingBox();
+    const requestBox = await page.getByRole("heading", { name: "Request" }).boundingBox();
+    expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y < 700).toBe(true);
+    expect(reviewBox && requestBox && reviewBox.y < requestBox.y).toBe(true);
+    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Report a Problem" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pickup review" })).toHaveCount(0);
+
+    setStatus("in_transit");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Drop-off Review" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toHaveCount(0);
+
+    setStatus("item_check");
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Pickup review" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Drop-off Review" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toHaveCount(0);
+  } finally {
+    sql(
+      `select set_config('pickuply.system_payment', 'yes', true); update public.jobs set status = 'requested', payment_status = 'none' where id = '${jobId}';`,
+    );
+  }
+});
+
 test("a customer can open Quick Apply and still has no driver permission", async ({ page }) => {
   await page.goto("/login?next=/account/profile");
   await signIn(page, robin);
