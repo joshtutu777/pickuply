@@ -120,7 +120,7 @@ test("customer home, all jobs, messages, and safe area", async ({ page }) => {
   await expect(nav.getByRole("link", { name: "Profile" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Returning customer dresser/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Returning customer yard debris/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Pay to confirm/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Confirm booking/ })).toHaveCount(0);
 
   await page.goto("/account/jobs");
   await expect(page.getByRole("heading", { name: "Your requests" })).toBeVisible();
@@ -187,7 +187,7 @@ test("an assigned job shows the real next step, chat, and no phone link", async 
 
   try {
     await page.goto("/account");
-    await expect(page.getByRole("link", { name: /Pay to confirm/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Confirm booking/ })).toBeVisible();
     await page.goto(`/jobs/${quoteJobId}`);
     await expect(page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Chat" })).toBeVisible();

@@ -259,7 +259,7 @@ function nextForCustomer(input: {
   if (input.status === "arrived") return "The driver is at the pickup.";
   if (input.status === "en_route") return "The driver is heading to the pickup.";
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) {
-    return "Pay to confirm this driver. Work starts after the card is authorized.";
+    return "Confirm booking — your card is held, not charged, until your item is delivered.";
   }
   if (input.status === "assigned") return "The driver is confirmed and can head to the pickup.";
   if (input.status === "open" && input.pricingMethod === "quote") {
@@ -269,6 +269,15 @@ function nextForCustomer(input: {
   if (input.status === "quoted") return "Review the price. Drivers see this only after you accept.";
   if (input.status === "in_review") return "We're reviewing the request before a price is sent.";
   return "We'll confirm the price next. Drivers cannot see this yet.";
+}
+
+export function customerStatusDetail(input: {
+  status: string;
+  paymentStatus: string | null;
+  service: string;
+  pricingMethod: string;
+}): string {
+  return nextForCustomer(input);
 }
 
 export function nextDriverAction(input: {

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { cityFromArea, customerNextAction, pickCurrentJob, shortJobId } from "./next-action";
 
-test("pay to confirm only while payment is actually due", () => {
+test("confirm booking only while payment is actually due", () => {
   assert.equal(
     customerNextAction({ status: "assigned", paymentStatus: "awaiting_payment", pricingMethod: "quote" }).label,
-    "Pay to confirm",
+    "Confirm booking",
   );
   assert.equal(
     customerNextAction({ status: "assigned", paymentStatus: "authorized", pricingMethod: "quote" }).label,
