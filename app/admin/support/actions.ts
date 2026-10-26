@@ -20,16 +20,21 @@ export async function replyToTicket(form: FormData) {
   const ticket = await supabase.from("support_tickets").select("email, profile_id, reference, is_test").eq("id", id).maybeSingle();
   const saved = await supabase.rpc("admin_support_message", { ticket: id, message, note });
   if (saved.error || !ticket.data) redirect(`/admin/support/${id}?error=reply`);
-  if (note || ticket.data.profile_id || ticket.data.is_test) redirect(`/admin/support/${id}?saved=1`);
+  if (note || ticket.data.profile_id) redirect(`/admin/support/${id}?saved=1`);
   let sent = false;
-  try {
-    sent = await sendEmail(
-      ticket.data.email,
-      `Pickuply support ${ticket.data.reference}`,
-      `${message}\n\nThis reply is about request ${ticket.data.reference}.`,
-    );
-  } catch {
-    sent = false;
+  if (!ticket.data.is_test) {
+    try {
+      sent = await sendEmail(
+        ticket.data.email,
+        `Pickuply support ${ticket.data.reference}`,
+        `${message}\n\nThis reply is about request ${ticket.data.reference}.`,
+      );
+    } catch {
+      sent = false;
+    }
+  }
+  if (sent) {
+    await supabase.from("support_tickets").update({ status: "awaiting_customer" }).eq("id", id);
   }
   await supabase.from("audit_log").insert({
     actor_id: session.userId,
