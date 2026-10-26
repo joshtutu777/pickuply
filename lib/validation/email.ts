@@ -9,3 +9,13 @@ export function profileEmailError(value: string): string | null {
   }
   return null;
 }
+
+/** Quick Apply requires an email. Profile edit still uses the optional check. */
+export function driverApplyEmailError(value: string): string | null {
+  const email = value.trim();
+  if (!email) return "Enter your email.";
+  if (email.length > 200 || !z.string().email().safeParse(email).success) {
+    return "Enter a valid email.";
+  }
+  return null;
+}

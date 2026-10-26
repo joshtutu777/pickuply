@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fees } from "../constants";
 import { emptyDraft } from "../types";
-import { profileEmailError } from "./email";
+import { driverApplyEmailError, profileEmailError } from "./email";
 import { validateStep } from "./request";
 
 test("quote pricing needs no amount", () => {
@@ -51,6 +51,9 @@ test("profile email is optional and rejects a bad address", () => {
   assert.equal(profileEmailError("   "), null);
   assert.equal(profileEmailError("ada@example.com"), null);
   assert.match(profileEmailError("not-an-email") ?? "", /valid email/);
+  assert.equal(driverApplyEmailError(""), "Enter your email.");
+  assert.equal(driverApplyEmailError("ada@example.com"), null);
+  assert.equal(driverApplyEmailError("not-an-email"), "Enter a valid email.");
 });
 
 test("phone numbers must be US numbers and email may be blank", () => {

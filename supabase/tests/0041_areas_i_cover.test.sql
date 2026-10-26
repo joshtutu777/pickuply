@@ -68,6 +68,7 @@ select pg_temp.as_user('a4100000-0000-4000-8000-000000000001');
 select lives_ok(
   $$select public.submit_quick_application(jsonb_build_object(
     'full_name', 'Cover Driver',
+    'email', 'cover.driver@pickuply.test',
     'home_city', 'Austell',
     'home_zip', '30106',
     'zone_id', (select id from public.zones where slug = 'west_metro'),

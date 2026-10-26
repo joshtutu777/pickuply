@@ -123,7 +123,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   await customer.page.goto(`/jobs/${fixedId}`);
   const progress = customer.page.getByRole("region", { name: "Job progress" });
   await expect(progress.getByLabel("Step 2 of 4: Driver Confirmed")).toBeVisible();
-  await expect(progress.getByText("Pay to confirm this driver. Work starts after the card is authorized.")).toBeVisible();
+  await expect(progress.getByText("Confirm booking — your card is held, not charged, until your item is delivered.")).toBeVisible();
   await progress.getByText("See full history").click();
   await expect(progress.getByRole("listitem").filter({ hasText: "Request received" })).toBeVisible();
 

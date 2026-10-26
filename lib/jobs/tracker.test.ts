@@ -129,7 +129,7 @@ test("customer tracking uses four milestones", () => {
   });
   assert.equal(awaiting.milestones.find((step) => step.id === "driver")?.state, "current");
   assert.equal(awaiting.milestones.find((step) => step.id === "pickup")?.state, "upcoming");
-  assert.match(awaiting.next, /card is authorized/);
+  assert.match(awaiting.next, /card is held, not charged/);
 
   const failed = customerProgress({
     status: "assigned",
