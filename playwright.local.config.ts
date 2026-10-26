@@ -132,6 +132,11 @@ export default defineConfig({
       testMatch: /transaction-ux\.spec\.ts/,
     },
     {
+      name: "local-support",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /support\.spec\.ts/,
+    },
+    {
       name: "local-blog",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /blog\.spec\.ts/,
