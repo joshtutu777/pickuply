@@ -739,3 +739,11 @@ Pre-deployment checks on 2026-10-25: `npm run typecheck` passed. `npm run test:u
 ## License date (2026-10-24)
 
 A license or uploaded insurance date stays valid through the end of that calendar day in Georgia (`America/New_York`). `set_driver_online`, license upload, insurance upload, and quick apply compare that date with `georgia_today()` instead of UTC `current_date`. Approval, Driver Terms, suspension, and test-data isolation are unchanged. A genuinely expired license still blocks Online and names the date. Missing insurance still does not block Online. The full database suite passed, 33 files and 570 tests. Hosted project `uyhithfdmphilleusiom` now has version `0072`. No driver rows were changed, and the site was not redeployed.
+
+## Release (2026-10-25)
+
+Merged to main: `7b6b3ad` (quote stays hidden until the customer accepts, and the card is held until delivery), `b017119` (Quick Apply requires an email), and `aacce33` (admin health records each scheduled job). Live production deployment `dpl_5VVLWVJb9ujfQtgfptMm3N5U6KPV` on https://pickuplyapp.com. Hosted migrations `0077` and `0078` are applied.
+
+Manual profiles ending 0201, 0202, 0203, 0204, and 0205 are `is_test`, with an audit row for each profile and for the three jobs those customers owned. Job `cb4549a4-88fb-4866-85a5-0adcce9796cb` was released and is open with no driver and no payment. Job `594edd98-bc38-46fe-bebe-99c0c9d2b95c` was released, then that job and `da26863c-05d3-490e-af44-dc7985a97978` were retired. Audit history and the synthetic accounts were kept.
+
+`pg_cron`, `pg_net`, and Vault are on. `CRON_SECRET` was missing in Vercel, so a production secret was created and the same value was stored in Vault as `pickuply_cron_secret`. The public site URL is `pickuply_app_url`. The schedule commands read Vault when they run and do not contain the secret. Stripe test mode held: the payment-deadline run calls Stripe only after the key passes the `sk_test_` check, and that run succeeded. The first health rows, all succeeded, finished at 2026-10-26 02:21 UTC: funnel cleanup 02:21:10, driver transfers 02:21:11, notifications 02:21:25, delivery capture 02:21:30, and payment deadlines 02:21:31. Two overdue test assignments were released. No real assignment was overdue, and there was nothing ready to capture or transfer.
