@@ -775,3 +775,5 @@ The optional cookie choice sits in the page flow and does not cover menus or tab
 The admin request page now has a Delivery proof section. It shows pickup and drop-off proof for a delivery, the removal completion photo for junk, and a disposal receipt when one is required or already uploaded. Request photos stay in their own section. The photos use the existing private bucket and short-lived signed links. Database permissions were not changed. This is local only and is not deployed.
 
 Migrations 0085 through 0089 are applied on the hosted database. Hosted history was already through 0084, and those earlier files were not applied again. Existing job rows were not rewritten. The count of jobs in each status was the same after the apply. A public-schema backup was taken before the apply.
+
+New in-app alerts play one short sound and show a banner. Refresh and a second tab do not play that alert again. Sounds, new-job alerts, messages, and delivery updates are device settings on Profile. Background push still uses the existing opt-in. The browser still requires a user gesture before sound can play.

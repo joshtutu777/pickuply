@@ -4,6 +4,7 @@ import { BackLink } from "@/components/back-link";
 import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileEmailForm } from "@/components/profile/email-form";
 import { ContactPreferences } from "@/components/profile/contact-preferences";
+import { DeviceAlertPreferences } from "@/components/profile/device-alert-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -51,6 +52,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
         <PlaceEditor kind="customer" />
       </section>
       <ProfileEmailForm email={profile?.email ?? null} />
+      <DeviceAlertPreferences publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} showJobAlerts={false} />
       <ContactPreferences
         phone={profile?.phone ?? null}
         email={profile?.email ?? null}
