@@ -13,12 +13,14 @@ export async function AlertCenter({
   error,
   backHref,
   backLabel,
+  showContact = false,
 }: {
   path: string;
   saved: boolean;
   error: boolean;
   backHref: string;
   backLabel: string;
+  showContact?: boolean;
 }) {
   await requireSignedIn(path);
   const supabase = await createClient();
@@ -49,8 +51,9 @@ export async function AlertCenter({
           We couldn&apos;t save that.
         </p>
       ) : null}
+      {showContact ? (
       <form action={saveAlertPreferences} className="mt-6 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-        <h2 className="text-lg font-semibold text-ink">How we reach you</h2>
+        <h2 className="text-lg font-semibold text-ink">Contact preferences</h2>
         <label className="flex min-h-12 items-center gap-3 text-base">
           <input type="checkbox" name="push" defaultChecked={prefs?.push_enabled ?? true} />
           Alerts on this device
@@ -73,6 +76,7 @@ export async function AlertCenter({
           Save
         </button>
       </form>
+      ) : null}
       {alertError ? (
         <p role="alert" className="mt-6 text-lg text-danger">
           We couldn&apos;t load your alerts. Try again.

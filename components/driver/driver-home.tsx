@@ -72,13 +72,10 @@ function OfferMath({ cents, settings }: { cents: number; settings: FeeSettings }
   } catch {
     return <p className="text-base text-danger">Enter an amount that can pay the driver.</p>;
   }
-  const percent = settings.platformBps / 100;
   return (
     <div className="grid gap-1 rounded-2xl bg-paper p-3 text-base">
-      <p>This amount is the price the customer sees. It is not your take-home pay.</p>
-      <p>Offer amount {formatCents(cents)}</p>
-      <p>Pickuply commission ({Number.isInteger(percent) ? percent : percent.toFixed(2)}%) {formatCents(price.platformFeeCents)}</p>
-      <p className="font-semibold">Your estimated earnings {formatCents(price.driverEarningsCents)}</p>
+      <p>Job Amount: {formatCents(cents)}</p>
+      <p className="font-semibold">Your Estimated Earnings: {formatCents(price.driverEarningsCents)}</p>
     </div>
   );
 }
@@ -102,6 +99,7 @@ function OfferActions({
   const router = useRouter();
   const offerCents = parseDollarsToCents(amount) ?? 0;
   const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
+  const driverQuote = job.pricing_method === "quote" && !claimable;
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
   async function send(kind: "accept" | "claim" | "offer") {
@@ -125,7 +123,9 @@ function OfferActions({
     setMessage({
       text: kind === "claim"
         ? "You are assigned. Payment is still due."
-        : `Offer submitted successfully. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`,
+        : driverQuote
+          ? `Quote sent. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`
+          : `Offer submitted successfully. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`,
       alert: false,
     });
     if (kind === "claim" || kind === "accept") {
@@ -162,7 +162,7 @@ function OfferActions({
             </>
           ) : null}
           <label className="text-base font-semibold text-ink">
-            Offer Amount ($)
+            {driverQuote ? "Your quote ($)" : "Offer Amount ($)"}
             <input
               value={amount}
               onChange={(event) => {
@@ -173,11 +173,10 @@ function OfferActions({
               className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
             />
           </label>
-          <p className="text-base text-muted">The customer sees this amount. Pickuply&apos;s commission comes out of it.</p>
           <OfferMath cents={offerCents} settings={fees} />
           {reviewing ? (
             <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">
-              <p className="font-semibold">Confirm this offer</p>
+              <p className="font-semibold">{driverQuote ? "Confirm this quote" : "Confirm this offer"}</p>
               <OfferMath cents={offerCents} settings={fees} />
               <button
                 type="button"
@@ -185,7 +184,7 @@ function OfferActions({
                 onClick={() => void send("offer")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
-                Confirm offer
+                {driverQuote ? "Send quote" : "Confirm offer"}
               </button>
               <button type="button" onClick={() => setReviewing(false)} className="inline-flex min-h-12 items-center font-semibold text-brand">
                 Edit offer
@@ -198,7 +197,7 @@ function OfferActions({
               onClick={() => setReviewing(true)}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
             >
-              Submit Offer
+              {driverQuote ? "Send quote" : "Submit Offer"}
             </button>
           )}
         </>
@@ -227,7 +226,7 @@ function JobCard({
   onDone: () => void;
 }) {
   return (
-    <li className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+    <li id={`job-${job.id}`} className="scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
       <p className="text-sm font-semibold text-brand">Available</p>
       <p className="mt-2 text-lg font-semibold text-ink">{job.service.replaceAll("_", " ")}</p>
       <p className="mt-1 text-base">
@@ -245,7 +244,7 @@ function JobCard({
         {job.time_window ? ` · ${job.time_window}` : ""}
       </p>
       {job.pricing_method === "fixed" && job.offer_cents != null ? (
-        <p>Customer posted {formatCents(job.offer_cents)}</p>
+        <p>Job Amount: {formatCents(job.offer_cents)}</p>
       ) : null}
       {job.pricing_method === "range" && job.budget_min_cents != null && job.budget_max_cents != null ? (
         <p>
@@ -253,7 +252,7 @@ function JobCard({
         </p>
       ) : null}
       {job.earningsCents != null ? (
-        <p className="font-semibold">Your earnings {formatCents(job.earningsCents)}</p>
+        <p className="font-semibold">Your Estimated Earnings: {formatCents(job.earningsCents)}</p>
       ) : null}
       <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} onDone={onDone} />
       {job.photos.length > 0 ? (

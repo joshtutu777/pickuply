@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { CustomerOfferWatch } from "@/components/account/offer-watch";
 import { customerNav, driverNav } from "@/lib/app-nav";
+import { roleBadgeForHome } from "@/lib/auth/role-badge";
 
 export async function HeaderSession() {
   const session = await getOptionalSession();
@@ -66,6 +67,7 @@ export async function HeaderSession() {
         area,
         appNav: homeHref === "/account" || homeHref === "/driver",
         appLabel: homeHref === "/driver" ? "Driver" : homeHref === "/account" ? "Customer" : null,
+        roleBadge: roleBadgeForHome(homeHref),
         appLinks: homeHref === "/driver" ? driverNav : customerNav,
         messageUnread,
         offerUnread,

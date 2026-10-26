@@ -76,7 +76,14 @@ function focusField(errors: FieldErrors) {
   const name = Object.keys(errors)[0];
   if (!name) return;
   const field = document.querySelector<HTMLElement>(`[name="${name}"]`);
+  field?.scrollIntoView({ block: "center" });
   field?.focus();
+}
+
+function scrollTransactionToTop() {
+  const root = document.querySelector("[data-app-scroll]");
+  if (root instanceof HTMLElement) root.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 export function RequestWizard({ initialService }: { initialService: ServiceId | null }) {
@@ -87,6 +94,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const photoIdsRef = useRef(photoIds);
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
+  useEffect(() => {
+    scrollTransactionToTop();
+  }, [stepIndex]);
   const funnelStarted = useRef(false);
   useEffect(() => {
     const supabase = createClient();

@@ -71,7 +71,7 @@ export function ReportForm({ jobId }: { jobId: string }) {
     <form id="report" onSubmit={(event) => void submit(event)} className="mt-6 grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Report a problem</h2>
       <p className="text-base text-ink">
-        Damage must be reported within 48 hours of delivery, with photos. Pickup photos are the before picture. Damage that was already visible at pickup is not covered. Pickuply reviews the report. Nothing is refunded automatically. Verified damage can be refunded up to $250 for the job. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
+        Damage must be reported within 48 hours of delivery, with photos. Pickup photos are the before picture. Damage that was already visible at pickup is not covered. Pickuply reviews the report. Nothing is refunded automatically. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
       </p>
       <label className="text-base font-semibold" htmlFor="report-category">
         What happened

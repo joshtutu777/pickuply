@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appNavActive, customerNav, driverNav, type AppNavIcon } from "@/lib/app-nav";
@@ -13,17 +13,6 @@ const hidden = [
   "/driver/ready",
   "/driver/training",
 ];
-
-function useHash() {
-  return useSyncExternalStore(
-    (onStoreChange) => {
-      window.addEventListener("hashchange", onStoreChange);
-      return () => window.removeEventListener("hashchange", onStoreChange);
-    },
-    () => window.location.hash,
-    () => "",
-  );
-}
 
 function NavIcon({ icon }: { icon: AppNavIcon }) {
   const common = "size-5";
@@ -76,17 +65,11 @@ export function BottomNav({
   offerUnread?: number;
 }) {
   const pathname = usePathname();
-  const hash = useHash();
   const ready = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  useEffect(() => {
-    const id = window.location.hash.replace("#", "");
-    if (!id) return;
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
-  }, [pathname, hash]);
   if (!ready || (role !== "customer" && role !== "driver")) return null;
   if (pathname === "/") return null;
   if (hidden.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return null;
@@ -102,7 +85,7 @@ export function BottomNav({
     >
       <ul className="mx-auto flex max-w-md items-end justify-between rounded-full bg-ink px-2 py-2 text-white shadow-lg">
         {items.map((item) => {
-          const current = appNavActive(pathname, item.href, hash);
+          const current = appNavActive(pathname, item.href);
           const count =
             item.icon === "alerts"
               ? alertUnread

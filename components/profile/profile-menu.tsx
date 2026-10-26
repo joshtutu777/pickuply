@@ -90,6 +90,11 @@ export function ProfileMenu({
           </li>
         ) : null}
         <li>
+          <a href="#contact" className={row}>
+            Contact preferences
+          </a>
+        </li>
+        <li>
           <Link href="/help" className={row}>
             Help
           </Link>

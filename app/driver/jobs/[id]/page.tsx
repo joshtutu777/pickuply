@@ -11,8 +11,8 @@ import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import { ProofForm } from "@/components/driver/proof-form";
 import { ProofGallery } from "@/components/request/proof-gallery";
-import { ReportForm } from "@/components/request/report-form";
 import { ReviewPanel } from "@/components/reviews/review-panel";
+import { ScrollOnValue } from "@/components/scroll-restore";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -48,7 +48,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, commission_bps, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -98,12 +98,62 @@ async function DriverJob({
     paymentStatus: job.payment_status,
     service: job.service,
   });
+  const retired = job.test_retired_at != null;
+  const jobAmount = job.driver_pay_cents != null && job.platform_fee_cents != null
+    ? job.driver_pay_cents + job.platform_fee_cents
+    : null;
+  const proofStage = next.nextStatus === "delivered" ? "dropoff" : "pickup";
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
-      <BackLink href="/driver" label="Driver home" />
-      <p className="text-sm font-semibold tracking-wide text-brand uppercase">Assigned job</p>
-      <div className="mt-3">
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-4">
+      <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
+      <BackLink href="/driver/jobs" label="Jobs" />
+      <div className="flex items-center justify-between gap-3">
+        <StatusPill status={job.status} />
+        <p className="text-sm font-semibold text-muted">{job.service.replaceAll("_", " ")}</p>
+      </div>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
+        {statusLabel(job.status)}
+      </h1>
+      <p className="mt-1 text-base text-ink">
+        {job.pickup_area}
+        {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
+      </p>
+      {jobAmount != null && job.driver_pay_cents != null ? (
+        <div className="mt-3">
+          <p>Job Amount: {formatCents(jobAmount)}</p>
+          <p className="font-semibold">Your Estimated Earnings: {formatCents(job.driver_pay_cents)}</p>
+        </div>
+      ) : job.driver_pay_cents != null ? (
+        <p className="mt-3 font-semibold">Your Estimated Earnings: {formatCents(job.driver_pay_cents)}</p>
+      ) : null}
+      {job.payment_status ? <p className="mt-1">Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
+      {retired ? <p className="mt-3 text-base text-ink">This job is closed.</p> : null}
+      {!retired && next.nextStatus ? (
+        <div className="sticky top-2 z-10 mt-3 grid gap-3 rounded-3xl bg-paper p-3 ring-1 ring-line">
+          <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
+          <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
+        </div>
+      ) : !retired && next.waiting ? (
+        <button
+          type="button"
+          disabled
+          className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
+        >
+          {next.label}
+        </button>
+      ) : null}
+      {query.error === "step" ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          That step is not available yet.
+        </p>
+      ) : null}
+      {query.error === "photo" ? (
+        <p id="proof-needed" role="alert" className="mt-3 text-base text-danger">
+          Add the item photo before sending it to the customer.
+        </p>
+      ) : null}
+      <div className="mt-4">
         {details?.pickup_lat != null && details.pickup_lng != null ? (
           <AreaMap
             caption="Pickup and drop-off"
@@ -118,22 +168,6 @@ async function DriverJob({
           <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
         )}
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <StatusPill status={job.status} />
-      </div>
-      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
-        {statusLabel(job.status)}
-      </h1>
-      <p className="mt-2 text-base text-muted">{job.service}</p>
-      {job.driver_pay_cents != null ? (
-        <div>
-          <p className="font-semibold">Your earnings {formatCents(job.driver_pay_cents)}</p>
-          {job.platform_fee_cents != null ? (
-            <p>Offer {formatCents(job.driver_pay_cents + job.platform_fee_cents)} · Pickuply commission {formatCents(job.platform_fee_cents)}{job.commission_bps != null ? ` (${job.commission_bps / 100}%)` : ""}</p>
-          ) : null}
-        </div>
-      ) : null}
-      {job.payment_status ? <p>Payment: {job.payment_status.replaceAll("_", " ")}</p> : null}
       {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Waiting for customer payment</p>
       ) : null}
@@ -150,6 +184,12 @@ async function DriverJob({
           <p>{details.pickup_address}</p>
           {details.dropoff_address ? <p>Drop-off: {details.dropoff_address}</p> : null}
           {details.access_notes ? <p>Access: {details.access_notes}</p> : null}
+          {job.status === "assigned" && details.pickup_address ? (
+            <MapsLink address={details.pickup_address} label="Open pickup in Maps" />
+          ) : null}
+          {job.status === "in_transit" && details.dropoff_address ? (
+            <MapsLink address={details.dropoff_address} label="Open drop-off in Maps" />
+          ) : null}
         </section>
       ) : (
         <p className="mt-6 text-base text-muted">The street address appears after you are assigned.</p>
@@ -180,16 +220,6 @@ async function DriverJob({
             : [],
         })}
       />
-      {query.error === "step" ? (
-        <p role="alert" className="mt-4 text-base text-danger">
-          That step is not available yet.
-        </p>
-      ) : null}
-      {query.error === "photo" ? (
-        <p role="alert" className="mt-4 text-base text-danger">
-          Add the item photo before sending it to the customer.
-        </p>
-      ) : null}
       {job.status === "cancelled" && job.rejection_reason ? (
         <p className="mt-4 text-base text-ink">
           The customer rejected the item. The trip fee
@@ -221,35 +251,15 @@ async function DriverJob({
           skipHref="/driver"
         />
       ) : null}
-      {next.nextStatus ? (
-        <div className="mt-4 grid gap-3">
-          <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
-          {job.status === "assigned" && details?.pickup_address ? (
-            <MapsLink address={details.pickup_address} label="Open in Maps" />
-          ) : null}
-          {job.status === "in_transit" && details?.dropoff_address ? (
-            <MapsLink address={details.dropoff_address} label="Open in Maps" />
-          ) : null}
-        </div>
-      ) : next.waiting ? (
-        <button
-          type="button"
-          disabled
-          className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
-        >
-          {next.label}
-        </button>
-      ) : null}
       <ProofGallery jobId={job.id} />
-      <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} />
-      {["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
-        <ReportForm jobId={job.id} />
+      {!retired && !next.nextStatus ? (
+        <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
       ) : null}
       <div id="messages">
         <JobMessages jobId={job.id} showQuickReplies />
       </div>
       <p className="mt-4">
-        <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
+        <Link href={`/help?job=${job.id}#report`} className="inline-flex min-h-12 items-center font-semibold text-brand">
           Help
         </Link>
       </p>

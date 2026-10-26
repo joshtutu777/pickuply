@@ -19,8 +19,10 @@ export async function saveAlertPreferences(formData: FormData) {
     email_on: formData.get("email") === "on",
     promotional_on: formData.get("promotional") === "on",
   });
-  const path = alertsPath(session.role);
+  const requested = String(formData.get("returnTo") ?? "");
+  const path = requested === "/account/profile" || requested === "/driver/profile" ? requested : alertsPath(session.role);
   revalidatePath(path);
+  revalidatePath(alertsPath(session.role));
   redirect(error ? `${path}?error=save` : `${path}?saved=1`);
 }
 

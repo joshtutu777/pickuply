@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { confirmDelivery, decidePickup } from "@/app/jobs/actions";
 
 export function ItemDecision({ jobId }: { jobId: string }) {
@@ -37,6 +38,9 @@ export function ItemDecision({ jobId }: { jobId: string }) {
             Reject item
           </button>
         </form>
+        <Link href="#report" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Report a problem
+        </Link>
       </div>
     </section>
   );
@@ -60,6 +64,9 @@ export function ConfirmDelivery({ jobId, confirmed }: { jobId: string; confirmed
             </button>
           </form>
         )}
+        <Link href="#report" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Report a problem
+        </Link>
       </div>
     </section>
   );

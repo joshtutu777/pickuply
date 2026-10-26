@@ -9,9 +9,11 @@ import { createClient } from "@/lib/supabase/client";
 export function ProofForm({
   jobId,
   locationEnabled,
+  defaultStage = "pickup",
 }: {
   jobId: string;
   locationEnabled: boolean;
+  defaultStage?: "pickup" | "dropoff" | "dump_receipt";
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function ProofForm({
       </p>
       <label className="text-base font-semibold" htmlFor="proof-stage">
         Step
-        <select id="proof-stage" name="stage" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" defaultValue="pickup">
+        <select id="proof-stage" name="stage" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" defaultValue={defaultStage}>
           <option value="pickup">Pickup</option>
           <option value="dropoff">Drop-off</option>
           <option value="dump_receipt">Receipt or pickup slip</option>
@@ -97,7 +99,7 @@ export function ProofForm({
       </label>
       <label className="text-base font-semibold" htmlFor="proof-file">
         Photo or video
-        <input id="proof-file" name="file" type="file" accept="image/*,video/*" className="mt-2 block w-full" />
+        <input id="proof-file" name="file" type="file" accept="image/*,video/*" className="mt-2 block min-h-12 w-full" />
       </label>
       <label className="flex min-h-12 items-center gap-3 text-base">
         <input type="checkbox" name="shareLocation" disabled={!locationEnabled} />

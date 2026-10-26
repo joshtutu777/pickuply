@@ -5,6 +5,7 @@ import { BackLink } from "@/components/back-link";
 import { AreaMap } from "@/components/maps/area-map";
 import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileEmailForm } from "@/components/profile/email-form";
+import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -14,19 +15,20 @@ export const metadata: Metadata = {
   title: "Driver profile",
 };
 
-export default function DriverProfilePage() {
+export default function DriverProfilePage({ searchParams }: PageProps<"/driver/profile">) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <ProfileContent />
+      <ProfileContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function ProfileContent() {
+async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driver/profile">["searchParams"] }) {
   const session = await requireSignedIn("/driver/profile");
   if (session.role !== "driver") notFound();
+  const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: profile }, { data: driver }, { data: place }] = await Promise.all([
+  const [{ data: profile }, { data: driver }, { data: place }, { data: prefs }] = await Promise.all([
     supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase
       .from("drivers")
@@ -34,6 +36,10 @@ async function ProfileContent() {
       .eq("profile_id", session.userId)
       .maybeSingle(),
     supabase.from("driver_places").select("line1, unit, city, zip, notes").eq("profile_id", session.userId).maybeSingle(),
+    supabase
+      .from("notification_preferences")
+      .select("push_enabled, email_enabled, promotional_sms")
+      .maybeSingle(),
   ]);
   const centroid = driver?.home_zip
     ? (await supabase.from("ga_zip_centroids").select("lat, lng, city, zip").eq("zip", driver.home_zip).maybeSingle()).data
@@ -79,6 +85,16 @@ async function ProfileContent() {
         }
       />
       <ProfileEmailForm email={profile?.email ?? null} />
+      <ContactPreferences
+        phone={profile?.phone ?? null}
+        email={profile?.email ?? null}
+        returnTo="/driver/profile"
+        pushEnabled={prefs?.push_enabled ?? true}
+        emailEnabled={prefs?.email_enabled ?? true}
+        promotional={Boolean(prefs?.promotional_sms)}
+        saved={query.saved === "1"}
+        error={query.error === "save"}
+      />
       <ProfileMenu
         phone={profile?.phone ?? null}
         role={session.role}

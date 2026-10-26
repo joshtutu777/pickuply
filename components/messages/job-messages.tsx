@@ -25,7 +25,7 @@ export async function JobMessages({
       initial={(data ?? []) as ChatMessage[]}
       closesAt={thread?.closes_at ?? null}
       showQuickReplies={showQuickReplies}
-      reportHref={`/jobs/${jobId}#report`}
+      reportHref={`/help?job=${jobId}#report`}
     />
     </>
   );

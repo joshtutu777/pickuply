@@ -28,7 +28,7 @@ export function PayPanel({
   const additionalCents = totalCents - offerCents - serviceFeeCents;
   const balanced = additionalCents >= 0 && offerCents + serviceFeeCents + additionalCents === totalCents;
   return (
-    <section className="mx-auto mt-4 w-full max-w-xl px-4">
+    <section className="mt-3 w-full">
       <div className="grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Confirm Your Booking</h2>
         {balanced ? (
@@ -48,8 +48,8 @@ export function PayPanel({
             {paymentStatus === "failed" ? <p>The card was declined. You can try again.</p> : null}
             {returning ? <p>Stripe is confirming the card. This page updates when the hold is approved.</p> : null}
             <p>
-              Your card will be authorized when you confirm your booking. Payment is charged after you confirm the
-              delivery, or 24 hours later if you do not. If the authorization expires first, the card is not charged.
+              Confirm your booking. Your card will be authorized now and charged after delivery is completed under
+              Pickuply&apos;s payment policy.
             </p>
             <form action={startCheckout}>
               <input type="hidden" name="jobId" value={jobId} />
