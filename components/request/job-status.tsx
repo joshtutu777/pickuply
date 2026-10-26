@@ -22,6 +22,7 @@ import type { DriverCard } from "@/lib/data/driver-card";
 import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { shortJobId } from "@/lib/jobs/next-action";
+import { quoteRequestCopy } from "@/lib/jobs/quote-status";
 import { customerProgress, type JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
@@ -142,7 +143,16 @@ export function JobStatus({
             Your budget: {formatCents(job.budget_min_cents)}–{formatCents(job.budget_max_cents)}
           </p>
         ) : null}
-        {job.pricing_method === "quote" ? <p>Drivers can send offers. You choose who to book.</p> : null}
+        {job.pricing_method === "quote" ? (
+          <p>
+            {quoteRequestCopy({
+              pricingMethod: job.pricing_method,
+              status: job.status,
+              paymentStatus: job.payment_status,
+              service: job.service,
+            })}
+          </p>
+        ) : null}
         {job.pricing_method === "fixed" || job.pricing_method === "range" ? (
           <p>You choose a driver before anything is booked.</p>
         ) : null}

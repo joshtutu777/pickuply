@@ -271,6 +271,15 @@ function nextForCustomer(input: {
   return "We'll confirm the price next. Drivers cannot see this yet.";
 }
 
+export function customerStatusDetail(input: {
+  status: string;
+  paymentStatus: string | null;
+  service: string;
+  pricingMethod: string;
+}): string {
+  return nextForCustomer(input);
+}
+
 export function nextDriverAction(input: {
   status: string;
   paymentStatus: string | null;
