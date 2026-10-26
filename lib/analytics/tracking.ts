@@ -8,9 +8,13 @@ export const trackingEvents = [
   "offer_accepted",
   "booking_confirmed",
   "delivery_completed",
-  "driver_signup_completed",
+  "driver_registration_completed",
+  "driver_application_submitted",
+  "driver_approved",
   "driver_offer_submitted",
   "driver_offer_accepted",
+  "homepage_booking_click",
+  "homepage_driver_click",
   "blog_article_viewed",
   "blog_to_booking_click",
   "blog_to_driver_signup_click",
@@ -96,7 +100,7 @@ export function bookingEvent(input: {
   isTest: boolean;
 }): { event: "booking_confirmed" } | null {
   if (input.isTest || !input.returning) return null;
-  if (!["authorized", "paid", "captured"].includes(input.paymentStatus ?? "")) return null;
+  if (input.paymentStatus !== "authorized") return null;
   return { event: "booking_confirmed" };
 }
 
@@ -106,8 +110,7 @@ export function deliveryEvent(input: {
   isTest: boolean;
 }): { event: "delivery_completed" } | null {
   if (input.isTest) return null;
-  if (input.tracked !== "confirmed" && input.tracked !== "delivered") return null;
-  if (input.status !== "completed") return null;
+  if (input.tracked !== "delivered" || input.status !== "completed") return null;
   return { event: "delivery_completed" };
 }
 
@@ -122,6 +125,28 @@ export function purchaseEvent(input: {
   if (input.paymentStatus !== "captured") return null;
   if (input.capturedCents == null || input.capturedCents <= 0) return null;
   return { event: "purchase", value: input.capturedCents / 100, currency: "USD" };
+}
+
+export function newOfferIds(offers: { offer_id: string; viewed?: boolean }[]): string[] {
+  return offers
+    .filter((offer) => offer.viewed === false && /^[0-9a-f-]{36}$/i.test(offer.offer_id))
+    .map((offer) => offer.offer_id);
+}
+
+export function analyticsCookieNames(cookieHeader: string): string[] {
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim().split("=")[0] ?? "")
+    .filter(
+      (name) =>
+        name === "_ga" ||
+        name === "_gid" ||
+        name === "_fbp" ||
+        name === "_fbc" ||
+        name.startsWith("_ga_") ||
+        name.startsWith("_gat") ||
+        name.startsWith("_gcl_"),
+    );
 }
 
 export function notificationEvent(kind: string): TrackingEvent | null {

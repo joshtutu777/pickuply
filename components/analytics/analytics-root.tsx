@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  analyticsCookieNames,
   claimEvent,
   containerId,
   gtmScriptUrl,
@@ -55,7 +56,14 @@ function dataLayer(): unknown[] {
   return window.dataLayer;
 }
 
-function updateConsent(choice: ConsentChoice) {
+const deniedConsent = {
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+  analytics_storage: "denied",
+};
+
+function gtagReady(): NonNullable<Window["gtag"]> {
   const layer = dataLayer();
   window.gtag =
     window.gtag ??
@@ -63,20 +71,28 @@ function updateConsent(choice: ConsentChoice) {
       // Google consent mode reads the arguments object from the data layer.
       layer.push(arguments);
     };
-  window.gtag("consent", "default", {
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-    analytics_storage: "denied",
-    wait_for_update: 500,
-  });
-  if (choice === "granted") {
-    window.gtag("consent", "update", {
-      ad_storage: "granted",
-      ad_user_data: "granted",
-      ad_personalization: "granted",
-      analytics_storage: "granted",
-    });
+  return window.gtag;
+}
+
+function updateConsent(choice: ConsentChoice) {
+  const gtag = gtagReady();
+  gtag("consent", "default", { ...deniedConsent, wait_for_update: 500 });
+  gtag("consent", "update", choice === "granted" ? {
+    ad_storage: "granted",
+    ad_user_data: "granted",
+    ad_personalization: "granted",
+    analytics_storage: "granted",
+  } : deniedConsent);
+}
+
+function clearAnalyticsCookies() {
+  const host = window.location.hostname;
+  const domains = ["", host, host.includes(".") ? `.${host.split(".").slice(-2).join(".")}` : ""];
+  for (const name of analyticsCookieNames(document.cookie)) {
+    for (const domain of domains) {
+      const domainPart = domain ? `; domain=${domain}` : "";
+      document.cookie = `${name}=; Max-Age=0; path=/${domainPart}`;
+    }
   }
 }
 
@@ -93,10 +109,15 @@ function loadTagManager() {
   dataLayer().push({ "gtm.start": Date.now(), event: "gtm.js" });
 }
 
-export function pushTrackingEvent(event: TrackingEvent, key: string, fields: Record<string, unknown> = {}): boolean {
+export function pushTrackingEvent(
+  event: TrackingEvent,
+  key: string,
+  fields: Record<string, unknown> = {},
+  once = true,
+): boolean {
   if (!gate.ready || gate.consent !== "granted" || gate.isTest) return false;
-  if (!claimEvent(seen, key)) return false;
-  writeSeen();
+  if (once && !claimEvent(seen, key)) return false;
+  if (once) writeSeen();
   const payload = sanitizeFields(fields);
   dataLayer().push({ event, ...payload });
   return true;
@@ -106,6 +127,7 @@ export function AnalyticsRoot() {
   const pathname = usePathname();
   const [consent, setConsent] = useState<ConsentChoice | null>(null);
   const [ready, setReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     readSeen();
@@ -138,16 +160,32 @@ export function AnalyticsRoot() {
     localStorage.setItem(consentKey, choice);
     gate.consent = choice;
     setConsent(choice);
-    if (choice === "denied") return;
+    setSettingsOpen(false);
+    if (choice === "denied") {
+      updateConsent("denied");
+      clearAnalyticsCookies();
+      return;
+    }
     loadTagManager();
     const path = pagePath(pathname);
-    if (path) {
+    if (path && lastPath !== path) {
       lastPath = path;
       dataLayer().push({ event: "page_view", page_path: path });
     }
   }
 
-  if (!ready || consent) return null;
+  if (!ready) return null;
+  if (consent && !settingsOpen) {
+    return (
+      <button
+        type="button"
+        className="fixed bottom-3 left-3 z-40 inline-flex min-h-12 items-center rounded-full bg-paper-raised px-4 text-sm font-semibold text-ink ring-1 ring-line"
+        onClick={() => setSettingsOpen(true)}
+      >
+        Cookie settings
+      </button>
+    );
+  }
   return (
     <div role="dialog" aria-labelledby="analytics-consent-title" className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl rounded-3xl bg-paper-raised p-4 shadow-lg ring-1 ring-line">
       <p id="analytics-consent-title" className="text-base font-semibold text-ink">Optional cookies</p>

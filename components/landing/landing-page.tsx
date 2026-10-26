@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/tracked-link";
 import { BetaBadge } from "@/components/beta-badge";
 import { InstallButton } from "@/components/pwa/install-button";
 import type { ReactNode } from "react";
@@ -92,13 +93,13 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               Local drivers with the right vehicle pick up your Marketplace finds, free items, and store purchases — and bring them home before you lose the deal.
             </p>
             <div className="flex flex-wrap gap-3 pt-1.5">
-              <Link href="/request" className="inline-flex items-center gap-2.5 rounded-full bg-[#17573E] px-[26px] py-4 text-lg font-semibold text-[#FFFDF8]">
+              <TrackedLink href="/request" event="homepage_booking_click" className="inline-flex items-center gap-2.5 rounded-full bg-[#17573E] px-[26px] py-4 text-lg font-semibold text-[#FFFDF8]">
                 Post a pickup
                 <Arrow />
-              </Link>
-              <Link href="/drive" className="inline-flex items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-[26px] py-4 text-lg font-semibold text-[#14211B]">
+              </TrackedLink>
+              <TrackedLink href="/drive" event="homepage_driver_click" className="inline-flex items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-[26px] py-4 text-lg font-semibold text-[#14211B]">
                 Drive with us
-              </Link>
+              </TrackedLink>
             </div>
             <p className="flex items-center gap-2 text-[15px] text-[#46544C]">
               <CardIcon />
@@ -269,10 +270,10 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               <div className="flex items-center gap-3"><PinIcon />Choose jobs in your areas</div>
               <div className="flex items-center gap-3"><WalletIcon />Set your own price on each offer</div>
               <div className="flex items-center gap-3"><ClockIcon />Work when you want</div>
-              <Link href="/drive" className="mt-2 inline-flex items-center gap-2.5 self-start rounded-full bg-[#14211B] px-6 py-3.5 text-[17px] font-semibold text-[#FFFDF8]">
+              <TrackedLink href="/drive" event="homepage_driver_click" className="mt-2 inline-flex items-center gap-2.5 self-start rounded-full bg-[#14211B] px-6 py-3.5 text-[17px] font-semibold text-[#FFFDF8]">
                 Apply to drive
                 <Arrow size={18} />
-              </Link>
+              </TrackedLink>
             </div>
           </div>
         </section>
@@ -284,10 +285,10 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               You find it. We lift it, load it, and bring it home.
             </h2>
             <p className="text-lg text-[#C9D6CE]">Post your pickup in a couple of minutes. Drivers respond, and you choose.</p>
-            <Link href="/request" className="inline-flex items-center gap-2.5 rounded-full bg-[#8FD1AE] px-7 py-4 text-lg font-bold text-[#14211B]">
+            <TrackedLink href="/request" event="homepage_booking_click" className="inline-flex items-center gap-2.5 rounded-full bg-[#8FD1AE] px-7 py-4 text-lg font-bold text-[#14211B]">
               Post a pickup
               <Arrow />
-            </Link>
+            </TrackedLink>
           </div>
         </section>
       </main>

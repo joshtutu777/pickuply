@@ -137,7 +137,7 @@ export function QuickApplyForm({
       const placeError = await saveDriverPlace(home);
       if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
-      pushTrackingEvent("driver_signup_completed", "driver_signup_completed");
+      pushTrackingEvent("driver_application_submitted", "driver_application_submitted");
       router.push("/driver?saved=applied");
       router.refresh();
     } catch (caught) {

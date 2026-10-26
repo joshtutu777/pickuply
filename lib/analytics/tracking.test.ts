@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  analyticsCookieNames,
   bookingEvent,
   claimEvent,
   containerId,
   deliveryEvent,
   isFreshAccount,
+  newOfferIds,
   nextPageView,
   notificationEvent,
   purchaseEvent,
@@ -58,6 +60,8 @@ test("booking is the card hold and purchase is a live captured charge", () => {
   assert.deepEqual(bookingEvent({ returning: true, paymentStatus: "authorized", isTest: false }), {
     event: "booking_confirmed",
   });
+  assert.equal(bookingEvent({ returning: true, paymentStatus: "captured", isTest: false }), null);
+  assert.equal(bookingEvent({ returning: true, paymentStatus: "paid", isTest: false }), null);
   assert.equal(bookingEvent({ returning: true, paymentStatus: "awaiting_payment", isTest: false }), null);
   assert.equal(bookingEvent({ returning: true, paymentStatus: "authorized", isTest: true }), null);
   assert.equal(
@@ -104,10 +108,11 @@ test("booking is the card hold and purchase is a live captured charge", () => {
 
 test("delivery and repeated events stay tied to a successful result", () => {
   assert.equal(deliveryEvent({ tracked: "delivered", status: "delivered", isTest: false }), null);
-  assert.deepEqual(deliveryEvent({ tracked: "confirmed", status: "completed", isTest: false }), {
+  assert.equal(deliveryEvent({ tracked: "confirmed", status: "completed", isTest: false }), null);
+  assert.deepEqual(deliveryEvent({ tracked: "delivered", status: "completed", isTest: false }), {
     event: "delivery_completed",
   });
-  assert.equal(deliveryEvent({ tracked: "confirmed", status: "completed", isTest: true }), null);
+  assert.equal(deliveryEvent({ tracked: "delivered", status: "completed", isTest: true }), null);
   const seen = new Set<string>();
   assert.equal(claimEvent(seen, "offer_received:1"), true);
   assert.equal(claimEvent(seen, "offer_received:1"), false);
@@ -117,6 +122,14 @@ test("a new account is recent and a notification maps without its text", () => {
   const now = Date.parse("2026-10-26T21:00:00.000Z");
   assert.equal(isFreshAccount("2026-10-26T20:59:00.000Z", now), true);
   assert.equal(isFreshAccount("2026-10-26T20:00:00.000Z", now), false);
+  assert.deepEqual(
+    newOfferIds([
+      { offer_id: "11111111-1111-4111-8111-111111111111", viewed: false },
+      { offer_id: "22222222-2222-4222-8222-222222222222", viewed: true },
+    ]),
+    ["11111111-1111-4111-8111-111111111111"],
+  );
+  assert.deepEqual(analyticsCookieNames("_ga=1; sb-auth=2; _fbp=3; pickuply.mode=customer"), ["_ga", "_fbp"]);
   assert.equal(notificationEvent("offer"), "offer_received");
   assert.equal(notificationEvent("assigned"), "driver_offer_accepted");
   assert.equal(notificationEvent("new_message"), null);

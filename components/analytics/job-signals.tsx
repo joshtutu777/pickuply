@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { bookingEvent, deliveryEvent, purchaseEvent } from "@/lib/analytics/tracking";
+import { bookingEvent, deliveryEvent, newOfferIds, purchaseEvent } from "@/lib/analytics/tracking";
 import { pushTrackingEvent } from "@/components/analytics/analytics-root";
 
 export function JobSignals({
@@ -13,7 +13,7 @@ export function JobSignals({
   isTest,
   returning,
   tracked,
-  offerIds,
+  offers,
 }: {
   jobId: string;
   status: string;
@@ -23,7 +23,7 @@ export function JobSignals({
   isTest: boolean;
   returning: boolean;
   tracked: string | null;
-  offerIds: string[];
+  offers: { offer_id: string; viewed?: boolean }[];
 }) {
   useEffect(() => {
     const booking = bookingEvent({ returning, paymentStatus, isTest });
@@ -34,11 +34,11 @@ export function JobSignals({
     if (purchase) pushTrackingEvent(purchase.event, `${purchase.event}:${jobId}`, { value: purchase.value, currency: purchase.currency });
     if (!isTest && tracked === "offer") pushTrackingEvent("offer_accepted", `offer_accepted:${jobId}`);
     if (!isTest) {
-      for (const offerId of offerIds) {
-        if (/^[0-9a-f-]{36}$/i.test(offerId)) pushTrackingEvent("offer_received", `offer_received:${offerId}`);
+      for (const offerId of newOfferIds(offers)) {
+        pushTrackingEvent("offer_received", `offer_received:${offerId}`);
       }
     }
-  }, [capturedCents, isTest, jobId, live, offerIds, paymentStatus, returning, status, tracked]);
+  }, [capturedCents, isTest, jobId, live, offers, paymentStatus, returning, status, tracked]);
 
   return null;
 }

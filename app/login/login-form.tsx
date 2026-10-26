@@ -127,7 +127,10 @@ export function LoginForm({
       if (isFreshAccount(user.data.user?.created_at)) {
         const profile = await supabase.from("profiles").select("is_test").eq("id", user.data.user?.id ?? "").maybeSingle();
         if (profile.data?.is_test !== true) {
-          pushTrackingEvent(driver ? "driver_signup_completed" : "signup_completed", driver ? "driver_signup_completed" : "signup_completed");
+          pushTrackingEvent(
+            driver ? "driver_registration_completed" : "signup_completed",
+            driver ? "driver_registration_completed" : "signup_completed",
+          );
         }
       }
       const params = new URLSearchParams();

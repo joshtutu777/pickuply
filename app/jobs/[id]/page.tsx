@@ -230,7 +230,7 @@ async function JobEntry({
         isTest={testJob}
         returning={query.paid === "return"}
         tracked={typeof query.tracked === "string" ? query.tracked : null}
-        offerIds={offers.map((offer) => offer.offer_id)}
+        offers={offers.map((offer) => ({ offer_id: offer.offer_id, viewed: offer.viewed }))}
       />
       {query.saved === "1" ? (
         <p className="mx-auto mt-3 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>

@@ -36,10 +36,15 @@ export async function reviewDriver(formData: FormData) {
       : error.message;
     redirect(`/admin/drivers/${driverId}?error=${encodeURIComponent(message)}`);
   }
-  if (decision === "approve_new" || decision === "approve_active") {
+  const approved = decision === "approve_new" || decision === "approve_active";
+  if (approved) {
     await recordFunnelServer({ event: "driver_approved", step: decision });
   }
-  redirect(`/admin/drivers/${driverId}?saved=1`);
+  const profile = approved
+    ? await supabase.from("profiles").select("is_test").eq("id", driverId).maybeSingle()
+    : { data: null };
+  const trackApproval = approved && profile.data?.is_test === false;
+  redirect(`/admin/drivers/${driverId}?${trackApproval ? "tracked=approved" : "saved=1"}`);
 }
 
 export async function requestDocuments(formData: FormData) {

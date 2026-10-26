@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { reopenDriver, requestDocuments, reviewDriver } from "@/app/admin/drivers/actions";
+import { ApprovalSignal } from "@/components/analytics/approval-signal";
 import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
@@ -120,7 +121,8 @@ async function DriverDetail({
       <Link href="/admin/drivers" className="mt-4 inline-flex min-h-12 items-center font-semibold text-brand">
         All drivers
       </Link>
-      {query.saved === "1" ? <p className="mt-4 text-base text-ink">Saved.</p> : null}
+      {query.tracked === "approved" ? <ApprovalSignal driverId={id} /> : null}
+      {query.saved === "1" || query.tracked === "approved" ? <p className="mt-4 text-base text-ink">Saved.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}

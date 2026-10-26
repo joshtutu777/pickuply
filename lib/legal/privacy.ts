@@ -20,7 +20,7 @@ export const privacySections: LegalSection[] = [
       "Driver information: city and service area, vehicle information, equipment, license and insurance information, uploaded documents, agreement acknowledgments, payout setup status, and onboarding or approval status. Pickuply does not run background checks in this version.",
       "Payment information: transaction amounts, fees, payment status, and payment-provider references. Stripe processes the card. Pickuply does not store the full card number.",
       "Technical information: the details our host and database record to operate the account, including security logs needed to sign in and protect the service.",
-      "If you allow optional cookies, Google Tag Manager can record page visits and booking steps, and can load Google Analytics and Meta advertising tags. Those tags do not receive your name, phone number, email, address, or card details from Pickuply. Rejecting optional cookies keeps those tags off. Sign-in cookies are still used.",
+      "If you allow optional cookies, Google Tag Manager can record page visits and booking steps, and can load Google Analytics and Meta advertising tags. Those tags do not receive your name, phone number, email, address, or card details from Pickuply. Rejecting optional cookies, including after an earlier choice, keeps those tags off and removes analytics cookies already stored in this browser. Sign-in cookies are still used.",
     ],
   },
   {
