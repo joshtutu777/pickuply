@@ -21,11 +21,16 @@ export async function replyToTicket(form: FormData) {
   const saved = await supabase.rpc("admin_support_message", { ticket: id, message, note });
   if (saved.error || !ticket.data) redirect(`/admin/support/${id}?error=reply`);
   if (note || ticket.data.profile_id || ticket.data.is_test) redirect(`/admin/support/${id}?saved=1`);
-  const sent = await sendEmail(
-    ticket.data.email,
-    `Pickuply support ${ticket.data.reference}`,
-    `${message}\n\nThis reply is about request ${ticket.data.reference}.`,
-  );
+  let sent = false;
+  try {
+    sent = await sendEmail(
+      ticket.data.email,
+      `Pickuply support ${ticket.data.reference}`,
+      `${message}\n\nThis reply is about request ${ticket.data.reference}.`,
+    );
+  } catch {
+    sent = false;
+  }
   await supabase.from("audit_log").insert({
     actor_id: session.userId,
     action: sent ? "support_email_sent" : "support_email_not_sent",
