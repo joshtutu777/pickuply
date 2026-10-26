@@ -14,6 +14,7 @@ const items = [
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },
   { id: "feedback", href: "/admin/feedback", label: "Feedback" },
   { id: "blog", href: "/admin/blog", label: "Blog" },
+  { id: "support", href: "/admin/support", label: "Support" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
 ] as const;
 
@@ -22,7 +23,7 @@ function NavLinks({
   current,
   showTestData,
 }: {
-  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number; support: number };
   current: ReturnType<typeof adminNavCurrent>;
   showTestData: boolean;
 }) {
@@ -31,7 +32,7 @@ function NavLinks({
     <ul className="flex flex-col gap-1 p-3">
       {items.map((item) => {
         const count =
-          item.id === "overview" || item.id === "requests" || item.id === "drivers" || item.id === "messages" || item.id === "alerts" || item.id === "feedback"
+          item.id === "overview" || item.id === "requests" || item.id === "drivers" || item.id === "messages" || item.id === "alerts" || item.id === "feedback" || item.id === "support"
             ? badges[item.id]
             : 0;
         const active = current === item.id;
@@ -153,7 +154,7 @@ export function AdminNav({
   badges,
   showTestData = false,
 }: {
-  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number };
+  badges: { overview: number; requests: number; drivers: number; messages: number; alerts: number; feedback: number; support: number };
   showTestData?: boolean;
 }) {
   const pathname = usePathname();
