@@ -26,7 +26,7 @@ test("an accepted quote uses the existing driver availability wording", () => {
   );
   assert.equal(
     quoteRequestCopy({ ...quote, status: "assigned", paymentStatus: "awaiting_payment" }),
-    "Pay to confirm this driver. Work starts after the card is authorized.",
+    "Confirm booking — your card is held, not charged, until your item is delivered.",
   );
   assert.equal(
     quoteRequestCopy({ ...quote, status: "assigned", paymentStatus: "authorized" }),

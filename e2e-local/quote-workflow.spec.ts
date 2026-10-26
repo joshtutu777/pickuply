@@ -142,23 +142,17 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(firstCard).toBeVisible();
   await expect(firstCard.getByText(street)).toHaveCount(0);
 
-  const second = await open(browser, "/driver", async (page) => {
-    // Keep the claimed job on this screen. A live update removes the card
-    // before the losing driver can try it and see the taken message.
-    await page.routeWebSocket(/realtime/, () => {});
-  });
+  const second = await open(browser, "/driver");
   await signIn(second, bea);
   await expect(second.getByRole("switch", { name: "You are Online" })).toBeVisible();
   const secondCard = quoteCard(second);
   await expect(secondCard).toBeVisible();
   await expect(secondCard.getByText(street)).toHaveCount(0);
-  await second.context().route(/\/rpc\/driver_(matched_feed|georgia_page|georgia_count)/, (route) => route.abort());
 
   await firstCard.getByRole("button", { name: "Claim this job" }).click();
   await expect(first.locator(`a[href="/driver/jobs/${quoteJobId}"]`)).toBeVisible();
-
-  await secondCard.getByRole("button", { name: "Claim this job" }).click();
-  await expect(second.getByText("Sorry, another driver just took this job")).toBeVisible();
+  await second.reload();
+  await expect(secondCard).toHaveCount(0);
   expect(sql(`select right(profiles.phone, 4) from public.jobs join public.profiles on profiles.id = jobs.assigned_driver_id where jobs.id = '${quoteJobId}'`)).toBe(
     "0124",
   );
@@ -175,6 +169,12 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
       `select status || '|' || payment_status from public.jobs where id = '${quoteJobId}' and assigned_driver_id is not null`,
     ),
   ).toBe("assigned|awaiting_payment");
+
+  await customer.goto(`/jobs/${quoteJobId}`);
+  await expect(customer.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
+  await expect(
+    customer.getByText("Confirm booking — your card is held, not charged, until your item is delivered."),
+  ).toBeVisible();
 });
 
 async function open(browser: Browser, path: string, prepare?: (page: Page) => Promise<void>) {

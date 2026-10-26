@@ -13,7 +13,7 @@ export function customerNextAction(input: {
 }): CustomerNextAction {
   if (input.status === "quoted") return { label: "Review quote" };
   if (input.status === "open" && input.pricingMethod !== "quote") return { label: "Select an offer" };
-  if (input.status === "assigned" && payNow.has(input.paymentStatus ?? "")) return { label: "Pay to confirm" };
+  if (input.status === "assigned" && payNow.has(input.paymentStatus ?? "")) return { label: "Confirm booking" };
   if (input.status === "item_check") return { label: "Approve pickup photos" };
   if (input.status === "delivered") return { label: "Confirm delivery" };
   if (progress.has(input.status)) return { label: "View driver progress" };
