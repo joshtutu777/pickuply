@@ -454,7 +454,7 @@ export function onlineByZone(drivers: AdminDriver[], zoneNames: Map<string, stri
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function adminNavCurrent(pathname: string, search: string): "overview" | "requests" | "jobs" | "drivers" | "settings" | "payments" | "payouts" | "funnel" | "help" | "feedback" | "messages" | "alerts" | "accounts" | "communications" | "customers" | "test" | "health" {
+export function adminNavCurrent(pathname: string, search: string): "overview" | "requests" | "jobs" | "drivers" | "settings" | "payments" | "payouts" | "funnel" | "help" | "feedback" | "messages" | "alerts" | "accounts" | "communications" | "customers" | "test" | "health" | "blog" {
   if (pathname === "/admin") return "overview";
   if (pathname.startsWith("/admin/feedback")) return "feedback";
   if (pathname.startsWith("/admin/notifications")) return "alerts";
@@ -466,6 +466,7 @@ export function adminNavCurrent(pathname: string, search: string): "overview" | 
   if (pathname.startsWith("/admin/drivers")) return "drivers";
   if (pathname.startsWith("/admin/test-data")) return "test";
   if (pathname.startsWith("/admin/health")) return "health";
+  if (pathname.startsWith("/admin/blog")) return "blog";
   if (pathname.startsWith("/admin/accounts")) return "accounts";
   if (pathname.startsWith("/admin/settings")) return "settings";
   if (pathname.startsWith("/admin/finance") || pathname.startsWith("/admin/payments")) return "payments";

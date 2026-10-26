@@ -13,6 +13,7 @@ const items = [
   { id: "communications", href: "/admin/communications", label: "Communications" },
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },
   { id: "feedback", href: "/admin/feedback", label: "Feedback" },
+  { id: "blog", href: "/admin/blog", label: "Blog" },
   { id: "settings", href: "/admin/settings", label: "Settings" },
 ] as const;
 

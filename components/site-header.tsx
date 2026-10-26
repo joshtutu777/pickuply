@@ -97,6 +97,9 @@ export function SiteHeader({ state }: { state: HeaderState }) {
               Sign up / Sign in
             </Link>
           )}
+          <Link href="/blog" className={navLink}>
+            Blog
+          </Link>
           <Link
             href={state.status === "signed-in" ? state.driveHref : "/drive"}
             className={`${navLink}${state.status === "signed-in" && state.appNav ? " max-sm:hidden" : ""}`}

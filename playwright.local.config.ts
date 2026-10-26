@@ -136,5 +136,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /offline-offer\.spec\.ts/,
     },
+    {
+      name: "local-blog",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /blog\.spec\.ts/,
+    },
   ],
 });
