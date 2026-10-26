@@ -672,7 +672,7 @@ export function DriverHome({
           ? "You can browse while Offline. Claiming or offering requires Online."
           : "Browse only until Pickuply approves you. You cannot take a job yet."}
       </p>
-      <p className="mt-3 text-lg font-semibold text-ink">Available Jobs ({matched.length + georgia.length})</p>
+      <p className="mt-3 text-lg font-semibold text-ink">Available Jobs ({matched.length + georgiaTotal})</p>
       <div className="mt-4">
         <p className="text-base text-ink">
           Showing jobs in: {summary || "your areas"}{" "}
