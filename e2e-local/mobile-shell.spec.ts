@@ -231,14 +231,20 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
   await expect(nav.getByRole("link", { name: "Profile" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Driver home" })).toBeVisible();
   await expect(page.getByLabel("Earnings")).toBeVisible();
-  await page.goto("/driver/jobs");
+  const scroll = page.locator("[data-app-scroll]");
+  await scroll.evaluate((node) => {
+    node.scrollTop = 800;
+  });
+  await nav.getByRole("link", { name: "Jobs" }).click();
+  await expect(page).toHaveURL(/\/driver\/jobs$/);
   await expect(page.getByRole("heading", { name: "Jobs", exact: true })).toBeVisible();
+  await expect.poll(async () => scroll.evaluate((node) => node.scrollTop)).toBe(0);
   await expect(page.getByRole("heading", { name: "My jobs" })).toBeVisible();
   await expect(page.getByText(street)).toHaveCount(0);
 
   await page.goto("/driver/earnings");
   await expect(page.getByText("Completed earnings", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pending transfer", { exact: true })).toBeVisible();
+  await expect(page.getByText("Held", { exact: true })).toBeVisible();
   await expect(page.getByText("Transferred", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /payout/i }).first()).toBeVisible();
 
@@ -262,7 +268,10 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     update public.jobs
       set status = 'assigned',
           assigned_driver_id = '${driverId}',
-          payment_status = 'authorized'
+          payment_status = 'authorized',
+          driver_pay_cents = 4250,
+          platform_fee_cents = 750,
+          price_cents = 5150
       where id = '${junkJobId}';
   `);
   try {
@@ -270,7 +279,11 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     await expect(page.locator(`a[href="/driver/jobs/${junkJobId}"]`)).toBeVisible();
     await page.goto(`/driver/jobs/${junkJobId}`);
     await expect(page.getByText("Payment secured — you can start the trip.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Start trip", exact: true })).toBeVisible();
+    await expect(page.getByText("Job Amount: $50")).toBeVisible();
+    await expect(page.getByText("Your Estimated Earnings: $42.50")).toBeVisible();
+    await expect(page.getByText(/commission/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Start trip", exact: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Delivered" })).toHaveCount(0);
     await expect(page.locator("a[href^='tel:']")).toHaveCount(0);
     await expect(page.getByText(street)).toBeVisible();
 
@@ -282,6 +295,11 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     await expect(other.getByText(street)).toHaveCount(0);
     await expect(other.getByText("20 Hidden Avenue")).toHaveCount(0);
     await otherContext.close();
+
+    sql(`update public.jobs set status = 'arrived' where id = '${junkJobId}';`);
+    await page.goto(`/driver/jobs/${junkJobId}`);
+    await expect(page.getByRole("button", { name: "Item loaded — head to drop-off" })).toHaveCount(1);
+    await expect(page.locator("#proof-file")).toBeVisible();
 
     await page.goto("/driver");
     await page.screenshot({ path: "test-results/mobile-ui/driver-home.png" });
@@ -299,7 +317,10 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
         set status = 'requested',
             assigned_driver_id = null,
             payment_status = 'none',
-            payment_due_at = null
+            payment_due_at = null,
+            driver_pay_cents = null,
+            platform_fee_cents = null,
+            price_cents = null
         where id = '${junkJobId}';
     `);
   }

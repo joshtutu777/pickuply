@@ -109,7 +109,7 @@ select pg_temp.as_user('c1770000-0000-4000-8000-000000000002');
 set local role authenticated;
 
 select is(
-  (select count(*)::int from public.cron_job_runs),
+  (select count(*)::int from public.cron_job_runs where job_name = 'transfers'),
   1,
   'a real admin can read the latest cron run'
 );

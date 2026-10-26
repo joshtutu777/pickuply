@@ -333,7 +333,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
         `select price_cents || '|' || driver_pay_cents || '|' || platform_fee_cents || '|' || service_fee_cents from public.jobs where id = '${jobId}';`,
       ).trim();
       const [total, pay, platform, service] = money.split("|").map((value) => formatCents(Number(value)));
-      await admin.goto(`/admin/finance?q=${jobId}`);
+      await admin.goto(`/admin/finance?includeTest=1&range=month&q=${jobId}`);
       await expect(admin.getByText(total).first()).toBeVisible();
       await expect(admin.getByText(pay).first()).toBeVisible();
       await expect(admin.getByText(platform).first()).toBeVisible();
