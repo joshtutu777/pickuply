@@ -4,7 +4,7 @@ begin;
 
 set local search_path to public, extensions;
 
-select plan(15);
+select plan(17);
 
 do $$
 declare
@@ -89,9 +89,22 @@ from (select public.price_breakdown('forward', 6000) as breakdown) fees
 where id = 'd3000000-0000-4000-8000-000000000010';
 
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$select public.submit_quick_application(jsonb_build_object(
+    'full_name', 'Quick Driver',
+    'home_city', 'Austell',
+    'home_zip', '30106',
+    'contact_ok', 'true',
+    'terms_ok', 'true'
+  ))$$,
+  'P0001',
+  'enter your email',
+  'quick apply requires an email'
+);
 select lives_ok(
   $$select public.submit_quick_application(jsonb_build_object(
     'full_name', 'Quick Driver',
+    'email', 'quick.driver@pickuply.test',
     'home_city', 'Austell',
     'home_zip', '30106',
     'zone_id', (select id from public.zones where slug = 'west_metro'),
@@ -104,6 +117,12 @@ select lives_ok(
     'contact_ok', 'true'
   ))$$,
   'a short application can be submitted'
+);
+
+select is(
+  (select email from public.profiles where id = 'd3000000-0000-4000-8000-000000000001'),
+  'quick.driver@pickuply.test',
+  'quick apply saves the email on the shared profile'
 );
 
 select pg_temp.as_user('d3000000-0000-4000-8000-000000000002');

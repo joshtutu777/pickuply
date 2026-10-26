@@ -80,6 +80,7 @@ test("quick apply cannot go online until the checklist is finished, then can cla
     Object.keys(document.querySelector("#fullName") ?? {}).some((key) => key.startsWith("__react")),
   );
   await page.getByLabel("Your name").fill(driver.name);
+  await page.getByLabel("Email address").fill("riley.driver@pickuply.test");
   await expect(page.getByLabel("Your name")).toHaveValue(driver.name);
   await page.getByLabel("Street").fill("10 Test Street");
   await page.getByLabel("City").fill("Austell");

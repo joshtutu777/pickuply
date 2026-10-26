@@ -23,6 +23,7 @@ export function TextField({
   inputMode,
   autoComplete,
   optional = false,
+  required = false,
   min,
   max,
 }: {
@@ -36,6 +37,7 @@ export function TextField({
   inputMode?: "text" | "numeric" | "decimal" | "tel" | "email" | "url";
   autoComplete?: string;
   optional?: boolean;
+  required?: boolean;
   min?: string;
   max?: string;
 }) {
@@ -59,6 +61,7 @@ export function TextField({
         type={type}
         inputMode={inputMode}
         autoComplete={autoComplete}
+        required={required}
         min={min}
         max={max}
         value={value}

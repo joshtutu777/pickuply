@@ -11,7 +11,7 @@ import { saveDriverPlace } from "@/lib/maps/save-places";
 import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
-import { profileEmailError } from "@/lib/validation/email";
+import { driverApplyEmailError } from "@/lib/validation/email";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/photos";
@@ -77,7 +77,7 @@ export function QuickApplyForm({
       setError("Enter your full name.");
       return;
     }
-    const emailProblem = profileEmailError(email);
+    const emailProblem = driverApplyEmailError(email);
     if (emailProblem) {
       setError(emailProblem);
       return;
@@ -114,6 +114,7 @@ export function QuickApplyForm({
       const { error: saveError } = await createClient().rpc("submit_quick_application", {
         payload: {
           full_name: fullName.trim(),
+          email: email.trim(),
           home_city: home.city.trim(),
           home_zip: home.zip.trim(),
           coverage: {
@@ -132,10 +133,6 @@ export function QuickApplyForm({
         },
       });
       if (saveError) throw new Error(saveError.message);
-      if (email.trim()) {
-        const emailSave = await createClient().rpc("save_profile_email", { next_email: email.trim() });
-        if (emailSave.error) throw new Error("Your application was saved. We couldn't save the email.");
-      }
       const placeError = await saveDriverPlace(home);
       if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
@@ -157,7 +154,7 @@ export function QuickApplyForm({
         type="email"
         inputMode="email"
         autoComplete="email"
-        optional
+        required
         hint="For booking updates and receipts."
         value={email}
         onChange={setEmail}
