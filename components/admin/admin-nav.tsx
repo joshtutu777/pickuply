@@ -119,6 +119,17 @@ function NavLinks({
           Payouts
         </Link>
       </li>
+      <li>
+        <Link
+          href="/admin/health"
+          aria-current={current === "health" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "health" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Health
+        </Link>
+      </li>
       {showTestData ? (
         <li>
           <Link
@@ -153,7 +164,9 @@ export function AdminNav({
       <details className="border-b border-line bg-paper md:hidden">
         <summary className="flex min-h-12 cursor-pointer list-none items-center px-4 text-base font-semibold text-ink">
           Menu
-          <span className="ml-2 font-normal text-muted">{current === "test" ? "Test data" : items.find((item) => item.id === current)?.label}</span>
+          <span className="ml-2 font-normal text-muted">
+            {current === "test" ? "Test data" : current === "health" ? "Health" : items.find((item) => item.id === current)?.label}
+          </span>
         </summary>
         <NavLinks badges={badges} current={current} showTestData={showTestData} />
       </details>

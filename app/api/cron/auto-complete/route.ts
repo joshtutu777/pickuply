@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
+import { runCron } from "@/lib/cron/record";
 import { captureReadyPayment, syncStripeFees } from "@/lib/payments/capture";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -13,17 +14,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  try {
+  return runCron("auto-complete", async () => {
     const supabase = createServiceClient();
     const ready = await supabase.rpc("jobs_ready_for_capture");
-    if (ready.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (ready.error) throw new Error("Delivered jobs could not be listed.");
     for (const row of (ready.data ?? []) as { job_id: string }[]) {
       await captureReadyPayment(row.job_id);
     }
     await syncStripeFees();
     await deliverPendingAlerts();
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
+    return { ok: true };
+  });
 }

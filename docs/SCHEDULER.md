@@ -78,3 +78,7 @@ To turn a job off: `select cron.unschedule('pickuply-payment-deadlines');` and t
 Until those four jobs are scheduled on Supabase, or the project is moved to Vercel Pro and the schedules are restored, payment deadlines, auto-complete, and transfers do not run. The app is not ready for paid bookings until one of those is active.
 
 `pg_cron` was not enabled on the hosted database from this work. Local Docker was not changed to call the live site.
+
+## Last run
+
+Each route records its latest result after the bearer check succeeds. A rejected call is not a run. `/admin/health` shows the job, schedule, last finish time, Succeeded or Failed, and a short error with tokens removed. A test admin does not see those rows. The record is migration `0077_cron_health.sql`. It is local until the owner approves it. Deploying the recording code before that migration does not change the job result: a missing table is ignored. The health page then says scheduler status is not available yet.
