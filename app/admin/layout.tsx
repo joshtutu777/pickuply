@@ -54,7 +54,14 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
     messages: messageUnread,
     alerts: alertUnread ?? 0,
     feedback: feedbackNew ?? 0,
+    support: 0,
   };
+  const { count: supportOpen } = await supabase
+    .from("support_tickets")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open")
+    .eq("is_test", false);
+  badges.support = supportOpen ?? 0;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col md:flex-row">

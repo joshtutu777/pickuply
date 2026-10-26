@@ -213,5 +213,6 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/test-data", ""), "test");
   assert.equal(adminNavCurrent("/admin/health", ""), "health");
   assert.equal(adminNavCurrent("/admin/blog", ""), "blog");
+  assert.equal(adminNavCurrent("/admin/support", ""), "support");
   assert.equal(adminNavCurrent("/admin/blog/new", ""), "blog");
 });
