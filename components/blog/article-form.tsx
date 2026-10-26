@@ -14,6 +14,8 @@ type Initial = {
   seoDescription: string;
   coverAlt: string;
   body: ArticleBlock[];
+  status?: "draft" | "published";
+  wasPublished?: boolean;
 };
 
 export function ArticleForm({
@@ -76,6 +78,11 @@ export function ArticleForm({
           required
           className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal"
         />
+        {initial.wasPublished && slug !== initial.slug ? (
+          <span role="status" className="font-normal text-ink">
+            Changing this address. Visitors to the old address will be sent to the new one.
+          </span>
+        ) : null}
       </label>
       <label className="grid gap-2 text-base font-semibold">
         Summary
@@ -180,8 +187,8 @@ export function ArticleForm({
         <textarea name="seoDescription" defaultValue={initial.seoDescription} rows={2} className="rounded-2xl border border-line bg-paper px-4 py-3 font-normal" />
       </label>
       <div className="flex flex-wrap gap-3">
-        <button name="intent" value="draft" className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper-raised px-5 font-semibold text-ink ring-1 ring-line">
-          Save draft
+        <button name="intent" value={initial.status === "published" ? "save" : "draft"} className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper-raised px-5 font-semibold text-ink ring-1 ring-line">
+          {initial.status === "published" ? "Save" : "Save draft"}
         </button>
         <button name="intent" value="publish" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white">
           Publish

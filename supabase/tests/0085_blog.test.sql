@@ -119,7 +119,7 @@ select lives_ok(
 select throws_ok(
   $$insert into public.blog_posts (title, slug, category) values ('Again', 'published-guide', 'moving-tips')$$,
   '23505',
-  'duplicate key value violates unique constraint "blog_posts_slug_key"',
+  'That address is already used.',
   'slugs stay unique'
 );
 select is(

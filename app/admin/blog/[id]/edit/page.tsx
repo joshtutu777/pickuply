@@ -38,7 +38,7 @@ async function EditArticle({
   const { id } = await params;
   const query = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.from("blog_posts").select("id, title, slug, excerpt, category, author_name, seo_title, seo_description, cover_alt, body, status").eq("id", id).maybeSingle();
+  const { data } = await supabase.from("blog_posts").select("id, title, slug, excerpt, category, author_name, seo_title, seo_description, cover_alt, body, status, published_at").eq("id", id).maybeSingle();
   if (!data) notFound();
   const body = parseBlocks(data.body) ?? [];
   return (
@@ -71,6 +71,8 @@ async function EditArticle({
             seoDescription: data.seo_description,
             coverAlt: data.cover_alt,
             body: body as ArticleBlock[],
+            status: data.status === "published" ? "published" : "draft",
+            wasPublished: data.status === "published" || data.published_at != null,
           }}
         />
       </div>

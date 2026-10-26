@@ -17,7 +17,7 @@ function sql(statement: string) {
 }
 
 function cleanup() {
-  sql("delete from public.blog_posts where slug like 'page-seed-%' or slug = 'local-e2e-sofa-guide'");
+  sql("delete from public.blog_posts where slug like 'page-seed-%' or slug like 'local-e2e-%' or 'local-e2e-sofa-guide' = any(previous_slugs)");
 }
 
 async function signIn(page: Page, person: { phone: string; otp: string }, next: string) {
@@ -34,7 +34,7 @@ async function signIn(page: Page, person: { phone: string; otp: string }, next: 
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
 }
 
-test("published articles are public and drafts stay private", async ({ page }) => {
+test("published articles are public and drafts stay private", async ({ page, request }) => {
   sql("delete from public.rate_limit_events where scope in ('otp-phone', 'otp-ip')");
   cleanup();
   try {
@@ -91,8 +91,15 @@ test("published articles are public and drafts stay private", async ({ page }) =
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
     const draftUrl = page.url();
+    const editor = page.locator("form").filter({ hasText: "Add image" }).last();
+    await editor.getByRole("textbox", { name: "Image description", exact: true }).fill("Side of the sofa");
+    await editor.locator('input[type="file"]').last().setInputFiles({ name: "side.png", mimeType: "image/png", buffer: png });
+    await expect(page.getByText("Image added. Save the article to keep it.")).toBeVisible();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
     await page.goto("/blog/local-e2e-sofa-guide");
     await expect(page.getByText(/could not be found|not found/i)).toBeVisible();
+    expect((await request.get("/blog/local-e2e-sofa-guide/cover")).status()).toBe(404);
     const hiddenSitemap = await page.request.get("/sitemap.xml");
     expect(await hiddenSitemap.text()).not.toContain("local-e2e-sofa-guide");
     await page.goto(draftUrl);
@@ -113,6 +120,11 @@ test("published articles are public and drafts stay private", async ({ page }) =
     await page.getByRole("link", { name: "View all articles" }).click();
     await expect(page).toHaveURL(/\/blog$/);
     await page.goto("/blog/local-e2e-sofa-guide");
+    const inlineSrc = await page.locator('img[alt="Side of the sofa"]').getAttribute("src");
+    expect(inlineSrc).toBeTruthy();
+    const inline = await request.get(inlineSrc ?? "");
+    expect(inline.ok()).toBe(true);
+    expect(inline.headers()["cache-control"]).toContain("no-store");
     await expect(page).toHaveTitle(/Sofa pickup guide/);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", "A short guide to sofa pickup.");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/blog\/local-e2e-sofa-guide$/);
@@ -120,18 +132,47 @@ test("published articles are public and drafts stay private", async ({ page }) =
     const structured = await page.locator('script[type="application/ld+json"]').textContent();
     expect(structured).toContain("Local e2e sofa guide");
     expect(structured).not.toContain("<script>");
-    const listed = await page.request.get("/sitemap.xml");
+    const listed = await request.get("/sitemap.xml");
     expect(await listed.text()).toContain("/blog/local-e2e-sofa-guide");
+    const cover = await request.get("/blog/local-e2e-sofa-guide/cover");
+    expect(cover.ok()).toBe(true);
+    expect(cover.headers()["content-type"]).toContain("image/png");
+    expect(cover.headers()["cache-control"]).toContain("no-store");
+
+    await page.goto(draftUrl);
+    const publishedEditor = page.locator("form").filter({ has: page.getByRole("button", { name: "Save" }) }).last();
+    await publishedEditor.getByRole("textbox", { name: "Title", exact: true }).fill("Local e2e renamed sofa");
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "POST" && response.ok()),
+      publishedEditor.getByRole("button", { name: "Save" }).click(),
+    ]);
+    await expect(page.getByLabel("Slug").last()).toHaveValue("local-e2e-sofa-guide");
+    await page.getByLabel("Slug").last().fill("local-e2e-moved-sofa");
+    await expect(page.getByText("Changing this address.")).toBeVisible();
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "POST" && response.ok()),
+      page.locator("form").filter({ hasText: "Changing this address" }).getByRole("button", { name: "Save" }).click(),
+    ]);
+    await page.reload();
+    await expect(page.getByLabel("Slug").last()).toHaveValue("local-e2e-moved-sofa");
+    await page.goto("/blog/local-e2e-sofa-guide");
+    await expect(page).toHaveURL(/\/blog\/local-e2e-moved-sofa$/);
+    const moved = await request.get("/sitemap.xml");
+    expect(await moved.text()).toContain("/blog/local-e2e-moved-sofa");
+    expect(await moved.text()).not.toContain("/blog/local-e2e-sofa-guide");
 
     await page.goto(draftUrl);
     await page.getByRole("button", { name: "Unpublish" }).click();
     await expect(page.getByText("Draft", { exact: true })).toBeVisible();
-    await page.goto("/blog/local-e2e-sofa-guide");
+    await page.goto("/blog/local-e2e-moved-sofa");
     await expect(page.getByText(/could not be found|not found/i)).toBeVisible();
+    expect((await request.get("/blog/local-e2e-moved-sofa/cover")).status()).toBe(404);
+    if (inlineSrc) expect((await request.get(inlineSrc)).status()).toBe(404);
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "From the Pickuply Blog" })).toHaveCount(0);
     const removed = await page.request.get("/sitemap.xml");
     expect(await removed.text()).not.toContain("local-e2e-sofa-guide");
+    expect(await removed.text()).not.toContain("local-e2e-moved-sofa");
 
     await page.goto(draftUrl);
     page.once("dialog", (dialog) => dialog.accept());

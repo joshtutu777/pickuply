@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/session";
-import { parseArticleFields, parseBlocks } from "@/lib/blog/content";
+import { articleStatus, droppedImagePaths, keptSlugs, parseArticleFields, parseBlocks, referencedImagePaths } from "@/lib/blog/content";
 import { readImageFile, storeBlogImage } from "@/lib/blog/save";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,7 +37,28 @@ export async function saveArticle(form: FormData) {
   });
   if (!parsed.ok) redirect(`${back}?error=fields`);
   const intent = text(form, "intent");
-  const status = intent === "publish" ? "published" : "draft";
+  let previousSlugs: string[] = [];
+  let oldPaths: string[] = [];
+  let currentStatus: "draft" | "published" | null = null;
+  let currentCover: string | null = null;
+  if (idValue) {
+    const existing = await supabase
+      .from("blog_posts")
+      .select("slug, status, published_at, previous_slugs, cover_path, body")
+      .eq("id", idValue)
+      .maybeSingle();
+    if (!existing.data) redirect("/admin/blog?error=missing");
+    currentStatus = existing.data.status === "published" ? "published" : "draft";
+    currentCover = existing.data.cover_path;
+    oldPaths = referencedImagePaths(existing.data.cover_path, parseBlocks(existing.data.body) ?? []);
+    previousSlugs = keptSlugs(
+      existing.data.previous_slugs ?? [],
+      existing.data.slug,
+      parsed.value.slug,
+      currentStatus === "published" || existing.data.published_at != null,
+    );
+  }
+  const status = articleStatus(intent, currentStatus);
   const row = {
     title: parsed.value.title,
     slug: parsed.value.slug,
@@ -49,6 +70,7 @@ export async function saveArticle(form: FormData) {
     cover_alt: parsed.value.coverAlt,
     body: parsed.value.body,
     status,
+    previous_slugs: previousSlugs,
     created_by: session.userId,
   };
   const saved = idValue
@@ -56,11 +78,15 @@ export async function saveArticle(form: FormData) {
     : await supabase.from("blog_posts").insert(row).select("id").maybeSingle();
   if (saved.error || !saved.data) redirect(`${back}?error=save`);
   const id = saved.data.id as string;
+  let coverPath = currentCover;
   if (image && "bytes" in image) {
     const stored = await storeBlogImage(supabase, id, image.bytes, image.ext);
     if ("error" in stored) redirect(`/admin/blog/${id}/edit?error=image`);
+    coverPath = stored.path;
     await supabase.from("blog_posts").update({ cover_path: stored.path }).eq("id", id);
   }
+  const unused = droppedImagePaths(oldPaths, referencedImagePaths(coverPath, parsed.value.body));
+  if (unused.length > 0) await supabase.storage.from("blog-images").remove(unused);
   await supabase.from("audit_log").insert({
     actor_id: session.userId,
     action: status === "published" ? "blog_publish" : "blog_save",

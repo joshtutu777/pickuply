@@ -19,7 +19,7 @@ export async function GET(_request: Request, context: { params: Promise<{ postId
   return new NextResponse(downloaded.data, {
     headers: {
       "Content-Type": type,
-      "Cache-Control": post.data.status === "published" ? "public, max-age=86400" : "private, no-store",
+      "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },
   });
