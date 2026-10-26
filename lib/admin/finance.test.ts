@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { inTestLane } from "./test-lane";
 import {
   attentionIssues,
   changePercent,
@@ -152,6 +153,28 @@ test("csv matches the filtered list and does not turn a missing amount into zero
   const csv = toCsv(filterJobs(rows, filters(), now));
   assert.match(csv, /Unavailable/);
   assert.equal(csv.trim().split("\n").length, 2);
+});
+
+test("a real admin total leaves out a synthetic capture", () => {
+  const synthetic = job({
+    id: "synthetic",
+    capturedCents: 6210,
+    priceCents: 6210,
+    platformFeeCents: 900,
+    serviceFeeCents: 210,
+    driverPayCents: 5100,
+  });
+  const real = job({ id: "real", capturedCents: 5000, priceCents: 5000 });
+  const rows = [
+    { ...synthetic, isTest: true },
+    { ...real, isTest: false },
+  ];
+  const visible = rows.filter((row) => inTestLane(row.isTest, "real"));
+  const result = revenue(visible);
+  assert.equal(visible.length, 1);
+  assert.equal(visible[0]?.id, "real");
+  assert.deepEqual(result.platform, { cents: 1500 });
+  assert.deepEqual(revenue(rows).platform, { cents: 2400 });
 });
 
 test("revenue uses stored fees and leaves an unknown Stripe fee unavailable", () => {

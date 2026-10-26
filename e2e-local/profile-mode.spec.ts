@@ -213,15 +213,15 @@ test("driver and customer see the same four steps on a paid job", async ({ brows
     await driver.goto("/login?next=/driver/jobs/" + quoteJobId);
     await signIn(driver, pat);
     await expect(driver.getByLabel("Step 2 of 4: Driver Confirmed")).toBeVisible();
-    await driver.getByRole("button", { name: "Start trip to pickup" }).evaluate((element) => {
+    await driver.getByRole("button", { name: "Start trip", exact: true }).evaluate((element) => {
       (element as HTMLButtonElement).click();
     });
     await expect(driver.getByLabel("Step 3 of 4: Pickup")).toBeVisible();
     await driver.screenshot({ path: "test-results/profile-mode/driver-step-3.png" });
     await customer.reload();
     await expect(customer.getByLabel("Step 3 of 4: Pickup")).toBeVisible();
-    await driver.getByRole("button", { name: "I've arrived at pickup" }).click();
-    await expect(driver.getByRole("button", { name: "Send for item check" })).toBeVisible();
+    await driver.getByRole("button", { name: "Arrived at pickup" }).click();
+    await expect(driver.getByRole("button", { name: "Item loaded — head to drop-off" })).toBeVisible();
   } finally {
     await customerContext.close();
     await driverContext.close();

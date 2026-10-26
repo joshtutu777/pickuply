@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
@@ -23,7 +24,7 @@ import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { shortJobId } from "@/lib/jobs/next-action";
 import { quoteRequestCopy } from "@/lib/jobs/quote-status";
-import { customerProgress, type JobTracker } from "@/lib/jobs/tracker";
+import { customerProgress, customerStageLine, type JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
@@ -54,6 +55,7 @@ export function JobStatus({
   tracker,
   driver,
   routeLine,
+  children,
 }: {
   job: JobDetail;
   notice?: QuoteNotice | null;
@@ -62,9 +64,16 @@ export function JobStatus({
   tracker: JobTracker;
   driver?: DriverCard | null;
   routeLine?: [number, number][];
+  children?: ReactNode;
 }) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
+  const stage = customerStageLine({
+    status: job.status,
+    paymentStatus: job.payment_status,
+    driverName: driver?.firstName ?? null,
+    dropoffArrived: job.dropoff_arrived_at != null,
+  });
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -72,6 +81,20 @@ export function JobStatus({
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Your request</p>
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
       </div>
+      <div className="mt-3">
+        <StatusPill status={job.status} />
+      </div>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
+        {statusLabel(job.status)}
+      </h1>
+      {stage ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
+      <p className="mt-2 text-lg text-ink">{service.name}</p>
+      {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
+      <p className="text-base text-ink">
+        {job.pickup_area}
+        {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
+      </p>
+      {children}
       <div className="mt-3">
         {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
           <AreaMap
@@ -102,13 +125,6 @@ export function JobStatus({
         )}
         <p className="mt-2 text-base text-ink">Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
       </div>
-      <div className="mt-4">
-        <StatusPill status={job.status} />
-      </div>
-      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
-        {statusLabel(job.status)}
-      </h1>
-      <p className="mt-2 text-lg text-ink">{service.name}</p>
       <JobTrackerView
         tracker={tracker}
         driver={driver}
@@ -116,6 +132,7 @@ export function JobStatus({
         progress={customerProgress({
           status: job.status,
           paymentStatus: job.payment_status,
+          dropoffArrived: job.dropoff_arrived_at != null,
           service: job.service,
           pricingMethod: job.pricing_method,
           events: job.events.map((event) => ({
@@ -208,8 +225,7 @@ export function JobStatus({
           <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
           <p>
             Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
-            at pickup: {formatCents(fees.tripFeeCents)}. Damage coverage limit{" "}
-            {formatCents(fees.damageCoverageLimitCents)}.
+            at pickup: {formatCents(fees.tripFeeCents)}.
           </p>
           <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
           <form action={respondToQuote} className="grid gap-3 pt-2">

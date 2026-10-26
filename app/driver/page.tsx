@@ -223,9 +223,8 @@ async function DriverContent({
             <ul className="mt-3 grid gap-2">
               {(myOffers ?? []).map((offer) => (
                 <li key={offer.id} className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
-                  <p>Offer amount {formatCents(offer.driver_amount_cents + offer.platform_fee_cents)}</p>
-                  <p>Pickuply commission {formatCents(offer.platform_fee_cents)}</p>
-                  <p className="font-semibold">Your estimated earnings {formatCents(offer.driver_amount_cents)}</p>
+                  <p>Job Amount: {formatCents(offer.driver_amount_cents + offer.platform_fee_cents)}</p>
+                  <p className="font-semibold">Your Estimated Earnings: {formatCents(offer.driver_amount_cents)}</p>
                 </li>
               ))}
             </ul>

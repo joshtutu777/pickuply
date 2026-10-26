@@ -9,9 +9,15 @@ import { createClient } from "@/lib/supabase/client";
 export function ProofForm({
   jobId,
   locationEnabled,
+  defaultStage = "pickup",
+  idPrefix = "",
+  submitLabel = "Save proof",
 }: {
   jobId: string;
   locationEnabled: boolean;
+  defaultStage?: "pickup" | "dropoff" | "dump_receipt" | "no_show";
+  idPrefix?: string;
+  submitLabel?: string;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
@@ -83,21 +89,29 @@ export function ProofForm({
       <p className="text-base text-muted">
         Photos are saved as new files so location details in the original are removed. A video must be 30 seconds or less.
       </p>
-      <label className="text-base font-semibold" htmlFor="proof-stage">
+      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-stage`}>
         Step
-        <select id="proof-stage" name="stage" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" defaultValue="pickup">
+        <select id={`${idPrefix}proof-stage`} name="stage" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" defaultValue={defaultStage}>
           <option value="pickup">Pickup</option>
           <option value="dropoff">Drop-off</option>
           <option value="dump_receipt">Receipt or pickup slip</option>
+          <option value="no_show">Wait photo</option>
         </select>
       </label>
-      <label className="text-base font-semibold" htmlFor="proof-note">
+      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-note`}>
         Note about existing damage
-        <input id="proof-note" name="note" maxLength={300} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
+        <input id={`${idPrefix}proof-note`} name="note" maxLength={300} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
       </label>
-      <label className="text-base font-semibold" htmlFor="proof-file">
+      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-file`}>
         Photo or video
-        <input id="proof-file" name="file" type="file" accept="image/*,video/*" className="mt-2 block w-full" />
+        <input
+          id={`${idPrefix}proof-file`}
+          name="file"
+          type="file"
+          accept="image/*,video/*"
+          capture="environment"
+          className="mt-2 block min-h-12 w-full text-base"
+        />
       </label>
       <label className="flex min-h-12 items-center gap-3 text-base">
         <input type="checkbox" name="shareLocation" disabled={!locationEnabled} />
@@ -114,7 +128,7 @@ export function ProofForm({
         disabled={pending}
         className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
       >
-        {pending ? "Saving" : "Save proof"}
+        {pending ? "Saving" : submitLabel}
       </button>
     </form>
   );

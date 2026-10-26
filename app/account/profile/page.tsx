@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileEmailForm } from "@/components/profile/email-form";
+import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -12,21 +13,23 @@ export const metadata: Metadata = {
   title: "Profile",
 };
 
-export default function ProfilePage() {
+export default function ProfilePage({ searchParams }: PageProps<"/account/profile">) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <ProfileContent />
+      <ProfileContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function ProfileContent() {
+async function ProfileContent({ searchParams }: { searchParams: PageProps<"/account/profile">["searchParams"] }) {
   const session = await requireSignedIn("/account/profile");
+  const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: profile }, { data: driver }, { data: places }] = await Promise.all([
+  const [{ data: profile }, { data: driver }, { data: places }, { data: prefs }] = await Promise.all([
     supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
     supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
+    supabase.from("notification_preferences").select("push_enabled, email_enabled, promotional_sms").maybeSingle(),
   ]);
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -48,6 +51,16 @@ async function ProfileContent() {
         <PlaceEditor kind="customer" />
       </section>
       <ProfileEmailForm email={profile?.email ?? null} />
+      <ContactPreferences
+        phone={profile?.phone ?? null}
+        email={profile?.email ?? null}
+        returnTo="/account/profile"
+        pushEnabled={prefs?.push_enabled ?? true}
+        emailEnabled={prefs?.email_enabled ?? true}
+        promotional={Boolean(prefs?.promotional_sms)}
+        saved={query.saved === "1"}
+        error={query.error === "save"}
+      />
       <ProfileMenu
         phone={profile?.phone ?? null}
         role={session.role}

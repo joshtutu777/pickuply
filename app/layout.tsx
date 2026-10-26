@@ -3,6 +3,7 @@ import { Fraunces, Outfit } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
+import { ScrollRestore } from "@/components/scroll-restore";
 import { UpdateBanner } from "@/components/pwa/update-banner";
 import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
@@ -68,6 +69,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </MarketingSlot>
         </Suspense>
         <div data-app-scroll className="flex min-h-0 w-full flex-1 flex-col">
+          <Suspense fallback={null}>
+            <ScrollRestore />
+          </Suspense>
           {children}
           <Suspense fallback={<SiteFooter />}>
             <MarketingSlot>

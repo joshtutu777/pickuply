@@ -6,7 +6,7 @@ const admin = { phone: "5555550126", otp: "101126" };
 
 const driverLinks = [
   ["Home", /\/driver$/],
-  ["Jobs", /\/driver#jobs$/],
+  ["Jobs", /\/driver\/jobs$/],
   ["Messages", /\/driver\/messages$/],
   ["Alerts", /\/driver\/notifications$/],
   ["Profile", /\/driver\/profile$/],

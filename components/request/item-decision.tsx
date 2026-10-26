@@ -1,11 +1,14 @@
+import Link from "next/link";
 import { confirmDelivery, decidePickup } from "@/app/jobs/actions";
+import { ReviewCountdown } from "@/components/delivery/review-countdown";
 
-export function ItemDecision({ jobId }: { jobId: string }) {
+export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUntil?: string | null }) {
   return (
     <section className="mx-auto mt-4 w-full max-w-xl px-4">
       <div className="grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-        <h2 className="text-lg font-semibold text-ink">Item check</h2>
-        <p>Approve the item after you look at the pickup photo, or reject it with a reason.</p>
+        <h2 className="text-lg font-semibold text-ink">Pickup review</h2>
+        <p>Look at the pickup photo. Tell us within 10 minutes if something is wrong.</p>
+        {reviewUntil ? <ReviewCountdown until={reviewUntil} /> : null}
         <form action={decidePickup}>
           <input type="hidden" name="jobId" value={jobId} />
           <input type="hidden" name="decision" value="approve" />
@@ -13,7 +16,7 @@ export function ItemDecision({ jobId }: { jobId: string }) {
             type="submit"
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
           >
-            Approve item
+            Looks good
           </button>
         </form>
         <form action={decidePickup} className="grid gap-2">
@@ -37,6 +40,9 @@ export function ItemDecision({ jobId }: { jobId: string }) {
             Reject item
           </button>
         </form>
+        <Link href="#report" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Report a problem
+        </Link>
       </div>
     </section>
   );
@@ -46,7 +52,8 @@ export function ConfirmDelivery({ jobId, confirmed }: { jobId: string; confirmed
   return (
     <section className="mx-auto mt-4 w-full max-w-xl px-4">
       <div className="grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-        <h2 className="text-lg font-semibold text-ink">Delivery</h2>
+        <h2 className="text-lg font-semibold text-ink">Confirm your delivery</h2>
+        <p>If you do not respond, this finishes 24 hours after delivery.</p>
         {confirmed ? (
           <p>You confirmed this delivery.</p>
         ) : (
@@ -56,10 +63,13 @@ export function ConfirmDelivery({ jobId, confirmed }: { jobId: string; confirmed
               type="submit"
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
             >
-              Got it
+              Confirm delivery
             </button>
           </form>
         )}
+        <Link href="#report" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Report a problem
+        </Link>
       </div>
     </section>
   );

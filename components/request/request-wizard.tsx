@@ -76,7 +76,14 @@ function focusField(errors: FieldErrors) {
   const name = Object.keys(errors)[0];
   if (!name) return;
   const field = document.querySelector<HTMLElement>(`[name="${name}"]`);
+  field?.scrollIntoView({ block: "center" });
   field?.focus();
+}
+
+function scrollTransactionToTop() {
+  const root = document.querySelector("[data-app-scroll]");
+  if (root instanceof HTMLElement) root.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 export function RequestWizard({ initialService }: { initialService: ServiceId | null }) {
@@ -87,6 +94,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const photoIdsRef = useRef(photoIds);
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
+  useEffect(() => {
+    scrollTransactionToTop();
+  }, [stepIndex]);
   const funnelStarted = useRef(false);
   useEffect(() => {
     const supabase = createClient();
@@ -416,7 +426,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-10">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Request sent</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">
-          Drivers can see this request. Nothing is booked until you choose an offer.
+          {draft.pricingMethod === "quote"
+            ? "We're preparing your price. Drivers can't see this request until you accept it."
+            : "Drivers can see this request. Nothing is booked until you choose an offer."}
         </p>
         <Link href={`/jobs/${sentId}`} className={`${primaryButton} mt-8`}>
           View your request

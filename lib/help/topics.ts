@@ -59,7 +59,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "What is covered?",
-        a: "Report damage within 48 hours of delivery and include photos. Pickup photos are the before picture. Damage already visible at pickup is not covered. Pickuply reviews the report. There is no automatic refund. Verified damage can be refunded up to $250 for that job. If the driver was at fault, that amount can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.",
+        a: "Report damage within 48 hours of delivery and include photos. Pickup photos are the before picture. Damage already visible at pickup is not covered. Pickuply reviews the report. There is no automatic refund. Customer-packed or disassembled items, loose parts, and normal wear are not covered.",
       },
     ],
   },

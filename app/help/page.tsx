@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { createHelpRequest } from "@/app/help/actions";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
+import { ReportForm } from "@/components/request/report-form";
 import { customerTopics, driverTopics, type HelpTopic } from "@/lib/help/topics";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,19 +36,40 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
     .order("updated_at", { ascending: false })
     .limit(20);
   const active = (jobs ?? []).find((job) => activeStatuses.includes(job.status));
+  const requestedJob = typeof params.job === "string" ? params.job : "";
+  const selected = (jobs ?? []).find((job) => job.id === requestedJob) ?? null;
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Help</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Help</h1>
-      {active && !driver ? (
-        <p className="mt-4 rounded-3xl bg-paper-raised p-4 text-base text-ink ring-1 ring-line">
-          Problem with your current job?{" "}
-          <Link href={`/jobs/${active.id}`} className="font-semibold text-brand">
-            Report a problem
-          </Link>
-        </p>
-      ) : null}
+      <section id={selected ? undefined : "report"} className="mt-4 scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Report a problem</h2>
+        {selected ? (
+          <ReportForm jobId={selected.id} />
+        ) : (
+          <>
+            <p className="mt-2 text-base text-ink">Choose the job this report is about. Pickuply keeps the report with that job.</p>
+            {(jobs ?? []).length === 0 ? <p className="mt-2 text-base text-muted">No jobs to report yet.</p> : null}
+            <ul className="mt-3 grid gap-2">
+              {(jobs ?? []).map((job) => (
+                <li key={job.id}>
+                  <Link href={`/help?job=${job.id}#report`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+                    {job.service} · {job.pickup_area}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {active ? (
+              <p className="mt-3">
+                <Link href={`/help?job=${active.id}#report`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+                  Report a problem with your current job
+                </Link>
+              </p>
+            ) : null}
+          </>
+        )}
+      </section>
       <form className="mt-4" action="/help">
         <label className="block font-semibold text-ink" htmlFor="help-search">
           Search

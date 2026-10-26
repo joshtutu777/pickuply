@@ -7,10 +7,10 @@ import type { AppNavItem } from "@/lib/app-nav";
 import { betaMode } from "@/lib/beta";
 
 const primaryLink =
-  "min-h-12 items-center justify-center rounded-full bg-brand px-5 text-base font-semibold text-white transition-colors hover:bg-brand-dark";
+  "min-h-12 items-center justify-center rounded-full bg-brand px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-dark sm:px-5 sm:text-base";
 
 const navLink =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper-raised px-4 text-base font-semibold text-ink transition-colors hover:border-brand";
+  "inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper-raised px-3 text-center text-sm font-semibold text-ink transition-colors hover:border-brand sm:px-4 sm:text-base";
 
 export type HeaderState =
   | { status: "signed-out" }
@@ -22,6 +22,7 @@ export type HeaderState =
       area: string | null;
       appNav: boolean;
       appLabel: "Customer" | "Driver" | null;
+      roleBadge: "DRIVER" | "CUSTOMER" | "ADMIN" | null;
       appLinks: AppNavItem[];
       messageUnread: number;
       offerUnread: number;
@@ -34,10 +35,10 @@ export function SiteHeader({ state }: { state: HeaderState }) {
     <header data-app-header="" className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur-md">
       <div className="mx-auto w-full max-w-5xl px-4 py-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href={state.status === "signed-in" ? state.homeHref : "/"}
-            className="inline-flex min-h-12 items-center gap-2.5 rounded-xl pr-1"
+            className="inline-flex min-h-12 min-w-0 items-center gap-2 rounded-xl pr-1"
           >
             <span
               aria-hidden="true"
@@ -45,9 +46,14 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             >
               P
             </span>
-            <span className="font-display text-[1.65rem] leading-none font-semibold tracking-tight text-ink">
+            <span className="font-display text-2xl leading-none font-semibold tracking-tight text-ink sm:text-[1.65rem]">
               Pickuply
             </span>
+            {state.status === "signed-in" && state.roleBadge ? (
+              <span className="inline-flex h-6 items-center rounded-full bg-brand-soft px-2 text-[11px] font-semibold tracking-wide text-brand">
+                {state.roleBadge}
+              </span>
+            ) : null}
             <BetaBadge />
           </Link>
           {state.status === "signed-in" && state.appNav ? null : (
@@ -56,7 +62,7 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             </Link>
           )}
         </div>
-        <nav aria-label="Primary" className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+        <nav aria-label="Primary" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <InstallButton />
           <Link href="/request" className={`hidden sm:inline-flex ${primaryLink}`}>
             Get a price

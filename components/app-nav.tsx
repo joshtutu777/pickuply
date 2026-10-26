@@ -2,19 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
 import { appNavActive, type AppNavItem } from "@/lib/app-nav";
-
-function useHash() {
-  return useSyncExternalStore(
-    (onStoreChange) => {
-      window.addEventListener("hashchange", onStoreChange);
-      return () => window.removeEventListener("hashchange", onStoreChange);
-    },
-    () => window.location.hash,
-    () => "",
-  );
-}
 
 export function AppNav({
   items,
@@ -32,13 +20,12 @@ export function AppNav({
   showFeedback?: boolean;
 }) {
   const pathname = usePathname();
-  const hash = useHash();
 
   return (
     <nav aria-label={label} className="mt-2 hidden md:block">
       <ul className="flex flex-wrap gap-2">
         {items.map((item) => {
-          const current = appNavActive(pathname, item.href, hash);
+          const current = appNavActive(pathname, item.href);
           const count =
             item.icon === "alerts"
               ? alertUnread
