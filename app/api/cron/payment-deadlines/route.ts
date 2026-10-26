@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
+import { runCron } from "@/lib/cron/record";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -16,11 +17,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  try {
+  return runCron("payment-deadlines", async () => {
     const stripe = getStripe();
     const supabase = createServiceClient();
     const due = await supabase.rpc("overdue_payment_jobs");
-    if (due.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (due.error) throw new Error("Payment deadlines could not be listed.");
 
     for (const row of (due.data ?? []) as {
       job_id: string;
@@ -45,14 +46,12 @@ export async function GET(request: Request) {
         }
       }
       const released = await supabase.rpc("release_overdue_job", { target_job: row.job_id });
-      if (released.error) return NextResponse.json({ ok: false }, { status: 500 });
+      if (released.error) throw new Error("An overdue job could not be released.");
     }
 
     const flagged = await supabase.rpc("flag_capture_windows");
-    if (flagged.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (flagged.error) throw new Error("Capture windows could not be checked.");
     await deliverPendingAlerts();
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
+    return { ok: true };
+  });
 }

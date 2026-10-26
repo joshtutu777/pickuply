@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { AdminNav } from "@/components/admin/admin-nav";
@@ -73,6 +74,10 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
         ) : null}
         <section className="px-4 pt-4 text-sm text-muted" aria-label="Health">
           Phone protection: {phoneReady === false ? "not configured" : phoneReady === true ? "configured" : "not checked"}
+          {" · "}
+          <Link href="/admin/health" className="font-semibold text-brand">
+            Scheduler status
+          </Link>
         </section>
         {children}
       </div>

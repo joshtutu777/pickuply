@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
+import { runCron } from "@/lib/cron/record";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -10,23 +11,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  try {
+  return runCron("notifications", async () => {
     const supabase = createServiceClient();
     const { error } = await supabase.rpc("scan_notification_reminders");
-    if (error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (error) throw new Error("Notification reminders could not be scanned.");
     const expired = await supabase.rpc("expire_due_suspensions");
-    if (expired.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (expired.error) throw new Error("Expired suspensions could not be cleared.");
     const reviews = await supabase.rpc("note_review_windows");
-    if (reviews.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (reviews.error) throw new Error("Review windows could not be checked.");
     const deletions = await supabase.rpc("process_due_deletions");
-    if (deletions.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (deletions.error) throw new Error("Due account deletions could not be processed.");
     const retention = await supabase.rpc("cleanup_account_retention");
-    if (retention.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (retention.error) throw new Error("Account retention cleanup could not finish.");
     const announcements = await supabase.rpc("execute_due_announcements");
-    if (announcements.error) return NextResponse.json({ ok: false }, { status: 500 });
+    if (announcements.error) throw new Error("Scheduled announcements could not be sent.");
     await deliverPendingAlerts();
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 500 });
-  }
+    return { ok: true };
+  });
 }

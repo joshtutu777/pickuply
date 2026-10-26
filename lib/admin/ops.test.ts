@@ -211,4 +211,5 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/feedback/abc", ""), "feedback");
   assert.equal(adminNavCurrent("/admin/accounts", ""), "accounts");
   assert.equal(adminNavCurrent("/admin/test-data", ""), "test");
+  assert.equal(adminNavCurrent("/admin/health", ""), "health");
 });
