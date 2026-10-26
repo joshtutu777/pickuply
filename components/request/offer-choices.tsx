@@ -67,7 +67,7 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
 
   if (offers.length === 0) return null;
   return (
-    <section ref={listRef} className="mx-auto w-full max-w-xl space-y-3 px-4 pb-8">
+    <section ref={listRef} className="space-y-3">
       <h2 className="text-lg font-semibold text-ink">Offers</h2>
       <p className="text-base text-muted">Choosing one assigns that driver. Nothing is charged yet.</p>
       {offers.map((offer) => {

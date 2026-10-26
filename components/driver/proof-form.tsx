@@ -84,9 +84,20 @@ export function ProofForm({
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="mt-6 grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+    <form onSubmit={(event) => void submit(event)} className="grid gap-2 rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Add proof</h2>
-      <p className="text-base text-muted">
+      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-file`}>
+        Photo or video
+        <input
+          id={`${idPrefix}proof-file`}
+          name="file"
+          type="file"
+          accept="image/*,video/*"
+          capture="environment"
+          className="mt-2 block min-h-12 w-full text-base"
+        />
+      </label>
+      <p className="text-sm text-muted">
         Photos are saved as new files so location details in the original are removed. A video must be 30 seconds or less.
       </p>
       <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-stage`}>
@@ -101,17 +112,6 @@ export function ProofForm({
       <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-note`}>
         Note about existing damage
         <input id={`${idPrefix}proof-note`} name="note" maxLength={300} className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" />
-      </label>
-      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-file`}>
-        Photo or video
-        <input
-          id={`${idPrefix}proof-file`}
-          name="file"
-          type="file"
-          accept="image/*,video/*"
-          capture="environment"
-          className="mt-2 block min-h-12 w-full text-base"
-        />
       </label>
       <label className="flex min-h-12 items-center gap-3 text-base">
         <input type="checkbox" name="shareLocation" disabled={!locationEnabled} />

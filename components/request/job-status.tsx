@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
+import { DetailsFold } from "@/components/details-fold";
 import { QuoteViewed } from "@/components/request/quote-viewed";
 import { AreaMap } from "@/components/maps/area-map";
 import { RouteSketch } from "@/components/mobile/route-sketch";
@@ -78,7 +79,7 @@ export function JobStatus({
   });
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Your request</p>
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
@@ -86,7 +87,7 @@ export function JobStatus({
       <div className="mt-3">
         <StatusPill status={job.status} />
       </div>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
         {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
       </h1>
       {stage && job.status !== "completed" ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
@@ -98,54 +99,49 @@ export function JobStatus({
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
       {children}
-      <div className="mt-3">
-        {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
-          <AreaMap
-            caption={
-              job.private.pickup_verified === false || job.private.dropoff_verified === false
-                ? "Address not verified"
-                : "Route"
-            }
-            pins={[
-              { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
-              ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
-                ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
-                : []),
-            ]}
-            line={
-              routeLine && routeLine.length > 1
-                ? routeLine
-                : job.private.dropoff_lat != null && job.private.dropoff_lng != null
-                  ? [
-                      [job.private.pickup_lng, job.private.pickup_lat],
-                      [job.private.dropoff_lng, job.private.dropoff_lat],
-                    ]
-                  : []
-            }
-          />
-        ) : (
-          <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
-        )}
-        <p className="mt-2 text-base text-ink">Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
-      </div>
-      <JobTrackerView
-        tracker={tracker}
-        driver={driver}
-        chatHref={driver ? "#messages" : undefined}
-        progress={customerProgress({
-          status: job.status,
-          paymentStatus: job.payment_status,
-          dropoffArrived: job.dropoff_arrived_at != null,
-          service: job.service,
-          pricingMethod: job.pricing_method,
-          events: job.events.map((event) => ({
-            type: event.type,
-            createdAt: event.created_at,
-            toStatus: event.to_status,
-          })),
-        })}
-      />
-      <section className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      {error ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          {takenJobMessage(error)}
+        </p>
+      ) : null}
+      {notice?.adminNote ? (
+        <p className="mt-3 rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">{notice.adminNote}</p>
+      ) : null}
+      {notice?.quote && canRespond ? (
+        <section className="mt-3 space-y-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <QuoteViewed service={job.service} />
+          <h2 className="text-lg font-semibold text-ink">Your quote</h2>
+          <p>Offer {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
+          <p>Card processing fee {formatCents(notice.quote.serviceFeeCents)}</p>
+          <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
+          <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
+          <p>
+            Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
+            at pickup: {formatCents(fees.tripFeeCents)}.
+          </p>
+          <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
+          <form action={respondToQuote} className="grid gap-3 pt-2">
+            <input type="hidden" name="jobId" value={job.id} />
+            <button
+              type="submit"
+              name="decision"
+              value="accept"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white"
+            >
+              Accept quote
+            </button>
+            <button
+              type="submit"
+              name="decision"
+              value="decline"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper font-semibold text-ink ring-1 ring-line"
+            >
+              Decline quote
+            </button>
+          </form>
+        </section>
+      ) : null}
+      <DetailsFold title="Job details">
         <h2 className="text-lg font-semibold text-ink">Request</h2>
         <p>{job.description}</p>
         <p>
@@ -187,73 +183,78 @@ export function JobStatus({
           {job.time_window ? ` · ${labelOf(timeWindows, job.time_window)}` : ""}
         </p>
         {job.needs_value_approval ? <p>{valueApprovalWarning}</p> : null}
-      </section>
-      {job.private ? (
-        <section className="mt-4 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-          <h2 className="text-lg font-semibold text-ink">Private details</h2>
-          <p>{job.private.customer_name}</p>
-          <p>{job.private.customer_phone}</p>
-          {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
-          <p>Pickup: {job.private.pickup_address}</p>
-          {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
-          {job.private.access_notes ? <p>{job.private.access_notes}</p> : null}
-        </section>
-      ) : null}
-      {job.photos.length > 0 ? (
-        <ul className="mt-4 grid grid-cols-3 gap-2">
-          {job.photos.map((photo) => (
-            <li key={photo.id}>
-              {/* Signed URL. It expires and is not a public file address. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.url} alt="" className="aspect-square w-full rounded-2xl object-cover" />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {error ? (
-        <p role="alert" className="mt-4 text-base text-danger">
-          {takenJobMessage(error)}
-        </p>
-      ) : null}
-      {notice?.adminNote ? (
-        <p className="mt-4 rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">{notice.adminNote}</p>
-      ) : null}
-      {notice?.quote && canRespond ? (
-        <section className="mt-4 space-y-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-          <QuoteViewed service={job.service} />
-          <h2 className="text-lg font-semibold text-ink">Your quote</h2>
-          <p>Offer {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
-          <p>Card processing fee {formatCents(notice.quote.serviceFeeCents)}</p>
-          <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
-          <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
-          <p>
-            Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
-            at pickup: {formatCents(fees.tripFeeCents)}.
-          </p>
-          <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
-          <form action={respondToQuote} className="grid gap-3 pt-2">
-            <input type="hidden" name="jobId" value={job.id} />
-            <button
-              type="submit"
-              name="decision"
-              value="accept"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white"
-            >
-              Accept quote
-            </button>
-            <button
-              type="submit"
-              name="decision"
-              value="decline"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper font-semibold text-ink ring-1 ring-line"
-            >
-              Decline quote
-            </button>
-          </form>
-        </section>
-      ) : null}
-      <p className="mt-6">
-        <Link href="/account" className="font-semibold text-brand">
+        {job.private ? (
+          <>
+            <h2 className="mt-2 text-lg font-semibold text-ink">Private details</h2>
+            <p>{job.private.customer_name}</p>
+            <p>{job.private.customer_phone}</p>
+            {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
+            <p>Pickup: {job.private.pickup_address}</p>
+            {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
+            {job.private.access_notes ? <p>{job.private.access_notes}</p> : null}
+          </>
+        ) : null}
+        {job.photos.length > 0 ? (
+          <ul className="mt-2 flex gap-2">
+            {job.photos.map((photo) => (
+              <li key={photo.id}>
+                {/* Signed URL. It expires and is not a public file address. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.url} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </DetailsFold>
+      <DetailsFold title="Route and history">
+        {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
+          <AreaMap
+            caption={
+              job.private.pickup_verified === false || job.private.dropoff_verified === false
+                ? "Address not verified"
+                : "Route"
+            }
+            pins={[
+              { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
+              ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
+                : []),
+            ]}
+            line={
+              routeLine && routeLine.length > 1
+                ? routeLine
+                : job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                  ? [
+                      [job.private.pickup_lng, job.private.pickup_lat],
+                      [job.private.dropoff_lng, job.private.dropoff_lat],
+                    ]
+                  : []
+            }
+          />
+        ) : (
+          <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+        )}
+        <p>Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
+        <JobTrackerView
+          tracker={tracker}
+          driver={driver}
+          chatHref={driver ? "#messages" : undefined}
+          progress={customerProgress({
+            status: job.status,
+            paymentStatus: job.payment_status,
+            dropoffArrived: job.dropoff_arrived_at != null,
+            service: job.service,
+            pricingMethod: job.pricing_method,
+            events: job.events.map((event) => ({
+              type: event.type,
+              createdAt: event.created_at,
+              toStatus: event.to_status,
+            })),
+          })}
+        />
+      </DetailsFold>
+      <p className="mt-3">
+        <Link href="/account" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Back to your requests
         </Link>
       </p>

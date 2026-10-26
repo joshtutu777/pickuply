@@ -4,9 +4,16 @@ import { ReviewCountdown } from "@/components/delivery/review-countdown";
 import { DropoffProof } from "@/components/request/proof-gallery";
 import { ReportToggle } from "@/components/request/report-toggle";
 
-export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUntil?: string | null }) {
-  return (
-    <section className="mx-auto mt-4 w-full max-w-xl px-4">
+export function ItemDecision({
+  jobId,
+  reviewUntil,
+  embedded = false,
+}: {
+  jobId: string;
+  reviewUntil?: string | null;
+  embedded?: boolean;
+}) {
+  const card = (
       <div className="grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Pickup review</h2>
         <p>Look at the pickup photo. Tell us within 10 minutes if something is wrong.</p>
@@ -46,14 +53,15 @@ export function ItemDecision({ jobId, reviewUntil }: { jobId: string; reviewUnti
           Report a problem
         </Link>
       </div>
-    </section>
   );
+  if (embedded) return <div className="mt-3">{card}</div>;
+  return <section className="mx-auto mt-4 w-full max-w-xl px-4">{card}</section>;
 }
 
 export function DropoffReview({ jobId, confirmed }: { jobId: string; confirmed: boolean }) {
   return (
-    <section className="mt-4 grid gap-3 rounded-3xl bg-brand-soft p-4 ring-2 ring-brand" aria-label="Drop-off Review">
-      <h2 className="font-display text-2xl font-semibold text-ink">Drop-off Review</h2>
+    <section className="mt-3 grid gap-3 rounded-3xl bg-brand-soft p-4 ring-2 ring-brand" aria-label="Drop-off Review">
+      <h2 className="text-xl font-semibold text-ink">Drop-off Review</h2>
       <p>Look at the drop-off photo. Confirm the delivery, or report a problem.</p>
       <DropoffProof jobId={jobId} />
       {confirmed ? (

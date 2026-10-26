@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { BackLink } from "@/components/back-link";
+import { DetailsFold } from "@/components/details-fold";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { PayPanel } from "@/components/request/pay-panel";
 import { DropoffReview, ItemDecision } from "@/components/request/item-decision";
@@ -11,7 +12,7 @@ import { JobReceipt } from "@/components/request/job-receipt";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
-import { ProofGallery } from "@/components/request/proof-gallery";
+import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
 import { ReportForm } from "@/components/request/report-form";
 import { ScrollOnValue } from "@/components/scroll-restore";
@@ -125,6 +126,12 @@ async function JobEntry({
         review={
           session?.role === "customer" && job.status === "delivered" ? (
             <DropoffReview jobId={id} confirmed={job.customer_confirmed_at != null} />
+          ) : session?.role === "customer" && job.status === "item_check" ? (
+            <>
+              <PickupProof jobId={id} />
+              <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} embedded />
+              <ReportForm jobId={id} />
+            </>
           ) : null
         }
       >
@@ -146,33 +153,30 @@ async function JobEntry({
           />
         ) : null}
       </JobStatus>
-      {session?.role === "customer" && job.status === "item_check" ? (
-        <>
-          <div className="mx-auto w-full max-w-xl px-4">
-            <ProofGallery jobId={id} />
-          </div>
-          <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} />
-        </>
-      ) : null}
       {query.saved === "1" ? (
-        <p className="mx-auto mt-4 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
+        <p className="mx-auto mt-3 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
       ) : null}
       {detailRequest && detailRequest.items.length > 0 ? (
         <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
       ) : null}
-      <div className="mx-auto w-full max-w-xl px-4">
-        <div id="messages">
-          <JobMessages jobId={id} />
-        </div>
-        {job.status !== "item_check" && job.status !== "delivered" ? <ProofGallery jobId={id} /> : null}
-        {job.status === "item_check" && session?.role === "customer" ? <ReportForm jobId={id} /> : null}
-        <p className="mt-4">
+      <div className="mx-auto w-full max-w-xl px-4 pb-4">
+        {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
+        <DetailsFold title="Messages">
+          <div id="messages">
+            <JobMessages jobId={id} />
+          </div>
+        </DetailsFold>
+        {job.status !== "item_check" && job.status !== "delivered" ? (
+          <DetailsFold title="Proof photos">
+            <ProofGallery jobId={id} />
+          </DetailsFold>
+        ) : null}
+        <p className="mt-2">
           <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
             Help
           </Link>
         </p>
       </div>
-      {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
       {session && job.status === "completed" ? (
         <ReviewPanel
           jobId={id}

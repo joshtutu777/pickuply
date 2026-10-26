@@ -28,6 +28,7 @@ export type HeaderState =
       offerUnread: number;
       homeHref: string;
       driveHref: string;
+      accountLinks?: { href: string; label: string }[] | null;
     };
 
 export function SiteHeader({ state }: { state: HeaderState }) {
@@ -104,6 +105,15 @@ export function SiteHeader({ state }: { state: HeaderState }) {
           </Link>
         </nav>
       </div>
+      {state.status === "signed-in" && state.accountLinks && state.accountLinks.length > 0 ? (
+        <nav aria-label="Account" className="mt-2 flex flex-wrap gap-2 md:hidden">
+          {state.accountLinks.map((link) => (
+            <Link key={link.href} href={link.href} className={navLink}>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
       {state.status === "signed-in" && state.appLabel ? (
         <AppNav
           items={state.appLinks}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
+import { DetailsFold } from "@/components/details-fold";
 import { AdvanceButton } from "@/components/driver/advance-button";
 import { LoadingMain } from "@/components/loading-main";
 import { AreaMap } from "@/components/maps/area-map";
@@ -118,7 +119,7 @@ async function DriverJob({
   const proofStage = next.nextStatus === "delivered" ? "dropoff" : "pickup";
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-4">
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-3">
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
       <JobStatusWatch jobId={job.id} status={job.status} />
       <BackLink href="/driver/jobs" label="Jobs" />
@@ -126,7 +127,7 @@ async function DriverJob({
         <StatusPill status={job.status} />
         <p className="text-sm font-semibold text-muted">{job.service.replaceAll("_", " ")}</p>
       </div>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
         {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
       </h1>
       <p className="mt-1 text-base text-ink">
@@ -203,7 +204,16 @@ async function DriverJob({
           Add a photo of the wait, and wait 15 minutes after arrival. This does not charge a fee.
         </p>
       ) : null}
-      <div className="mt-4">
+      {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
+        <ProofForm
+          jobId={job.id}
+          locationEnabled={Boolean(settings?.proof_location_enabled)}
+          defaultStage="no_show"
+          idPrefix="wait-"
+          submitLabel="Save wait photo"
+        />
+      ) : null}
+      <DetailsFold title="Route">
         {details?.pickup_lat != null && details.pickup_lng != null ? (
           <AreaMap
             caption="Pickup and drop-off"
@@ -217,7 +227,7 @@ async function DriverJob({
         ) : (
           <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
         )}
-      </div>
+      </DetailsFold>
       {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Waiting for customer payment</p>
       ) : null}
@@ -228,48 +238,50 @@ async function DriverJob({
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>
       ) : null}
       {details ? (
-        <section className="mt-6 space-y-2 text-base text-ink">
-          <h2 className="text-lg font-semibold">Pickup details</h2>
-          <p>{details.customer_name}</p>
+        <section className="mt-3 space-y-2 text-base text-ink">
+          <h2 className="text-lg font-semibold">Addresses</h2>
           <p>{details.pickup_address}</p>
           {details.dropoff_address ? <p>Drop-off: {details.dropoff_address}</p> : null}
-          {details.access_notes ? <p>Access: {details.access_notes}</p> : null}
-          {job.status === "assigned" && details.pickup_address ? (
+          {details.pickup_address ? (
             <MapsLink address={details.pickup_address} label="Open pickup in Maps" />
           ) : null}
-          {job.status === "in_transit" && details.dropoff_address ? (
+          {details.dropoff_address ? (
             <MapsLink address={details.dropoff_address} label="Open drop-off in Maps" />
+          ) : null}
+          {details.customer_name || details.access_notes ? (
+            <DetailsFold title="Notes">
+              {details.customer_name ? <p>{details.customer_name}</p> : null}
+              {details.access_notes ? <p>Access: {details.access_notes}</p> : null}
+            </DetailsFold>
           ) : null}
         </section>
       ) : (
-        <p className="mt-6 text-base text-muted">The street address appears after you are assigned.</p>
+        <p className="mt-3 text-base text-muted">The street address appears after you are assigned.</p>
       )}
-      <p className="mt-4 text-base text-muted">
-        Area only: {job.pickup_area}
-        {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
-      </p>
       {job.service === "junk" ? (
         <p className="mt-3 text-base text-ink">Your earnings must cover disposal fees.</p>
       ) : null}
-      <JobTrackerView
-        tracker={tracker}
-        progress={customerProgress({
-          status: job.status,
-          paymentStatus: job.payment_status,
-          service: job.service,
-          pricingMethod: job.pricing_method,
-          events: tracker.steps.length
-            ? (events ?? []).map((event) => {
-                const data = event.data as { to?: string } | null;
-                return {
-                  type: event.type,
-                  createdAt: event.created_at,
-                  toStatus: typeof data?.to === "string" ? data.to : null,
-                };
-              })
-            : [],
-        })}
-      />
+      <DetailsFold title="History">
+        <JobTrackerView
+          tracker={tracker}
+          progress={customerProgress({
+            status: job.status,
+            paymentStatus: job.payment_status,
+            service: job.service,
+            pricingMethod: job.pricing_method,
+            events: tracker.steps.length
+              ? (events ?? []).map((event) => {
+                  const data = event.data as { to?: string } | null;
+                  return {
+                    type: event.type,
+                    createdAt: event.created_at,
+                    toStatus: typeof data?.to === "string" ? data.to : null,
+                  };
+                })
+              : [],
+          })}
+        />
+      </DetailsFold>
       {job.status === "cancelled" && job.rejection_reason ? (
         <p className="mt-4 text-base text-ink">
           The customer rejected the item. The trip fee
@@ -301,19 +313,14 @@ async function DriverJob({
           skipHref="/driver"
         />
       ) : null}
-      <ProofGallery jobId={job.id} />
-      {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
-        <ProofForm
-          jobId={job.id}
-          locationEnabled={Boolean(settings?.proof_location_enabled)}
-          defaultStage="no_show"
-          idPrefix="wait-"
-          submitLabel="Save wait photo"
-        />
-      ) : null}
-      <div id="messages">
-        <JobMessages jobId={job.id} showQuickReplies />
-      </div>
+      <DetailsFold title="Photos">
+        <ProofGallery jobId={job.id} />
+      </DetailsFold>
+      <DetailsFold title="Messages">
+        <div id="messages">
+          <JobMessages jobId={job.id} showQuickReplies />
+        </div>
+      </DetailsFold>
       <p className="mt-4">
         <Link href={`/help?job=${job.id}#report`} className="inline-flex min-h-12 items-center font-semibold text-brand">
           Help

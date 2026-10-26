@@ -42,7 +42,23 @@ export async function DropoffProof({ jobId }: { jobId: string }) {
         <li key={photo.id}>
           {/* Signed URL. It expires and is not a public file address. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt="Drop-off proof" className="aspect-square w-full rounded-2xl object-cover" />
+              <img src={photo.url} alt="Drop-off proof" className="h-24 w-24 rounded-2xl object-cover" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export async function PickupProof({ jobId }: { jobId: string }) {
+  const photos = await proofPhotos(jobId, ["pickup"]);
+  if (photos.length === 0) return null;
+  return (
+    <ul className="mt-3 flex gap-2">
+      {photos.map((photo) => (
+        <li key={photo.id}>
+          {/* Signed URL. It expires and is not a public file address. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.url} alt="Pickup proof" className="h-24 w-24 rounded-2xl object-cover" />
         </li>
       ))}
     </ul>

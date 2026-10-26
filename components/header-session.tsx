@@ -6,7 +6,18 @@ import { cityFromArea } from "@/lib/jobs/next-action";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { CustomerOfferWatch } from "@/components/account/offer-watch";
-import { customerNav, driverNav } from "@/lib/app-nav";
+import { customerNav, driverNav, type AppNavItem } from "@/lib/app-nav";
+
+const customerAccountLinks = [
+  { href: "/account/jobs#offers", label: "Offers" },
+  { href: "/help", label: "Help" },
+];
+
+const customerDesktopNav: AppNavItem[] = [
+  ...customerNav,
+  { href: "/account/jobs#offers", label: "Offers", icon: "jobs" },
+  { href: "/help", label: "Help", icon: "alerts" },
+];
 import { roleBadgeForHome } from "@/lib/auth/role-badge";
 
 export async function HeaderSession() {
@@ -68,7 +79,8 @@ export async function HeaderSession() {
         appNav: homeHref === "/account" || homeHref === "/driver",
         appLabel: homeHref === "/driver" ? "Driver" : homeHref === "/account" ? "Customer" : null,
         roleBadge: roleBadgeForHome(homeHref),
-        appLinks: homeHref === "/driver" ? driverNav : customerNav,
+        appLinks: homeHref === "/driver" ? driverNav : homeHref === "/account" ? customerDesktopNav : customerNav,
+        accountLinks: homeHref === "/account" ? customerAccountLinks : null,
         messageUnread,
         offerUnread,
         homeHref,

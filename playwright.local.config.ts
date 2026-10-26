@@ -126,5 +126,10 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /profile-mode\.spec\.ts/,
     },
+    {
+      name: "local-ux",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /transaction-ux\.spec\.ts/,
+    },
   ],
 });

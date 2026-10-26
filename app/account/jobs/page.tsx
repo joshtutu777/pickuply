@@ -24,7 +24,7 @@ async function JobsContent() {
   const { jobs, error } = await listOwnJobs();
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+    <main id="offers" className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <BackLink href="/account" label="Account" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Jobs</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Your requests</h1>

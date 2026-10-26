@@ -53,6 +53,7 @@ test("delivered is the button only after the driver has arrived at the drop-off"
     dropoffArrived: true,
   });
   assert.equal(awaiting.label, "Awaiting customer confirmation");
+  assert.equal(awaiting.waiting, "Awaiting customer confirmation");
   assert.equal(awaiting.nextStatus, null);
 
   const complete = nextDriverAction({
@@ -62,5 +63,6 @@ test("delivered is the button only after the driver has arrived at the drop-off"
     dropoffArrived: true,
   });
   assert.equal(complete.label, "Delivery complete");
+  assert.equal(complete.waiting, null);
   assert.equal(complete.nextStatus, null);
 });

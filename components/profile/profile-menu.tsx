@@ -94,6 +94,13 @@ export function ProfileMenu({
             Contact preferences
           </a>
         </li>
+        {surface === "customer" ? (
+          <li>
+            <Link href="/account/jobs#offers" className={row}>
+              Offers
+            </Link>
+          </li>
+        ) : null}
         <li>
           <Link href="/help" className={row}>
             Help
