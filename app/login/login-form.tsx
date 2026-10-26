@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { safeNextParam } from "@/lib/auth/access";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { pushTrackingEvent } from "@/components/analytics/analytics-root";
+import { isFreshAccount } from "@/lib/analytics/tracking";
 import { SignInSmsNotice, SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
@@ -120,6 +122,13 @@ export function LoginForm({
         setError(mapOtpError(verifyError, "verify"));
         setPending(false);
         return;
+      }
+      const user = await supabase.auth.getUser();
+      if (isFreshAccount(user.data.user?.created_at)) {
+        const profile = await supabase.from("profiles").select("is_test").eq("id", user.data.user?.id ?? "").maybeSingle();
+        if (profile.data?.is_test !== true) {
+          pushTrackingEvent(driver ? "driver_signup_completed" : "signup_completed", driver ? "driver_signup_completed" : "signup_completed");
+        }
       }
       const params = new URLSearchParams();
       if (safeNext) params.set("next", safeNext);

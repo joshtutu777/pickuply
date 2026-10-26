@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { HeaderSession } from "@/components/header-session";
 import { ScrollRestore } from "@/components/scroll-restore";
 import { UpdateBanner } from "@/components/pwa/update-banner";
+import { AnalyticsRoot } from "@/components/analytics/analytics-root";
 import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { SiteFooter } from "@/components/site-footer";
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
+        <AnalyticsRoot />
         <UpdateBanner />
         <Script id="landing-flag" strategy="beforeInteractive">
           {`if(location.pathname==='/')document.documentElement.dataset.landing='1'`}

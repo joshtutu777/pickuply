@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BlogArticleSignal } from "@/components/analytics/blog-signals";
 import { ArticleBody } from "@/components/blog/article-body";
 import { blogDateLabel, categoryLabel, type ArticleBlock } from "@/lib/blog/content";
 import { articleImageSrc } from "@/lib/blog/site";
@@ -8,6 +9,7 @@ export function ArticleView({
   title,
   excerpt,
   category,
+  slug,
   publishedAt,
   authorName,
   coverPath,
@@ -19,6 +21,7 @@ export function ArticleView({
   title: string;
   excerpt: string;
   category: string;
+  slug?: string;
   publishedAt: string | null;
   authorName: string;
   coverPath: string | null;
@@ -46,7 +49,8 @@ export function ArticleView({
       <div className="mt-6">
         <ArticleBody postId={postId} blocks={blocks} />
       </div>
-      <p className="mt-8">
+      {preview || !slug ? null : <BlogArticleSignal slug={slug} category={category} />}
+      <p className="mt-4">
         <Link href="/blog" className="inline-flex min-h-12 items-center font-semibold text-brand">
           All articles
         </Link>

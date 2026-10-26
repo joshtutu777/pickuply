@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { pushTrackingEvent } from "@/components/analytics/analytics-root";
+import { notificationEvent } from "@/lib/analytics/tracking";
 import { alertAllowed, claimAlert, shouldPlaySound, type AlertPrefs } from "@/lib/notifications/live-alert";
 import { readAlertPrefs } from "@/lib/notifications/alert-prefs";
 
@@ -84,6 +86,11 @@ export function LiveAlerts() {
       for (const row of rows) {
         if (!claimAlert(row.id, seen)) continue;
         fresh = true;
+        const tracked = notificationEvent(row.kind);
+        if (tracked === "driver_offer_accepted") {
+          const jobKey = row.href.split("/").filter(Boolean).pop() ?? row.id;
+          pushTrackingEvent(tracked, `${tracked}:${jobKey}`);
+        }
         if (!alertAllowed(row.kind, prefs)) continue;
         setToast(row);
         const visible = document.visibilityState === "visible";

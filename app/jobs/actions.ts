@@ -73,12 +73,14 @@ export async function confirmDelivery(formData: FormData) {
   if (result.error) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
   }
+  let tracked = "confirmed";
   try {
-    await captureReadyPayment(jobId);
+    const capture = await captureReadyPayment(jobId);
+    if (capture.captured) tracked = "delivered";
   } catch {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("You confirmed delivery. The card charge is still being finished.")}`);
   }
-  redirect(`/jobs/${jobId}`);
+  redirect(`/jobs/${jobId}?tracked=${tracked}`);
 }
 
 export async function cancelAssignedJob(formData: FormData) {

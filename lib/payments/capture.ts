@@ -33,15 +33,22 @@ async function chargeIdFromIntent(intent: Stripe.PaymentIntent): Promise<string 
   return typeof latest === "string" ? latest : latest?.id ?? null;
 }
 
-export async function captureReadyPayment(jobId: string): Promise<void> {
+export type CaptureOutcome = {
+  captured: boolean;
+  live: boolean;
+  amountCents: number;
+};
+
+export async function captureReadyPayment(jobId: string): Promise<CaptureOutcome> {
+  const skipped = { captured: false, live: false, amountCents: 0 };
   const supabase = createServiceClient();
   const context = await supabase.rpc("capture_context", { target_job: jobId });
   if (context.error) throw new Error("The payment could not be checked.");
   const row = context.data as CaptureContext | null;
-  if (!row) return;
+  if (!row) return skipped;
   if (row.expired) {
     await supabase.rpc("note_capture_expired", { target_job: jobId });
-    return;
+    return skipped;
   }
 
   const stripe = getStripe();
@@ -54,7 +61,7 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
           { idempotencyKey: `capture:${row.payment_intent_id}:${row.kind}` },
         )
       : existing;
-  if (intent.status !== "succeeded") return;
+  if (intent.status !== "succeeded") return skipped;
 
   const chargeId = (await chargeIdFromIntent(intent)) ?? row.charge_id;
   const balance = await stripeFeeCents(chargeId);
@@ -70,6 +77,12 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
     available_on: balance.availableOn,
   });
   await sendReceipt(jobId);
+  const payment = await supabase.from("job_payments").select("stripe_livemode").eq("job_id", jobId).maybeSingle();
+  return {
+    captured: row.kind === "full",
+    live: payment.data?.stripe_livemode === true,
+    amountCents: row.amount_cents,
+  };
 }
 
 export async function syncStripeFees(): Promise<void> {

@@ -14,6 +14,7 @@ import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
 import { ReportForm } from "@/components/request/report-form";
+import { JobSignals } from "@/components/analytics/job-signals";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
@@ -61,9 +62,20 @@ async function JobEntry({
   ]);
   let offers: OfferSummary[] = [];
   let detailRequest: { items: string[]; note: string } | null = null;
-  if (session?.role === "customer") {
+  let livePayment = false;
+  let testJob = false;
+  if (session) {
     try {
       const supabase = await createClient();
+      const testRow = await supabase.from("jobs").select("is_test").eq("id", id).maybeSingle();
+      testJob = testRow.data?.is_test === true;
+      if (session.role === "customer") {
+        const payment = await supabase.from("job_payments").select("stripe_livemode").eq("job_id", id).maybeSingle();
+        livePayment = payment.data?.stripe_livemode === true;
+      }
+      if (session.role !== "customer") {
+        offers = [];
+      } else {
       const { data } = await supabase.rpc("offer_summaries", { target_job: id });
       offers = (data ?? []) as OfferSummary[];
       const details = await supabase.rpc("open_detail_request", { target_job: id });
@@ -73,6 +85,7 @@ async function JobEntry({
           items: Array.isArray(body.items) ? body.items.filter((item): item is string => typeof item === "string") : [],
           note: typeof body.note === "string" ? body.note : "",
         };
+      }
       }
     } catch {
       offers = [];
@@ -208,6 +221,17 @@ async function JobEntry({
           />
         ) : null}
       </JobStatus>
+      <JobSignals
+        jobId={id}
+        status={job.status}
+        paymentStatus={job.payment_status}
+        capturedCents={job.captured_cents}
+        live={livePayment}
+        isTest={testJob}
+        returning={query.paid === "return"}
+        tracked={typeof query.tracked === "string" ? query.tracked : null}
+        offerIds={offers.map((offer) => offer.offer_id)}
+      />
       {query.saved === "1" ? (
         <p className="mx-auto mt-3 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
       ) : null}

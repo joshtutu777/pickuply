@@ -24,6 +24,8 @@ import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
+import { pushTrackingEvent } from "@/components/analytics/analytics-root";
+import { isFreshAccount } from "@/lib/analytics/tracking";
 import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
@@ -352,11 +354,16 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     setSubmitting(true);
     setOtpError("");
     try {
-      const { error } = await createClient().auth.verifyOtp({
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.verifyOtp({
         phone,
         token: code,
         type: "sms",
       });
+      if (!error && isFreshAccount(data.user?.created_at)) {
+        const profile = await supabase.from("profiles").select("is_test").eq("id", data.user?.id ?? "").maybeSingle();
+        if (profile.data?.is_test !== true) pushTrackingEvent("signup_completed", "signup_completed");
+      }
       if (error) {
         setOtpError(mapOtpError(error, "verify"));
         setSubmitting(false);
@@ -406,6 +413,9 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
         step: "submitted",
         service: draft.service || null,
         pricing: draft.pricingMethod || null,
+      });
+      pushTrackingEvent("delivery_request_created", `delivery_request_created:${job.id}`, {
+        service: draft.service || "",
       });
       setSentId(job.id);
       setSubmitting(false);

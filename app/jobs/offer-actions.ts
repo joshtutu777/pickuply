@@ -11,5 +11,5 @@ export async function chooseOffer(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("choose_offer", { target_offer: offerId });
   if (error) redirect(`/jobs/${jobId}?error=${encodeURIComponent(error.message)}`);
-  redirect(`/jobs/${jobId}`);
+  redirect(`/jobs/${jobId}?tracked=offer`);
 }

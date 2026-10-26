@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { services } from "@/lib/constants";
 import { offerBreakdown, type FeeSettings } from "@/lib/fees";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
+import { pushTrackingEvent } from "@/components/analytics/analytics-root";
 import { recordFunnel } from "@/lib/funnel";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { FeedMap } from "@/components/maps/feed-map";
@@ -156,6 +157,8 @@ function OfferActions({
     if (kind === "claim" || kind === "accept") {
       void recordFunnel({ event: "driver_claim", step: kind, service: job.service, pricing: job.pricing_method });
     }
+    if (kind === "offer") pushTrackingEvent("driver_offer_submitted", `driver_offer_submitted:${job.id}`, { service: job.service });
+    if (kind === "accept") pushTrackingEvent("driver_offer_accepted", `driver_offer_accepted:${job.id}`, { service: job.service });
     if (kind === "claim") router.refresh();
     onDone();
   }

@@ -104,6 +104,7 @@ async function PublishedArticle({ params }: { params: PageProps<"/blog/[slug]">[
         title={article.title}
         excerpt={article.excerpt}
         category={article.category}
+        slug={article.slug}
         publishedAt={article.published_at}
         authorName={article.author_name}
         coverPath={article.cover_path}

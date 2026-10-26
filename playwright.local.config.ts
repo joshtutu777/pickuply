@@ -146,5 +146,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /blog\.spec\.ts/,
     },
+    {
+      name: "local-analytics",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /analytics\.spec\.ts/,
+    },
   ],
 });

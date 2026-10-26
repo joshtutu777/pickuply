@@ -12,6 +12,7 @@ import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
 import { validateFullName } from "@/lib/auth/name";
 import { driverApplyEmailError } from "@/lib/validation/email";
+import { pushTrackingEvent } from "@/components/analytics/analytics-root";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/photos";
@@ -136,6 +137,7 @@ export function QuickApplyForm({
       const placeError = await saveDriverPlace(home);
       if (placeError) throw new Error(placeError);
       void recordFunnel({ event: "driver_submitted", step: "submitted" });
+      pushTrackingEvent("driver_signup_completed", "driver_signup_completed");
       router.push("/driver?saved=applied");
       router.refresh();
     } catch (caught) {
