@@ -181,6 +181,6 @@ test("the next driver button waits for payment and for the item check", () => {
   );
   assert.equal(
     nextDriverAction({ status: "item_check", paymentStatus: "authorized", service: "junk" }).waiting,
-    "Waiting for customer to approve",
+    "Waiting for customer pickup review.",
   );
 });

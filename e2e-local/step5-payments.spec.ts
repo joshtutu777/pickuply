@@ -29,7 +29,7 @@ test.afterAll(() => {
 test("captured job records the Stripe fee and holds the transfer until payout setup is finished", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driveToDelivery(customer.page, driver.page, jobId);
-  await customer.page.getByRole("button", { name: "Got it" }).click();
+  await customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   await expect(customer.page.getByRole("heading", { name: "Completed" })).toBeVisible({ timeout: 60_000 });
   await expect(customer.page.getByRole("heading", { name: "Receipt" })).toBeVisible();
 
@@ -166,10 +166,10 @@ test("a card approved after the job reopens is released", async ({ browser }) =>
 test("rejecting the item captures only the trip fee", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driver.page.goto(`/driver/jobs/${jobId}`);
-  await driver.page.getByRole("button", { name: "Start trip to pickup" }).click();
-  await driver.page.getByRole("button", { name: "I've arrived" }).click();
+  await driver.page.getByRole("button", { name: "Start trip", exact: true }).click();
+  await driver.page.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver.page, "pickup");
-  await driver.page.getByRole("button", { name: "Send for item check" }).click();
+  await driver.page.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.locator("#reject-reason").fill("The item is the wrong size.");
@@ -193,7 +193,7 @@ test("a disputed job is not captured or transferred", async ({ browser }) => {
   await customer.page.locator("#report-outcome").selectOption("repair");
   await customer.page.getByRole("button", { name: "Send report" }).click();
   await expect(customer.page.getByText("Report saved.")).toBeVisible();
-  await customer.page.getByRole("button", { name: "Got it" }).click();
+  await customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   await new Promise((resolve) => setTimeout(resolve, 3000));
   const payment = localSql(`select payment_status from public.jobs where id = '${jobId}'`).trim();
   expect(payment).not.toBe("captured");
@@ -224,7 +224,7 @@ test("earnings stay held until payout setup, and an outside payment is labeled",
   await session.customer.page.getByRole("button", { name: "Confirm booking" }).click();
   await payOnStripe(session.customer.page, "4242424242424242");
   await driveToDelivery(session.customer.page, session.driver.page, session.jobId);
-  await session.customer.page.getByRole("button", { name: "Got it" }).click();
+  await session.customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   const held = await waitForRow(
     `select status || '|' || coalesce(hold_reason, '') from public.ledger_entries where job_id = '${session.jobId}'`,
     /held_until_onboarding\|/,
@@ -247,7 +247,7 @@ test("earnings stay held until payout setup, and an outside payment is labeled",
 test("a refund before transfer reduces the ledger", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driveToDelivery(customer.page, driver.page, jobId);
-  await customer.page.getByRole("button", { name: "Got it" }).click();
+  await customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   await waitForRow(`select payment_status from public.jobs where id = '${jobId}'`, /captured/);
   const before = Number(localSql(`select amount_cents from public.ledger_entries where job_id = '${jobId}'`).trim());
   await admin.page.goto(`/admin/requests/${jobId}`);
@@ -267,7 +267,7 @@ test("a refund before transfer reduces the ledger", async ({ browser }) => {
 test("a refund after transfer records a recovery and does not deduct it", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driveToDelivery(customer.page, driver.page, jobId);
-  await customer.page.getByRole("button", { name: "Got it" }).click();
+  await customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   await waitForRow(`select payment_status from public.jobs where id = '${jobId}'`, /captured/);
   localSql(`
     update public.ledger_entries
@@ -296,7 +296,7 @@ test("a refund after transfer records a recovery and does not deduct it", async 
 test("a test chargeback holds the ledger", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4000000000000259");
   await driveToDelivery(customer.page, driver.page, jobId);
-  await customer.page.getByRole("button", { name: "Got it" }).click();
+  await customer.page.getByRole("button", { name: "Confirm delivery" }).click();
   const held = await waitForRow(
     `select l.status from public.ledger_entries l join public.card_disputes d on d.job_id = l.job_id where l.job_id = '${jobId}'`,
     /held|recovery_due/,
@@ -388,22 +388,23 @@ async function connectDriver(page: Page) {
 
 async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await driver.goto(`/driver/jobs/${jobId}`);
-  await expect(driver.getByRole("button", { name: "Start trip to pickup" })).toBeVisible();
-  await driver.getByRole("button", { name: "Start trip to pickup" }).click();
-  await expect(driver.getByRole("button", { name: "I've arrived" })).toBeVisible();
-  await driver.getByRole("button", { name: "I've arrived" }).click();
+  await expect(driver.getByRole("button", { name: "Start trip", exact: true })).toBeVisible();
+  await driver.getByRole("button", { name: "Start trip", exact: true }).click();
+  await expect(driver.getByRole("button", { name: "Arrived at pickup" })).toBeVisible();
+  await driver.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver, "pickup");
-  await driver.getByRole("button", { name: "Send for item check" }).click();
+  await driver.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.goto(`/jobs/${jobId}`);
-  await customer.getByRole("button", { name: "Approve item" }).click();
+  await customer.getByRole("button", { name: "Looks good" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^in_transit$/);
   await driver.goto(`/driver/jobs/${jobId}`);
+  await driver.getByRole("button", { name: "Arrived at drop-off" }).click();
   await saveProof(driver, "dropoff");
-  await driver.getByRole("button", { name: "Mark delivered" }).click();
+  await driver.getByRole("button", { name: "Delivered" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^delivered$/);
   await customer.goto(`/jobs/${jobId}`);
-  await expect(customer.getByRole("button", { name: "Got it" })).toBeVisible();
+  await expect(customer.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
 }
 
 async function saveProof(page: Page, stage: "pickup" | "dropoff") {

@@ -69,6 +69,8 @@ export type JobDetail = {
   distance_source: string | null;
   updated_at: string;
   has_dump_receipt: boolean;
+  pickup_review_until: string | null;
+  dropoff_arrived_at: string | null;
   private: {
     customer_name: string;
     customer_phone: string;
@@ -132,7 +134,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id, distance_miles, distance_source",
+        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, assigned_driver_id, distance_miles, distance_source, pickup_review_until, dropoff_arrived_at",
       )
       .eq("id", id)
       .maybeSingle();

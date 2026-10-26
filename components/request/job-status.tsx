@@ -24,7 +24,7 @@ import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { shortJobId } from "@/lib/jobs/next-action";
 import { quoteRequestCopy } from "@/lib/jobs/quote-status";
-import { customerProgress, type JobTracker } from "@/lib/jobs/tracker";
+import { customerProgress, customerStageLine, type JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
@@ -68,6 +68,12 @@ export function JobStatus({
 }) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
+  const stage = customerStageLine({
+    status: job.status,
+    paymentStatus: job.payment_status,
+    driverName: driver?.firstName ?? null,
+    dropoffArrived: job.dropoff_arrived_at != null,
+  });
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -81,6 +87,7 @@ export function JobStatus({
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
         {statusLabel(job.status)}
       </h1>
+      {stage ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
       <p className="mt-2 text-lg text-ink">{service.name}</p>
       {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
       <p className="text-base text-ink">
@@ -125,6 +132,7 @@ export function JobStatus({
         progress={customerProgress({
           status: job.status,
           paymentStatus: job.payment_status,
+          dropoffArrived: job.dropoff_arrived_at != null,
           service: job.service,
           pricingMethod: job.pricing_method,
           events: job.events.map((event) => ({

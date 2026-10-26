@@ -10,6 +10,8 @@ import { RouteSketch } from "@/components/mobile/route-sketch";
 import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import { ProofForm } from "@/components/driver/proof-form";
+import { NoShowWait } from "@/components/delivery/no-show-wait";
+import { ReviewCountdown } from "@/components/delivery/review-countdown";
 import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
 import { ScrollOnValue } from "@/components/scroll-restore";
@@ -48,7 +50,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, pickup_review_until, dropoff_arrived_at, no_show_pending, require_disposal_receipt",
     )
     .eq("id", id)
     .maybeSingle();
@@ -97,8 +99,10 @@ async function DriverJob({
     status: job.status,
     paymentStatus: job.payment_status,
     service: job.service,
+    dropoffArrived: job.dropoff_arrived_at != null,
   });
   const retired = job.test_retired_at != null;
+  const needsProof = next.nextStatus === "item_check" || next.nextStatus === "delivered";
   const jobAmount = job.driver_pay_cents != null && job.platform_fee_cents != null
     ? job.driver_pay_cents + job.platform_fee_cents
     : null;
@@ -132,7 +136,12 @@ async function DriverJob({
       {!retired && next.nextStatus ? (
         <div className="sticky top-2 z-10 mt-3 grid gap-3 rounded-3xl bg-paper p-3 ring-1 ring-line">
           <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
-          <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
+          {needsProof ? (
+            <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
+          ) : null}
+          {job.service === "junk" && job.require_disposal_receipt && next.nextStatus === "delivered" ? (
+            <p className="text-base text-ink">Add the disposal receipt photo before marking this delivered.</p>
+          ) : null}
         </div>
       ) : !retired && next.waiting ? (
         <button
@@ -143,14 +152,37 @@ async function DriverJob({
           {next.label}
         </button>
       ) : null}
+      {!retired && job.status === "item_check" && job.pickup_review_until ? (
+        <div className="mt-3">
+          <ReviewCountdown jobId={job.id} until={job.pickup_review_until} />
+        </div>
+      ) : null}
+      {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
+        <NoShowWait jobId={job.id} arrivedAt={job.dropoff_arrived_at} />
+      ) : null}
+      {job.no_show_pending ? (
+        <p className="mt-3 text-base text-ink">
+          Pickuply is reviewing the no-show. The job is not cancelled, and no fee has been charged.
+        </p>
+      ) : null}
       {query.error === "step" ? (
         <p role="alert" className="mt-3 text-base text-danger">
           That step is not available yet.
         </p>
       ) : null}
+      {query.error === "payment" ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          The card has to be authorized before the trip can start.
+        </p>
+      ) : null}
       {query.error === "photo" ? (
         <p id="proof-needed" role="alert" className="mt-3 text-base text-danger">
-          Add the item photo before sending it to the customer.
+          Add the required photo before this step.
+        </p>
+      ) : null}
+      {query.error === "noshow" ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          Add a photo of the wait, and wait 15 minutes after arrival. This does not charge a fee.
         </p>
       ) : null}
       <div className="mt-4">
@@ -252,8 +284,14 @@ async function DriverJob({
         />
       ) : null}
       <ProofGallery jobId={job.id} />
-      {!retired && !next.nextStatus ? (
-        <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
+      {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
+        <ProofForm
+          jobId={job.id}
+          locationEnabled={Boolean(settings?.proof_location_enabled)}
+          defaultStage="no_show"
+          idPrefix="wait-"
+          submitLabel="Save wait photo"
+        />
       ) : null}
       <div id="messages">
         <JobMessages jobId={job.id} showQuickReplies />

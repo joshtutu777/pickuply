@@ -10,7 +10,7 @@
 
 ## 1. What Pickuply is
 
-A local marketplace that connects people who need something picked up and moved with nearby verified drivers who have the right vehicle. It covers both bringing something to you and taking something away. It's built especially for Facebook Marketplace, free-item groups, and time-sensitive secondhand purchases. The admin (owner) reviews every request before drivers see it, approves prices, and controls drivers.
+A local marketplace that connects people who need something picked up and moved with nearby verified drivers who have the right vehicle. It covers both bringing something to you and taking something away. It's built especially for Facebook Marketplace, free-item groups, and time-sensitive secondhand purchases. The admin (owner) approves drivers and can send a price. A posted Get a quote request is visible to drivers so they can send a quote.
 
 **Customer promise:** Vetted drivers. Locked prices. You pay only when it arrives.
 
@@ -51,7 +51,7 @@ A user has exactly one role. Admin role is set manually in the database (never s
 | App type | Mobile-first web app, installable PWA, push notifications |
 | Sign-in | Phone number + 6-digit text code (passwordless) for everyone. Email optional |
 | Pricing | Customer chooses one of **three pricing methods**: Get a quote, Name your price (fixed offer), or Set a budget range. See §7.1. Every price is locked before booking |
-| Who responds | **Get a quote:** an admin sends the price and the customer accepts it before any driver sees the job. A driver then claims it. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
+| Who responds | **Get a quote:** drivers see the posted request and each send a quote. The customer chooses one. An admin can still send a price. If the customer accepts that price, a driver claims the job. **Fixed:** drivers accept that price, which creates an offer, or send a counteroffer. The counteroffer does not change the customer's original price. **Range:** drivers offer inside the range or counter outside it. Outside-range offers are flagged. The customer chooses the offer. Admin can still assign a driver |
 | Platform fee | **15% of the customer-facing offer**, deducted from the driver. No minimum. Admin-configurable. Not added on top of the customer price. |
 | Driver matching | A request that passes validation is open to eligible drivers immediately. No admin approval is required. Waves stay off unless an admin turns them on. While waves are off, every eligible driver can see every open request, with no wave delay and no invitation limit. While waves are on, `docs/WAVES.md` decides who sees a request. A job can have five active offers at a time. A driver can offer on more than one open job. An admin can still pause a request, send it to a driver, or send an optional quote. Those actions are audited. Nothing is booked or charged until the customer chooses a driver's offer, or accepts an optional admin quote and a driver claims it. The database guarantees one assigned driver. Admin can also assign manually. There is no auto-booking |
 | Customer payment | No card is authorized until a driver is confirmed. Confirming an offer, or a driver claiming an accepted quote job, starts a payment deadline (default 30 minutes). The customer pays by card on Stripe Checkout. The card is authorized, not captured. Work cannot start until payment is `authorized`. Capture happens after the customer confirms delivery, or 24 hours after delivery if they do not. If the authorization expires, stop and flag an admin. Do not start a new charge automatically. |
@@ -93,7 +93,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 | Junk only | Load size (single item, ¼, ½, full), materials, includes mattress/tires/appliances? |
 | Item value | Approximate value. Over $1,000 is allowed but flagged `needs_value_approval` with the warning "Items over $1,000 need approval before booking." |
 | Construction only | Store name, optional order/pickup number |
-| Pricing method (required) | **Get a quote** (no amount). Copy: "Pickuply sends a price. You accept it before drivers see the job. Nothing is charged until a driver is booked." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
+| Pricing method (required) | **Get a quote** (no amount). Copy: "Drivers see this request and send a quote. You choose who to book. Nothing is charged until you confirm." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
 | Contact | Name, phone (required), email address (optional, helper text "For booking updates and receipts."), "How did you hear about us?" (Nextdoor, Facebook, friend, landlord/property manager, other). A saved email is stored once on `profiles.email` for both customer and driver use, prefilled on the next request, and can be changed in Profile. A blank field does not erase a saved email. The address is not marked verified. |
 
 - Shows a **typical price range** as guidance (see §7), labeled: "Typical price for jobs like this within 10 miles: $X–$Y. Final price confirmed after review." If required inputs are missing, show "We'll confirm a price after reviewing your request" instead of a number. The estimate never changes the customer's chosen pricing method or amounts.
@@ -103,7 +103,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 
 ### 4.3 Quotes, offers, and booking
 - A request that passes validation is published (`open`) when it is saved. Admin approval is not a step. An admin can pause it, send it to one driver, or send an optional quote. Each of those is audited.
-- **Get a quote:** the request stays `requested` until an admin sends a price. The customer accepts that price before drivers see the job. A driver then claims the open quote. That claim sets `payment_status = awaiting_payment`. It does not charge the card. Drivers cannot send an offer on a quote.
+- **Get a quote:** the request stays `requested`. Eligible drivers see it immediately and each send a quote. The customer chooses one. That choice assigns the driver and sets `payment_status = awaiting_payment`. It does not charge the card. An admin can still send a price. If the customer accepts that price, the job opens and a driver claims it.
 - **Optional admin quote:** an admin enters the customer offer. The commission comes out of that offer and card processing is added on top (status `quoted`). The customer sees the breakdown and accepts before the quote expires. Acceptance publishes the job (`open`). It does not assign a driver. An eligible Online driver then claims that priced job, which assigns that driver and sets `payment_status = awaiting_payment`.
 - **Name your price / Budget range:** the job is already `open`. Drivers may accept, offer, or counter (§5.5). A counteroffer does not change the customer's original price. Outside-range offers are flagged. The customer must choose one offer. That choice assigns the driver and sets `payment_status = awaiting_payment`. Nothing is charged at that step.
 - **Offer comparison** shows each driver's first name, photo, rating, completed jobs, vehicle, pickup availability, counter reason (if any), the outside-range flag, the offer, the card processing fee, and the total. Pickuply's commission is not added again. A new offer stays new until that offer card is actually on screen. Opening My Requests or receiving an alert does not mark it viewed. Customer taps **Choose** → card authorized for the total → driver assigned → all other offers closed. Choosing is never automatic.
@@ -216,7 +216,7 @@ An open job with no driver for 20 minutes is marked “No driver yet” for admi
 Job cards show structured fields only: service, size, pieces, approximate pickup/drop-off area (city or ZIP), distance, stairs, elevator, help loading, time window, pricing method, the customer's fixed price or budget range, and driver pay on admin-quoted jobs. An eligible driver may also see request-stage item photos through a database policy and a short-lived signed URL. Cards do not show pickup, drop-off, report, or private document images, descriptions, notes, or customer contact. Exact addresses and contact are hidden until the driver is actually assigned. This request-photo exception is intentional and is enforced in the database, not by hiding fields in the page.
 
 ### 5.5 Accepting, offering, and countering (no double booking)
-- **Get a quote:** the driver sees the job only after the customer accepts the admin price, then taps Claim this job. That does not charge the card.
+- **Get a quote:** the driver sees the posted request and sends a quote. The customer chooses it. If the customer has already accepted an admin price, the driver taps Claim this job instead. Neither step charges the card.
 - **Optional admin-priced jobs:** **Claim** calls a single database function that locks the job and, if it is no longer `open` or it has no driver pay, does not assign it. If another driver already took it, the app shows "Sorry, another driver just took this job." Eligibility (active, Online, matching vehicle) is checked only while the job is still open.
 - **Fixed-price jobs:** the driver can accept the posted price, or submit a different offer amount. Accepting does not book the job and does not change the customer's original price. The customer chooses the offer.
 - **Budget-range jobs:** the driver submits an offer amount. An amount outside the range is stored as a counter with `outside_range`. The customer chooses the offer.
@@ -255,9 +255,9 @@ Customers do not start a chat with admin. They use `/help`. Answers come from th
 | 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer, a driver claimed an open quote job, or admin assigned. Payment status becomes `awaiting_payment`. Quote acceptance only publishes the job (`open`) |
 | 6 | `en_route` | Driver | On the way to pickup. Blocked unless payment is `authorized` or `paid` |
 | 7 | `arrived` | Driver | At pickup |
-| 8 | `item_check` | Driver | Photos uploaded, waiting for customer approval |
-| 9 | `in_transit` | Driver/Customer | Item approved and loaded |
-| 10 | `delivered` | Driver | Drop-off photos uploaded |
+| 8 | `item_check` | Driver | Pickup photo saved. Customer has 10 minutes to say it looks good or report a problem. A timeout lets the delivery continue |
+| 9 | `in_transit` | Customer/System | Pickup review is closed. The driver then records arrival at the drop-off. A 15-minute no-show timer can start there. It does not cancel or charge by itself |
+| 10 | `delivered` | Driver | Drop-off arrival and drop-off photo are both recorded |
 | 11 | `completed` | Customer/System | Customer confirmed or 24h auto-complete; payment captured |
 | — | `cancelled` | Any | With cancellation reason and fee outcome |
 | — | `disputed` | System | A high/critical report is open; payout held |
@@ -287,7 +287,7 @@ Rate limits: 5 sign-in codes per number per hour, 10 per network per hour, 10 ne
 ### 7.1 Pricing methods
 | Method | Customer enters | Stored as | Who responds |
 |---|---|---|---|
-| Get a quote | Nothing | `pricing_method = 'quote'` and no customer amount | Hidden from drivers until an admin sends a price and the customer accepts it. A driver then claims it |
+| Get a quote | Nothing | `pricing_method = 'quote'` and no customer amount | Drivers see the posted request and send a quote. The customer chooses one. An admin can still send a price, which a driver claims after the customer accepts it |
 | Name your price | One amount, min $35, or $50 for junk removal | `'fixed'`, `offer_cents` | Drivers accept or counter. The original `offer_cents` stays. The customer chooses the offer |
 | Set a budget range | Min (≥ $35, or ≥ $50 for junk removal) and max (> min) | `'range'`, `budget_min_cents`, `budget_max_cents` | Drivers offer within the range or counter outside it (`outside_range`). The original range stays. The customer chooses the offer |
 

@@ -270,7 +270,7 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
     await expect(page.locator(`a[href="/driver/jobs/${junkJobId}"]`)).toBeVisible();
     await page.goto(`/driver/jobs/${junkJobId}`);
     await expect(page.getByText("Payment secured — you can start the trip.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Start trip to pickup" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start trip", exact: true })).toBeVisible();
     await expect(page.locator("a[href^='tel:']")).toHaveCount(0);
     await expect(page.getByText(street)).toBeVisible();
 

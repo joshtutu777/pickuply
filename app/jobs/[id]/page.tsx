@@ -139,26 +139,14 @@ async function JobEntry({
           />
         ) : null}
       </JobStatus>
-      {query.saved === "1" ? (
-        <p className="mx-auto mt-4 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
-      ) : null}
-      {detailRequest && detailRequest.items.length > 0 ? (
-        <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
-      ) : null}
-      <div className="mx-auto w-full max-w-xl px-4">
-        <div id="messages">
-          <JobMessages jobId={id} />
+      {session?.role === "customer" && (job.status === "item_check" || job.status === "delivered") ? (
+        <div className="mx-auto w-full max-w-xl px-4">
+          <ProofGallery jobId={id} />
         </div>
-        <ProofGallery jobId={id} />
-        {contextualReport && session?.role === "customer" ? <ReportForm jobId={id} /> : null}
-        <p className="mt-4">
-          <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Help
-          </Link>
-        </p>
-      </div>
-      {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
-      {session?.role === "customer" && job.status === "item_check" ? <ItemDecision jobId={id} /> : null}
+      ) : null}
+      {session?.role === "customer" && job.status === "item_check" ? (
+        <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} />
+      ) : null}
       {session?.role === "customer" && job.customer_confirmed_at ? (
         <section className="mx-auto mt-4 w-full max-w-xl px-4">
           <p className="rounded-3xl bg-paper-raised p-4 text-lg font-semibold text-ink ring-1 ring-line">
@@ -169,6 +157,25 @@ async function JobEntry({
       {session?.role === "customer" && job.status === "delivered" ? (
         <ConfirmDelivery jobId={id} confirmed={job.customer_confirmed_at != null} />
       ) : null}
+      {query.saved === "1" ? (
+        <p className="mx-auto mt-4 w-full max-w-xl px-4 text-base text-ink">Your answers were sent.</p>
+      ) : null}
+      {detailRequest && detailRequest.items.length > 0 ? (
+        <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
+      ) : null}
+      <div className="mx-auto w-full max-w-xl px-4">
+        <div id="messages">
+          <JobMessages jobId={id} />
+        </div>
+        {job.status !== "item_check" && job.status !== "delivered" ? <ProofGallery jobId={id} /> : null}
+        {contextualReport && session?.role === "customer" ? <ReportForm jobId={id} /> : null}
+        <p className="mt-4">
+          <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Help
+          </Link>
+        </p>
+      </div>
+      {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
       {session && job.status === "completed" ? (
         <ReviewPanel
           jobId={id}

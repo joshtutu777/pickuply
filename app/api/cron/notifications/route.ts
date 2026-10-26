@@ -13,6 +13,8 @@ export async function GET(request: Request) {
 
   return runCron("notifications", async () => {
     const supabase = createServiceClient();
+    const pickupReviews = await supabase.rpc("close_expired_pickup_reviews");
+    if (pickupReviews.error) throw new Error("Expired pickup reviews could not be closed.");
     const { error } = await supabase.rpc("scan_notification_reminders");
     if (error) throw new Error("Notification reminders could not be scanned.");
     const expired = await supabase.rpc("expire_due_suspensions");
