@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acceptImage, blogDateLabel, parseArticleFields, parseBlocks, parseInline, slugifyTitle } from "./content";
+import { acceptImage, articleStatus, blogDateLabel, droppedImagePaths, keptSlugs, parseArticleFields, parseBlocks, parseInline, referencedImagePaths, slugifyTitle } from "./content";
 
 test("a title becomes a readable slug", () => {
   assert.equal(slugifyTitle("Facebook Marketplace Finds!"), "facebook-marketplace-finds");
@@ -42,6 +42,24 @@ test("image bytes must match a photo format and stay under the limit", () => {
   assert.equal(acceptImage(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0])).ok, true);
   assert.equal(acceptImage(Uint8Array.from([0x3c, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74])).ok, false);
   assert.equal(acceptImage(new Uint8Array(1_500_001)).ok, false);
+});
+
+test("a title change keeps the published address unless the slug is edited", () => {
+  assert.deepEqual(keptSlugs(["older"], "sofa-guide", "sofa-guide", true), ["older"]);
+  assert.deepEqual(keptSlugs([], "sofa-guide", "new-sofa-guide", true), ["sofa-guide"]);
+  assert.deepEqual(keptSlugs([], "draft-title", "draft-title-2", false), []);
+});
+
+test("replacing a cover drops only the old file", () => {
+  const before = referencedImagePaths("post/old.png", []);
+  const after = referencedImagePaths("post/new.png", []);
+  assert.deepEqual(droppedImagePaths(before, after), ["post/old.png"]);
+});
+
+test("saving a published article does not turn it into a draft", () => {
+  assert.equal(articleStatus("save", "published"), "published");
+  assert.equal(articleStatus("draft", "published"), "draft");
+  assert.equal(articleStatus("publish", "draft"), "published");
 });
 
 test("a missing publication date is not invented", () => {
