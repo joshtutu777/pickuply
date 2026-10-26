@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { driverJobHref, groupDriverJobs, type DriverJobListItem } from "./job-groups";
+import { driverJobCounts, driverJobHref, groupDriverJobs, type DriverJobListItem } from "./job-groups";
 
 function job(partial: Partial<DriverJobListItem> & Pick<DriverJobListItem, "id" | "status">): DriverJobListItem {
   return {
@@ -27,4 +27,12 @@ test("driver job lists keep active work reachable and retired jobs closed", () =
   assert.deepEqual(groups.closed.map((item) => item.id), ["d", "e"]);
   assert.equal(driverJobHref(groups.closed[1]), null);
   assert.equal(driverJobHref(groups.active[0]), "/driver/jobs/b");
+  assert.deepEqual(driverJobCounts(groups, 3), {
+    available: 3,
+    mine: 2,
+    active: 1,
+    awaiting: 1,
+    completed: 1,
+    closed: 2,
+  });
 });

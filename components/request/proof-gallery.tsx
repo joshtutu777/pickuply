@@ -1,3 +1,4 @@
+import { PhotoThumb } from "@/components/ui/photo-thumb";
 import { createClient } from "@/lib/supabase/server";
 
 type ProofPhoto = {
@@ -40,9 +41,7 @@ export async function DropoffProof({ jobId }: { jobId: string }) {
     <ul className="grid gap-3">
       {photos.map((photo) => (
         <li key={photo.id}>
-          {/* Signed URL. It expires and is not a public file address. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.url} alt="Drop-off proof" className="h-24 w-24 rounded-2xl object-cover" />
+              <PhotoThumb src={photo.url} alt="Drop-off proof" />
         </li>
       ))}
     </ul>
@@ -56,9 +55,7 @@ export async function PickupProof({ jobId }: { jobId: string }) {
     <ul className="mt-3 flex gap-2">
       {photos.map((photo) => (
         <li key={photo.id}>
-          {/* Signed URL. It expires and is not a public file address. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt="Pickup proof" className="h-24 w-24 rounded-2xl object-cover" />
+          <PhotoThumb src={photo.url} alt="Pickup proof" />
         </li>
       ))}
     </ul>
@@ -78,9 +75,7 @@ export async function ProofGallery({ jobId }: { jobId: string }) {
             {photo.media_kind === "video" ? (
               <video src={photo.url} controls className="mt-2 w-full rounded-2xl" />
             ) : (
-              // Signed URL. It expires and is not a public file address.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo.url} alt="" className="mt-2 aspect-square w-full rounded-2xl object-cover" />
+              <PhotoThumb src={photo.url} alt={`${photo.stage.replaceAll("_", " ")} proof`} />
             )}
             {photo.note ? <p className="mt-2 text-base text-ink">{photo.note}</p> : null}
             <p className="mt-1 text-sm text-muted">{new Date(photo.captured_at).toLocaleString()}</p>

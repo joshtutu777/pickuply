@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { BackLink } from "@/components/back-link";
-import { DetailsFold } from "@/components/details-fold";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
 import { PayPanel } from "@/components/request/pay-panel";
 import { DropoffReview, ItemDecision } from "@/components/request/item-decision";
@@ -21,6 +20,7 @@ import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
 import { measureTrip } from "@/lib/maps/route";
 import { getQuoteNotice } from "@/lib/data/quote";
+import { formatUsDay } from "@/lib/time/when";
 import { buildJobTracker } from "@/lib/jobs/tracker";
 import { createClient } from "@/lib/supabase/server";
 
@@ -123,6 +123,61 @@ async function JobEntry({
           })),
         })}
         driver={driver}
+        offers={
+          session?.role === "customer" &&
+          ["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(job.status) ? (
+            <p className="text-base text-ink">
+              {driver ? `${driver.firstName} is booked.` : "A driver is booked."} New offers are closed.
+            </p>
+          ) : session?.role === "customer" ? (
+            <OfferChoices jobId={id} offers={offers} />
+          ) : (
+            <p className="text-base text-muted">No offers to review.</p>
+          )
+        }
+        support={
+          <>
+            <div id="messages">
+              <JobMessages jobId={id} />
+            </div>
+            {job.status !== "item_check" && job.status !== "delivered" ? <ProofGallery jobId={id} /> : null}
+            <p className="mt-2">
+              <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
+                Help
+              </Link>
+            </p>
+          </>
+        }
+        footer={
+          <>
+            {session && job.status === "completed" ? (
+              <ReviewPanel
+                jobId={id}
+                userId={session.userId}
+                nextPath={`/jobs/${id}`}
+                skipHref="/account"
+                canModerate={session.role === "admin"}
+              />
+            ) : null}
+            {session?.role === "customer" && job.price_cents != null && job.status !== "requested" ? (
+              <JobReceipt
+                jobId={id}
+                service={job.service}
+                when={formatUsDay(job.updated_at.slice(0, 10))}
+                driverFirstName={driver?.firstName ?? null}
+                driverSubtotalCents={
+                  job.driver_pay_cents == null ? null : job.driver_pay_cents + (job.platform_fee_cents ?? 0)
+                }
+                serviceFeeCents={job.service_fee_cents}
+                totalCents={job.price_cents}
+                tripFeeCents={job.trip_fee_cents}
+                refundedCents={job.refunded_cents ?? 0}
+                paymentStatus={job.payment_status}
+                canCancel={job.status === "assigned"}
+              />
+            ) : null}
+          </>
+        }
         review={
           session?.role === "customer" && job.status === "delivered" ? (
             <DropoffReview jobId={id} confirmed={job.customer_confirmed_at != null} />
@@ -158,50 +213,6 @@ async function JobEntry({
       ) : null}
       {detailRequest && detailRequest.items.length > 0 ? (
         <DetailReply jobId={id} items={detailRequest.items} note={detailRequest.note} />
-      ) : null}
-      <div className="mx-auto w-full max-w-xl px-4 pb-4">
-        {session?.role === "customer" ? <OfferChoices jobId={id} offers={offers} /> : null}
-        <DetailsFold title="Messages">
-          <div id="messages">
-            <JobMessages jobId={id} />
-          </div>
-        </DetailsFold>
-        {job.status !== "item_check" && job.status !== "delivered" ? (
-          <DetailsFold title="Proof photos">
-            <ProofGallery jobId={id} />
-          </DetailsFold>
-        ) : null}
-        <p className="mt-2">
-          <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Help
-          </Link>
-        </p>
-      </div>
-      {session && job.status === "completed" ? (
-        <ReviewPanel
-          jobId={id}
-          userId={session.userId}
-          nextPath={`/jobs/${id}`}
-          skipHref="/account"
-          canModerate={session.role === "admin"}
-        />
-      ) : null}
-      {session?.role === "customer" && job.price_cents != null && job.status !== "requested" ? (
-        <JobReceipt
-          jobId={id}
-          service={job.service}
-          when={job.updated_at.slice(0, 10)}
-          driverFirstName={driver?.firstName ?? null}
-          driverSubtotalCents={
-            job.driver_pay_cents == null ? null : job.driver_pay_cents + (job.platform_fee_cents ?? 0)
-          }
-          serviceFeeCents={job.service_fee_cents}
-          totalCents={job.price_cents}
-          tripFeeCents={job.trip_fee_cents}
-          refundedCents={job.refunded_cents ?? 0}
-          paymentStatus={job.payment_status}
-          canCancel={job.status === "assigned"}
-        />
       ) : null}
     </>
   );
