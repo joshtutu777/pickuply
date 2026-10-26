@@ -72,9 +72,10 @@ test("a delivered job opens on Drop-off Review", async ({ page }) => {
     await expect(review).toBeVisible();
     const statusBox = await status.boundingBox();
     const reviewBox = await review.boundingBox();
-    const detailsBox = await page.locator("summary", { hasText: "Job details" }).boundingBox();
+    const tabs = page.getByRole("tab", { name: "Details" });
+    const tabsBox = await tabs.boundingBox();
     expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y < 700).toBe(true);
-    expect(reviewBox && detailsBox && reviewBox.y < detailsBox.y).toBe(true);
+    expect(reviewBox && tabsBox && reviewBox.y < tabsBox.y).toBe(true);
     await expect(page.getByRole("button", { name: "Confirm Delivery" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Report a Problem" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Pickup review" })).toHaveCount(0);

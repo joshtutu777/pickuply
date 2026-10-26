@@ -3,6 +3,10 @@ import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { DetailsFold } from "@/components/details-fold";
+import { ScreenTabs } from "@/components/ui/screen-tabs";
+import { PhotoThumb } from "@/components/ui/photo-thumb";
+import { deliveryStages } from "@/lib/jobs/delivery-timeline";
+import { formatUsDay, formatUsWhen } from "@/lib/time/when";
 import { QuoteViewed } from "@/components/request/quote-viewed";
 import { AreaMap } from "@/components/maps/area-map";
 import { RouteSketch } from "@/components/mobile/route-sketch";
@@ -25,7 +29,7 @@ import type { QuoteNotice } from "@/lib/data/quote";
 import type { JobDetail } from "@/lib/data/job-queries";
 import { shortJobId } from "@/lib/jobs/next-action";
 import { quoteRequestCopy } from "@/lib/jobs/quote-status";
-import { customerProgress, customerStageLine, type JobTracker } from "@/lib/jobs/tracker";
+import { customerProgress, customerStageLine, customerStatusDetail, type JobTracker } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
 
 const statusLabels: Record<string, string> = {
@@ -57,6 +61,9 @@ export function JobStatus({
   driver,
   routeLine,
   review,
+  offers,
+  support,
+  footer,
   children,
 }: {
   job: JobDetail;
@@ -67,10 +74,16 @@ export function JobStatus({
   driver?: DriverCard | null;
   routeLine?: [number, number][];
   review?: ReactNode;
+  offers?: ReactNode;
+  support?: ReactNode;
+  footer?: ReactNode;
   children?: ReactNode;
 }) {
   const service = serviceById(job.service as ServiceId);
   const pricing = pricingMethods.find((method) => method.id === job.pricing_method);
+  const booked = ["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered", "completed", "disputed"].includes(
+    job.status,
+  );
   const stage = customerStageLine({
     status: job.status,
     paymentStatus: job.payment_status,
@@ -84,20 +97,47 @@ export function JobStatus({
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Your request</p>
         <p className="text-sm font-semibold text-muted">#{shortJobId(job.id)}</p>
       </div>
-      <div className="mt-3">
+      <p className="mt-1 text-lg font-semibold text-ink">{service.name}</p>
+      <div className="mt-2">
         <StatusPill status={job.status} />
       </div>
-      <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink">
+      <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
         {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
       </h1>
-      {stage && job.status !== "completed" ? <p className="mt-2 text-xl font-semibold text-ink">{stage}</p> : null}
-      {review}
-      <p className="mt-2 text-lg text-ink">{service.name}</p>
-      {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
-      <p className="text-base text-ink">
+      <p className="mt-1 text-base text-ink">
         {job.pickup_area}
-        {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
+        {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
       </p>
+      {job.price_cents != null ? <p className="mt-1 font-semibold text-ink">Total {formatCents(job.price_cents)}</p> : null}
+      {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
+        <p className="text-sm text-ink">Card processing fee {formatCents(job.service_fee_cents)}</p>
+      ) : null}
+      {driver ? (
+        <p className="text-base text-ink">
+          Driver: {driver.firstName}{" "}
+          <a href="#messages" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Chat
+          </a>
+        </p>
+      ) : null}
+      {stage && job.status !== "completed" ? <p className="mt-1 text-base font-semibold text-ink">{stage}</p> : null}
+      {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
+        <p className="mt-1 text-base text-ink">
+          {customerStatusDetail({
+            status: job.status,
+            paymentStatus: job.payment_status,
+            service: job.service,
+            pricingMethod: job.pricing_method,
+            dropoffArrived: job.dropoff_arrived_at != null,
+          })}
+        </p>
+      ) : null}
+      {job.status === "completed" ? (
+        <p className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-4 text-base font-semibold text-white">
+          Delivery complete
+        </p>
+      ) : null}
+      {review}
       {children}
       {error ? (
         <p role="alert" className="mt-3 text-base text-danger">
@@ -141,6 +181,83 @@ export function JobStatus({
           </form>
         </section>
       ) : null}
+      {!booked && (job.status === "open" || job.status === "quoted") ? (
+        <a href="#job-offers" className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-4 font-semibold text-white">
+          View offers
+        </a>
+      ) : null}
+      <ScreenTabs
+        label="Job sections"
+        initial={booked ? "progress" : "offers"}
+        hashMap={{ "job-offers": "offers", messages: "details" }}
+        tabs={[
+          {
+            id: "progress",
+            label: "Progress",
+            panel: (
+              <div className="grid gap-2">
+                {job.status === "disputed" ? (
+                  <p className="text-base text-ink">Delivery paused while Pickuply reviews your report.</p>
+                ) : null}
+                <ol className="grid gap-1">
+                  {deliveryStages(job.status, job.dropoff_arrived_at != null).map((step) => (
+                    <li
+                      key={step.label}
+                      className={`flex min-h-10 items-center gap-2 text-base ${
+                        step.state === "current" ? "font-semibold text-ink" : step.state === "done" ? "text-ink" : "text-muted"
+                      }`}
+                    >
+                      <span aria-hidden="true">{step.state === "done" ? "✓" : step.state === "current" ? "●" : "○"}</span>
+                      <span>
+                        {step.label}
+                        {step.state === "current" ? <span className="sr-only">, current step</span> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <DetailsFold title="Map">
+                  {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
+                    <AreaMap
+                      caption={
+                        job.private.pickup_verified === false || job.private.dropoff_verified === false
+                          ? "Address not verified"
+                          : "Route"
+                      }
+                      pins={[
+                        { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
+                        ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                          ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
+                          : []),
+                      ]}
+                      line={
+                        routeLine && routeLine.length > 1
+                          ? routeLine
+                          : job.private.dropoff_lat != null && job.private.dropoff_lng != null
+                            ? [
+                                [job.private.pickup_lng, job.private.pickup_lat],
+                                [job.private.dropoff_lng, job.private.dropoff_lat],
+                              ]
+                            : []
+                      }
+                    />
+                  ) : (
+                    <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
+                  )}
+                  <p>Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
+                </DetailsFold>
+              </div>
+            ),
+          },
+          {
+            id: "offers",
+            label: "Offers",
+            panel: offers ?? <p className="text-base text-muted">No offers to review.</p>,
+          },
+          {
+            id: "details",
+            label: "Details",
+            panel: (
+              <div>
       <DetailsFold title="Job details">
         <h2 className="text-lg font-semibold text-ink">Request</h2>
         <p>{job.description}</p>
@@ -179,62 +296,42 @@ export function JobStatus({
             ? "ASAP"
             : job.preferred_date === "today"
               ? "Today"
-              : job.preferred_date}
+              : formatUsDay(job.preferred_date)}
           {job.time_window ? ` · ${labelOf(timeWindows, job.time_window)}` : ""}
         </p>
         {job.needs_value_approval ? <p>{valueApprovalWarning}</p> : null}
-        {job.private ? (
-          <>
-            <h2 className="mt-2 text-lg font-semibold text-ink">Private details</h2>
-            <p>{job.private.customer_name}</p>
-            <p>{job.private.customer_phone}</p>
-            {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
-            <p>Pickup: {job.private.pickup_address}</p>
-            {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
-            {job.private.access_notes ? <p>{job.private.access_notes}</p> : null}
-          </>
-        ) : null}
         {job.photos.length > 0 ? (
           <ul className="mt-2 flex gap-2">
             {job.photos.map((photo) => (
               <li key={photo.id}>
-                {/* Signed URL. It expires and is not a public file address. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo.url} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+                <PhotoThumb src={photo.url} alt="Request photo" />
               </li>
             ))}
           </ul>
         ) : null}
       </DetailsFold>
-      <DetailsFold title="Route and history">
-        {job.private?.pickup_lat != null && job.private.pickup_lng != null ? (
-          <AreaMap
-            caption={
-              job.private.pickup_verified === false || job.private.dropoff_verified === false
-                ? "Address not verified"
-                : "Route"
-            }
-            pins={[
-              { lat: job.private.pickup_lat, lng: job.private.pickup_lng, label: "Pickup" },
-              ...(job.private.dropoff_lat != null && job.private.dropoff_lng != null
-                ? [{ lat: job.private.dropoff_lat, lng: job.private.dropoff_lng, label: "Drop-off" }]
-                : []),
-            ]}
-            line={
-              routeLine && routeLine.length > 1
-                ? routeLine
-                : job.private.dropoff_lat != null && job.private.dropoff_lng != null
-                  ? [
-                      [job.private.pickup_lng, job.private.pickup_lat],
-                      [job.private.dropoff_lng, job.private.dropoff_lat],
-                    ]
-                  : []
-            }
-          />
-        ) : (
-          <RouteSketch from={job.pickup_area} to={job.dropoff_area} updated={tracker.lastUpdate} />
-        )}
-        <p>Trip: {tripLabel(job.distance_miles, job.distance_source)}</p>
+      {job.private ? (
+        <DetailsFold title="Pickup address" open={booked}>
+          <p>{job.private.customer_name}</p>
+          <p>{job.private.customer_phone}</p>
+          {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
+          <p>{job.private.pickup_address}</p>
+          {job.private.access_notes ? <p>Access: {job.private.access_notes}</p> : null}
+        </DetailsFold>
+      ) : null}
+      {job.private?.dropoff_address ? (
+        <DetailsFold title="Drop-off address" open={booked}>
+          <p>{job.private.dropoff_address}</p>
+        </DetailsFold>
+      ) : null}
+      <DetailsFold title="Status history">
+        <ul className="grid gap-1">
+          {job.events.map((event) => (
+            <li key={event.id}>
+              {event.to_status ? statusLabel(event.to_status) : event.type} · {formatUsWhen(event.created_at)}
+            </li>
+          ))}
+        </ul>
         <JobTrackerView
           tracker={tracker}
           driver={driver}
@@ -253,6 +350,15 @@ export function JobStatus({
           })}
         />
       </DetailsFold>
+      <DetailsFold title="Support" open={booked}>
+        {support}
+      </DetailsFold>
+              </div>
+            ),
+          },
+        ]}
+      />
+      {footer}
       <p className="mt-3">
         <Link href="/account" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Back to your requests

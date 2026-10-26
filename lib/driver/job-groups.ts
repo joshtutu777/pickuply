@@ -7,6 +7,9 @@ export type DriverJobListItem = {
   status: string;
   paymentStatus: string | null;
   pickupArea: string;
+  dropoffArea?: string | null;
+  driverPayCents?: number | null;
+  platformFeeCents?: number | null;
   retired: boolean;
 };
 
@@ -33,4 +36,15 @@ export function groupDriverJobs(jobs: DriverJobListItem[]): DriverJobGroups {
 
 export function driverJobHref(job: DriverJobListItem): string | null {
   return job.retired ? null : `/driver/jobs/${job.id}`;
+}
+
+export function driverJobCounts(groups: DriverJobGroups, available: number) {
+  return {
+    available,
+    mine: groups.mine.length,
+    active: groups.active.length,
+    awaiting: groups.awaiting.length,
+    completed: groups.completed.length,
+    closed: groups.closed.length,
+  };
 }

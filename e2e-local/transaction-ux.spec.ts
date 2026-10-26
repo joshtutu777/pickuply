@@ -77,11 +77,13 @@ test("compact transaction screens keep the next step in view", async ({ page }) 
       const confirmBox = await confirm.boundingBox();
       expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y - statusBox.y < 180).toBe(true);
       expect(confirmBox && confirmBox.y + confirmBox.height < 740).toBe(true);
+      await page.getByRole("tab", { name: "Details" }).click();
       const details = page.locator("summary", { hasText: "Job details" });
       await details.click();
       await expect(page.getByRole("heading", { name: "Request" })).toBeVisible();
       await details.click();
       await expect(page.getByRole("heading", { name: "Request" })).toBeHidden();
+      await page.screenshot({ path: `test-results/ux-redesign/customer-${width}.png` });
     }
 
     await page.getByRole("button", { name: "Sign out" }).click();
@@ -94,6 +96,7 @@ test("compact transaction screens keep the next step in view", async ({ page }) 
       await page.goto("/driver/jobs");
       const scrollTop = await page.locator("[data-app-scroll]").evaluate((node) => node.scrollTop);
       expect(scrollTop).toBe(0);
+      await page.screenshot({ path: `test-results/ux-redesign/driver-jobs-${width}.png` });
     }
 
     await page.setViewportSize({ width: 390, height: 740 });

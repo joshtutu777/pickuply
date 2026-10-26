@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-export function DetailsFold({ title, children }: { title: string; children: ReactNode }) {
+export function DetailsFold({ title, children, open = false }: { title: string; children: ReactNode; open?: boolean }) {
   return (
-    <details className="mt-3 rounded-3xl bg-paper-raised ring-1 ring-line">
+    <details open={open} className="mt-3 rounded-3xl bg-paper-raised ring-1 ring-line">
       <summary className="flex min-h-12 cursor-pointer items-center px-4 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
         {title}
       </summary>

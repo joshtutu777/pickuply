@@ -18,6 +18,10 @@ export type JobSummary = {
   time_window: string | null;
   payment_status: string | null;
   dump_fee_cents: number | null;
+  price_cents: number | null;
+  service_fee_cents: number | null;
+  assigned_driver_id: string | null;
+  test_retired_at: string | null;
   activeOffers: number;
   newOffers: number;
 };
@@ -101,7 +105,7 @@ export async function listOwnJobs(): Promise<{ jobs: JobSummary[]; error: boolea
       supabase
         .from("jobs")
         .select(
-          "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents",
+          "id, service, status, created_at, updated_at, pricing_method, pickup_area, dropoff_area, description, preferred_date, time_window, payment_status, dump_fee_cents, price_cents, service_fee_cents, assigned_driver_id, test_retired_at",
         )
         .eq("customer_id", auth.user.id)
         .order("created_at", { ascending: false }),

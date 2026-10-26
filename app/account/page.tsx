@@ -92,7 +92,7 @@ async function AccountContent({
             <section className="mt-8">
               <h2 className="text-lg font-semibold text-ink">Current request</h2>
               <div className="mt-3">
-                <CustomerJobCard job={current} featured />
+                <CustomerJobCard job={current} />
               </div>
             </section>
           ) : null}
