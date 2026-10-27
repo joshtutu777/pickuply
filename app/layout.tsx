@@ -2,11 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
+import { AnalyticsRoot } from "@/components/analytics/analytics-root";
 import { HeaderSession } from "@/components/header-session";
 import { ScrollRestore } from "@/components/scroll-restore";
 import { UpdateBanner } from "@/components/pwa/update-banner";
 import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
+import { FooterSession } from "@/components/footer-session";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -59,6 +61,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-paper font-sans text-ink">
+        <Suspense fallback={null}>
+          <AnalyticsRoot />
+        </Suspense>
         <UpdateBanner />
         <Script id="landing-flag" strategy="beforeInteractive">
           {`if(location.pathname==='/')document.documentElement.dataset.landing='1'`}
@@ -75,7 +80,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
           <Suspense fallback={<SiteFooter />}>
             <MarketingSlot>
-              <SiteFooter />
+              <FooterSession />
             </MarketingSlot>
           </Suspense>
         </div>

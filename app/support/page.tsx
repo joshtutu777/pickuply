@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { MessagePanel, type ChatMessage } from "@/components/messages/message-panel";
 import { LoadingMain } from "@/components/loading-main";
-import { requireSignedIn } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import { getOptionalSession, requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Support" };
@@ -18,6 +19,8 @@ export default function SupportPage() {
 }
 
 async function Support() {
+  const visitor = await getOptionalSession();
+  if (!visitor) redirect("/contact");
   await requireSignedIn("/support");
   const supabase = await createClient();
   const { data: threadId, error } = await supabase.rpc("open_support_thread");

@@ -40,7 +40,7 @@ const statusLabels: Record<string, string> = {
   assigned: "Driver assigned",
   en_route: "Driver on the way",
   arrived: "Driver arrived",
-  item_check: "Item check",
+  item_check: "Item loaded",
   in_transit: "On the way",
   delivered: "Delivered",
   completed: "Completed",
@@ -89,6 +89,7 @@ export function JobStatus({
     paymentStatus: job.payment_status,
     driverName: driver?.firstName ?? null,
     dropoffArrived: job.dropoff_arrived_at != null,
+    service: job.service,
   });
 
   return (
@@ -102,7 +103,13 @@ export function JobStatus({
         <StatusPill status={job.status} />
       </div>
       <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
-        {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
+        {job.status === "completed"
+          ? job.service === "junk"
+            ? "Removal complete"
+            : "Delivery complete"
+          : job.status === "delivered"
+            ? "Awaiting confirmation"
+            : statusLabel(job.status)}
       </h1>
       <p className="mt-1 text-base text-ink">
         {job.pickup_area}
@@ -200,7 +207,7 @@ export function JobStatus({
                   <p className="text-base text-ink">Delivery paused while Pickuply reviews your report.</p>
                 ) : null}
                 <ol className="grid gap-1">
-                  {deliveryStages(job.status, job.dropoff_arrived_at != null).map((step) => (
+                  {deliveryStages(job.status, job.dropoff_arrived_at != null, job.service).map((step) => (
                     <li
                       key={step.label}
                       className={`flex min-h-10 items-center gap-2 text-base ${

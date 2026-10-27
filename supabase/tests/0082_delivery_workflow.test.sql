@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(28);
+select plan(29);
 
 do $$
 declare
@@ -123,12 +123,12 @@ select lives_ok(
 );
 select lives_ok(
   $$select public.advance_job('c1820000-0000-4000-8000-000000000011', 'item_check')$$,
-  'the loaded item starts the pickup review'
+  'the loaded item is recorded without a customer wait'
 );
-select ok(
-  (select pickup_review_until between now() + interval '9 minutes' and now() + interval '11 minutes'
-   from public.jobs where id = 'c1820000-0000-4000-8000-000000000011'),
-  'the pickup review lasts 10 minutes'
+select is(
+  (select pickup_review_until is null from public.jobs where id = 'c1820000-0000-4000-8000-000000000011'),
+  true,
+  'item loaded does not start a 10-minute customer review'
 );
 reset role;
 select set_config('request.jwt.claims', '{}', true);
@@ -136,8 +136,8 @@ select set_config('request.jwt.claim.sub', '', true);
 select is(
   (select body from public.notifications
    where job_id = 'c1820000-0000-4000-8000-000000000011' and kind = 'item_check'),
-  'Your item is picked up. Something wrong? Tell us within 10 minutes.',
-  'the customer is told about the 10-minute review'
+  'Your item is loaded. The driver can continue to the drop-off.',
+  'the customer is told the driver can continue'
 );
 select pg_temp.as_user('c1820000-0000-4000-8000-000000000002');
 set local role authenticated;
@@ -145,7 +145,7 @@ set local role authenticated;
 select throws_ok(
   $$select public.advance_job('c1820000-0000-4000-8000-000000000011', 'delivered')$$,
   'that step is not available',
-  'the driver cannot skip the pickup review'
+  'the driver cannot mark delivered before the drop-off'
 );
 
 reset role;
@@ -160,14 +160,24 @@ select throws_ok(
 reset role;
 select pg_temp.as_user('c1820000-0000-4000-8000-000000000001');
 set local role authenticated;
-select lives_ok(
+select throws_ok(
   $$select public.approve_pickup('c1820000-0000-4000-8000-000000000011')$$,
-  'the customer accepts the pickup'
+  'the driver continues without a pickup approval',
+  'a new pickup does not wait for customer approval'
+);
+
+reset role;
+select pg_temp.as_user('c1820000-0000-4000-8000-000000000002');
+set local role authenticated;
+select lives_ok(
+  $$select public.advance_job('c1820000-0000-4000-8000-000000000011', 'in_transit')$$,
+  'the driver proceeds to the drop-off without a customer approval'
 );
 select is(
-  (select status::text || '|' || pickup_review_result from public.jobs where id = 'c1820000-0000-4000-8000-000000000011'),
-  'in_transit|accepted',
-  'acceptance closes the review and lets the delivery continue'
+  (select status::text || '|' || coalesce(pickup_review_result, 'none')
+   from public.jobs where id = 'c1820000-0000-4000-8000-000000000011'),
+  'in_transit|none',
+  'continuing does not record a customer approval'
 );
 
 reset role;

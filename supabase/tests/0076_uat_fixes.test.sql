@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(32);
+select plan(38);
 
 do $$
 declare
@@ -297,22 +297,45 @@ select is(
 );
 reset role;
 
+select is(public.booking_date_allowed(to_char((timezone('America/New_York', now()))::date, 'YYYY-MM-DD')), true, 'today is inside the booking window');
+select is(public.booking_date_allowed(to_char((timezone('America/New_York', now()))::date + 6, 'YYYY-MM-DD')), true, 'the sixth day is inside the booking window');
+select is(public.booking_date_allowed(to_char((timezone('America/New_York', now()))::date - 1, 'YYYY-MM-DD')), false, 'yesterday is outside the booking window');
+select is(public.booking_date_allowed(to_char((timezone('America/New_York', now()))::date + 7, 'YYYY-MM-DD')), false, 'the seventh day is outside the booking window');
+select throws_ok(
+  format(
+    $q$update public.jobs set preferred_date = %L where id = 'c1760000-0000-4000-8000-000000000022'$q$,
+    to_char((timezone('America/New_York', now()))::date + 7, 'YYYY-MM-DD')
+  ),
+  'Choose a date within the next 6 days.',
+  'saving a date seven days out is rejected'
+);
+select lives_ok(
+  format(
+    $q$update public.jobs set preferred_date = %L where id = 'c1760000-0000-4000-8000-000000000022'$q$,
+    to_char((timezone('America/New_York', now()))::date + 6, 'YYYY-MM-DD')
+  ),
+  'saving a date six days out is allowed'
+);
+
 select pg_temp.as_user('c1760000-0000-4000-8000-000000000004');
 set local role authenticated;
 select lives_ok(
-  $$select public.review_request(
-    'c1760000-0000-4000-8000-000000000021',
-    'quote',
-    jsonb_build_object(
-      'service_level', 'light',
-      'required_vehicle', 'pickup',
-      'driver_pay_cents', 5000,
-      'dump_fee_cents', 0,
-      'time_window', 'morning',
-      'preferred_date', '2026-10-26',
-      'expires_hours', 24
-    )
-  )$$,
+  format(
+    $q$select public.review_request(
+      'c1760000-0000-4000-8000-000000000021',
+      'quote',
+      jsonb_build_object(
+        'service_level', 'light',
+        'required_vehicle', 'pickup',
+        'driver_pay_cents', 5000,
+        'dump_fee_cents', 0,
+        'time_window', 'morning',
+        'preferred_date', %L,
+        'expires_hours', 24
+      )
+    )$q$,
+    to_char((timezone('America/New_York', now()))::date, 'YYYY-MM-DD')
+  ),
   'an admin can send a quote price'
 );
 reset role;

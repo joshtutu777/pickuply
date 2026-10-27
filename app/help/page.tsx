@@ -128,8 +128,13 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
             Send request
           </button>
         </form>
+        <p className="mt-4">
+          <Link href="/contact" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Send a message
+          </Link>
+        </p>
         {driver ? (
-          <p className="mt-4">
+          <p className="mt-2">
             <Link href="/support" className="inline-flex min-h-12 items-center font-semibold text-brand">
               Pickuply Support
             </Link>

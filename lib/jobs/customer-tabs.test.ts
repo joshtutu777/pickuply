@@ -63,4 +63,6 @@ test("list copy does not claim drivers were notified", () => {
     "Confirm booking",
   );
   assert.equal(customerCardAction({ status: "en_route", paymentStatus: "authorized", activeOffers: 0 }), "Track Delivery");
+  assert.equal(customerCardAction({ status: "item_check", paymentStatus: "authorized", activeOffers: 0 }), "Track Delivery");
+  assert.equal(customerListStatus({ status: "item_check", pricingMethod: "fixed", activeOffers: 0 }), "Item loaded");
 });

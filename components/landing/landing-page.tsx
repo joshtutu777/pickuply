@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/analytics/cookie-settings-link";
 import { BetaBadge } from "@/components/beta-badge";
 import { InstallButton } from "@/components/pwa/install-button";
+import type { ReactNode } from "react";
 
 const services = [
   {
@@ -38,7 +40,7 @@ const services = [
   },
 ] as const;
 
-export function LandingPage() {
+export function LandingPage({ blog = null }: { blog?: ReactNode }) {
   return (
     <div className="bg-[#F4F1EB] text-[#14211B]">
       <header className="border-b border-[#E4DED2] bg-[#FFFDF8]">
@@ -57,6 +59,12 @@ export function LandingPage() {
             </Link>
             <Link href="#services" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               What we pick up
+            </Link>
+            <Link href="/contact" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
+              Contact
+            </Link>
+            <Link href="/blog" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
+              Blog
             </Link>
             <Link href="/drive" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               Drive with us
@@ -270,6 +278,7 @@ export function LandingPage() {
           </div>
         </section>
 
+        {blog}
         <section className="mx-auto max-w-[1160px] px-6 pt-[72px] pb-[88px]">
           <div className="flex flex-col items-center gap-[22px] rounded-[28px] bg-[#14211B] px-6 py-12 text-center text-[#FFFDF8] sm:px-10 sm:py-16">
             <h2 className="max-w-[760px] font-display text-[clamp(36px,6vw,48px)] leading-[1.1] font-semibold">
@@ -294,8 +303,10 @@ export function LandingPage() {
           <nav aria-label="Footer" className="flex flex-wrap items-start gap-x-5 gap-y-2">
             <Link href="/terms" className="py-2 font-medium text-[#14211B]">Terms</Link>
             <Link href="/privacy" className="py-2 font-medium text-[#14211B]">Privacy</Link>
+            <Link href="/blog" className="py-2 font-medium text-[#14211B]">Blog</Link>
+            <Link href="/contact" className="py-2 font-medium text-[#14211B]">Contact</Link>
             <Link href="/help" className="py-2 font-medium text-[#14211B]">Help</Link>
-            <a href="mailto:info@pickuplyapp.com" className="py-2 font-medium text-[#14211B]">Contact</a>
+            <CookieSettingsLink className="inline-flex min-h-12 items-center py-2 font-medium text-[#14211B]" />
           </nav>
         </div>
       </footer>

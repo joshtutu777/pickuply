@@ -114,7 +114,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 ### 4.4 Job status page
 - Timeline of statuses (see §6) with timestamps.
 - Once assigned: driver first name, photo, vehicle, rating, number of jobs.
-- **Item check:** pickup photos/video appear → customer taps Approve or Reject.
+- **Item loaded:** the pickup photo is saved and the driver continues. The customer does not have to approve it first. After the driver marks the job delivered, or junk removed, the customer confirms or reports an issue.
 - Driver's last shared location and status updates.
 - In-app **messages** with the assigned driver (phone numbers never shown).
 - **Report a problem** (during job and 7 days after).
@@ -227,14 +227,31 @@ Job cards show structured fields only: service, size, pieces, approximate pickup
 - Driver and customer both get assignment confirmation.
 
 ### 5.6 Active job steps
-1. **On the way** (shares location while app is open)
-2. **Arrived**
-3. **Item check:** pickup photos (all sides, existing damage) → customer Approve/Reject (delivery jobs). Optional pickup confirmation code from the seller
-4. **Loaded / In transit**
-5. **Delivered:** drop-off photos; junk jobs also upload a **dump receipt**
-6. Waiting for customer confirmation → **Completed**
 
-If the customer rejects the item: job ends, $25 trip fee captured, driver paid the trip fee share.
+A regular pickup and delivery:
+
+1. **Start trip**
+2. **Arrived at pickup**
+3. Pickup photo required
+4. **Item loaded.** The driver does not wait for the customer
+5. **Proceed to drop-off**
+6. **Arrived at drop-off**
+7. Drop-off photo required
+8. **Delivered**
+9. The customer sees “Does everything look good?” and chooses **Confirm** or **Report an Issue**
+10. Confirm runs the existing capture. A dispute blocks capture. The 24-hour auto-complete clock starts when the job is marked delivered
+
+Junk removal does not use a customer drop-off:
+
+1. **Start trip**
+2. **Arrived at the removal location**
+3. Completion photo of the area after the junk is removed
+4. **Junk removed**
+5. The same customer confirmation, capture, and dispute rules. The 24-hour clock starts when the junk is marked removed
+
+A junk job that already requires a disposal receipt still needs that receipt before Junk removed. It does not need a drop-off address, a drop-off arrival, or a second drop-off photo.
+
+If the customer rejects the item at pickup: the job ends, the $25 trip fee is captured, and the driver is paid the trip fee share. That reject does not stop the driver from continuing unless the customer sends it.
 
 ### 5.7 Earnings
 Completed jobs, pending payouts, paid payouts, totals by week.
@@ -255,9 +272,9 @@ Customers do not start a chat with admin. They use `/help`. Answers come from th
 | 5 | `assigned` | Customer/Driver/Admin | Customer chose an offer, a driver claimed an open quote job, or admin assigned. Payment status becomes `awaiting_payment`. Quote acceptance only publishes the job (`open`) |
 | 6 | `en_route` | Driver | On the way to pickup. Blocked unless payment is `authorized` or `paid` |
 | 7 | `arrived` | Driver | At pickup |
-| 8 | `item_check` | Driver | Pickup photo saved. Customer has 10 minutes to say it looks good or report a problem. A timeout lets the delivery continue |
-| 9 | `in_transit` | Customer/System | Pickup review is closed. The driver then records arrival at the drop-off. A 15-minute no-show timer can start there. It does not cancel or charge by itself |
-| 10 | `delivered` | Driver | Drop-off arrival and drop-off photo are both recorded |
+| 8 | `item_check` | Driver | Pickup photo saved and the item is loaded. The customer does not approve this step. The driver continues to the drop-off. New junk jobs skip this status |
+| 9 | `in_transit` | Driver | On the way to the drop-off. The driver records arrival there. A 15-minute no-show timer can start at that arrival. It does not cancel or charge by itself. New junk jobs do not use this status |
+| 10 | `delivered` | Driver | Regular delivery: drop-off arrival and drop-off photo. Junk removal: completion photo, and a disposal receipt when that job already requires one. Customer confirmation starts here, and so does the 24-hour auto-complete clock |
 | 11 | `completed` | Customer/System | Customer confirmed or 24h auto-complete; payment captured |
 | — | `cancelled` | Any | With cancellation reason and fee outcome |
 | — | `disputed` | System | A high/critical report is open; payout held |
@@ -419,8 +436,8 @@ Built locally on 2026-10-22. Alerts are stored in the app, push is ready when VA
 | Job assigned | ✔ driver info | ✔ confirmation | ✔ |
 | No driver after 20 min | | | ✔ alert |
 | Status changes | ✔ | | |
-| Item check ready | ✔ approve/reject | | |
-| Delivered | ✔ confirm receipt | | |
+| Item loaded | ✔ item is loaded; the driver continues | | |
+| Delivered or junk removed | ✔ confirm or report an issue | | |
 | New message | ✔ | ✔ | |
 | Report filed | | ✔ (if about them) | ✔ (text for high/critical) |
 | Payout marked paid | | ✔ | |

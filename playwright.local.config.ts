@@ -131,5 +131,35 @@ export default defineConfig({
       use: { ...devices["iPhone 13"] },
       testMatch: /transaction-ux\.spec\.ts/,
     },
+    {
+      name: "local-support",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /support\.spec\.ts/,
+    },
+    {
+      name: "local-blog",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /blog\.spec\.ts/,
+    },
+    {
+      name: "local-cookie",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /cookie-mobile\.spec\.ts/,
+    },
+    {
+      name: "local-nav",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /nav-cleanup\.spec\.ts/,
+    },
+    {
+      name: "local-workflow",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /delivery-workflow-ui\.spec\.ts/,
+    },
+    {
+      name: "local-admin-proof",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /admin-proof\.spec\.ts/,
+    },
   ],
 });

@@ -48,14 +48,14 @@ export async function DropoffProof({ jobId }: { jobId: string }) {
   );
 }
 
-export async function PickupProof({ jobId }: { jobId: string }) {
+export async function PickupProof({ jobId, alt = "Pickup proof" }: { jobId: string; alt?: string }) {
   const photos = await proofPhotos(jobId, ["pickup"]);
   if (photos.length === 0) return null;
   return (
     <ul className="mt-3 flex gap-2">
       {photos.map((photo) => (
         <li key={photo.id}>
-          <PhotoThumb src={photo.url} alt="Pickup proof" />
+          <PhotoThumb src={photo.url} alt={alt} />
         </li>
       ))}
     </ul>

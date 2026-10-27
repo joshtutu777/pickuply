@@ -298,7 +298,7 @@ test("driver nav, earnings buckets, feed areas, and active job", async ({ page }
 
     sql(`update public.jobs set status = 'arrived' where id = '${junkJobId}';`);
     await page.goto(`/driver/jobs/${junkJobId}`);
-    await expect(page.getByRole("button", { name: "Item loaded — head to drop-off" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Junk removed" })).toHaveCount(1);
     await expect(page.locator("#proof-file")).toBeVisible();
 
     await page.goto("/driver");
