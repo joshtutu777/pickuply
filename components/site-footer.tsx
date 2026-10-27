@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/analytics/cookie-settings-link";
 
 const footerLink =
   "inline-flex min-h-12 items-center justify-center rounded-full px-4 text-base font-semibold text-ink underline-offset-4 hover:underline";
@@ -33,6 +34,7 @@ export function SiteFooter({ showPublicLinks = true }: { showPublicLinks?: boole
           <Link href="/help" className={footerLink}>
             Help
           </Link>
+          <CookieSettingsLink className={footerLink} />
         </nav>
       </div>
     </footer>

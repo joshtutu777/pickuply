@@ -770,4 +770,6 @@ Blog and Contact stay on the public header and footer. Signed-in customer and dr
 
 A regular delivery no longer waits for the customer after Item loaded. The driver goes on to the drop-off, adds the drop-off photo, and marks Delivered. The customer then sees “Does everything look good?” and can confirm or report an issue. Junk removal uses one completion photo and Junk removed. It does not ask for a customer drop-off. A disposal receipt is still required when that job already needs one. Confirmation and the 24-hour clock start at that service’s finish, which is the existing `delivered` status. A dispute still blocks capture. Migration `0089` is local only and has not been applied to the hosted database. Existing job rows were not rewritten.
 
+The optional cookie choice sits in the page flow and does not cover menus or tabs. Cookie settings stays in the footer. This release does not load Tag Manager.
+
 The admin request page now has a Delivery proof section. It shows pickup and drop-off proof for a delivery, the removal completion photo for junk, and a disposal receipt when one is required or already uploaded. Request photos stay in their own section. The photos use the existing private bucket and short-lived signed links. Database permissions were not changed. This is local only and is not deployed.

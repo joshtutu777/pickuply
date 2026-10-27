@@ -142,6 +142,11 @@ export default defineConfig({
       testMatch: /blog\.spec\.ts/,
     },
     {
+      name: "local-cookie",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /cookie-mobile\.spec\.ts/,
+    },
+    {
       name: "local-nav",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /nav-cleanup\.spec\.ts/,

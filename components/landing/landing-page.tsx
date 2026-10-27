@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/analytics/cookie-settings-link";
 import { BetaBadge } from "@/components/beta-badge";
 import { InstallButton } from "@/components/pwa/install-button";
 import type { ReactNode } from "react";
@@ -305,6 +306,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <Link href="/blog" className="py-2 font-medium text-[#14211B]">Blog</Link>
             <Link href="/contact" className="py-2 font-medium text-[#14211B]">Contact</Link>
             <Link href="/help" className="py-2 font-medium text-[#14211B]">Help</Link>
+            <CookieSettingsLink className="inline-flex min-h-12 items-center py-2 font-medium text-[#14211B]" />
           </nav>
         </div>
       </footer>
