@@ -10,6 +10,7 @@ import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
 import { AdminOverride } from "@/components/admin/admin-override";
+import { DeliveryProof } from "@/components/admin/delivery-proof";
 import { AreaMap } from "@/components/maps/area-map";
 import { statusLabel } from "@/components/request/job-status";
 import { tripLabel } from "@/lib/maps/miles";
@@ -146,15 +147,23 @@ async function RequestDetail({
         ) : null}
       </section>
       {job.photos.length > 0 ? (
-        <ul className="mt-4 grid grid-cols-3 gap-2">
-          {job.photos.map((photo) => (
-            <li key={photo.id}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.url} alt="" className="aspect-square w-full rounded-2xl object-cover" />
-            </li>
-          ))}
-        </ul>
+        <section className="mt-6" aria-label="Request photos">
+          <h2 className="text-lg font-semibold text-ink">Request photos</h2>
+          <ul className="mt-3 grid grid-cols-3 gap-2">
+            {job.photos.map((photo) => (
+              <li key={photo.id}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo.url} alt="Request photo" className="aspect-square w-full rounded-2xl object-cover" />
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
+      <DeliveryProof
+        jobId={id}
+        service={job.service}
+        receiptRequired={Boolean(job.require_disposal_receipt)}
+      />
       {needsConfirm ? (
         <p className="mt-4 text-base font-semibold text-ink">
           This item needs a confirmation before it can be published.

@@ -151,5 +151,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /analytics\.spec\.ts/,
     },
+    {
+      name: "local-admin-proof",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /admin-proof\.spec\.ts/,
+    },
   ],
 });

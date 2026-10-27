@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 export function PhotoThumb({ src, alt }: { src: string; alt: string }) {
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
 
@@ -17,12 +18,16 @@ export function PhotoThumb({ src, alt }: { src: string; alt: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  if (failed) {
+    return <p className="max-w-48 text-base text-muted">This photo could not be loaded. Refresh the page for a new link.</p>;
+  }
+
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="block rounded-2xl" aria-label={`View ${alt}`}>
         {/* Signed URL. It expires and is not a public file address. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="h-24 w-24 rounded-2xl object-cover" />
+        <img src={src} alt={alt} className="h-24 w-24 rounded-2xl object-cover" onError={() => setFailed(true)} />
       </button>
       {open ? (
         <div
@@ -37,7 +42,7 @@ export function PhotoThumb({ src, alt }: { src: string; alt: string }) {
               {alt}
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} className="max-h-[75dvh] max-w-full object-contain" />
+            <img src={src} alt={alt} className="max-h-[75dvh] max-w-full object-contain" onError={() => setFailed(true)} />
             <button
               ref={closeRef}
               type="button"
