@@ -151,5 +151,10 @@ export default defineConfig({
       use: { ...devices["Pixel 5"] },
       testMatch: /delivery-workflow-ui\.spec\.ts/,
     },
+    {
+      name: "local-admin-proof",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /admin-proof\.spec\.ts/,
+    },
   ],
 });
