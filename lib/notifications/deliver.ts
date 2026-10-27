@@ -2,6 +2,7 @@ import "server-only";
 
 import { sendEmail } from "@/lib/email";
 import { channelPlan, externalDeliveryAllowed } from "@/lib/notifications/channels";
+import { pilotSmsText } from "@/lib/notifications/sms-copy";
 import { sendPush } from "@/lib/push";
 import { sendSms } from "@/lib/sms";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -9,6 +10,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 type AlertRow = {
   id: string;
   profile_id: string;
+  job_id: string | null;
+  kind: string;
   title: string;
   body: string;
   href: string;
@@ -27,7 +30,7 @@ export async function deliverPendingAlerts(): Promise<number> {
     .maybeSingle();
   const { data: rows } = await supabase
     .from("notifications")
-    .select("id, profile_id, title, body, href, push_sent_at, email_sent_at, sms_sent_at")
+    .select("id, profile_id, job_id, kind, title, body, href, push_sent_at, email_sent_at, sms_sent_at")
     .or("push_sent_at.is.null,email_sent_at.is.null,sms_sent_at.is.null")
     .order("created_at", { ascending: true })
     .limit(50);
@@ -110,11 +113,47 @@ async function deliverOne(row: AlertRow, platformSms: boolean): Promise<boolean>
     if (sent) patch.email_sent_at = now;
   }
   if (plan.sms === "send" && platformSms) {
-    const sent = await sendSms(phone, `${row.title}. ${row.body}`);
-    if (sent) patch.sms_sent_at = now;
+    const text = await pilotText(supabase, row);
+    if (!text) {
+      patch.sms_sent_at = now;
+    } else {
+      let sent = false;
+      try {
+        sent = await sendSms(phone, text);
+      } catch {
+        sent = false;
+      }
+      if (sent) patch.sms_sent_at = now;
+    }
   }
 
   if (Object.keys(patch).length === 0) return false;
   await supabase.from("notifications").update(patch).eq("id", row.id);
   return true;
+}
+
+async function pilotText(
+  supabase: ReturnType<typeof createServiceClient>,
+  row: AlertRow,
+): Promise<string | null> {
+  if (row.kind === "driver_approved") {
+    const { data } = await supabase
+      .from("drivers")
+      .select("status")
+      .eq("profile_id", row.profile_id)
+      .maybeSingle();
+    return pilotSmsText({ kind: row.kind, driverStatus: data?.status ?? null });
+  }
+  if (!row.job_id) return null;
+  const { data } = await supabase
+    .from("jobs")
+    .select("status, pickup_area, service")
+    .eq("id", row.job_id)
+    .maybeSingle();
+  return pilotSmsText({
+    kind: row.kind,
+    area: data?.pickup_area ?? null,
+    service: data?.service ?? null,
+    jobStatus: data?.status ?? null,
+  });
 }
