@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { Suspense } from "react";
 import { DeliveryBoard } from "@/components/account/delivery-board";
 import { BackLink } from "@/components/back-link";
@@ -48,12 +48,9 @@ async function JobsContent() {
         <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
           <h2 className="text-xl font-semibold text-ink">No requests yet</h2>
           <p className="mt-2 text-base text-muted">When you submit a request, it shows up here.</p>
-          <Link
-            href="/request"
-            className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-          >
+          <FreshRequestLink className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
             Get a price
-          </Link>
+          </FreshRequestLink>
         </section>
       ) : (
         <DeliveryBoard jobs={jobs} driverNames={driverNames} />

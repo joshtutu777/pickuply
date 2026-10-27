@@ -157,6 +157,11 @@ export default defineConfig({
       testMatch: /delivery-workflow-ui\.spec\.ts/,
     },
     {
+      name: "local-hotfix",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /hotfix-validation\.spec\.ts/,
+    },
+    {
       name: "local-admin-proof",
       use: { ...devices["Pixel 5"] },
       testMatch: /admin-proof\.spec\.ts/,

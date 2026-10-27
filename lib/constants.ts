@@ -178,7 +178,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "Pickuply sends a price. You accept it before drivers see the job. Nothing is charged until a driver is booked.";
+  "Drivers can review this request and send offers. You choose who to book. Nothing is charged until you accept.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";

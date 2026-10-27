@@ -10,11 +10,11 @@ const quote = {
   service: "delivery",
 };
 
-test("a quote stays hidden from drivers until the customer accepts the price", () => {
+test("an older quote that is not open says it is not on the driver list yet", () => {
   for (const status of ["requested", "in_review", "quoted"]) {
     assert.equal(
       quoteRequestCopy({ ...quote, status }),
-      "We're preparing your price. Drivers can't see this request until you accept it.",
+      "This saved request is not open for driver offers yet.",
     );
   }
 });
@@ -48,6 +48,7 @@ test("the driver job page does not show the customer quote sentence", () => {
   const customerPage = readFileSync(path.join(process.cwd(), "components/request/job-status.tsx"), "utf8");
   assert.equal(driverPage.includes("Drivers can send offers"), false);
   assert.equal(driverPage.includes("We're preparing your price"), false);
+  assert.equal(customerPage.includes("We're preparing your price"), false);
   assert.equal(customerPage.includes("quoteRequestCopy"), true);
   assert.equal(customerPage.includes("Drivers can send offers"), false);
 });

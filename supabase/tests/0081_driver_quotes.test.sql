@@ -46,7 +46,10 @@ update public.profiles set full_name = 'Quote Customer' where id = 'c1810000-000
 update public.profiles set full_name = 'Quote Driver', role = 'driver' where id = 'c1810000-0000-4000-8000-000000000002';
 update public.profiles set full_name = 'Other Lane Driver', role = 'driver', is_test = true where id = 'c1810000-0000-4000-8000-000000000003';
 
-insert into public.drivers (profile_id, status, zone_id, service_level, services, is_online)
+insert into public.drivers (
+  profile_id, status, zone_id, service_level, services, is_online,
+  license_expires, terms_version, terms_accepted_at, agreement_signed_at
+)
 values
   (
     'c1810000-0000-4000-8000-000000000002',
@@ -54,7 +57,11 @@ values
     (select id from public.zones where slug = 'west_metro'),
     'light',
     array['delivery']::public.job_service[],
-    true
+    true,
+    current_date + 30,
+    'driver-terms-v1',
+    now(),
+    now()
   ),
   (
     'c1810000-0000-4000-8000-000000000003',
@@ -62,8 +69,15 @@ values
     (select id from public.zones where slug = 'west_metro'),
     'light',
     array['delivery']::public.job_service[],
-    true
+    true,
+    current_date + 30,
+    'driver-terms-v1',
+    now(),
+    now()
   );
+
+insert into public.vehicles (driver_id, type, make, approved)
+values ('c1810000-0000-4000-8000-000000000002', 'pickup', 'Ford', true);
 
 select pg_temp.as_user('c1810000-0000-4000-8000-000000000001');
 set local role authenticated;
@@ -105,13 +119,12 @@ select pg_temp.as_user('c1810000-0000-4000-8000-000000000002');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'c1810000-0000-4000-8000-000000000021'),
-  0,
-  'a driver does not see a quote before the customer accepts the admin price'
+  1,
+  'a driver sees a new quote immediately'
 );
-select throws_ok(
+select lives_ok(
   $$select public.submit_offer('c1810000-0000-4000-8000-000000000021', 'offer', 5000, '')$$,
-  'this driver cannot offer on this job',
-  'a driver cannot send a quote before the job is open'
+  'a driver can send an offer on a new quote'
 );
 reset role;
 

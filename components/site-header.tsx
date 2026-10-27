@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { AppNav } from "@/components/app-nav";
 import { InstallButton } from "@/components/pwa/install-button";
 import { BetaBadge } from "@/components/beta-badge";
@@ -58,16 +59,16 @@ export function SiteHeader({ state }: { state: HeaderState }) {
             <BetaBadge />
           </Link>
           {state.status === "signed-in" && state.appNav ? null : (
-            <Link href="/request" className={`inline-flex shrink-0 sm:hidden ${primaryLink}`}>
+            <FreshRequestLink className={`inline-flex shrink-0 sm:hidden ${primaryLink}`}>
               Get a price
-            </Link>
+            </FreshRequestLink>
           )}
         </div>
         <nav aria-label="Primary" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <InstallButton />
-          <Link href="/request" className={`hidden sm:inline-flex ${primaryLink}`}>
+          <FreshRequestLink className={`hidden sm:inline-flex ${primaryLink}`}>
             Get a price
-          </Link>
+          </FreshRequestLink>
           {state.status === "signed-in" ? (
             <>
               {state.firstName ? (

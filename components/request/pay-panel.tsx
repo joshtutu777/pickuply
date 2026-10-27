@@ -29,7 +29,7 @@ export function PayPanel({
   const balanced = additionalCents >= 0 && offerCents + serviceFeeCents + additionalCents === totalCents;
   return (
     <section className="mt-3 w-full">
-      <div className="grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+      <div className="grid min-w-0 gap-2 overflow-hidden rounded-3xl bg-paper-raised p-4 break-words ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Confirm Your Booking</h2>
         {balanced ? (
           <>

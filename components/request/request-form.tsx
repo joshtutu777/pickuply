@@ -15,6 +15,12 @@ const RequestWizard = dynamic(
   },
 );
 
-export function RequestForm({ initialService }: { initialService: ServiceId | null }) {
-  return <RequestWizard initialService={initialService} />;
+export function RequestForm({
+  initialService,
+  freshKey = "",
+}: {
+  initialService: ServiceId | null;
+  freshKey?: string;
+}) {
+  return <RequestWizard initialService={initialService} freshKey={freshKey} />;
 }

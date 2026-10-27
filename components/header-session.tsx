@@ -6,6 +6,7 @@ import { cityFromArea } from "@/lib/jobs/next-action";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { CustomerOfferWatch } from "@/components/account/offer-watch";
+import { LiveAlerts } from "@/components/notifications/live-alerts";
 import { customerNav, driverNav, type AppNavItem } from "@/lib/app-nav";
 
 const customerAccountLinks = [
@@ -69,6 +70,7 @@ export async function HeaderSession() {
   return (
     <>
     {homeHref === "/account" ? <CustomerOfferWatch /> : null}
+    <LiveAlerts />
     <SiteHeader
       state={{
         status: "signed-in",

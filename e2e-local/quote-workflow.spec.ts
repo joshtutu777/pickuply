@@ -73,10 +73,7 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await customer.goto(`/jobs/${quoteJobId}`);
   await expect(customer.getByRole("heading", { name: "Quoted" })).toBeVisible();
   await expect(customer.getByRole("button", { name: "Accept quote" })).toBeVisible();
-  await expect(
-    customer.getByText("We're preparing your price. Drivers can't see this request until you accept it."),
-  ).toBeVisible();
-  await expect(customer.getByText("Drivers can send offers. You choose who to book.")).toHaveCount(0);
+  await expect(customer.getByText("This saved request is not open for driver offers yet.")).toBeVisible();
 
   sql(
     `update public.jobs set quote_expires_at = now() - interval '1 minute' where id = '${quoteJobId}'`,

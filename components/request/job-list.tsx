@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import { serviceById, type ServiceId } from "@/lib/constants";
 import type { JobSummary } from "@/lib/data/job-queries";
@@ -28,12 +29,18 @@ export function JobList({
         <h2 className="text-xl font-semibold text-ink">{emptyTitle}</h2>
         <p className="mt-2 text-base leading-relaxed text-muted">{emptyCopy}</p>
         {actionHref ? (
-          <Link
-            href={actionHref}
-            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-          >
-            Get a price
-          </Link>
+          actionHref.startsWith("/request") ? (
+            <FreshRequestLink className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+              Get a price
+            </FreshRequestLink>
+          ) : (
+            <Link
+              href={actionHref}
+              className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+            >
+              Get a price
+            </Link>
+          )
         ) : null}
       </div>
     );
