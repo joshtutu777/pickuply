@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { answerDetailRequest } from "@/app/jobs/actions";
+import { UploadPicker } from "@/components/upload-picker";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -122,28 +123,19 @@ export function DetailReply({
         </label>
       ) : null}
       {asked.includes("photos") ? (
-        <label className="block text-base font-semibold text-ink" htmlFor="detail-photos">
-          Photos
-          <input
-            id="detail-photos"
-            type="file"
-            accept="image/*"
-            multiple
-            className="mt-2 block w-full text-base"
-            disabled={uploading}
-            onChange={(event) => {
-              void addPhotos(event.target.files);
-              event.target.value = "";
-            }}
-          />
-        </label>
+        <UploadPicker
+          id="detail-photos"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          clearAfter
+          label="Add photos"
+          kinds="JPG, PNG, or WEBP"
+          busy={uploading}
+          error={photoError}
+          onChange={(files) => void addPhotos(files)}
+        />
       ) : null}
       {photoCount > 0 ? <p className="text-base text-ink">{photoCount} photo{photoCount === 1 ? "" : "s"} added.</p> : null}
-      {photoError ? (
-        <p role="alert" className="text-base text-danger">
-          {photoError}
-        </p>
-      ) : null}
       <label className="block text-base font-semibold text-ink" htmlFor="detail-message">
         Your answer
         <textarea id="detail-message" name="message" className="mt-2 min-h-24 w-full rounded-2xl border border-line px-4 py-3" />
@@ -153,7 +145,7 @@ export function DetailReply({
         disabled={uploading}
         className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
       >
-        Send answers
+        {uploading ? "Uploading..." : "Send answers"}
       </button>
     </form>
   );

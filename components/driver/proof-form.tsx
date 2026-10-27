@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { UploadPicker } from "@/components/upload-picker";
 import { photoMaxBytes } from "@/lib/constants";
 import { compressImage, prepareProofVideo } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -12,16 +13,19 @@ export function ProofForm({
   defaultStage = "pickup",
   idPrefix = "",
   submitLabel = "Save proof",
+  onSaved,
 }: {
   jobId: string;
   locationEnabled: boolean;
   defaultStage?: "pickup" | "dropoff" | "dump_receipt" | "no_show";
   idPrefix?: string;
   submitLabel?: string;
+  onSaved?: (stage: string) => void;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [pickerKey, setPickerKey] = useState(0);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,6 +37,10 @@ export function ProofForm({
     const share = data.get("shareLocation") === "on";
     if (!(file instanceof File) || file.size === 0) {
       setMessage("Choose a photo or a short video.");
+      return;
+    }
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      setMessage("Choose a photo or a short video. Other file types are not accepted.");
       return;
     }
     setPending(true);
@@ -74,6 +82,8 @@ export function ProofForm({
       });
       if (recorded.error) throw new Error("The proof could not be recorded.");
       form.reset();
+      setPickerKey((key) => key + 1);
+      onSaved?.(stage);
       router.refresh();
       setMessage("Proof saved. It cannot be replaced.");
     } catch (error) {
@@ -86,17 +96,17 @@ export function ProofForm({
   return (
     <form onSubmit={(event) => void submit(event)} className="grid gap-2 rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Add proof</h2>
-      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-file`}>
-        Photo or video
-        <input
-          id={`${idPrefix}proof-file`}
-          name="file"
-          type="file"
-          accept="image/*,video/*"
-          capture="environment"
-          className="mt-2 block min-h-12 w-full text-base"
-        />
-      </label>
+      <UploadPicker
+        key={pickerKey}
+        id={`${idPrefix}proof-file`}
+        name="file"
+        accept="image/*,video/*"
+        capture="environment"
+        required
+        label="Add a photo or video"
+        kinds="JPG, PNG, or a video up to 30 seconds"
+        busy={pending}
+      />
       <p className="text-sm text-muted">
         Photos are saved as new files so location details in the original are removed. A video must be 30 seconds or less.
       </p>
@@ -122,13 +132,17 @@ export function ProofForm({
           ? "This is off unless you check it. Pickuply stores a rounded location that customers cannot see."
           : "Approximate location is off for every job."}
       </p>
-      {message ? <p className="text-base text-ink">{message}</p> : null}
+      {message ? (
+        <p role={message.startsWith("Proof saved") ? "status" : "alert"} className="text-base text-ink">
+          {message}
+        </p>
+      ) : null}
       <button
         type="submit"
         disabled={pending}
         className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
       >
-        {pending ? "Saving" : submitLabel}
+        {pending ? "Uploading..." : submitLabel}
       </button>
     </form>
   );

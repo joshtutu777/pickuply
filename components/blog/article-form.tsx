@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { UploadPicker } from "@/components/upload-picker";
 import { blogCategories, slugifyTitle, type ArticleBlock } from "@/lib/blog/content";
 
 type Initial = {
@@ -102,10 +103,7 @@ export function ArticleForm({
         Author display name
         <input name="authorName" defaultValue={initial.authorName} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
       </label>
-      <label className="grid gap-2 text-base font-semibold">
-        Cover image
-        <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" className="font-normal" />
-      </label>
+      <UploadPicker id="cover" name="cover" accept="image/jpeg,image/png,image/webp" label="Add a cover image" kinds="JPG, PNG, or WEBP" />
       <label className="grid gap-2 text-base font-semibold">
         Cover image description
         <input name="coverAlt" defaultValue={initial.coverAlt} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
@@ -207,6 +205,8 @@ function BodyImageUpload({ postId, onSaved }: { postId: string; onSaved: (path: 
   const [alt, setAlt] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
+  const inputId = useId();
+
   async function upload(file: File) {
     const body = new FormData();
     body.set("postId", postId);
@@ -229,18 +229,17 @@ function BodyImageUpload({ postId, onSaved }: { postId: string; onSaved: (path: 
         Image description
         <input value={alt} onChange={(event) => setAlt(event.target.value)} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
       </label>
-      <label className="grid gap-2 text-base font-semibold">
-        Add image
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="font-normal"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void upload(file);
-          }}
-        />
-      </label>
+      <UploadPicker
+        id={inputId}
+        accept="image/jpeg,image/png,image/webp"
+        label="Add an image"
+        kinds="JPG, PNG, or WEBP"
+        clearAfter
+        onChange={(files) => {
+          const file = files?.[0];
+          if (file) void upload(file);
+        }}
+      />
       {message ? <p className="text-base">{message}</p> : null}
     </div>
   );

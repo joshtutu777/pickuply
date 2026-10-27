@@ -21,6 +21,8 @@ import {
 import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
 import { FreshRequestLink } from "@/components/request/fresh-request-link";
+import { TermsDialog } from "@/components/request/terms-dialog";
+import { UploadPicker } from "@/components/upload-picker";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
@@ -574,15 +576,15 @@ export function RequestWizard({
                       Photo {photoProgress[id] === "done" ? "saved" : photoProgress[id] === "uploading" ? "uploading" : "waiting"}
                     </p>
                     {missingPhotos.includes(id) ? (
-                      <label className="mt-2 block text-sm font-semibold text-ink">
-                        Choose this photo again
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="mt-2 block w-full"
-                          onChange={(event) => void reselectPhoto(id, event.target.files)}
-                        />
-                      </label>
+                      <UploadPicker
+                        id={`reselect-${id}`}
+                        accept="image/jpeg,image/png,image/webp"
+                        clearAfter
+                        required
+                        label="Choose this photo again"
+                        kinds="JPG, PNG, or WEBP"
+                        onChange={(files) => void reselectPhoto(id, files)}
+                      />
                     ) : null}
                   </li>
                 ))}
@@ -941,9 +943,9 @@ export function RequestWizard({
               Back
             </button>
           ) : null}
-          <button type="submit" className={primaryButton} disabled={submitting || (verifying && signedIn === null)}>
+          <button type="submit" className={primaryButton} disabled={submitting || (verifying && signedIn === null)} aria-busy={submitting}>
             {submitting
-              ? "Saving…"
+              ? "Saving..."
               : verifying
                 ? signedIn
                   ? "Save request"
@@ -1013,26 +1015,17 @@ function ItemStep({
         onChange={(value) => update("listingUrl", value)}
       />
       <div>
-        <label className="block text-base font-semibold text-ink" htmlFor="photos">
-          Photos <span className="font-normal text-muted">(up to {maxPhotos})</span>
-        </label>
-        <input
+        <UploadPicker
           id="photos"
           name="photos"
-          type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple
-          onChange={(event) => {
-            void onPhotos(event.target.files);
-            event.target.value = "";
-          }}
-          className="mt-2 block w-full text-base"
+          clearAfter
+          label={`Add item photos, up to ${maxPhotos}`}
+          kinds="JPG, PNG, or WEBP"
+          onChange={(files) => void onPhotos(files)}
+          error={photoError}
         />
-        {photoError ? (
-          <p role="alert" className="mt-2 text-sm font-medium text-danger">
-            {photoError}
-          </p>
-        ) : null}
         {previews.length > 0 ? (
           <ul className="mt-3 grid grid-cols-3 gap-2">
             {previews.map((preview) => (
@@ -1277,13 +1270,11 @@ function ReviewStep({
         error={errors.customerEmail}
         onChange={(value) => update("customerEmail", value)}
       />
-      <p className="text-base leading-relaxed text-ink">
+      <div className="text-base leading-relaxed text-ink">
         Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
-        <Link href="/terms" className="font-semibold text-brand underline">
-          Terms, fees, and prohibited items
-        </Link>
+        <TermsDialog />
         .
-      </p>
+      </div>
       <CheckField
         name="agreedToTerms"
         checked={draft.agreedToTerms}

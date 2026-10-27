@@ -5,6 +5,8 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { DetailsFold } from "@/components/details-fold";
 import { AdvanceButton } from "@/components/driver/advance-button";
+import { DriverActions } from "@/components/driver/driver-actions";
+import { missingProofWarning } from "@/lib/jobs/proof-warning";
 import { LoadingMain } from "@/components/loading-main";
 import { AreaMap } from "@/components/maps/area-map";
 import { RouteSketch } from "@/components/mobile/route-sketch";
@@ -56,14 +58,14 @@ async function DriverJob({
     .eq("id", id)
     .maybeSingle();
   if (!job) notFound();
-  const [{ data: details }, { data: events }, { data: receipts }] = await Promise.all([
+  const [{ data: details }, { data: events }, { data: proofRows }] = await Promise.all([
     supabase
       .from("job_private")
       .select("customer_name, pickup_address, dropoff_address, access_notes, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng")
       .eq("job_id", id)
       .maybeSingle(),
     supabase.from("job_events").select("type, created_at, data").eq("job_id", id).order("created_at"),
-    supabase.from("job_photos").select("id").eq("job_id", id).eq("stage", "dump_receipt").limit(1),
+    supabase.from("job_photos").select("stage").eq("job_id", id).is("report_id", null),
   ]);
   const { data: ledger } =
     job.status === "completed"
@@ -82,7 +84,7 @@ async function DriverJob({
     createdAt: job.created_at,
     dumpFeeCents: job.dump_fee_cents,
     requireDisposalReceipt: job.require_disposal_receipt,
-    hasDumpReceipt: (receipts ?? []).length > 0,
+    hasDumpReceipt: (proofRows ?? []).some((row) => row.stage === "dump_receipt"),
     events: (events ?? []).map((event) => {
       const data = event.data as { to?: string } | null;
       return {
@@ -111,7 +113,37 @@ async function DriverJob({
   const jobAmount = job.driver_pay_cents != null && job.platform_fee_cents != null
     ? job.driver_pay_cents + job.platform_fee_cents
     : null;
-  const proofStage = next.nextStatus === "delivered" && job.status === "in_transit" ? "dropoff" : "pickup";
+  const proofStages = new Set((proofRows ?? []).map((row) => row.stage));
+  const proofWarning = next.nextStatus
+    ? missingProofWarning({
+        service: job.service,
+        status: job.status,
+        nextStatus: next.nextStatus,
+        hasPickup: proofStages.has("pickup"),
+        hasDropoff: proofStages.has("dropoff"),
+        needsReceipt: disposalReceipt,
+        hasReceipt: proofStages.has("dump_receipt"),
+      })
+    : null;
+  const proofStage = proofWarning?.includes("disposal receipt")
+    ? "dump_receipt"
+    : next.nextStatus === "delivered" && job.status === "in_transit"
+      ? "dropoff"
+      : "pickup";
+  const serverProofMessage =
+    query.error === "dropoff"
+      ? "Please upload a delivery photo or video before marking this job as Delivered."
+      : query.error === "pickup"
+        ? junk
+          ? "Please upload a completion photo or video before marking this job as Junk removed."
+          : "Please upload a pickup photo or video before marking the item as loaded."
+        : query.error === "receipt"
+          ? junk
+            ? "Please upload the disposal receipt before marking this job as Junk removed."
+            : "Please upload the disposal receipt before marking this job as Delivered."
+          : query.error === "photo"
+            ? "Add the required photo before this step."
+            : null;
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-3">
@@ -147,10 +179,23 @@ async function DriverJob({
       {retired ? <p className="mt-3 text-base text-ink">This job is closed.</p> : null}
       {!retired && next.nextStatus ? (
         <div className="sticky top-2 z-10 mt-3 grid gap-3 rounded-3xl bg-paper p-3 ring-1 ring-line">
-          <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
           {needsProof ? (
-            <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
-          ) : null}
+            <DriverActions
+              jobId={job.id}
+              nextStatus={next.nextStatus}
+              label={next.label}
+              service={job.service}
+              status={job.status}
+              hasPickup={proofStages.has("pickup")}
+              hasDropoff={proofStages.has("dropoff")}
+              needsReceipt={disposalReceipt}
+              hasReceipt={proofStages.has("dump_receipt")}
+              locationEnabled={Boolean(settings?.proof_location_enabled)}
+              proofStage={proofStage}
+            />
+          ) : (
+            <AdvanceButton jobId={job.id} nextStatus={next.nextStatus} label={next.label} />
+          )}
           {disposalReceipt && next.nextStatus === "delivered" ? (
             <p className="text-base text-ink">
               {junk
@@ -194,9 +239,9 @@ async function DriverJob({
           The card has to be authorized before the trip can start.
         </p>
       ) : null}
-      {query.error === "photo" ? (
+      {serverProofMessage ? (
         <p id="proof-needed" role="alert" className="mt-3 text-base text-danger">
-          Add the required photo before this step.
+          {serverProofMessage}
         </p>
       ) : null}
       {query.error === "noshow" ? (

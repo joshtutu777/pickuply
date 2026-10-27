@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { UploadPicker } from "@/components/upload-picker";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -100,13 +101,10 @@ export function ReportForm({ jobId, embedded = false }: { jobId: string; embedde
           ))}
         </select>
       </label>
-      <label className="text-base font-semibold" htmlFor="report-photo">
-        Photo
-        <input id="report-photo" name="photo" type="file" accept="image/*" className="mt-2 block w-full" />
-      </label>
+      <UploadPicker id="report-photo" name="photo" accept="image/jpeg,image/png,image/webp" label="Add a photo" kinds="JPG, PNG, or WEBP" />
       {message ? <p className="text-base text-ink">{message}</p> : null}
       <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60">
-        {pending ? "Sending" : "Send report"}
+        {pending ? "Sending..." : "Send report"}
       </button>
     </form>
   );

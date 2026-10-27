@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { PendingButton } from "@/components/pending-button";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { DetailsFold } from "@/components/details-fold";
 import { ScreenTabs } from "@/components/ui/screen-tabs";
@@ -169,22 +170,20 @@ export function JobStatus({
           <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
           <form action={respondToQuote} className="grid gap-3 pt-2">
             <input type="hidden" name="jobId" value={job.id} />
-            <button
-              type="submit"
+            <PendingButton
               name="decision"
               value="accept"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white"
-            >
-              Accept quote
-            </button>
-            <button
-              type="submit"
+              idle="Accept quote"
+              pendingLabel="Submitting..."
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+            />
+            <PendingButton
               name="decision"
               value="decline"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper font-semibold text-ink ring-1 ring-line"
-            >
-              Decline quote
-            </button>
+              idle="Decline quote"
+              pendingLabel="Updating..."
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper font-semibold text-ink ring-1 ring-line disabled:opacity-60"
+            />
           </form>
         </section>
       ) : null}

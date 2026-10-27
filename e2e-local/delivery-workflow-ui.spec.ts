@@ -61,12 +61,28 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
   try {
     await driverPage.goto(`/driver/jobs/${deliveryId}`);
     await hideDevOverlay(driverPage);
+    const missingStarted = Date.now();
+    await driverPage.getByRole("button", { name: "Item loaded" }).click();
+    await expect(driverPage.locator("#proof-needed")).toContainText(
+      "Please upload a pickup photo or video before marking the item as loaded.",
+    );
+    expect(Date.now() - missingStarted).toBeLessThan(1000);
+    await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("arrived");
     await driverPage.locator("#proof-stage").selectOption("pickup");
     await driverPage.locator("#proof-file").setInputFiles({ name: "pickup.png", mimeType: "image/png", buffer: png });
     await driverPage.getByRole("button", { name: "Save proof" }).click();
     await expect(driverPage.getByText("Proof saved. It cannot be replaced.")).toBeVisible();
-    await driverPage.getByRole("button", { name: "Item loaded" }).click();
+    await driverPage.route("**/*", async (route) => {
+      if (route.request().method() === "POST") await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
+    const actionStarted = Date.now();
+    await driverPage.getByRole("button", { name: "Item loaded" }).click({ noWaitAfter: true });
+    await expect(driverPage.getByRole("button", { name: "Updating status..." })).toBeVisible();
+    const feedbackMs = Date.now() - actionStarted;
+    expect(feedbackMs).toBeLessThan(500);
     await expect(driverPage.getByRole("button", { name: "Proceed to drop-off" })).toBeVisible();
+    await driverPage.unroute("**/*");
     await expect(driverPage.getByRole("button", { name: "Waiting for customer pickup review." })).toHaveCount(0);
 
     await customerPage.goto(`/jobs/${deliveryId}`);
@@ -78,6 +94,11 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
 
     await driverPage.goto(`/driver/jobs/${junkId}`);
     await expect(driverPage.getByRole("button", { name: "Junk removed" })).toBeVisible();
+    await driverPage.getByRole("button", { name: "Junk removed" }).click();
+    await expect(driverPage.locator("#proof-needed")).toContainText(
+      "Please upload a completion photo or video before marking this job as Junk removed.",
+    );
+    await expect.poll(() => localSql(`select status from public.jobs where id = '${junkId}'`).trim()).toBe("arrived");
     await expect(driverPage.getByRole("button", { name: "Proceed to drop-off" })).toHaveCount(0);
     await expect(driverPage.getByRole("button", { name: "Arrived at drop-off" })).toHaveCount(0);
     await driverPage.locator("#proof-stage").selectOption("pickup");

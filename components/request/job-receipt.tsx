@@ -1,4 +1,5 @@
 import { cancelAssignedJob } from "@/app/jobs/actions";
+import { PendingButton } from "@/components/pending-button";
 import { formatCents } from "@/lib/money";
 
 export function JobReceipt({
@@ -43,9 +44,11 @@ export function JobReceipt({
         {canCancel ? (
           <form action={cancelAssignedJob}>
             <input type="hidden" name="jobId" value={jobId} />
-            <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-danger">
-              Cancel this job
-            </button>
+            <PendingButton
+              idle="Cancel this job"
+              pendingLabel="Updating..."
+              className="inline-flex min-h-12 items-center font-semibold text-danger disabled:opacity-60"
+            />
           </form>
         ) : null}
       </div>

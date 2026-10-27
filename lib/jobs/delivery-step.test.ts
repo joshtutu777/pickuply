@@ -4,9 +4,9 @@ import { advanceErrorCode } from "./delivery-step";
 import { nextDriverAction } from "./tracker";
 
 test("a missing delivery photo is not reported as a skipped step", () => {
-  assert.equal(advanceErrorCode("add the delivery photo first"), "photo");
-  assert.equal(advanceErrorCode("add the pickup photo first"), "photo");
-  assert.equal(advanceErrorCode("add the disposal receipt first"), "photo");
+  assert.equal(advanceErrorCode("add the delivery photo first"), "dropoff");
+  assert.equal(advanceErrorCode("add the pickup photo first"), "pickup");
+  assert.equal(advanceErrorCode("add the disposal receipt first"), "receipt");
   assert.equal(advanceErrorCode("that step is not available"), "step");
   assert.equal(advanceErrorCode("payment must be authorized before work starts"), "payment");
 });

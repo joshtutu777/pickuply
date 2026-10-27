@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { TextField } from "@/components/request/fields";
+import { UploadPicker } from "@/components/upload-picker";
 import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { validateFullName } from "@/lib/auth/name";
 import { compressImage } from "@/lib/photos";
@@ -185,15 +186,15 @@ export function OnboardingForm({
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-ink">About you</h2>
         <TextField label="Full name" name="fullName" value={fullName} onChange={setFullName} autoComplete="name" />
-        <label className="block text-base font-semibold text-ink">
-          Profile photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setProfileFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <UploadPicker
+          id="profile-photo"
+          accept="image/jpeg,image/png,image/webp"
+          required
+          label="Add a profile photo"
+          kinds="JPG, PNG, or WEBP"
+          clearAfter
+          onChange={(files) => setProfileFile(files?.[0] ?? null)}
+        />
         <TextField label="Home city" name="homeCity" value={homeCity} onChange={setHomeCity} />
         <label className="block text-base font-semibold text-ink" htmlFor="zone">
           Service area
@@ -243,15 +244,15 @@ export function OnboardingForm({
           onChange={setCargo}
           inputMode="numeric"
         />
-        <label className="block text-base font-semibold text-ink">
-          Vehicle photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setVehicleFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <UploadPicker
+          id="vehicle-photo"
+          accept="image/jpeg,image/png,image/webp"
+          required
+          label="Add a vehicle photo"
+          kinds="JPG, PNG, or WEBP"
+          clearAfter
+          onChange={(files) => setVehicleFile(files?.[0] ?? null)}
+        />
       </section>
 
       <section className="space-y-4">
@@ -309,15 +310,15 @@ export function OnboardingForm({
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-ink">Documents and payout</h2>
-        <label className="block text-base font-semibold text-ink">
-          Driver license photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setLicenseFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <UploadPicker
+          id="license-photo"
+          accept="image/jpeg,image/png,image/webp"
+          required
+          label="Add your license photo"
+          kinds="JPG, PNG, or WEBP"
+          clearAfter
+          onChange={(files) => setLicenseFile(files?.[0] ?? null)}
+        />
         <TextField
           label="License expiration"
           name="licenseExpires"
@@ -325,18 +326,15 @@ export function OnboardingForm({
           value={licenseExpires}
           onChange={setLicenseExpires}
         />
-        <label className="block text-base font-semibold text-ink">
-          Insurance proof
-          <span className="mt-1 block font-normal text-muted">
-            You can add this later. It is required before you go Online.
-          </span>
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setInsuranceFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <p className="text-base text-muted">You can add insurance later. It is required before you go Online.</p>
+        <UploadPicker
+          id="insurance-photo"
+          accept="image/jpeg,image/png,image/webp"
+          label="Add insurance proof"
+          kinds="JPG, PNG, or WEBP"
+          clearAfter
+          onChange={(files) => setInsuranceFile(files?.[0] ?? null)}
+        />
         <TextField
           label="Insurance expiration"
           name="insuranceExpires"

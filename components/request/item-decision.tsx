@@ -1,4 +1,5 @@
 import { confirmDelivery, decidePickup } from "@/app/jobs/actions";
+import { PendingButton } from "@/components/pending-button";
 import { DropoffProof, PickupProof } from "@/components/request/proof-gallery";
 import { ReportToggle } from "@/components/request/report-toggle";
 
@@ -28,12 +29,11 @@ export function ItemDecision({
               className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper px-4 py-3"
             />
           </label>
-          <button
-            type="submit"
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper px-6 font-semibold text-ink ring-1 ring-line"
-          >
-            Reject item
-          </button>
+          <PendingButton
+            idle="Reject item"
+            pendingLabel="Submitting..."
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper px-6 font-semibold text-ink ring-1 ring-line disabled:opacity-60"
+          />
         </form>
       </div>
   );
@@ -66,12 +66,11 @@ export function DropoffReview({
         <>
           <form action={confirmDelivery}>
             <input type="hidden" name="jobId" value={jobId} />
-            <button
-              type="submit"
-              className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white"
-            >
-              Confirm
-            </button>
+            <PendingButton
+              idle="Confirm"
+              pendingLabel="Confirming..."
+              className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
+            />
           </form>
           <ReportToggle jobId={jobId} />
         </>
