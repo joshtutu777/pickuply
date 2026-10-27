@@ -168,8 +168,8 @@ select is(
 );
 select is(
   (select count(*)::int from public.driver_georgia_page() where id = 'e5200000-0000-4000-8000-000000000010'),
-  0,
-  'a matched request is not repeated in All Georgia Requests'
+  1,
+  'a matched request is also listed in All Georgia Requests'
 );
 select is(
   (select count(*)::int from public.driver_matched_feed() where id = 'e5200000-0000-4000-8000-000000000012')
