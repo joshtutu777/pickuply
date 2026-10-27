@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { safeNextParam } from "@/lib/auth/access";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-send-gate";
 import { SignInSmsNotice, SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
-import { allowOtpSend } from "@/app/login/otp-limit";
+import { sendSignInCode } from "@/app/login/otp-limit";
 
 const RESEND_MS = 30_000;
 
@@ -46,6 +47,7 @@ export function LoginForm({
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [signedInTo, setSignedInTo] = useState("");
   const codeRef = useRef<HTMLInputElement>(null);
+  const sendGate = useRef<OtpSendGate>({ inFlight: false, coolingUntil: 0 });
   const configured = authConfigured();
   const sentCopy = sentPhone ? codeSentMessage(sentPhone) : null;
 
@@ -72,24 +74,19 @@ export function LoginForm({
       return;
     }
     if (cooling) return;
+    // The gate flips before any wait, so a second click cannot send another text.
+    if (!claimOtpSend(sendGate.current, Date.now())) return;
 
     setPending(true);
     setError("");
+    let sent = false;
     try {
-      const limited = await allowOtpSend(normalized);
-      if (limited) {
-        setError(limited);
-        return;
-      }
-      const supabase = createClient();
-      const { error: sendError } = await supabase.auth.signInWithOtp({
-        phone: normalized,
-        options: { channel: "sms" },
-      });
+      const sendError = await sendSignInCode(normalized);
       if (sendError) {
-        setError(mapOtpError(sendError, "send"));
+        setError(sendError);
         return;
       }
+      sent = true;
       setSentPhone(normalized);
       setStep("code");
       setCooling(true);
@@ -98,6 +95,7 @@ export function LoginForm({
       const name = caught instanceof Error ? caught.name : "";
       setError(mapOtpError({ message, name }, "send"));
     } finally {
+      finishOtpSend(sendGate.current, sent ? "sent" : "failed", Date.now(), RESEND_MS);
       setPending(false);
     }
   }
