@@ -108,7 +108,7 @@ test("review shows the request and requires the terms checkbox", async ({ page }
   await expect(page.getByRole("heading", { name: "Check and send" })).toBeVisible();
   await expect(page.getByText("Oak dresser from Marketplace")).toBeVisible();
   await expect(page.getByText("Get a quote")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Terms, fees, and prohibited items" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Terms, fees, and prohibited items" })).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Agree to the terms to submit.")).toBeVisible();
   await expect(page).toHaveURL(/\/request/);

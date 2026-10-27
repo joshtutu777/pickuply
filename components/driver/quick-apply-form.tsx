@@ -3,10 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Camera, CheckCircle, IdCard, Map, MapPin, Truck, Upload, User } from "lucide-react";
+import { AlertCircle, CheckCircle, Map, MapPin, Truck, Upload } from "lucide-react";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { emptyPlace, PlaceField, type PlaceValue } from "@/components/maps/place-field";
 import { TextField } from "@/components/request/fields";
+import { UploadPicker } from "@/components/upload-picker";
 import { saveDriverPlace } from "@/lib/maps/save-places";
 import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
@@ -195,45 +196,47 @@ export function QuickApplyForm({
           Full service
         </label>
       </fieldset>
-      <label className="block text-base font-semibold text-ink" htmlFor="profilePhoto">
-        <span className="inline-flex items-center gap-2">
-          <User aria-hidden="true" className="size-5 text-brand" />
-          <Camera aria-hidden="true" className="size-5 text-brand" />
-          Profile photo
-        </span>
-        <input id="profilePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
+      <UploadPicker
+        id="profilePhoto"
+        accept="image/jpeg,image/png,image/webp"
+        required
+        label="Add a profile photo"
+        kinds="JPG, PNG, or WEBP"
+        clearAfter
+        onChange={(files) => {
+          const file = files?.[0] ?? null;
           setProfileFile(file);
           setProfilePreview((current) => {
             if (current) URL.revokeObjectURL(current);
             return file ? URL.createObjectURL(file) : null;
           });
-        }} />
-        {profilePreview ? (
-          // Local preview of a file that has not been uploaded yet.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profilePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
-        ) : null}
-      </label>
-      <label className="block text-base font-semibold text-ink" htmlFor="licensePhoto">
-        <span className="inline-flex items-center gap-2">
-          <IdCard aria-hidden="true" className="size-5 text-brand" />
-          <Camera aria-hidden="true" className="size-5 text-brand" />
-          Driver license photo
-        </span>
-        <input id="licensePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
+        }}
+      />
+      {profilePreview ? (
+        // Local preview of a file that has not been uploaded yet.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={profilePreview} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+      ) : null}
+      <UploadPicker
+        id="licensePhoto"
+        accept="image/jpeg,image/png,image/webp"
+        required
+        label="Add your license photo"
+        kinds="JPG, PNG, or WEBP"
+        clearAfter
+        onChange={(files) => {
+          const file = files?.[0] ?? null;
           setLicenseFile(file);
           setLicensePreview((current) => {
             if (current) URL.revokeObjectURL(current);
             return file ? URL.createObjectURL(file) : null;
           });
-        }} />
-        {licensePreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={licensePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
-        ) : null}
-      </label>
+        }}
+      />
+      {licensePreview ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={licensePreview} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+      ) : null}
       <label className="block text-base font-semibold text-ink" htmlFor="licenseExpires">
         License expiration
         <input id="licenseExpires" type="date" required value={licenseExpires} onChange={(event) => setLicenseExpires(event.target.value)} className={controlClass} />

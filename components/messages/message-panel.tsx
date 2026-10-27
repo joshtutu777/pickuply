@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { UploadPicker } from "@/components/upload-picker";
 import { containsContact } from "@/lib/messages/contact";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -51,6 +52,8 @@ export function MessagePanel({
   const [messages, setMessages] = useState(initial);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const warning = containsContact(text);
   const nowIso = useSyncExternalStore(emptySubscribe, messageClockSnapshot, () => "");
   const closed = Boolean(closesAt && nowIso.length > 0 && closesAt <= nowIso);
@@ -62,32 +65,38 @@ export function MessagePanel({
       setError("Choose a photo or PDF under 5 MB.");
       return;
     }
-    const image = extension !== "pdf";
-    const body = image ? await compressImage(file) : file;
-    const path = `${threadId}/${crypto.randomUUID()}.${image ? "jpg" : "pdf"}`;
-    const supabase = createClient();
-    const uploaded = await supabase.storage.from("message-files").upload(path, body, {
-      upsert: false,
-      contentType: image ? "image/jpeg" : "application/pdf",
-    });
-    if (uploaded.error) {
-      setError("That file could not be uploaded.");
-      return;
+    setUploading(true);
+    setError(null);
+    try {
+      const image = extension !== "pdf";
+      const body = image ? await compressImage(file) : file;
+      const path = `${threadId}/${crypto.randomUUID()}.${image ? "jpg" : "pdf"}`;
+      const supabase = createClient();
+      const uploaded = await supabase.storage.from("message-files").upload(path, body, {
+        upsert: false,
+        contentType: image ? "image/jpeg" : "application/pdf",
+      });
+      if (uploaded.error) {
+        setError("That file could not be uploaded.");
+        return;
+      }
+      const registered = await supabase.rpc("register_message_file", {
+        target_thread: threadId,
+        storage_path: path,
+      });
+      if (registered.error) {
+        setError("That file could not be sent.");
+        return;
+      }
+      const response = await fetch(`/api/messages/${threadId}`);
+      if (response.ok) {
+        const payload = (await response.json()) as { messages?: ChatMessage[] };
+        if (payload.messages) setMessages(payload.messages);
+      }
+      router.refresh();
+    } finally {
+      setUploading(false);
     }
-    const registered = await supabase.rpc("register_message_file", {
-      target_thread: threadId,
-      storage_path: path,
-    });
-    if (registered.error) {
-      setError("That file could not be sent.");
-      return;
-    }
-    const response = await fetch(`/api/messages/${threadId}`);
-    if (response.ok) {
-      const payload = (await response.json()) as { messages?: ChatMessage[] };
-      if (payload.messages) setMessages(payload.messages);
-    }
-    router.refresh();
   }
 
   useEffect(() => {
@@ -102,8 +111,10 @@ export function MessagePanel({
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    if (warning || closed || text.trim().length === 0) return;
+    if (warning || closed || text.trim().length === 0 || sending) return;
+    setSending(true);
     setError(null);
+    try {
     const response = await fetch(`/api/messages/${threadId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -116,6 +127,9 @@ export function MessagePanel({
     const payload = (await response.json()) as { messages?: ChatMessage[] };
     if (payload.messages) setMessages(payload.messages);
     setText("");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -192,20 +206,18 @@ export function MessagePanel({
               Remove the phone number or email before sending. Pickuply keeps contact details off the chat.
             </p>
           ) : null}
-          <label className="text-base font-semibold text-ink" htmlFor={`file-${threadId}`}>
-            Photo or PDF
-            <input
-              id={`file-${threadId}`}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="mt-2 block w-full text-base font-normal"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void addFile(file);
-                event.target.value = "";
-              }}
-            />
-          </label>
+          <UploadPicker
+            id={`file-${threadId}`}
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            label="Add a photo or PDF"
+            kinds="JPG, PNG, WEBP, or PDF under 5 MB"
+            clearAfter
+            busy={uploading}
+            onChange={(files) => {
+              const file = files?.[0];
+              if (file) void addFile(file);
+            }}
+          />
           {error ? (
             <p role="alert" className="text-base text-danger">
               {error}
@@ -213,10 +225,11 @@ export function MessagePanel({
           ) : null}
           <button
             type="submit"
-            disabled={warning || text.trim().length === 0}
+            disabled={warning || text.trim().length === 0 || sending}
+            aria-busy={sending}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
           >
-            Send
+            {sending ? "Sending..." : "Send"}
           </button>
         </form>
       )}

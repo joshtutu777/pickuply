@@ -11,6 +11,7 @@ import {
   signAgreement,
 } from "@/app/driver/ready/actions";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { UploadPicker } from "@/components/upload-picker";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/photos";
 import type { CoverageDraft } from "@/lib/driver/coverage";
@@ -105,10 +106,7 @@ export function ReadyStep({
         <form action={saveLicense} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.licenseUrl ? <p className="text-base text-ink">Your license photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <label className="block font-semibold" htmlFor="license-photo">
-            License photo
-            <input id="license-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("license", event.target.files?.[0] ?? null)} />
-          </label>
+          <UploadPicker id="license-photo" accept="image/jpeg,image/png,image/webp" required label="Add your license photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("license", files?.[0] ?? null)} />
           <label className="block font-semibold" htmlFor="license-expires">
             License expiration
             <input id="license-expires" name="expires" type="date" required defaultValue={existing.licenseExpires ?? ""} className={controlClass} />
@@ -120,10 +118,7 @@ export function ReadyStep({
         <form action={saveInsurance} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.insuranceUrl ? <p className="text-base text-ink">Your insurance photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <label className="block font-semibold" htmlFor="insurance-photo">
-            Insurance photo
-            <input id="insurance-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("insurance", event.target.files?.[0] ?? null)} />
-          </label>
+          <UploadPicker id="insurance-photo" accept="image/jpeg,image/png,image/webp" required label="Add your insurance photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("insurance", files?.[0] ?? null)} />
           <label className="block font-semibold" htmlFor="insurance-expires">
             Insurance expiration
             <input id="insurance-expires" name="expires" type="date" required defaultValue={existing.insuranceExpires ?? ""} className={controlClass} />
@@ -150,10 +145,7 @@ export function ReadyStep({
           <label className="block font-semibold" htmlFor="plate">Plate<input id="plate" name="plate" required defaultValue={existing.plate ?? ""} className={controlClass} /></label>
           <label className="block font-semibold" htmlFor="cargo">Cargo length in inches<input id="cargo" name="cargo" inputMode="numeric" required defaultValue={existing.cargo ?? ""} className={controlClass} /></label>
           {existing.vehiclePhoto ? <p className="text-base text-ink">Your vehicle photo is already on file.</p> : null}
-          <label className="block font-semibold" htmlFor="vehicle-photo">
-            Vehicle photo
-            <input id="vehicle-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("vehicle", event.target.files?.[0] ?? null)} />
-          </label>
+          <UploadPicker id="vehicle-photo" accept="image/jpeg,image/png,image/webp" required label="Add a vehicle photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("vehicle", files?.[0] ?? null)} />
           <Submit pending={pending} label="Save vehicle" />
         </form>
       ) : null}
@@ -223,8 +215,8 @@ export function ReadyStep({
 
 function Submit({ pending, label }: { pending: boolean; label: string }) {
   return (
-    <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
-      {label}
+    <button type="submit" disabled={pending} aria-busy={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60">
+      {pending ? "Saving..." : label}
     </button>
   );
 }

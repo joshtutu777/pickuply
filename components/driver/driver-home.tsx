@@ -96,6 +96,7 @@ function OfferActions({
   const [amount, setAmount] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
+  const [sending, setSending] = useState(false);
   const router = useRouter();
   const offerCents = parseDollarsToCents(amount) ?? 0;
   const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
@@ -103,8 +104,11 @@ function OfferActions({
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
   async function send(kind: "accept" | "claim" | "offer") {
+    if (sending) return;
+    setSending(true);
     setMessage(null);
     const supabase = createClient();
+    try {
     const result =
       kind === "claim"
         ? await supabase.rpc("claim_job", { target_job: job.id })
@@ -133,6 +137,9 @@ function OfferActions({
     }
     if (kind === "claim") router.refresh();
     onDone();
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -140,11 +147,12 @@ function OfferActions({
       {claimable ? (
         <button
           type="button"
-          disabled={!canAct}
+          disabled={!canAct || sending}
+          aria-busy={sending}
           onClick={() => void send("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
-          Claim this job
+          {sending ? "Updating status..." : "Claim this job"}
         </button>
       ) : (
         <>
@@ -153,11 +161,12 @@ function OfferActions({
               <OfferMath cents={posted} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct}
+                disabled={!canAct || sending}
+                aria-busy={sending}
                 onClick={() => void send("accept")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
-                Accept posted price
+                {sending ? "Submitting..." : "Accept posted price"}
               </button>
             </>
           ) : null}
@@ -180,13 +189,14 @@ function OfferActions({
               <OfferMath cents={offerCents} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct}
+                disabled={!canAct || sending}
+                aria-busy={sending}
                 onClick={() => void send("offer")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
-                {driverQuote ? "Send quote" : "Confirm offer"}
+                {sending ? "Sending..." : driverQuote ? "Send quote" : "Confirm offer"}
               </button>
-              <button type="button" onClick={() => setReviewing(false)} className="inline-flex min-h-12 items-center font-semibold text-brand">
+              <button type="button" disabled={sending} onClick={() => setReviewing(false)} className="inline-flex min-h-12 items-center font-semibold text-brand disabled:opacity-60">
                 Edit offer
               </button>
             </div>

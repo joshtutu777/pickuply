@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { chooseOffer } from "@/app/jobs/offer-actions";
+import { PendingButton } from "@/components/pending-button";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 
@@ -94,12 +95,11 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
             <form action={chooseOffer} className="mt-3">
               <input type="hidden" name="jobId" value={jobId} />
               <input type="hidden" name="offerId" value={offer.offer_id} />
-              <button
-                type="submit"
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-              >
-                Choose {offer.driver_first_name || "this driver"}
-              </button>
+              <PendingButton
+                idle={`Choose ${offer.driver_first_name || "this driver"}`}
+                pendingLabel="Submitting..."
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
+              />
             </form>
           </article>
         );

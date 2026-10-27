@@ -1,4 +1,5 @@
 import { startCheckout } from "@/app/jobs/pay/actions";
+import { PendingButton } from "@/components/pending-button";
 import { formatCents } from "@/lib/money";
 
 const confirmed = new Set(["authorized", "paid", "captured"]);
@@ -53,12 +54,11 @@ export function PayPanel({
             </p>
             <form action={startCheckout}>
               <input type="hidden" name="jobId" value={jobId} />
-              <button
-                type="submit"
-                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-6 text-center font-semibold text-white sm:w-auto"
-              >
-                Confirm booking
-              </button>
+              <PendingButton
+                idle="Confirm booking"
+                pendingLabel="Submitting..."
+                className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-6 text-center font-semibold text-white disabled:opacity-60 sm:w-auto"
+              />
               <p className="mt-2 text-base text-muted">You won&apos;t be charged until your item is delivered</p>
             </form>
           </>
