@@ -7,7 +7,7 @@ import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-se
 import { SignInSmsNotice, SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
-import { allowOtpSend } from "@/app/login/otp-limit";
+import { sendSignInCode } from "@/app/login/otp-limit";
 
 const RESEND_MS = 30_000;
 
@@ -81,18 +81,9 @@ export function LoginForm({
     setError("");
     let sent = false;
     try {
-      const limited = await allowOtpSend(normalized);
-      if (limited) {
-        setError(limited);
-        return;
-      }
-      const supabase = createClient();
-      const { error: sendError } = await supabase.auth.signInWithOtp({
-        phone: normalized,
-        options: { channel: "sms" },
-      });
+      const sendError = await sendSignInCode(normalized);
       if (sendError) {
-        setError(mapOtpError(sendError, "send"));
+        setError(sendError);
         return;
       }
       sent = true;

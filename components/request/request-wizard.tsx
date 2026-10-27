@@ -29,6 +29,7 @@ import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft"
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
+import { sendSignInCode } from "@/app/login/otp-limit";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-send-gate";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
@@ -360,12 +361,9 @@ export function RequestWizard({
     setOtpError("");
     let sent = false;
     try {
-      const { error } = await createClient().auth.signInWithOtp({
-        phone,
-        options: { channel: "sms" },
-      });
-      if (error) {
-        setOtpError(mapOtpError(error, "send"));
+      const sendError = await sendSignInCode(phone);
+      if (sendError) {
+        setOtpError(sendError);
         return;
       }
       sent = true;
