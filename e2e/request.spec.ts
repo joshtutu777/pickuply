@@ -182,7 +182,7 @@ test("fixed, range, and quote pricing are validated and shown", async ({ page })
 
   await page.getByRole("radio", { name: /Get a quote/ }).check();
   await expect(
-    page.getByRole("paragraph").filter({ hasText: "Drivers do not see a quote until you accept Pickuply's price." }),
+    page.getByRole("paragraph").filter({ hasText: "Drivers can review this request and send offers." }),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Your price" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: /^Minimum/ })).toHaveCount(0);
@@ -226,4 +226,18 @@ test("the phone layout does not scroll sideways", async ({ page }) => {
     return root.scrollWidth - root.clientWidth;
   });
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("Get a price opens a new request instead of staying on this one", async ({ page }) => {
+  await page.goto("/request");
+  const refresh = page.getByRole("button", { name: "Refresh" });
+  if (await refresh.isVisible().catch(() => false)) await refresh.click();
+  await expect(page.getByRole("heading", { name: "What do you need?" })).toBeVisible();
+  await page.getByRole("link", { name: "Get a price" }).click();
+  await expect(page).toHaveURL(/\/request\?new=/);
+  const first = new URL(page.url()).searchParams.get("new");
+  await expect(page.getByRole("heading", { name: "What do you need?" })).toBeVisible();
+  await page.getByRole("link", { name: "Get a price" }).click();
+  await expect(page).toHaveURL(/\/request\?new=/);
+  await expect.poll(() => new URL(page.url()).searchParams.get("new")).not.toBe(first);
 });

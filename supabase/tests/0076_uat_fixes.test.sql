@@ -274,8 +274,8 @@ select pg_temp.clear_auth();
 
 select is(
   (select status::text from public.jobs where id = 'c1760000-0000-4000-8000-000000000021'),
-  'requested',
-  'a quote waits for an admin price'
+  'open',
+  'a quote opens for drivers immediately'
 );
 select is(
   (select status::text from public.jobs where id = 'c1760000-0000-4000-8000-000000000022'),
@@ -287,8 +287,8 @@ select pg_temp.as_user('c1760000-0000-4000-8000-000000000002');
 set local role authenticated;
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'c1760000-0000-4000-8000-000000000021'),
-  0,
-  'a driver does not see a quote before it is accepted'
+  1,
+  'a driver sees a new quote immediately'
 );
 select is(
   (select count(*)::int from public.driver_job_feed() where id = 'c1760000-0000-4000-8000-000000000022'),

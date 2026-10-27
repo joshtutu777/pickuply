@@ -238,10 +238,10 @@ async function DriverJob({
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>
       ) : null}
       {details ? (
-        <section className="mt-3 space-y-2 text-base text-ink">
+        <section className="mt-3 min-w-0 space-y-2 text-base text-ink">
           <h2 className="text-lg font-semibold">Addresses</h2>
-          <p>{details.pickup_address}</p>
-          {details.dropoff_address ? <p>Drop-off: {details.dropoff_address}</p> : null}
+          <p className="break-words">{details.pickup_address}</p>
+          {details.dropoff_address ? <p className="break-words">Drop-off: {details.dropoff_address}</p> : null}
           {details.pickup_address ? (
             <MapsLink address={details.pickup_address} label="Open pickup in Maps" />
           ) : null}

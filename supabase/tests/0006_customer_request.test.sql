@@ -311,12 +311,12 @@ select is(
 );
 
 select ok(
-  (select status = 'requested' and customer_id = 'a1111111-1111-4111-8111-111111111111'
+  (select status = 'open' and customer_id = 'a1111111-1111-4111-8111-111111111111'
     and price_cents is null and driver_pay_cents is null and platform_fee_cents is null
     and dump_fee_cents is null and quote_expires_at is null and assigned_driver_id is null
     and offer_cents is null
     from public.jobs where id = 'e1111111-1111-4111-8111-111111111111'),
-  'a quote waits for an admin price and has no fee or driver'
+  'a quote opens immediately and has no fee or driver'
 );
 select is(
   (select offer_cents from public.jobs where id = 'e2222222-2222-4222-8222-222222222222'),
@@ -532,8 +532,8 @@ select is(
 select is(
   (select count(*)::int from public.driver_job_feed()
     where id = 'e1111111-1111-4111-8111-111111111111'),
-  0,
-  'a quote is not in the driver feed before the customer accepts it'
+  1,
+  'a new quote is in the driver feed'
 );
 
 select pg_temp.as_user('c3333333-3333-4333-8333-333333333333');

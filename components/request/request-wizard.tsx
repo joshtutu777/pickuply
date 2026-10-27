@@ -20,6 +20,7 @@ import {
 } from "@/lib/constants";
 import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
+import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
@@ -86,7 +87,13 @@ function scrollTransactionToTop() {
   window.scrollTo(0, 0);
 }
 
-export function RequestWizard({ initialService }: { initialService: ServiceId | null }) {
+export function RequestWizard({
+  initialService,
+  freshKey = "",
+}: {
+  initialService: ServiceId | null;
+  freshKey?: string;
+}) {
   const [boot] = useState(() => loadBoot(initialService));
   const [showResume, setShowResume] = useState(boot.showResume);
   const [draft, setDraft] = useState<RequestDraft>(boot.draft);
@@ -133,6 +140,26 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   const [photoProgress, setPhotoProgress] = useState<Record<string, string>>({});
   const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
   const [sentId, setSentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!freshKey) return;
+    clearStoredDraft();
+    clearSubmissionId();
+    setPreviews((current) => {
+      for (const preview of current) URL.revokeObjectURL(preview.url);
+      return [];
+    });
+    setSentId(null);
+    setDraft(emptyDraft(initialService ?? ""));
+    setPhotoIds([]);
+    setStepIndex(0);
+    setErrors({});
+    setShowResume(false);
+    setPhotoError(null);
+    setFormError(null);
+    setSubmitting(false);
+    setMissingPhotos([]);
+  }, [freshKey, initialService]);
 
   useEffect(() => {
     const ids = boot.photoIds;
@@ -427,12 +454,18 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
         <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Request sent</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">
           {draft.pricingMethod === "quote"
-            ? "We're preparing your price. Drivers can't see this request until you accept it."
+            ? "Request sent. Drivers can now review your request and send offers."
             : "Drivers can see this request. Nothing is booked until you choose an offer."}
         </p>
         <Link href={`/jobs/${sentId}`} className={`${primaryButton} mt-8`}>
           View your request
         </Link>
+        <FreshRequestLink
+          service={initialService}
+          className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full border border-line bg-paper px-6 text-lg font-semibold text-ink"
+        >
+          Start another request
+        </FreshRequestLink>
       </main>
     );
   }
@@ -823,7 +856,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
             <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">Your price</h1>
             <p className="text-base leading-relaxed text-muted">
               {draft.pricingMethod === "quote"
-                ? "Drivers do not see a quote until you accept Pickuply's price. Nothing is charged until a driver is booked."
+                ? "Drivers can review this request and send offers. You choose who to book. Nothing is charged until you accept."
                 : "Drivers see this request as soon as you send it. Nothing is booked until you choose an offer."}
             </p>
             <RadioCards

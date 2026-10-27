@@ -28,5 +28,6 @@ async function RequestEntry({
 }) {
   const params = await searchParams;
   const value = Array.isArray(params.service) ? params.service[0] : params.service;
-  return <RequestForm initialService={serviceFromQuery(value)} />;
+  const fresh = Array.isArray(params.new) ? params.new[0] : params.new;
+  return <RequestForm initialService={serviceFromQuery(value)} freshKey={fresh ?? ""} />;
 }

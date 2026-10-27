@@ -112,10 +112,10 @@ async function RequestDetail({
         </p>
         {job.private ? (
           <>
-            <p>{job.private.customer_name}</p>
-            <p>{job.private.customer_phone}</p>
-            {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
-            <p>Pickup: {job.private.pickup_address}</p>
+            <p className="break-words">{job.private.customer_name}</p>
+            <p className="break-all">{job.private.customer_phone}</p>
+            {job.private.customer_email ? <p className="break-all">{job.private.customer_email}</p> : null}
+            <p className="break-words">Pickup: {job.private.pickup_address}</p>
             {job.private.pickup_verified === false || job.private.dropoff_verified === false ? (
               <p>Address not verified</p>
             ) : null}
@@ -141,7 +141,7 @@ async function RequestDetail({
             ) : (
               <p>Trip map: —</p>
             )}
-            {job.private.dropoff_address ? <p>Drop-off: {job.private.dropoff_address}</p> : null}
+            {job.private.dropoff_address ? <p className="break-words">Drop-off: {job.private.dropoff_address}</p> : null}
             {job.private.access_notes ? <p>Access: {job.private.access_notes}</p> : null}
           </>
         ) : null}

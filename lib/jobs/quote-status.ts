@@ -14,7 +14,7 @@ export function quoteRequestCopy(input: {
     return customerStatusDetail(input);
   }
   if (preparing.has(input.status)) {
-    return "We're preparing your price. Drivers can't see this request until you accept it.";
+    return "This saved request is not open for driver offers yet.";
   }
   return customerStatusDetail(input);
 }

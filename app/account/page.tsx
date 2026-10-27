@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { Suspense } from "react";
 import { RestrictionNotice } from "@/components/account/restriction-notice";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
@@ -53,9 +54,9 @@ async function AccountContent({
       ) : null}
       <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="flex min-h-24 flex-col justify-between rounded-3xl bg-brand p-4 text-white">
-          <Link href="/request" className="inline-flex min-h-12 items-center text-base font-semibold">
+          <FreshRequestLink className="inline-flex min-h-12 items-center text-base font-semibold">
             Get a price
-          </Link>
+          </FreshRequestLink>
           <p className="text-sm font-medium text-white/80">New request</p>
         </div>
         <div className="flex min-h-24 flex-col justify-between rounded-3xl bg-paper-raised p-4 text-ink ring-1 ring-line">
@@ -79,12 +80,9 @@ async function AccountContent({
           <p className="mt-2 text-base leading-relaxed text-muted">
             When you request a pickup, it shows up here.
           </p>
-          <Link
-            href="/request"
-            className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white"
-          >
+          <FreshRequestLink className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white">
             Request a pickup
-          </Link>
+          </FreshRequestLink>
         </section>
       ) : (
         <>

@@ -319,16 +319,16 @@ export function JobStatus({
       </DetailsFold>
       {job.private ? (
         <DetailsFold title="Pickup address" open={booked}>
-          <p>{job.private.customer_name}</p>
-          <p>{job.private.customer_phone}</p>
-          {job.private.customer_email ? <p>{job.private.customer_email}</p> : null}
-          <p>{job.private.pickup_address}</p>
-          {job.private.access_notes ? <p>Access: {job.private.access_notes}</p> : null}
+          <p className="break-words">{job.private.customer_name}</p>
+          <p className="break-all">{job.private.customer_phone}</p>
+          {job.private.customer_email ? <p className="break-all">{job.private.customer_email}</p> : null}
+          <p className="break-words">{job.private.pickup_address}</p>
+          {job.private.access_notes ? <p className="break-words">Access: {job.private.access_notes}</p> : null}
         </DetailsFold>
       ) : null}
       {job.private?.dropoff_address ? (
         <DetailsFold title="Drop-off address" open={booked}>
-          <p>{job.private.dropoff_address}</p>
+          <p className="break-words">{job.private.dropoff_address}</p>
         </DetailsFold>
       ) : null}
       <DetailsFold title="Status history">
