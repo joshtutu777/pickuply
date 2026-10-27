@@ -16,5 +16,5 @@ export function finishOtpSend(
   cooldownMs: number,
 ): void {
   gate.inFlight = false;
-  if (result === "sent") gate.coolingUntil = now + cooldownMs;
+  if (result === "sent" && cooldownMs > 0) gate.coolingUntil = now + cooldownMs;
 }

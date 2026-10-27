@@ -30,6 +30,7 @@ import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
+import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-send-gate";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
 import { compressImage } from "@/lib/photos";
@@ -107,6 +108,7 @@ export function RequestWizard({
     scrollTransactionToTop();
   }, [stepIndex]);
   const funnelStarted = useRef(false);
+  const sendGate = useRef<OtpSendGate>({ inFlight: false, coolingUntil: 0 });
   useEffect(() => {
     const supabase = createClient();
     void supabase.auth.getUser().then(async ({ data }) => {
@@ -351,8 +353,12 @@ export function RequestWizard({
       setOtpError(otpErrorCopy.invalidNumber);
       return;
     }
+    // This form has no resend countdown. The lock only blocks a second tap during this request.
+    if (!claimOtpSend(sendGate.current, Date.now())) return;
+
     setSubmitting(true);
     setOtpError("");
+    let sent = false;
     try {
       const { error } = await createClient().auth.signInWithOtp({
         phone,
@@ -362,12 +368,14 @@ export function RequestWizard({
         setOtpError(mapOtpError(error, "send"));
         return;
       }
+      sent = true;
       setCodeSent(true);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "";
       const name = caught instanceof Error ? caught.name : "";
       setOtpError(mapOtpError({ message, name }, "send"));
     } finally {
+      finishOtpSend(sendGate.current, sent ? "sent" : "failed", Date.now(), 0);
       setSubmitting(false);
     }
   }

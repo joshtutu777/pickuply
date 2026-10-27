@@ -44,6 +44,54 @@ test("a failed send can be retried", async () => {
   assert.equal(sendGate.coolingUntil, 0);
 });
 
+test("request form: two rapid sends start only one request", async () => {
+  const sendGate = gate();
+  let requests = 0;
+
+  async function send(result: "sent" | "failed") {
+    if (!claimOtpSend(sendGate, 2_000)) return false;
+    requests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    finishOtpSend(sendGate, result, 2_020, 0);
+    return true;
+  }
+
+  const first = send("sent");
+  const second = send("sent");
+  const results = await Promise.all([first, second]);
+  assert.deepEqual(results, [true, false]);
+  assert.equal(requests, 1);
+  assert.equal(sendGate.inFlight, false);
+  assert.equal(sendGate.coolingUntil, 0);
+});
+
+test("request form: a failed send can be retried immediately", async () => {
+  const sendGate = gate();
+  let requests = 0;
+
+  async function send() {
+    if (!claimOtpSend(sendGate, 3_000)) return false;
+    requests += 1;
+    await Promise.resolve();
+    finishOtpSend(sendGate, "failed", 3_010, 0);
+    return true;
+  }
+
+  assert.equal(await send(), true);
+  assert.equal(await send(), true);
+  assert.equal(requests, 2);
+  assert.equal(sendGate.coolingUntil, 0);
+});
+
+test("request form: a successful send does not add a resend cooldown", () => {
+  const sendGate = gate();
+  assert.equal(claimOtpSend(sendGate, 4_000), true);
+  finishOtpSend(sendGate, "sent", 4_100, 0);
+  assert.equal(sendGate.inFlight, false);
+  assert.equal(sendGate.coolingUntil, 0);
+  assert.equal(claimOtpSend(sendGate, 4_100), true);
+});
+
 test("a sent code keeps the 30 second resend cooldown", () => {
   const sendGate = gate();
   assert.equal(claimOtpSend(sendGate, 10_000), true);
