@@ -263,14 +263,11 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await driver.locator("#proof-file").setInputFiles({ name: "item.png", mimeType: "image/png", buffer: png });
       await driver.getByRole("button", { name: "Save proof" }).click();
       await expect(driver.getByText(/Proof saved/)).toBeVisible();
-      await waitForButton(driver, "Item loaded — head to drop-off");
-      await driver.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+      await waitForButton(driver, "Item loaded");
+      await driver.getByRole("button", { name: "Item loaded" }).click();
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("item_check");
-      await expect.poll(async () => {
-        await customer.reload();
-        return customer.getByRole("button", { name: "Looks good" }).isVisible().catch(() => false);
-      }, { timeout: 45_000, intervals: [1_000, 2_000, 3_000] }).toBe(true);
-      await customer.getByRole("button", { name: "Looks good" }).click();
+      await waitForButton(driver, "Proceed to drop-off");
+      await driver.getByRole("button", { name: "Proceed to drop-off" }).click();
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("in_transit");
       await waitForButton(driver, "Arrived at drop-off");
       await driver.getByRole("button", { name: "Arrived at drop-off" }).click();
@@ -283,10 +280,10 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("delivered");
       await expect.poll(async () => {
         await customer.reload();
-        return customer.getByRole("button", { name: "Confirm delivery" }).isVisible().catch(() => false);
+        return customer.getByRole("button", { name: "Confirm", exact: true }).isVisible().catch(() => false);
       }, { timeout: 45_000, intervals: [1_000, 2_000, 3_000] }).toBe(true);
       await expect(customer.getByText("Delivered").first()).toBeVisible();
-      await customer.getByRole("button", { name: "Confirm delivery" }).click();
+      await customer.getByRole("button", { name: "Confirm", exact: true }).click();
       const confirmed = customer.getByText("You confirmed this delivery.");
       const review = customer.getByRole("heading", { name: "Review" });
       await expect(confirmed.or(review)).toBeVisible({ timeout: 30_000 });

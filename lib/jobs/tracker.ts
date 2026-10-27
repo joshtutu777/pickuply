@@ -111,7 +111,13 @@ export function buildJobTracker(input: {
               ? "en_route"
               : rank === 4
                 ? "en_route"
-                : rank === 5
+                  : junk && rank === 8 && receiptRequired && !input.hasDumpReceipt
+                    ? "receipt"
+                    : junk && rank === 8
+                      ? "delivered"
+                      : junk && rank >= 5 && rank < 8
+                        ? "arrived"
+                        : rank === 5
                   ? "arrived"
                   : rank === 6
                     ? "item_check"
@@ -133,16 +139,16 @@ export function buildJobTracker(input: {
     { id: "driver", label: "Driver confirmed", at: driverAt },
     { id: "payment", label: paymentDone ? "Booking confirmed" : "Awaiting payment", at: null },
     { id: "en_route", label: "Driver heading to pickup", at: statusAt("en_route") },
-    { id: "arrived", label: "Driver arrived", at: statusAt("arrived") },
-    { id: "item_check", label: "Item checked", at: statusAt("item_check") },
+    { id: "arrived", label: junk ? "Arrived at removal location" : "Driver arrived", at: statusAt("arrived") },
+    { id: "item_check", label: "Item loaded", at: statusAt("item_check") },
     {
       id: "picked_up",
-      label: junk ? "Load picked up" : "Item picked up",
+      label: "Item picked up",
       at: statusAt("in_transit"),
     },
     {
       id: "delivered",
-      label: junk ? "Hauled away" : "Delivered",
+      label: junk ? "Junk removed" : "Delivered",
       at: statusAt("delivered"),
     },
   ];
@@ -154,9 +160,10 @@ export function buildJobTracker(input: {
     });
   }
   planned.push({ id: "completed", label: "Completed", at: statusAt("completed") });
+  const shown = junk ? planned.filter((step) => step.id !== "item_check" && step.id !== "picked_up") : planned;
 
-  const currentIndex = planned.findIndex((step) => step.id === currentId);
-  const steps: TrackStep[] = planned.map((step, index) => {
+  const currentIndex = shown.findIndex((step) => step.id === currentId);
+  const steps: TrackStep[] = shown.map((step, index) => {
     if (input.status === "completed") return { ...step, state: "done" };
     if (stopped) return { ...step, state: step.at ? "done" : "upcoming" };
     if (index === currentIndex) return { ...step, state: "current" };
@@ -197,7 +204,12 @@ export function customerProgress(input: {
   const place = milestoneIndex(progressStatus(input.status, input.events ?? []));
   const milestones: TrackStep[] = milestoneOrder.map((id, index) => ({
     id,
-    label: milestoneLabels[id],
+    label:
+      input.service === "junk" && id === "delivered"
+        ? "Junk removed"
+        : input.service === "junk" && id === "pickup"
+          ? "Removal"
+          : milestoneLabels[id],
     state: index < place ? "done" : index === place ? "current" : "upcoming",
     at: null,
   }));
@@ -238,8 +250,7 @@ function customerAction(input: {
   if (input.status === "quoted") return "Accept quote";
   if (input.status === "open" && input.pricingMethod !== "quote") return "Choose driver";
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) return "Add card";
-  if (input.status === "item_check") return "Looks good";
-  if (input.status === "delivered") return "Confirm Delivery";
+  if (input.status === "delivered") return "Confirm";
   return null;
 }
 
@@ -253,14 +264,22 @@ function nextForCustomer(input: {
   if (input.status === "cancelled") return "This request was cancelled.";
   if (input.status === "disputed") return "This request is paused while the problem is reviewed.";
   if (input.status === "completed") return "This request is finished.";
-  if (input.status === "delivered") return "Confirm your delivery. If you do not respond, this finishes 24 hours after delivery.";
+  if (input.status === "delivered") {
+    return input.service === "junk"
+      ? "Does everything look good? Confirm the removal, or report an issue. If you do not respond, this finishes 24 hours after the junk was removed."
+      : "Does everything look good? Confirm the delivery, or report an issue. If you do not respond, this finishes 24 hours after delivery.";
+  }
   if (input.status === "in_transit") {
     return input.dropoffArrived
       ? "The driver has arrived. Please meet them."
       : "Your item is on the way.";
   }
-  if (input.status === "item_check") return "Your item is picked up. Something wrong? Tell us within 10 minutes.";
-  if (input.status === "arrived") return "The driver has arrived at pickup.";
+  if (input.status === "item_check") return "Your item is loaded. The driver can continue to the drop-off.";
+  if (input.status === "arrived") {
+    return input.service === "junk"
+      ? "The driver has arrived at the removal location."
+      : "The driver has arrived at pickup.";
+  }
   if (input.status === "en_route") return "The driver is on the way to pickup.";
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) {
     return "Confirm booking — your card is held, not charged, until your item is delivered.";
@@ -290,15 +309,17 @@ export function customerStageLine(input: {
   paymentStatus: string | null;
   driverName: string | null;
   dropoffArrived: boolean;
+  service?: string;
 }): string | null {
   const name = input.driverName?.trim() || "Your driver";
+  const junk = input.service === "junk";
   if (input.status === "disputed") return "Delivery paused while Pickuply reviews your report.";
-  if (input.status === "completed") return "Delivery complete.";
-  if (input.status === "delivered") return "Confirm your delivery.";
+  if (input.status === "completed") return junk ? "Removal complete." : "Delivery complete.";
+  if (input.status === "delivered") return "Does everything look good?";
   if (input.status === "in_transit" && input.dropoffArrived) return `${name} has arrived. Please meet them.`;
   if (input.status === "in_transit") return "Your item is on the way.";
-  if (input.status === "item_check") return "Your item is picked up.";
-  if (input.status === "arrived") return `${name} has arrived at pickup.`;
+  if (input.status === "item_check") return "Your item is loaded.";
+  if (input.status === "arrived") return junk ? `${name} has arrived at the removal location.` : `${name} has arrived at pickup.`;
   if (input.status === "en_route") return `${name} is on the way to pickup.`;
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) return "Confirm your booking.";
   return null;
@@ -323,20 +344,23 @@ export function nextDriverAction(input: {
     return { label: "Start trip", nextStatus: "en_route", waiting: null };
   }
   if (input.status === "en_route") {
-    return { label: "Arrived at pickup", nextStatus: "arrived", waiting: null };
+    return {
+      label: input.service === "junk" ? "Arrived at removal location" : "Arrived at pickup",
+      nextStatus: "arrived",
+      waiting: null,
+    };
+  }
+  if (input.status === "arrived" && input.service === "junk") {
+    return { label: "Junk removed", nextStatus: "delivered", waiting: null };
   }
   if (input.status === "arrived") {
-    return { label: "Item loaded — head to drop-off", nextStatus: "item_check", waiting: null };
+    return { label: "Item loaded", nextStatus: "item_check", waiting: null };
   }
-  if (input.status === "item_check" && input.reviewExpired) {
-    return { label: "Arrived at drop-off", nextStatus: "at_dropoff", waiting: null };
+  if (input.status === "item_check" && input.service === "junk") {
+    return { label: "Junk removed", nextStatus: "delivered", waiting: null };
   }
   if (input.status === "item_check") {
-    return {
-      label: "Waiting for customer pickup review.",
-      nextStatus: null,
-      waiting: "Waiting for customer pickup review.",
-    };
+    return { label: "Proceed to drop-off", nextStatus: "in_transit", waiting: null };
   }
   if (input.status === "in_transit" && !input.dropoffArrived) {
     return { label: "Arrived at drop-off", nextStatus: "at_dropoff", waiting: null };
@@ -352,7 +376,11 @@ export function nextDriverAction(input: {
     };
   }
   if (input.status === "completed") {
-    return { label: "Delivery complete", nextStatus: null, waiting: null };
+    return {
+      label: input.service === "junk" ? "Removal complete" : "Delivery complete",
+      nextStatus: null,
+      waiting: null,
+    };
   }
   return { label: "Update", nextStatus: null, waiting: null };
 }

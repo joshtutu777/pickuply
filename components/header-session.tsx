@@ -79,8 +79,18 @@ export async function HeaderSession() {
         appNav: homeHref === "/account" || homeHref === "/driver",
         appLabel: homeHref === "/driver" ? "Driver" : homeHref === "/account" ? "Customer" : null,
         roleBadge: roleBadgeForHome(homeHref),
-        appLinks: homeHref === "/driver" ? driverNav : homeHref === "/account" ? customerDesktopNav : customerNav,
-        accountLinks: homeHref === "/account" ? customerAccountLinks : null,
+        appLinks:
+          homeHref === "/driver"
+            ? [...driverNav, { href: "/help", label: "Help", icon: "profile" }]
+            : homeHref === "/account"
+              ? customerDesktopNav
+              : customerNav,
+        accountLinks:
+          homeHref === "/account"
+            ? customerAccountLinks
+            : homeHref === "/driver"
+              ? [{ href: "/help", label: "Help" }]
+              : null,
         messageUnread,
         offerUnread,
         homeHref,

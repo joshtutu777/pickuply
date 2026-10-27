@@ -27,7 +27,7 @@ const statusLabels: Record<string, string> = {
   assigned: "Driver assigned",
   en_route: "Driver on the way",
   arrived: "Driver arrived",
-  item_check: "Item check",
+  item_check: "Item loaded",
   in_transit: "On the way",
   delivered: "Delivered",
   completed: "Completed",

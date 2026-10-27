@@ -141,5 +141,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /blog\.spec\.ts/,
     },
+    {
+      name: "local-nav",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /nav-cleanup\.spec\.ts/,
+    },
+    {
+      name: "local-workflow",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /delivery-workflow-ui\.spec\.ts/,
+    },
   ],
 });

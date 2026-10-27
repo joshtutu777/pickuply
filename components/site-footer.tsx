@@ -3,7 +3,7 @@ import Link from "next/link";
 const footerLink =
   "inline-flex min-h-12 items-center justify-center rounded-full px-4 text-base font-semibold text-ink underline-offset-4 hover:underline";
 
-export function SiteFooter() {
+export function SiteFooter({ showPublicLinks = true }: { showPublicLinks?: boolean }) {
   return (
     <footer data-app-footer="" className="mt-auto border-t border-line bg-paper-raised">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-8">
@@ -20,12 +20,16 @@ export function SiteFooter() {
           <Link href="/privacy" className={footerLink}>
             Privacy
           </Link>
-          <Link href="/contact" className={footerLink}>
-            Support
-          </Link>
-          <Link href="/blog" className={footerLink}>
-            Blog
-          </Link>
+          {showPublicLinks ? (
+            <>
+              <Link href="/contact" className={footerLink}>
+                Contact
+              </Link>
+              <Link href="/blog" className={footerLink}>
+                Blog
+              </Link>
+            </>
+          ) : null}
           <Link href="/help" className={footerLink}>
             Help
           </Link>

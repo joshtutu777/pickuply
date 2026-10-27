@@ -169,7 +169,7 @@ test("rejecting the item captures only the trip fee", async ({ browser }) => {
   await driver.page.getByRole("button", { name: "Start trip", exact: true }).click();
   await driver.page.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver.page, "pickup");
-  await driver.page.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+  await driver.page.getByRole("button", { name: "Item loaded" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.locator("#reject-reason").fill("The item is the wrong size.");
@@ -393,10 +393,9 @@ async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await expect(driver.getByRole("button", { name: "Arrived at pickup" })).toBeVisible();
   await driver.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver, "pickup");
-  await driver.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+  await driver.getByRole("button", { name: "Item loaded" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
-  await customer.goto(`/jobs/${jobId}`);
-  await customer.getByRole("button", { name: "Looks good" }).click();
+  await driver.getByRole("button", { name: "Proceed to drop-off" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^in_transit$/);
   await driver.goto(`/driver/jobs/${jobId}`);
   await driver.getByRole("button", { name: "Arrived at drop-off" }).click();
@@ -404,7 +403,7 @@ async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await driver.getByRole("button", { name: "Delivered" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^delivered$/);
   await customer.goto(`/jobs/${jobId}`);
-  await expect(customer.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
+  await expect(customer.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
 }
 
 async function saveProof(page: Page, stage: "pickup" | "dropoff") {

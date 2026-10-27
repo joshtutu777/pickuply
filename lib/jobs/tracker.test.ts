@@ -41,8 +41,8 @@ test("junk job uses haul labels and shows a receipt step when a dump fee exists"
       { type: "status", createdAt: "2026-10-22T17:00:00.000Z", toStatus: "delivered" },
     ],
   });
-  assert.equal(tracker.steps.find((step) => step.id === "picked_up")?.label, "Load picked up");
-  assert.equal(tracker.steps.find((step) => step.id === "delivered")?.label, "Hauled away");
+  assert.equal(tracker.steps.find((step) => step.id === "picked_up"), undefined);
+  assert.equal(tracker.steps.find((step) => step.id === "delivered")?.label, "Junk removed");
   assert.equal(tracker.steps.find((step) => step.id === "receipt")?.state, "current");
 
   const flagged = buildJobTracker({
@@ -195,7 +195,7 @@ test("customer tracking uses four milestones", () => {
   assert.equal(completed.next, "This request is finished.");
 });
 
-test("the next driver button waits for payment and for the item check", () => {
+test("the next driver button waits for payment and then continues by service", () => {
   assert.equal(
     nextDriverAction({ status: "assigned", paymentStatus: "awaiting_payment", service: "delivery" }).waiting,
     "Waiting for customer to add card",
@@ -205,7 +205,11 @@ test("the next driver button waits for payment and for the item check", () => {
     "en_route",
   );
   assert.equal(
-    nextDriverAction({ status: "item_check", paymentStatus: "authorized", service: "junk" }).waiting,
-    "Waiting for customer pickup review.",
+    nextDriverAction({ status: "item_check", paymentStatus: "authorized", service: "delivery" }).nextStatus,
+    "in_transit",
+  );
+  assert.equal(
+    nextDriverAction({ status: "arrived", paymentStatus: "authorized", service: "junk" }).label,
+    "Junk removed",
   );
 });

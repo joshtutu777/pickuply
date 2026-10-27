@@ -66,8 +66,8 @@ test("a delivered job opens on Drop-off Review", async ({ page }) => {
   try {
     await page.goto(`/login?next=/jobs/${jobId}`);
     await signIn(page, robin);
-    const status = page.getByRole("heading", { name: "Delivered" });
-    const review = page.getByRole("heading", { name: "Drop-off Review" });
+    const status = page.getByRole("heading", { name: "Awaiting confirmation" });
+    const review = page.getByRole("heading", { name: "Does everything look good?" });
     await expect(status).toBeVisible();
     await expect(review).toBeVisible();
     const statusBox = await status.boundingBox();
@@ -76,20 +76,19 @@ test("a delivered job opens on Drop-off Review", async ({ page }) => {
     const tabsBox = await tabs.boundingBox();
     expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y < 700).toBe(true);
     expect(reviewBox && tabsBox && reviewBox.y < tabsBox.y).toBe(true);
-    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Report a Problem" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Pickup review" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Report an Issue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Wrong item?" })).toHaveCount(0);
 
     setStatus("in_transit");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Drop-off Review" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
 
     setStatus("item_check");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Pickup review" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Drop-off Review" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Confirm Delivery" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
   } finally {
     sql(
       `select set_config('pickuply.system_payment', 'yes', true); update public.jobs set status = 'requested', payment_status = 'none' where id = '${jobId}';`,
@@ -263,7 +262,7 @@ test("driver and customer see the same four steps on a paid job", async ({ brows
     await customer.reload();
     await expect(customer.getByLabel("Step 3 of 4: Pickup")).toBeVisible();
     await driver.getByRole("button", { name: "Arrived at pickup" }).click();
-    await expect(driver.getByRole("button", { name: "Item loaded — head to drop-off" })).toBeVisible();
+    await expect(driver.getByRole("button", { name: "Item loaded" })).toBeVisible();
   } finally {
     await customerContext.close();
     await driverContext.close();

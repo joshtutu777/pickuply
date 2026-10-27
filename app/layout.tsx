@@ -7,6 +7,7 @@ import { ScrollRestore } from "@/components/scroll-restore";
 import { UpdateBanner } from "@/components/pwa/update-banner";
 import { MarketingSlot } from "@/components/marketing-chrome";
 import { MobileFrame } from "@/components/mobile/mobile-frame";
+import { FooterSession } from "@/components/footer-session";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -75,7 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
           <Suspense fallback={<SiteFooter />}>
             <MarketingSlot>
-              <SiteFooter />
+              <FooterSession />
             </MarketingSlot>
           </Suspense>
         </div>

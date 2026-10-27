@@ -60,7 +60,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               What we pick up
             </Link>
             <Link href="/contact" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
-              Support
+              Contact
             </Link>
             <Link href="/blog" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               Blog
@@ -303,9 +303,8 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <Link href="/terms" className="py-2 font-medium text-[#14211B]">Terms</Link>
             <Link href="/privacy" className="py-2 font-medium text-[#14211B]">Privacy</Link>
             <Link href="/blog" className="py-2 font-medium text-[#14211B]">Blog</Link>
-            <Link href="/contact" className="py-2 font-medium text-[#14211B]">Support</Link>
+            <Link href="/contact" className="py-2 font-medium text-[#14211B]">Contact</Link>
             <Link href="/help" className="py-2 font-medium text-[#14211B]">Help</Link>
-            <a href="mailto:info@pickuplyapp.com" className="py-2 font-medium text-[#14211B]">Contact</a>
           </nav>
         </div>
       </footer>
