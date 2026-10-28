@@ -68,7 +68,7 @@ async function AccountContent({
       </div>
       <p className="mt-4">
         <Link href="/account/payments" className="inline-flex min-h-12 items-center font-semibold text-brand">
-          Saved cards
+          Payment methods
         </Link>
       </p>
       <h2 className="mt-8 text-lg font-semibold text-ink">Services</h2>

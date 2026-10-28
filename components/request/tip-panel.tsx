@@ -1,5 +1,7 @@
 import { submitTip } from "@/app/jobs/tip-actions";
 import { formatCents } from "@/lib/money";
+import { tipOneTapQuestion } from "@/lib/payments/saved-card";
+import { loadBookingCard } from "@/lib/payments/tip-charge";
 import { tipChoices, tipReceiptLines, tipWindowOpen } from "@/lib/payments/tips";
 import { createClient } from "@/lib/supabase/server";
 
@@ -7,15 +9,25 @@ export function TipPanel({
   jobId,
   driverFirstName,
   presetCents,
+  savedBrand,
   savedLast4,
 }: {
   jobId: string;
   driverFirstName: string;
   presetCents?: number | null;
+  savedBrand?: string | null;
   savedLast4?: string | null;
 }) {
   const name = driverFirstName || "your driver";
   const confirming = presetCents != null;
+  const oneTap = confirming
+    ? tipOneTapQuestion({
+        amountCents: presetCents,
+        driverFirstName: name,
+        brand: savedBrand ?? null,
+        last4: savedLast4 ?? null,
+      })
+    : null;
   return (
     <section className="mx-auto mt-6 w-full max-w-xl px-4">
       <h2 className="text-lg font-semibold text-ink">Add a tip for {name}?</h2>
@@ -26,7 +38,7 @@ export function TipPanel({
         {confirming ? <input type="hidden" name="choice" value={String(presetCents)} /> : null}
         {confirming ? (
           <p className="font-semibold text-ink">
-            Charge {formatCents(presetCents)} now. {savedLast4 ? `Card ending ${savedLast4}.` : "Checkout opens if no card is saved."}
+            {oneTap ?? `Charge ${formatCents(presetCents)} now. Checkout opens to enter a card.`}
           </p>
         ) : (
           <fieldset className="grid gap-2">
@@ -49,7 +61,7 @@ export function TipPanel({
           </fieldset>
         )}
         <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
-          {confirming ? `Pay ${formatCents(presetCents)} tip` : "Continue"}
+          {confirming ? (oneTap ? "Add tip" : `Pay ${formatCents(presetCents)} tip`) : "Continue"}
         </button>
       </form>
     </section>
@@ -75,9 +87,10 @@ export async function TipGate({
   // eslint-disable-next-line react-hooks/purity
   if (status !== "completed" || !tipWindowOpen(completedAt, Date.now())) return null;
   const supabase = await createClient();
-  const [{ data: tips }, { data: cards }] = await Promise.all([
+  const user = await supabase.auth.getUser();
+  const [{ data: tips }, card] = await Promise.all([
     supabase.from("job_tips").select("status, amount_cents, paid_at").eq("job_id", jobId),
-    supabase.from("customer_payment_methods").select("last4").is("detached_at", null).limit(1),
+    user.data.user ? loadBookingCard(jobId, user.data.user.id) : Promise.resolve(null),
   ]);
   const paid = (tips ?? []).find((tip) => tip.paid_at);
   if (paid) {
@@ -96,7 +109,8 @@ export async function TipGate({
       jobId={jobId}
       driverFirstName={driverFirstName}
       presetCents={amount}
-      savedLast4={cards?.[0]?.last4 ?? null}
+      savedBrand={card?.brand ?? null}
+      savedLast4={card?.last4 ?? null}
     />
   );
 }

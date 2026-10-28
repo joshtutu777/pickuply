@@ -96,6 +96,13 @@ export function ProfileMenu({
         </li>
         {surface === "customer" ? (
           <li>
+            <Link href="/account/payments" className={row}>
+              Payment methods
+            </Link>
+          </li>
+        ) : null}
+        {surface === "customer" ? (
+          <li>
             <Link href="/account/jobs#offers" className={row}>
               Offers
             </Link>

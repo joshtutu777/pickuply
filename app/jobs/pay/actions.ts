@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
+import { bookingCheckoutCustomer } from "@/lib/payments/saved-card";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
 import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
@@ -65,14 +66,20 @@ export async function startCheckout(formData: FormData) {
   const profile = user.data.user
     ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
     : null;
-  const saveCard = String(formData.get("saveCard") ?? "") === "yes";
-  if (saveCard) {
-    const consented = await supabase.rpc("record_card_consent");
-    if (consented.error) {
-      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card could not be saved. You can still pay without saving it.")}`);
-    }
+  const consented = await supabase.rpc("record_card_consent");
+  if (consented.error) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
   }
-  const customerEmail = checkoutCustomerEmail(profile?.data?.email);
+  const consent = user.data.user
+    ? await supabase
+        .from("customer_payment_consents")
+        .select("stripe_customer_id")
+        .eq("customer_id", user.data.user.id)
+        .is("revoked_at", null)
+        .maybeSingle()
+    : null;
+  const cardSetup = bookingCheckoutCustomer(consent?.data?.stripe_customer_id ?? null);
+  const customerEmail = cardSetup.customer ? null : checkoutCustomerEmail(profile?.data?.email);
   let sessionId = "";
   let sessionUrl: string | null = null;
   let checkoutLive = false;
@@ -87,15 +94,17 @@ export async function startCheckout(formData: FormData) {
         line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",
-          ...(saveCard ? { setup_future_usage: "off_session" as const } : {}),
+          setup_future_usage: cardSetup.setup_future_usage,
           metadata: { job_id: jobId, driver_id: row.driver_id },
         },
-        ...(saveCard ? { customer_creation: "always" as const } : {}),
+        ...(cardSetup.customer
+          ? { customer: cardSetup.customer }
+          : { customer_creation: "always" as const }),
         metadata: {
           job_id: jobId,
           driver_id: row.driver_id,
           attempt: String(row.attempt),
-          ...(saveCard ? { save_card: "yes" } : {}),
+          save_card: "yes",
         },
         ...(customerEmail ? { customer_email: customerEmail } : {}),
         expires_at: expiresAt,
