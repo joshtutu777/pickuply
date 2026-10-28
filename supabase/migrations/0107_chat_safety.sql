@@ -10,10 +10,13 @@ as $$
 declare
   normalized text := lower(coalesce(value, ''));
   digits text := '';
+  before_text text := '';
   saw_separator boolean := false;
   split_at integer := null;
   i integer;
   ch text;
+  long_order boolean;
+  blocked boolean;
 begin
   normalized := regexp_replace(normalized, '\(\s*at\s*\)', '@', 'g');
   normalized := regexp_replace(normalized, '\s*\mat\M\s*', '@', 'g');
@@ -37,6 +40,9 @@ begin
   for i in 1..length(normalized) loop
     ch := substr(normalized, i, 1);
     if ch ~ '[0-9]' then
+      if digits = '' then
+        before_text := substr(normalized, 1, i - 1);
+      end if;
       if saw_separator and split_at is null then
         split_at := length(digits);
       end if;
@@ -46,20 +52,33 @@ begin
       if digits <> '' then
         saw_separator := true;
       end if;
-    elsif length(digits) = 10
-      or (length(digits) = 11 and left(digits, 1) = '1')
-      or (length(digits) = 7 and split_at = 3) then
-      return true;
     else
+      long_order := length(digits) = 10 or (length(digits) = 11 and left(digits, 1) = '1');
+      blocked := length(digits) = 10
+        or (length(digits) = 11 and left(digits, 1) = '1')
+        or (length(digits) = 7 and split_at = 3)
+        or (length(digits) = 6 and split_at = 3);
+      if blocked and not (
+        long_order
+        and before_text ~ '\m(order|pickup|confirmation|po)\M([\s#:.-]*(number|no|num)\M)?[\s#:.-]*[a-z]{0,8}[\s#:.-]*$'
+      ) then
+        return true;
+      end if;
       digits := '';
       saw_separator := false;
       split_at := null;
     end if;
   end loop;
 
-  return length(digits) = 10
+  long_order := length(digits) = 10 or (length(digits) = 11 and left(digits, 1) = '1');
+  blocked := length(digits) = 10
     or (length(digits) = 11 and left(digits, 1) = '1')
-    or (length(digits) = 7 and split_at = 3);
+    or (length(digits) = 7 and split_at = 3)
+    or (length(digits) = 6 and split_at = 3);
+  return blocked and not (
+    long_order
+    and before_text ~ '\m(order|pickup|confirmation|po)\M([\s#:.-]*(number|no|num)\M)?[\s#:.-]*[a-z]{0,8}[\s#:.-]*$'
+  );
 end;
 $$;
 

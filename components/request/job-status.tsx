@@ -119,6 +119,14 @@ export function JobStatus({
         {job.pickup_area}
         {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
       </p>
+      {job.service === "construction" && job.store_name ? (
+        <p className="mt-1 text-base text-ink">Store: {job.store_name}</p>
+      ) : null}
+      {job.service === "construction" && job.store_order_number ? (
+        <p className="text-base font-semibold text-ink">
+          Store order / pickup number: {job.store_order_number}
+        </p>
+      ) : null}
       <ScheduledPickup
         availability={job.pickup_availability}
         start={job.scheduled_pickup_start}

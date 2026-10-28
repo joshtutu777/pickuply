@@ -19,7 +19,16 @@ function phoneRun(digits: string, splitAt: number | null): boolean {
   return (
     digits.length === 10 ||
     (digits.length === 11 && digits.startsWith("1")) ||
-    (digits.length === 7 && splitAt === 3)
+    (digits.length === 7 && splitAt === 3) ||
+    (digits.length === 6 && splitAt === 3)
+  );
+}
+
+function orderNumber(before: string, digits: string): boolean {
+  const longOrder = digits.length === 10 || (digits.length === 11 && digits.startsWith("1"));
+  if (!longOrder) return false;
+  return /\b(?:order|pickup|confirmation|po)\b(?:[\s#:.-]*(?:number|no|num)\b)?[\s#:.-]*[a-z]{0,8}[\s#:.-]*$/i.test(
+    before,
   );
 }
 
@@ -36,16 +45,19 @@ export function containsContact(value: string): boolean {
   let digits = "";
   let sawSeparator = false;
   let splitAt: number | null = null;
+  let before = "";
   const finish = () => {
-    const found = phoneRun(digits, splitAt);
+    const found = phoneRun(digits, splitAt) && !orderNumber(before, digits);
     digits = "";
     sawSeparator = false;
     splitAt = null;
     return found;
   };
 
-  for (const ch of normalized) {
+  for (let index = 0; index < normalized.length; index += 1) {
+    const ch = normalized[index] ?? "";
     if (ch >= "0" && ch <= "9") {
+      if (digits.length === 0) before = normalized.slice(0, index);
       if (sawSeparator && splitAt === null) splitAt = digits.length;
       digits += ch;
       sawSeparator = false;

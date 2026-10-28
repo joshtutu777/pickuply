@@ -1026,6 +1026,25 @@ function ItemStep({
           onChange={(id) => update("junkLoadSize", id as RequestDraft["junkLoadSize"])}
         />
       ) : null}
+      {draft.service === "construction" ? (
+        <>
+          <TextField
+            label="Store name"
+            name="storeName"
+            value={draft.storeName}
+            error={errors.storeName}
+            onChange={(value) => update("storeName", value)}
+          />
+          <TextField
+            label="Store order / pickup number"
+            name="storeOrderNumber"
+            optional
+            value={draft.storeOrderNumber}
+            error={errors.storeOrderNumber}
+            onChange={(value) => update("storeOrderNumber", value)}
+          />
+        </>
+      ) : null}
       <details className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <summary className="cursor-pointer text-base font-semibold text-ink">Add details (optional)</summary>
         <div className="mt-4 grid gap-5">
@@ -1112,25 +1131,6 @@ function ItemStep({
           />
         </>
       ) : null}
-      {draft.service === "construction" ? (
-        <>
-          <TextField
-            label="Store name"
-            name="storeName"
-            optional
-            value={draft.storeName}
-            error={errors.storeName}
-            onChange={(value) => update("storeName", value)}
-          />
-          <TextField
-            label="Order or pickup number"
-            name="storeOrderNumber"
-            optional
-            value={draft.storeOrderNumber}
-            onChange={(value) => update("storeOrderNumber", value)}
-          />
-        </>
-      ) : null}
         </div>
       </details>
     </section>
@@ -1172,6 +1172,9 @@ function ReviewStep({
         {draft.service === "junk" ? <p>Load size: {labelOf(junkLoadSizes, draft.junkLoadSize)}</p> : null}
         {draft.service === "junk" ? <p>Materials: {draft.junkMaterials || "—"}</p> : null}
         {draft.service === "construction" ? <p>Store: {draft.storeName || "—"}</p> : null}
+        {draft.service === "construction" ? (
+          <p>Store order / pickup number: {draft.storeOrderNumber.trim() || "—"}</p>
+        ) : null}
         {warning ? <p>{warning}</p> : null}
       </Summary>
       <Summary title="Where and when" onEdit={() => onEdit("where")}>

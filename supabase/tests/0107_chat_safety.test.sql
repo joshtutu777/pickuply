@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(19);
 
 create or replace function pg_temp.as_postgres()
 returns void language plpgsql as $$
@@ -90,6 +90,26 @@ select throws_ok(
   'For your safety, contact details can''t be shared in chat',
   'an at-dot email is rejected'
 );
+select throws_ok(
+  $$select public.post_message('c1070000-0000-4000-8000-0000000000a1', '4045551234')$$,
+  'For your safety, contact details can''t be shared in chat',
+  'a bare phone number is rejected'
+);
+select throws_ok(
+  $$select public.post_message('c1070000-0000-4000-8000-0000000000a1', 'call me at 404 555')$$,
+  'For your safety, contact details can''t be shared in chat',
+  'a partial phone number is rejected'
+);
+select throws_ok(
+  $$select public.post_message('c1070000-0000-4000-8000-0000000000a1', 'pat@gmail.com')$$,
+  'For your safety, contact details can''t be shared in chat',
+  'a plain email is rejected'
+);
+select throws_ok(
+  $$select public.post_message('c1070000-0000-4000-8000-0000000000a1', 'Order # 2849103756 call me at 4045551234')$$,
+  'For your safety, contact details can''t be shared in chat',
+  'an order number does not excuse a phone number later in the message'
+);
 select lives_ok(
   $$select public.post_message('c1070000-0000-4000-8000-0000000000a1', 'See you at 3. ZIP 30106. Two items.')$$,
   'ordinary words are kept'
@@ -98,6 +118,18 @@ select is(
   (select count(*) from public.messages where thread_id = 'c1070000-0000-4000-8000-0000000000a1' and body like '%555%')::integer,
   0,
   'a rejected number is not stored'
+);
+select lives_ok(
+  $$select public.post_message(
+    'c1070000-0000-4000-8000-0000000000a1',
+    'Gate code is 4821#. code 1234. #5590. Order # 2849103756. Home Depot order WC12345678. pickup number 7731. 1985 Chattahoochee Dr, Apt 2304, Duluth 30097. $150. 72 x 36 inches. at 2:30 PM. two chairs and one table. 3rd floor.'
+  )$$,
+  'gate codes, order numbers, addresses, prices, sizes, and times are kept'
+);
+select is(
+  (select count(*) from public.messages where thread_id = 'c1070000-0000-4000-8000-0000000000a1' and body like '%4821#%')::integer,
+  1,
+  'a gate code is stored'
 );
 
 select throws_ok(
