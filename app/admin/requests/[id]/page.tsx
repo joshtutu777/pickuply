@@ -93,6 +93,7 @@ async function RequestDetail({
       {waitingWithoutDriver ? <p className="mt-2 text-base font-semibold text-danger">No driver yet</p> : null}
       <BackLink href="/admin/requests" label="Requests" />
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}
+      {query.saved === "deleted" ? <p className="mt-4 text-base text-ink">Account deleted. That phone can sign up again.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}

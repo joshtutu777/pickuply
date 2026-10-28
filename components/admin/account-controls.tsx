@@ -1,4 +1,4 @@
-import { reinstateAccount, suspendAccount } from "@/app/admin/accounts/actions";
+import { reinstateAccount, releaseAccount, suspendAccount } from "@/app/admin/accounts/actions";
 import { RestrictionLength } from "@/components/admin/restriction-length";
 import { formatInNewYork } from "@/lib/account/restriction";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +15,7 @@ export async function AccountControls({
   label: string;
 }) {
   const supabase = await createClient();
-  const [{ data: rows }, { data: jobs }] = await Promise.all([
+  const [{ data: rows }, { data: jobs }, { data: profile }] = await Promise.all([
     supabase
       .from("account_suspensions")
       .select("id, status, kind, reason, note, expires_at, created_at, ended_at")
@@ -26,6 +26,7 @@ export async function AccountControls({
       .select("id, status, service")
       .or(`customer_id.eq.${profileId},assigned_driver_id.eq.${profileId}`)
       .in("status", activeStatuses),
+    supabase.from("profiles").select("deleted_at").eq("id", profileId).maybeSingle(),
   ]);
   const history = rows ?? [];
   const current = history.find((row) => row.status === "active");
@@ -90,6 +91,25 @@ export async function AccountControls({
             {current ? "Update restriction" : "Suspend Account"}
           </button>
         </form>
+      {profile?.deleted_at ? (
+        <p className="mt-4 text-base text-ink">This account is deleted. That phone can sign up again.</p>
+      ) : (
+        <form action={releaseAccount} className="mt-6 space-y-3 border-t border-line pt-4">
+          <h3 className="text-base font-semibold text-ink">Delete account</h3>
+          <p className="text-base text-ink">
+            This removes the sign-in for this phone. They can sign up again as a new account. Open jobs and unpaid money block this. Past payments stay on file.
+          </p>
+          <label className="flex min-h-12 items-start gap-3 text-base text-ink" htmlFor={`release-${profileId}`}>
+            <input id={`release-${profileId}`} type="checkbox" name="confirm" required className="mt-1" />
+            Let this phone sign up again.
+          </label>
+          <input type="hidden" name="profileId" value={profileId} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-6 font-semibold text-white">
+            Delete account
+          </button>
+        </form>
+      )}
     </section>
   );
 }

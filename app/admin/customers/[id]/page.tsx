@@ -50,6 +50,7 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
       <BackLink href="/admin/customers" label="Customers" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{profile.full_name ?? "Unnamed"}</h1>
+      {query.saved === "deleted" ? <p className="mt-4 text-base text-ink">Account deleted. That phone can sign up again.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}
