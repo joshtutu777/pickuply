@@ -173,6 +173,39 @@ export function georgiaWallClock(iso: string): { date: string; time: string } {
   return wallClock(new Date(iso));
 }
 
+export type ClockParts = { hour: string; minute: string; meridiem: "AM" | "PM" };
+
+export function clockParts(time: string): ClockParts | null {
+  if (!timePattern.test(time)) return null;
+  const [hourText, minute] = time.split(":");
+  const hour24 = Number(hourText);
+  const meridiem = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 || 12;
+  return { hour: String(hour12), minute, meridiem };
+}
+
+export function clockValue(parts: { hour: string; minute: string; meridiem: string }): string | null {
+  if (parts.hour.trim() === "" || parts.minute.trim() === "") return null;
+  const hour12 = Number(parts.hour);
+  const minute = Number(parts.minute);
+  if (!Number.isInteger(hour12) || hour12 < 1 || hour12 > 12) return null;
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+  if (parts.meridiem !== "AM" && parts.meridiem !== "PM") return null;
+  let hour24 = hour12 % 12;
+  if (parts.meridiem === "PM") hour24 += 12;
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function arrivalSummary(date: string, time: string, now = new Date()): string | null {
+  const value = clockValue(clockParts(time) ?? { hour: "", minute: "", meridiem: "" });
+  if (!datePattern.test(date) || value == null) return null;
+  try {
+    return formatOfferWhen(zonedWallTime(date, value).toISOString(), null, now);
+  } catch {
+    return null;
+  }
+}
+
 export function windowArrivalError(
   window: { starts_at: string; ends_at: string },
   time: string,

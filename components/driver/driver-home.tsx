@@ -7,13 +7,17 @@ import { services } from "@/lib/constants";
 import { offerBreakdown, type FeeSettings } from "@/lib/fees";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
+import { ArrivalTimeFields } from "@/components/driver/arrival-time";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
+import { compareNewest, mergeFeedCards } from "@/lib/driver/feed-order";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import {
   addCalendarDays,
   arrivalError,
+  arrivalSummary,
+  clockValue,
   defaultOfferArrivalLeadMinutes,
   formatScheduledPickup,
   georgiaWallClock,
@@ -47,14 +51,8 @@ type FeedJob = {
   service_level: string | null;
   miles_from_you: number | null;
   date_group: string;
+  created_at: string;
 };
-
-const dateGroups = [
-  ["today", "Today"],
-  ["tomorrow", "Tomorrow"],
-  ["later_week", "Later this week"],
-  ["later", "Later"],
-] as const;
 
 function toCard(job: FeedJob): FeedCard {
   return { ...job, photos: [], earningsCents: job.driver_pay_cents, schedule: undefined };
@@ -67,6 +65,23 @@ function countFrom(value: unknown) {
 }
 
 type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null; schedule?: PickupPlan | null };
+
+type OfferDraft = {
+  amount: string;
+  date: string;
+  hour: string;
+  minute: string;
+  meridiem: string;
+  windowId: string;
+  review: "accept" | "offer" | "claim" | null;
+};
+
+function itemLine(job: FeedCard): string {
+  const name = job.service.replaceAll("_", " ");
+  const size = job.size ? ` ${String(job.size).replaceAll("_", " ")}` : "";
+  const count = job.pieces != null ? `, ${job.pieces} ${job.pieces === 1 ? "piece" : "pieces"}` : "";
+  return `${name}${size}${count}`;
+}
 
 function stairLabel(pickup: number, dropoff: number | null) {
   const drop = dropoff ?? 0;
@@ -97,24 +112,36 @@ function OfferActions({
   blockedReason,
   fees,
   arrivalLeadMinutes,
+  drafts,
   onDone,
+  onRejected,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
   arrivalLeadMinutes: number;
+  drafts: { current: Map<string, OfferDraft> };
   onDone: () => void;
+  onRejected: (message: string) => void;
 }) {
-  const [amount, setAmount] = useState("");
-  const [pickupDate, setPickupDate] = useState("");
-  const [pickupTime, setPickupTime] = useState("");
-  const [windowId, setWindowId] = useState("");
-  const [reviewing, setReviewing] = useState(false);
+  const saved = drafts.current.get(job.id);
+  const [amount, setAmount] = useState(saved?.amount ?? "");
+  const [pickupDate, setPickupDate] = useState(saved?.date ?? "");
+  const [hour, setHour] = useState(saved?.hour ?? "");
+  const [minute, setMinute] = useState(saved?.minute ?? "");
+  const [meridiem, setMeridiem] = useState(saved?.meridiem ?? "");
+  const [windowId, setWindowId] = useState(saved?.windowId ?? "");
+  const [review, setReview] = useState<OfferDraft["review"]>(saved?.review ?? null);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
   const [sending, setSending] = useState(false);
+  const submitLock = useRef(false);
   const router = useRouter();
+  const pickupTime = clockValue({ hour, minute, meridiem }) ?? "";
   const offerCents = parseDollarsToCents(amount) ?? 0;
+  useEffect(() => {
+    drafts.current.set(job.id, { amount, date: pickupDate, hour, minute, meridiem, windowId, review });
+  }, [amount, drafts, hour, job.id, meridiem, minute, pickupDate, review, windowId]);
   const claimable = job.pricing_method === "quote" && job.driver_pay_cents != null;
   const driverQuote = job.pricing_method === "quote" && !claimable;
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
@@ -122,10 +149,13 @@ function OfferActions({
   const scheduleProblem = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
 
   async function send(kind: "accept" | "claim" | "offer") {
-    if (sending) return;
+    if (sending || submitLock.current) return;
+    submitLock.current = true;
     const gap = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
     if (gap) {
+      submitLock.current = false;
       setMessage({ text: gap, alert: true });
+      onRejected(gap);
       return;
     }
     setSending(true);
@@ -144,11 +174,13 @@ function OfferActions({
             ...proposal,
           });
     if (result.error) {
-      setMessage({ text: takenJobMessage(result.error.message), alert: true });
+      const text = takenJobMessage(String(result.error.message || "That offer was not saved."));
+      onRejected(text);
+      setMessage({ text, alert: true });
       return;
     }
     const submitted = kind === "offer" || kind === "accept" ? offerBreakdown(kind === "accept" ? posted ?? 0 : offerCents, fees) : null;
-    setReviewing(false);
+    setReview(null);
     setMessage({
       text: kind === "claim"
         ? "You are assigned. Payment is still due."
@@ -163,31 +195,84 @@ function OfferActions({
     if (kind === "claim") router.refresh();
     onDone();
     } finally {
+      submitLock.current = false;
       setSending(false);
     }
   }
+
+  function changeTime(part: "hour" | "minute" | "meridiem", value: string) {
+    if (part === "hour") setHour(value);
+    if (part === "minute") setMinute(value);
+    if (part === "meridiem") setMeridiem(value);
+    setReview(null);
+  }
+
+  const chosenWindow = job.schedule?.windows.find((window) => window.id === windowId);
+  const proposalDate = job.schedule?.availability === "windows"
+    ? (chosenWindow ? georgiaWallClock(chosenWindow.starts_at).date : "")
+    : pickupDate;
+  const summary = arrivalSummary(proposalDate, pickupTime) ?? "";
+
+  const confirmLabel = review === "claim"
+    ? "Confirm & Claim"
+    : review === "accept"
+      ? "Confirm & Accept"
+      : "Confirm & Submit Offer";
 
   return (
     <div className="mt-3 grid gap-3">
       <PickupProposal
         plan={job.schedule}
         date={pickupDate}
-        time={pickupTime}
+        idPrefix={job.id}
+        hour={hour}
+        minute={minute}
+        meridiem={meridiem}
+        summary={summary}
         windowId={windowId}
         arrivalLeadMinutes={arrivalLeadMinutes}
-        onDate={setPickupDate}
-        onTime={setPickupTime}
-        onWindow={setWindowId}
+        onDate={(value) => {
+          setPickupDate(value);
+          setReview(null);
+        }}
+        onHour={(value) => changeTime("hour", value)}
+        onMinute={(value) => changeTime("minute", value)}
+        onMeridiem={(value) => changeTime("meridiem", value)}
+        onWindow={(value) => {
+          setWindowId(value);
+          setReview(null);
+        }}
       />
-      {claimable ? (
+      {review ? (
+        <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">
+          <p className="font-semibold">Review this offer</p>
+          <p>Item: {itemLine(job)}</p>
+          <p>Pickup: {summary || "Choose an arrival time."}</p>
+          {chosenWindow ? <p>Availability: {formatScheduledPickup(chosenWindow.starts_at, chosenWindow.ends_at)}</p> : null}
+          {review === "offer" ? <p>Your offer: {formatCents(offerCents)}</p> : null}
+          {review === "accept" && posted != null ? <p>Posted price: {formatCents(posted)}</p> : null}
+          {review === "offer" || review === "accept" ? <OfferMath cents={review === "accept" ? posted ?? 0 : offerCents} settings={fees} /> : null}
+          <button
+            type="button"
+            disabled={!canAct || sending || scheduleProblem != null}
+            aria-busy={sending}
+            onClick={() => void send(review)}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+          >
+            {sending ? "Submitting..." : confirmLabel}
+          </button>
+          <button type="button" disabled={sending} onClick={() => setReview(null)} className="inline-flex min-h-12 items-center font-semibold text-brand disabled:opacity-60">
+            Edit Offer
+          </button>
+        </div>
+      ) : claimable ? (
         <button
           type="button"
           disabled={!canAct || sending || scheduleProblem != null}
-          aria-busy={sending}
-          onClick={() => void send("claim")}
+          onClick={() => setReview("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
-          {sending ? "Updating status..." : "Claim this job"}
+          Review claim
         </button>
       ) : (
         <>
@@ -197,11 +282,10 @@ function OfferActions({
               <button
                 type="button"
                 disabled={!canAct || sending || scheduleProblem != null}
-                aria-busy={sending}
-                onClick={() => void send("accept")}
+                onClick={() => setReview("accept")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
               >
-                {sending ? "Submitting..." : "Accept posted price"}
+                Review posted price
               </button>
             </>
           ) : null}
@@ -211,40 +295,21 @@ function OfferActions({
               value={amount}
               onChange={(event) => {
                 setAmount(event.target.value);
-                setReviewing(false);
+                setReview(null);
               }}
               inputMode="decimal"
               className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
             />
           </label>
           <OfferMath cents={offerCents} settings={fees} />
-          {reviewing ? (
-            <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">
-              <p className="font-semibold">{driverQuote ? "Confirm this quote" : "Confirm this offer"}</p>
-              <OfferMath cents={offerCents} settings={fees} />
-              <button
-                type="button"
-                disabled={!canAct || sending || scheduleProblem != null}
-                aria-busy={sending}
-                onClick={() => void send("offer")}
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
-              >
-                {sending ? "Sending..." : driverQuote ? "Send quote" : "Confirm offer"}
-              </button>
-              <button type="button" disabled={sending} onClick={() => setReviewing(false)} className="inline-flex min-h-12 items-center font-semibold text-brand disabled:opacity-60">
-                Edit offer
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={!canAct || offerCents <= 0 || scheduleProblem != null}
-              onClick={() => setReviewing(true)}
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
-            >
-              {driverQuote ? "Send quote" : "Submit Offer"}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={!canAct || offerCents <= 0 || scheduleProblem != null}
+            onClick={() => setReview("offer")}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
+          >
+            Review offer
+          </button>
         </>
       )}
       {blockedReason ? <p className="text-base text-ink">{blockedReason}</p> : null}
@@ -263,14 +328,18 @@ function JobCard({
   blockedReason,
   fees,
   arrivalLeadMinutes,
+  drafts,
   onDone,
+  onRejected,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
   arrivalLeadMinutes: number;
+  drafts: { current: Map<string, OfferDraft> };
   onDone: () => void;
+  onRejected: (message: string) => void;
 }) {
   return (
     <li id={`job-${job.id}`} className="scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
@@ -298,7 +367,7 @@ function JobCard({
       {job.earningsCents != null ? (
         <p className="font-semibold">Your Estimated Earnings: {formatCents(job.earningsCents)}</p>
       ) : null}
-      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} arrivalLeadMinutes={arrivalLeadMinutes} onDone={onDone} />
+      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} arrivalLeadMinutes={arrivalLeadMinutes} drafts={drafts} onDone={onDone} onRejected={onRejected} />
       {job.photos.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2">
           {job.photos.map((url) => (
@@ -351,11 +420,21 @@ export function DriverHome({
   const [georgiaHasMore, setGeorgiaHasMore] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
+  const [offerNotice, setOfferNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const saved = sessionStorage.getItem("pickuply.offer-notice");
+    if (saved) setOfferNotice(saved);
+  }, []);
+  function rememberRejection(message: string) {
+    sessionStorage.setItem("pickuply.offer-notice", message);
+    setOfferNotice(message);
+    void loadFeed();
+  }
   const [busy, setBusy] = useState(false);
   const [areas, setAreas] = useState(coverage);
   const [editingAreas, setEditingAreas] = useState(false);
   const [mapView, setMapView] = useState(false);
-  const [sortKey, setSortKey] = useState("nearest");
+  const [sortKey, setSortKey] = useState("newest");
   const [serviceFilter, setServiceFilter] = useState("");
   const [maxMiles, setMaxMiles] = useState("");
   const [dateFilter, setDateFilter] = useState("any");
@@ -365,6 +444,8 @@ export function DriverHome({
   const generation = useRef(0);
   const inFlight = useRef(false);
   const pending = useRef(false);
+  const editing = useRef(false);
+  const drafts = useRef(new Map<string, OfferDraft>());
   const loadRef = useRef<() => Promise<void>>(async () => {});
   const pullStart = useRef(0);
   const sentinel = useRef<HTMLDivElement | null>(null);
@@ -459,8 +540,8 @@ export function DriverHome({
     }
     const matchedRows = (matchedResult.data ?? []) as FeedJob[];
     const pageRows = ((pageResult.data ?? []) as FeedJob[]).slice(0, 20);
-    setMatched(matchedRows.map(toCard));
-    setGeorgia(pageRows.map(toCard));
+    setMatched((current) => mergeFeedCards(current, matchedRows.map(toCard)).sort(compareNewest));
+    setGeorgia((current) => mergeFeedCards(current, pageRows.map(toCard)));
     setGeorgiaHasMore(((pageResult.data ?? []) as FeedJob[]).length > 20);
     setGeorgiaTotal(countFrom(filteredCount.data));
     setGeorgiaOpenTotal(countFrom(openCount.data));
@@ -511,28 +592,28 @@ export function DriverHome({
     const start = window.setTimeout(() => {
       void loadFeed();
     }, 0);
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadFeed();
-    }, 20000);
-    const refreshIfVisible = () => {
+    const refreshIfIdle = () => {
+      if (editing.current) {
+        pending.current = true;
+        return;
+      }
       if (document.visibilityState === "visible") void loadFeed();
     };
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    window.addEventListener("online", refreshIfVisible);
-    window.addEventListener("focus", refreshIfVisible);
+    const timer = window.setInterval(refreshIfIdle, 20000);
+    document.addEventListener("visibilitychange", refreshIfIdle);
+    window.addEventListener("online", refreshIfIdle);
     const supabase = createClient();
     const channel = supabase
       .channel(`driver-feed-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "job_feed_signals" }, () => {
-        void loadFeed();
+        refreshIfIdle();
       })
       .subscribe();
     return () => {
       window.clearTimeout(start);
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-      window.removeEventListener("online", refreshIfVisible);
-      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfIdle);
+      window.removeEventListener("online", refreshIfIdle);
       void supabase.removeChannel(channel);
     };
   }, [loadFeed, showFeed, userId]);
@@ -649,6 +730,23 @@ export function DriverHome({
     <div
       id="jobs"
       className={setup ? "order-2 mt-6 sm:order-1" : "mt-6"}
+      onFocusCapture={() => {
+        editing.current = true;
+      }}
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        const root = event.currentTarget;
+        window.setTimeout(() => {
+          const active = document.activeElement;
+          if (active instanceof Node && root.contains(active)) return;
+          editing.current = false;
+          if (pending.current) {
+            pending.current = false;
+            void loadFeed();
+          }
+        }, 0);
+      }}
       onTouchStart={(event) => {
         pullStart.current = event.touches[0]?.clientY ?? 0;
       }}
@@ -695,6 +793,11 @@ export function DriverHome({
         ) : null}
         {refreshing && updatedAt ? <p className="text-base text-muted">Refreshing…</p> : null}
       </div>
+      {offerNotice ? (
+        <p role="alert" className="mt-4 text-base text-danger">
+          {offerNotice}
+        </p>
+      ) : null}
       {feedError ? (
         <p role="alert" className="mt-3 text-base text-danger">
           {feedError}{" "}
@@ -718,31 +821,30 @@ export function DriverHome({
           <p className="mt-3 text-base text-muted">No jobs in your areas right now — see all Georgia requests below.</p>
         ) : null}
         {!updatedAt && matched.length === 0 ? <p className="mt-3 text-base text-muted">Loading jobs…</p> : null}
-        {dateGroups.map(([key, label]) => {
-          const group = matched.filter((job) => job.date_group === key);
-          if (group.length === 0) return null;
-          return (
-            <div key={key} className="mt-4">
-              <h3 className="text-lg font-semibold text-ink">{label} ({group.length})</h3>
-              <ul className="mt-3 space-y-4">
-                {group.map((job) => {
-                  const action = jobAction(job);
-                  return (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      canAct={action.canAct}
-                      blockedReason={action.blockedReason}
-                      fees={fees}
-                      arrivalLeadMinutes={arrivalLeadMinutes}
-                      onDone={() => void loadFeed()}
-                    />
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        })}
+        {matched.length > 0 ? (
+          <ul className="mt-3 space-y-4">
+            {matched.map((job) => {
+              const action = jobAction(job);
+              return (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  canAct={action.canAct}
+                  blockedReason={action.blockedReason}
+                  fees={fees}
+                  arrivalLeadMinutes={arrivalLeadMinutes}
+                  drafts={drafts}
+                  onDone={() => {
+                    sessionStorage.removeItem("pickuply.offer-notice");
+                    setOfferNotice(null);
+                    void loadFeed();
+                  }}
+                  onRejected={rememberRejection}
+                />
+              );
+            })}
+          </ul>
+        ) : null}
       </section>
       <section aria-label="All Georgia Requests" className="mt-8">
         <h2 className="font-display text-2xl font-semibold text-ink">All Georgia Requests ({georgiaTotal})</h2>
@@ -750,8 +852,8 @@ export function DriverHome({
           <label className="block text-base font-semibold text-ink">
             Sort
             <select value={sortKey} onChange={(event) => setSortKey(event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4">
-              <option value="nearest">Nearest pickup</option>
               <option value="newest">Newest</option>
+              <option value="nearest">Nearest pickup</option>
               <option value="pay">Highest pay</option>
               <option value="soonest">Soonest</option>
               <option value="farthest">Farthest</option>
@@ -805,7 +907,13 @@ export function DriverHome({
                   blockedReason={action.blockedReason}
                   fees={fees}
                   arrivalLeadMinutes={arrivalLeadMinutes}
-                  onDone={() => void loadFeed()}
+                  drafts={drafts}
+                  onDone={() => {
+                    sessionStorage.removeItem("pickuply.offer-notice");
+                    setOfferNotice(null);
+                    void loadFeed();
+                  }}
+                  onRejected={rememberRejection}
                 />
               );
             })}
@@ -867,32 +975,56 @@ function scheduleLine(job: FeedCard): string {
 function PickupProposal({
   plan,
   date,
-  time,
+  idPrefix,
+  hour,
+  minute,
+  meridiem,
+  summary,
   windowId,
   arrivalLeadMinutes,
   onDate,
-  onTime,
+  onHour,
+  onMinute,
+  onMeridiem,
   onWindow,
 }: {
   plan?: PickupPlan | null;
   date: string;
-  time: string;
+  idPrefix: string;
+  hour: string;
+  minute: string;
+  meridiem: string;
+  summary: string;
   windowId: string;
   arrivalLeadMinutes: number;
   onDate: (value: string) => void;
-  onTime: (value: string) => void;
+  onHour: (value: string) => void;
+  onMinute: (value: string) => void;
+  onMeridiem: (value: string) => void;
   onWindow: (value: string) => void;
 }) {
   if (!plan?.availability) return null;
   const today = georgiaDateISO();
   const latest = addCalendarDays(today, 6);
+  const timeFields = (
+    <ArrivalTimeFields
+      idPrefix={idPrefix}
+      hour={hour}
+      minute={minute}
+      meridiem={meridiem}
+      summary={summary}
+      onHour={onHour}
+      onMinute={onMinute}
+      onMeridiem={onMeridiem}
+    />
+  );
   if (plan.availability === "windows") {
     const open = plan.windows.filter((window) => windowIsOpen(window.ends_at));
     const selected = open.find((window) => window.id === windowId);
     return (
       <fieldset className="grid gap-3">
         <legend className="text-base font-semibold text-ink">Choose one pickup window</legend>
-        <p className="text-base text-ink">Then enter the exact arrival time inside that window.</p>
+        <p className="text-base text-ink">Then choose the exact arrival time inside that window.</p>
         {open.length === 0 ? <p className="text-base text-ink">Those pickup windows have passed.</p> : null}
         {open.map((window) => (
           <label key={window.id} className="flex min-h-12 items-center gap-3 rounded-2xl bg-paper px-3 ring-1 ring-line">
@@ -906,20 +1038,7 @@ function PickupProposal({
             <span>{formatScheduledPickup(window.starts_at, window.ends_at)}</span>
           </label>
         ))}
-        {selected ? (
-          <label className="text-base font-semibold text-ink" htmlFor={`arrival-${selected.id}`}>
-            Arrival time
-            <input
-              id={`arrival-${selected.id}`}
-              type="time"
-              value={time}
-              min={georgiaWallClock(selected.starts_at).time}
-              max={georgiaWallClock(selected.ends_at).time}
-              onChange={(event) => onTime(event.target.value)}
-              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
-            />
-          </label>
-        ) : null}
+        {selected ? timeFields : null}
       </fieldset>
     );
   }
@@ -931,9 +1050,10 @@ function PickupProposal({
           : "Propose a pickup date and arrival time. Do not arrive unannounced."}{" "}
         The arrival has to be at least {arrivalLeadMinutes} minutes from now.
       </p>
-      <label className="text-base font-semibold text-ink">
+      <label className="text-base font-semibold text-ink" htmlFor={`${idPrefix}-date`}>
         Pickup date
         <input
+          id={`${idPrefix}-date`}
           type="date"
           min={today}
           max={latest}
@@ -942,15 +1062,7 @@ function PickupProposal({
           className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
         />
       </label>
-      <label className="text-base font-semibold text-ink">
-        Arrival time
-        <input
-          type="time"
-          value={time}
-          onChange={(event) => onTime(event.target.value)}
-          className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
-        />
-      </label>
+      {timeFields}
     </div>
   );
 }

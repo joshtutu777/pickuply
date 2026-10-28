@@ -184,6 +184,16 @@ async function createRequest(page, { description, mode, service = "junk", pricin
   return { id, summary };
 }
 
+async function chooseArrival(card, time) {
+  const [hour24, minute] = (time || "10:00").split(":");
+  const hourNumber = Number(hour24);
+  const meridiem = hourNumber >= 12 ? "PM" : "AM";
+  const hour12 = String(hourNumber % 12 || 12);
+  await card.getByLabel("Hour").selectOption(hour12);
+  await card.getByLabel("Minute").selectOption(minute);
+  await card.getByLabel("AM/PM").selectOption(meridiem);
+}
+
 async function sendQuote(page, jobId, { date, time, windowIndex, dollars }) {
   await page.goto(`${base}/driver`);
   const card = page.locator(`#job-${jobId}`).first();
@@ -191,11 +201,11 @@ async function sendQuote(page, jobId, { date, time, windowIndex, dollars }) {
   await card.scrollIntoViewIfNeeded();
   if (date) {
     await card.locator("input[type='date']").fill(date);
-    await card.locator("input[type='time']").fill(time);
+    await chooseArrival(card, time);
   }
   if (windowIndex != null) {
     await card.getByRole("radio").nth(windowIndex).check();
-    await card.getByLabel("Arrival time").fill(time ?? "10:00");
+    await chooseArrival(card, time ?? "10:00");
   }
   await card.getByLabel(/Offer Amount/).fill(dollars);
   const rpcNotes = [];
@@ -206,9 +216,9 @@ async function sendQuote(page, jobId, { date, time, windowIndex, dollars }) {
   };
   page.on("response", onResponse);
   try {
-    await card.getByRole("button", { name: "Submit Offer" }).click();
-    await card.getByText("Confirm this offer").waitFor();
-    await card.getByRole("button", { name: "Confirm offer" }).click();
+    await card.getByRole("button", { name: "Review offer" }).click();
+    await card.getByText("Review this offer").waitFor();
+    await card.getByRole("button", { name: "Confirm & Submit Offer" }).click();
     await card.getByText(/Offer submitted successfully/).waitFor({ timeout: 20_000 });
   } catch (error) {
     const cardText = await card.innerText().catch(() => "");
@@ -224,8 +234,9 @@ async function claimPricedQuote(page, jobId, { date, time }) {
   await card.waitFor({ timeout: 30_000 });
   await card.scrollIntoViewIfNeeded();
   await card.locator("input[type='date']").fill(date);
-  await card.locator("input[type='time']").fill(time);
-  await card.getByRole("button", { name: "Claim this job" }).click();
+  await chooseArrival(card, time);
+  await card.getByRole("button", { name: "Review claim" }).click();
+  await card.getByRole("button", { name: "Confirm & Claim" }).click();
   const started = Date.now();
   while (Date.now() - started < 20_000) {
     const assigned = localSql(
@@ -452,6 +463,86 @@ try {
   ids.jobs.push(quote.id);
   note("customer quote request", quote.summary.includes("Get a quote"), quote.id);
 
+  await pageA.goto(`${base}/driver`);
+  await pageA.locator(`#job-${quote.id}`).first().waitFor();
+  await pageA.locator(`#job-${anytime.id}`).first().waitFor();
+  const matchedIds = await pageA.locator("section[aria-label='Matched for You'] li[id^='job-']").evaluateAll((nodes) =>
+    nodes.map((node) => node.id.replace("job-", "")),
+  );
+  note("newest matched request is first", matchedIds[0] === quote.id, matchedIds.slice(0, 4).join(",") || "none");
+  const georgiaIds = await pageA.locator("section[aria-label='All Georgia Requests'] li[id^='job-']").evaluateAll((nodes) =>
+    nodes.map((node) => node.id.replace("job-", "")),
+  );
+  note(
+    "newest Georgia request is first",
+    georgiaIds[0] === quote.id && georgiaIds.indexOf(anytime.id) > georgiaIds.indexOf(quote.id),
+    georgiaIds.slice(0, 4).join(",") || "none",
+  );
+  const offerCard = pageA.locator(`#job-${anytime.id}`).first();
+  await offerCard.scrollIntoViewIfNeeded();
+  await offerCard.locator("input[type='date']").fill(tomorrow);
+  await offerCard.getByLabel("Hour").selectOption("2");
+  await offerCard.getByLabel("Minute").selectOption("30");
+  await offerCard.getByLabel("AM/PM").selectOption("PM");
+  await offerCard.getByLabel(/Offer Amount/).fill("70");
+  await pageA.getByLabel("Sort").selectOption("nearest");
+  await pageA.getByLabel("Sort").selectOption("newest");
+  await offerCard.getByLabel("Hour").waitFor();
+  const kept = {
+    hour: await offerCard.getByLabel("Hour").inputValue(),
+    minute: await offerCard.getByLabel("Minute").inputValue(),
+    meridiem: await offerCard.getByLabel("AM/PM").inputValue(),
+    amount: await offerCard.getByLabel(/Offer Amount/).inputValue(),
+  };
+  note("typing survives a feed refresh", kept.hour === "2" && kept.minute === "30" && kept.meridiem === "PM" && kept.amount === "70", JSON.stringify(kept));
+  note("arrival does not use a clock face", (await offerCard.locator("input[type='time']").count()) === 0);
+  let feedCalls = 0;
+  const countFeed = (request) => {
+    if (request.url().includes("/rpc/driver_matched_feed")) feedCalls += 1;
+  };
+  pageA.on("request", countFeed);
+  await offerCard.getByLabel("Hour").focus();
+  const whileTyping = feedCalls;
+  await pageA.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await pageA.waitForTimeout(600);
+  note("window focus does not reload the feed", feedCalls === whileTyping, String(feedCalls - whileTyping));
+  localSql("insert into public.job_feed_signals (is_test) values (true);");
+  await pageA.waitForTimeout(1500);
+  note("a new-job signal waits while a field is focused", feedCalls === whileTyping, String(feedCalls - whileTyping));
+  await pageA.locator("header").first().click();
+  const started = Date.now();
+  while (feedCalls === whileTyping && Date.now() - started < 5000) {
+    await pageA.waitForTimeout(200);
+  }
+  note("the feed reloads after editing ends", feedCalls > whileTyping, String(feedCalls - whileTyping));
+  const afterSignal = {
+    hour: await offerCard.getByLabel("Hour").inputValue(),
+    amount: await offerCard.getByLabel(/Offer Amount/).inputValue(),
+  };
+  note("values stay after the deferred refresh", afterSignal.hour === "2" && afterSignal.amount === "70", JSON.stringify(afterSignal));
+  const otherCard = pageA.locator(`#job-${asap.id}`).first();
+  await otherCard.getByLabel(/Offer Amount/).fill("41");
+  note(
+    "switching cards keeps each offer",
+    (await offerCard.getByLabel(/Offer Amount/).inputValue()) === "70" && (await otherCard.getByLabel(/Offer Amount/).inputValue()) === "41",
+  );
+  pageA.off("request", countFeed);
+  await offerCard.getByRole("button", { name: "Review offer" }).click();
+  const reviewText = await offerCard.innerText();
+  note(
+    "review shows the item, arrival, and amount",
+    reviewText.includes("Item:") && reviewText.includes("2:30 PM") && reviewText.includes("Your offer: $70") && !reviewText.includes("Schedule audit sofa anytime"),
+  );
+  await offerCard.getByRole("button", { name: "Edit Offer" }).click();
+  note("edit offer keeps the entered time", (await offerCard.getByLabel("Hour").inputValue()) === "2" && (await offerCard.getByLabel(/Offer Amount/).inputValue()) === "70");
+  for (const width of [320, 375, 390, 430, 1280]) {
+    await pageA.setViewportSize({ width, height: 900 });
+    const overflow = await pageA.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    const hourVisible = await offerCard.getByLabel("Hour").isVisible();
+    note(`driver offer width ${width}`, overflow <= 1 && hourVisible, `overflow ${overflow}`);
+  }
+  await pageA.setViewportSize({ width: 390, height: 844 });
+
   await sendQuote(pageA, anytime.id, { date: tomorrow, time: "14:00", dollars: "70" });
   note("driver A anytime offer", true);
   await sendQuote(pageB, anytime.id, { date: tomorrow, time: "10:00", dollars: "55" });
@@ -592,6 +683,148 @@ try {
   await pageB.goto(`${base}/driver/jobs/${quote.id}`);
   const quoteDriver = await pageB.getByLabel("Scheduled Pickup").innerText();
   note("customer and claiming driver see the same quote schedule", quoteCustomer.includes("4:00 PM") && quoteDriver.includes("4:00 PM"));
+
+  const cancelled = await createRequest(customerPage, { description: "Schedule audit cancelled sofa", mode: "anytime", phone: formPhone });
+  ids.jobs.push(cancelled.id);
+  await pageA.goto(`${base}/driver`);
+  const cancelCard = pageA.locator(`#job-${cancelled.id}`).first();
+  await cancelCard.waitFor();
+  await cancelCard.locator("input[type='date']").fill(tomorrow);
+  await chooseArrival(cancelCard, "15:00");
+  await cancelCard.getByLabel(/Offer Amount/).fill("66");
+  await cancelCard.getByLabel(/Offer Amount/).focus();
+  localSql(`update public.jobs set status = 'cancelled' where id = '${cancelled.id}';`);
+  const cancelNotes = [];
+  const onCancelResponse = async (response) => {
+    if (!response.url().includes("/rpc/submit_offer")) return;
+    const text = await response.text().catch(() => "");
+    cancelNotes.push(`${response.status()} ${text.slice(0, 220)}`);
+  };
+  pageA.on("response", onCancelResponse);
+  await cancelCard.getByRole("button", { name: "Review offer" }).click();
+  await cancelCard.getByRole("button", { name: "Confirm & Submit Offer" }).click();
+  const cancelStarted = Date.now();
+  let cancelAlerts = "";
+  while (!/no longer available|no longer open|open jobs/i.test(cancelAlerts) && Date.now() - cancelStarted < 8000) {
+    cancelAlerts = (await pageA.getByRole("alert").allInnerTexts()).join(" | ");
+    if (!/no longer available|no longer open|open jobs/i.test(cancelAlerts)) await pageA.waitForTimeout(250);
+  }
+  pageA.off("response", onCancelResponse);
+  if (!/no longer available|no longer open|open jobs/i.test(cancelAlerts)) {
+    const cancelStatus = localSql(`select status from public.jobs where id = '${cancelled.id}'`);
+    const probe = await pageA.evaluate(() => ({
+      url: location.href,
+      notice: sessionStorage.getItem("pickuply.offer-notice"),
+      alertText: [...document.querySelectorAll("[role=alert]")].map((node) => node.textContent).join(" | "),
+    }));
+    throw new Error(`cancel status ${cancelStatus} rpc [${cancelNotes.join(" || ") || "none"}] alerts [${cancelAlerts}] probe ${JSON.stringify(probe)}`);
+  }
+  const cancelGone = Date.now();
+  while ((await pageA.locator(`#job-${cancelled.id}`).count()) > 0 && Date.now() - cancelGone < 8000) {
+    await pageA.waitForTimeout(200);
+  }
+  const cancelOffers = localSql(`select count(*)::text from public.job_offers where job_id = '${cancelled.id}'`);
+  note("a cancelled job is rejected and leaves the feed", (await pageA.locator(`#job-${cancelled.id}`).count()) === 0 && cancelOffers === "0", cancelOffers);
+
+  const taken = await createRequest(customerPage, { description: "Schedule audit taken sofa", mode: "anytime", phone: formPhone });
+  ids.jobs.push(taken.id);
+  await pageA.goto(`${base}/driver`);
+  const takenCard = pageA.locator(`#job-${taken.id}`).first();
+  await takenCard.waitFor();
+  await takenCard.locator("input[type='date']").fill(tomorrow);
+  await chooseArrival(takenCard, "15:30");
+  await takenCard.getByLabel(/Offer Amount/).fill("64");
+  await takenCard.getByLabel(/Offer Amount/).focus();
+  await sendQuote(pageB, taken.id, { date: tomorrow, time: "11:00", dollars: "58" });
+  await customerPage.goto(`${base}/jobs/${taken.id}`);
+  await customerPage.getByRole("button", { name: "Choose Bea" }).click();
+  await customerPage.getByLabel("Scheduled Pickup").waitFor();
+  await takenCard.getByRole("button", { name: "Review offer" }).click();
+  await takenCard.getByRole("button", { name: "Confirm & Submit Offer" }).click();
+  await pageA.getByRole("alert").filter({ hasText: /took this job|no longer available|no longer open|open jobs/i }).first().waitFor();
+  const takenGone = Date.now();
+  while ((await pageA.locator(`#job-${taken.id}`).count()) > 0 && Date.now() - takenGone < 8000) {
+    await pageA.waitForTimeout(200);
+  }
+  const takenOffers = localSql(`select count(*)::text from public.job_offers where job_id = '${taken.id}' and driver_id = '${driverA.id}'`);
+  note("an assigned job rejects the other driver and leaves the feed", (await pageA.locator(`#job-${taken.id}`).count()) === 0 && takenOffers === "0", takenOffers);
+
+  const closed = await createRequest(customerPage, { description: "Schedule audit closed window", mode: "windows", windows: 1, phone: formPhone });
+  ids.jobs.push(closed.id);
+  await pageA.goto(`${base}/driver`);
+  const closedCard = pageA.locator(`#job-${closed.id}`).first();
+  await closedCard.waitFor();
+  await closedCard.getByRole("radio").first().check();
+  await chooseArrival(closedCard, "10:00");
+  await closedCard.getByLabel(/Offer Amount/).fill("61");
+  await closedCard.getByLabel(/Offer Amount/).focus();
+  localSql(`
+    update public.job_pickup_windows
+    set starts_at = now() - interval '2 hours', ends_at = now() - interval '1 minute'
+    where job_id = '${closed.id}';
+  `);
+  await closedCard.getByRole("button", { name: "Review offer" }).click();
+  await closedCard.getByRole("button", { name: "Confirm & Submit Offer" }).click();
+  await pageA.getByRole("alert").filter({ hasText: /passed|pickup window|no longer|inside/i }).first().waitFor();
+  const closedOffers = localSql(`select count(*)::text from public.job_offers where job_id = '${closed.id}'`);
+  note("an expired window is rejected by the server", closedOffers === "0", closedOffers);
+
+  localSql(`
+    delete from public.rate_limit_events
+    where ctid in (
+      select ctid from public.rate_limit_events
+      where scope = 'request' and actor_key = '${customer.id}'
+      limit 2
+    );
+  `);
+  const moved = await createRequest(customerPage, { description: "Schedule audit moved window", mode: "windows", windows: 1, phone: formPhone });
+  ids.jobs.push(moved.id);
+  await pageA.goto(`${base}/driver`);
+  const movedCard = pageA.locator(`#job-${moved.id}`).first();
+  await movedCard.waitFor();
+  await movedCard.getByRole("radio").first().check();
+  await chooseArrival(movedCard, "10:00");
+  await movedCard.getByLabel(/Offer Amount/).fill("63");
+  await movedCard.getByLabel(/Offer Amount/).focus();
+  localSql(`
+    update public.job_pickup_windows
+    set starts_at = now() + interval '2 days', ends_at = now() + interval '2 days' + interval '2 hours'
+    where job_id = '${moved.id}';
+  `);
+  await movedCard.getByRole("button", { name: "Review offer" }).click();
+  await movedCard.getByRole("button", { name: "Confirm & Submit Offer" }).click();
+  await pageA.getByRole("alert").filter({ hasText: /pickup window|passed|inside/i }).first().waitFor();
+  const movedOffers = localSql(`select count(*)::text from public.job_offers where job_id = '${moved.id}'`);
+  note("a changed pickup window is rejected by the server", movedOffers === "0", movedOffers);
+
+  const blocked = await createRequest(customerPage, { description: "Schedule audit offline sofa", mode: "anytime", phone: formPhone });
+  ids.jobs.push(blocked.id);
+  await pageA.goto(`${base}/driver`);
+  const blockedCard = pageA.locator(`#job-${blocked.id}`).first();
+  await blockedCard.waitFor();
+  await blockedCard.locator("input[type='date']").fill(tomorrow);
+  await chooseArrival(blockedCard, "16:00");
+  await blockedCard.getByLabel(/Offer Amount/).fill("67");
+  await blockedCard.getByLabel(/Offer Amount/).focus();
+  localSql(`update public.drivers set is_online = false where profile_id = '${driverA.id}';`);
+  let blockedSubmits = 0;
+  const countSubmit = (response) => {
+    if (response.url().includes("/rpc/submit_offer")) blockedSubmits += 1;
+  };
+  pageA.on("response", countSubmit);
+  await blockedCard.getByRole("button", { name: "Review offer" }).click();
+  await pageA.evaluate((jobId) => {
+    const card = document.getElementById(`job-${jobId}`);
+    const button = [...card.querySelectorAll("button")].find((item) => item.textContent.includes("Confirm & Submit"));
+    button.click();
+    button.click();
+  }, blocked.id);
+  await pageA.getByText("go online before sending an offer").first().waitFor();
+  await blockedCard.getByRole("button", { name: "Edit Offer" }).click();
+  const blockedAmount = await blockedCard.getByLabel(/Offer Amount/).inputValue();
+  note("an offline driver is rejected once and the amount stays", blockedAmount === "67" && blockedSubmits === 1, `${blockedAmount} submits ${blockedSubmits}`);
+  localSql(`update public.drivers set is_online = true where profile_id = '${driverA.id}';`);
+  pageA.off("response", countSubmit);
 
   await browser.close();
 } catch (error) {
