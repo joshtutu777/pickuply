@@ -59,8 +59,8 @@ A user has exactly one role. Admin role is set manually in the database (never s
 | Background checks | **None in v1.** Verification = ID/license, insurance, vehicle photo, personal call with admin. Never claim background checks in UI copy |
 | Minimum fee | $35 |
 | Damage coverage limit | $250 per job |
-| Late cancel fee | $15 after a driver is assigned and before work starts, once that workflow is built. It is one partial capture of the fee on the existing authorization, and the rest of the hold is released. It is not a new charge, and the card is not saved for a later charge. If the payment was already captured, refund the difference. |
-| Trip fee | $25 if the customer rejects the item at the pickup item check. That amount is the only capture, and the rest of the authorization is released. |
+| Late cancel fee | Temporarily **$0** (`platform_settings.late_cancel_fee_cents`). A new cancellation releases the card hold and does not capture a fee. When the setting is above zero, it is one partial capture of that setting on the existing authorization. It is not a new charge. If the driver is already on the way, $10 of a $15 fee goes to the driver. Otherwise Pickuply keeps that fee. |
+| Trip fee | Temporarily **$0** (`platform_settings.trip_fee_cents`). Rejecting the item cancels the job and releases the hold. When the setting is $25, that amount is the only capture: $20 to the driver and $5 to Pickuply. |
 | Auto-complete | 24 hours after "Delivered" unless the customer reports a problem |
 | Item value cap | $1,000 per job during the pilot (admin can override) |
 
@@ -252,7 +252,7 @@ Junk removal does not use a customer drop-off:
 
 A junk job that already requires a disposal receipt still needs that receipt before Junk removed. It does not need a drop-off address, a drop-off arrival, or a second drop-off photo.
 
-If the customer rejects the item at pickup: the job ends, the $25 trip fee is captured, and the driver is paid the trip fee share. That reject does not stop the driver from continuing unless the customer sends it.
+If the customer rejects the item at pickup, the job ends. While the trip fee setting is $0, the card hold is released and the driver is not paid a trip fee. When that setting is above zero, only that fee is captured. That reject does not stop the driver from continuing unless the customer sends it.
 
 ### 5.7 Earnings
 Completed jobs, pending payouts, paid payouts, totals by week.
@@ -286,15 +286,15 @@ Every status change writes a **job event** (who, what, when, extra data). Every 
 | Situation | Outcome |
 |---|---|
 | Customer cancels before assignment | Free; authorization released |
-| Customer cancels after assignment | $15 captured; goes to driver |
-| Customer rejects item at pickup | $25 trip fee captured; driver share paid |
+| Customer cancels after assignment | No fee while the late-cancel setting is $0. The hold is released. |
+| Customer rejects item at pickup | No fee while the trip-fee setting is $0. The hold is released. |
 | Driver cancels | Job goes back to `open`; counts against reliability (strike if within 2h of pickup) |
 | Driver no-show | Admin alerted, job reassigned, customer gets a credit; 2 strikes |
 
 ### Payment authorization note
 Pickups can be scheduled at most 6 days ahead during the pilot. The request form and the database both reject a later date. A later option, not built yet, is to save the card and authorize it 2 days before pickup.
 
-A late cancel after assignment is one $15 capture of the existing hold. If the driver is on the way or further along, $10 goes to the driver and $5 stays with Pickuply. Otherwise Pickuply keeps the $15. There is no fee when the card was not authorized, or when the customer cancels before a driver is assigned. The trip fee stays $25: $20 to the driver and $5 to Pickuply. A customer can ask to reschedule once, free, before the driver is on the way. The driver has 2 hours to accept or decline. A decline opens the job again at the same price. A customer no-show fee waits for an admin after the driver has arrived, waited 15 minutes, and added a photo. A driver who is not on the way 30 minutes after the window starts does not cause a customer charge. Damage reports are due within 48 hours of delivery. Pickup photos are the before evidence. Damage already visible at pickup is not covered. An admin reviews it. There is no automatic refund. Verified damage can be refunded up to $250 for that job, and driver-fault amounts can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
+The late-cancel fee and the trip fee are both $0 until those settings are raised. A new cancellation or rejection does not capture either fee, and older rows that already stored a fee are left as they are. A late cancel after assignment is one capture of `late_cancel_fee_cents` when that setting is above zero. At $15, if the driver is on the way or further along, $10 goes to the driver and $5 stays with Pickuply. Otherwise Pickuply keeps that fee. There is no fee when the card was not authorized, when the customer cancels before a driver is assigned, or while the setting is $0. At a $25 trip fee, $20 goes to the driver and $5 stays with Pickuply. While the trip fee setting is $0, nothing is captured. A customer can ask to reschedule once, free, before the driver is on the way. The driver has 2 hours to accept or decline. A decline opens the job again at the same price. A customer no-show fee waits for an admin after the driver has arrived, waited 15 minutes, and added a photo. A driver who is not on the way 30 minutes after the window starts does not cause a customer charge. Damage reports are due within 48 hours of delivery. Pickup photos are the before evidence. Damage already visible at pickup is not covered. An admin reviews it. There is no automatic refund. Verified damage can be refunded up to $250 for that job, and driver-fault amounts can be recovered from future earnings. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
 
 Rate limits: 5 sign-in codes per number per hour, 10 per network per hour, 10 new requests per customer per day, 30 offers per driver per hour, 60 messages per person per hour and 10 per minute, and 5 help requests per day.
 
@@ -313,7 +313,7 @@ The driver or admin enters the customer-facing offer. Commission and the service
 
 - **Driver earnings** = round half up(offer × 85%). Default commission is 15% of the offer, deducted from that offer.
 - **Pickuply commission** = offer − driver earnings. It is not added to the customer price. There is no second platform fee and no separate Pickuply service fee.
-- **Service fee** is paid by the customer on top of the offer. Default 5% (500 basis points), rounded half up. It does not depend on the card type or on Stripe's processing rate. The label is "Service fee". Stripe's actual processing fee is an expense recorded from the balance transaction when Stripe provides it. A missing balance transaction stays blank until it arrives. A full refund when the driver or Pickuply is at fault includes the service fee. A partial refund keeps it unless an admin includes it. The $15 late cancellation and the $25 trip fee do not include a service fee. Naming this a service fee does not by itself decide card-network or consumer-disclosure compliance.
+- **Service fee** is paid by the customer on top of the offer. Default 5% (500 basis points), rounded half up. It does not depend on the card type or on Stripe's processing rate. The label is "Service fee". Stripe's actual processing fee is an expense recorded from the balance transaction when Stripe provides it. A missing balance transaction stays blank until it arrives. A full refund when the driver or Pickuply is at fault includes the service fee. A partial refund keeps it unless an admin includes it. A late-cancel fee or a trip fee, when one of those settings is above zero, does not include a service fee. Both settings are currently $0. Naming this a service fee does not by itself decide card-network or consumer-disclosure compliance.
 - **Fixed Accept, counter, range, and quote** all use that offer. A posted price is the offer, and processing is added on top. The admin enters the customer offer, not driver take-home pay.
 
 Rounding is half up on integer cents: `(numerator + denominator / 2) / denominator`. A $50 offer keeps $7.50 and pays the driver $42.50. A $100 offer keeps $15 and pays the driver $85. A $200 offer keeps $30 and pays the driver $170. A $50.01 offer pays the driver $42.51 and keeps $7.50. A $60 offer pays the driver $51 and totals $63.00 after the 5% service fee. A $100 offer totals $105.00.
@@ -505,7 +505,7 @@ Critical database functions:
 - `accept_admin_quote(job_id)` — the customer publishes their own `quoted` quote-job to `open`. It does not assign a driver.
 - `choose_offer(offer_id)` — customer explicitly chooses an active offer on an `open` fixed or range job: atomic; assigns the driver, marks other offers `declined`, writes an event. There is no auto-book path.
 
-Admin quote and price changes run as the signed-in admin. The database check is `is_admin()`. The service role never sets or changes `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, or `quote_expires_at`. The service role is only for webhooks, cron, and other system tasks. It must still be able to update payment and job status where this spec requires a system step: card authorization, capture after delivery or the 24-hour auto-complete, the $15 late-cancel capture, and the $25 trip-fee capture.
+Admin quote and price changes run as the signed-in admin. The database check is `is_admin()`. The service role never sets or changes `price_cents`, `driver_pay_cents`, `platform_fee_cents`, `dump_fee_cents`, or `quote_expires_at`. The service role is only for webhooks, cron, and other system tasks. It must still be able to update payment and job status where this spec requires a system step: card authorization, capture after delivery or the 24-hour auto-complete, the late-cancel capture, and the trip-fee capture when those settings are above zero.
 
 ---
 

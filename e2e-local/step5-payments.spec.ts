@@ -163,7 +163,7 @@ test("a card approved after the job reopens is released", async ({ browser }) =>
   await admin.context.close();
 });
 
-test("rejecting the item captures only the trip fee", async ({ browser }) => {
+test("rejecting the item releases the hold and does not charge a trip fee", async ({ browser }) => {
   const { customer, driver, admin, jobId } = await paidJob(browser, "4242424242424242");
   await driver.page.goto(`/driver/jobs/${jobId}`);
   await driver.page.getByRole("button", { name: "Start trip", exact: true }).click();
@@ -176,10 +176,10 @@ test("rejecting the item captures only the trip fee", async ({ browser }) => {
   await customer.page.getByRole("button", { name: "Reject item" }).click();
   await expect(customer.page.getByRole("heading", { name: "Cancelled" })).toBeVisible({ timeout: 60_000 });
   const row = await waitForRow(
-    `select j.payment_status || '|' || j.captured_cents || '|' || coalesce(l.amount_cents, 0) || '|' || (select count(*) from public.ledger_entries where job_id = '${jobId}') from public.jobs j left join public.ledger_entries l on l.job_id = j.id where j.id = '${jobId}'`,
-    /captured\|2500\|2500\|1/,
+    `select j.payment_status || '|' || coalesce(j.captured_cents::text, '') || '|' || coalesce(j.trip_fee_cents::text, '') || '|' || (select count(*)::text from public.ledger_entries where job_id = '${jobId}') from public.jobs j where j.id = '${jobId}'`,
+    /^canceled\|\|\|0$/,
   );
-  expect(row).toBe("captured|2500|2500|1");
+  expect(row).toBe("canceled|||0");
   await customer.context.close();
   await driver.context.close();
   await admin.context.close();

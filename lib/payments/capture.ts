@@ -135,6 +135,43 @@ export async function releaseCustomerAuthorization(jobId: string): Promise<"free
   return "released";
 }
 
+/** Release a card hold after a cancellation that did not record a late-cancel or trip fee. */
+export async function releaseUnchargedCancel(jobId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("status, payment_status, trip_fee_cents, late_cancel_cents")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!job || job.status !== "cancelled" || job.payment_status !== "authorized") return;
+  if ((job.trip_fee_cents ?? 0) > 0 || (job.late_cancel_cents ?? 0) > 0) return;
+  const { data: payment } = await supabase
+    .from("job_payments")
+    .select("payment_intent_id")
+    .eq("job_id", jobId)
+    .maybeSingle();
+  const stripe = getStripe();
+  const intentIds = new Set<string>();
+  if (payment?.payment_intent_id) intentIds.add(payment.payment_intent_id);
+  if (intentIds.size === 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId)) {
+    const searched = await stripe.paymentIntents.search({
+      query: `metadata['job_id']:'${jobId}'`,
+      limit: 10,
+    });
+    for (const found of searched.data) {
+      if (found.metadata?.job_id === jobId && found.status === "requires_capture") intentIds.add(found.id);
+    }
+  }
+  for (const intentId of intentIds) {
+    const intent = await stripe.paymentIntents.retrieve(intentId);
+    if (intent.status !== "canceled" && intent.status !== "succeeded") {
+      await stripe.paymentIntents.cancel(intentId, {}, { idempotencyKey: `cancel:${intentId}` });
+    }
+  }
+  const finished = await supabase.rpc("finish_released_cancel", { target_job: jobId });
+  if (finished.error) throw new Error("The card hold was released, but the job could not be cancelled.");
+}
+
 async function sendReceipt(jobId: string): Promise<void> {
   const supabase = createServiceClient();
   const [{ data: job }, { data: payment }, { data: privateRow }] = await Promise.all([

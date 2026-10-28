@@ -223,7 +223,7 @@ async function RequestDetail({
       <AdminOverride jobId={id} />
       <form action={refundJob} className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Refund</h2>
-        <p className="text-base text-muted">Before capture, enter the full total to release the hold. After capture, a partial refund keeps the service fee unless you include it. A full refund for a driver or Pickuply fault includes the service fee. A late cancel or trip fee has no service fee.</p>
+        <p className="text-base text-muted">Before capture, enter the full total to release the hold. After capture, a partial refund keeps the service fee unless you include it. A full refund for a driver or Pickuply fault includes the service fee. New cancellations and rejected pickups do not add a late-cancel fee or a trip fee. A booking that already has one of those fees keeps that record, and that fee has no service fee.</p>
         <input type="hidden" name="jobId" value={id} />
         <label className="font-semibold" htmlFor="refund-amount">
           Amount in dollars

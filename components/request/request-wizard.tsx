@@ -1246,7 +1246,11 @@ function ReviewStep({
         onChange={(value) => update("customerEmail", value)}
       />
       <div className="text-base leading-relaxed text-ink">
-        Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
+        {fees.lateCancelFeeCents > 0 || fees.tripFeeCents > 0 ? (
+          <>
+            Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
+          </>
+        ) : null}
         <TermsDialog />
         .
       </div>

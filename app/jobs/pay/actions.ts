@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
+import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -33,6 +34,14 @@ export async function startCheckout(formData: FormData) {
   const jobId = String(formData.get("jobId") ?? "");
   const origin = requestOrigin(await headers());
   const supabase = await createClient();
+  let checkoutSync;
+  try {
+    checkoutSync = await syncCustomerCheckout(jobId);
+  } catch {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  }
+  if (checkoutSync.state === "authorized") redirect(`/jobs/${jobId}`);
+  if (checkoutSync.resumeUrl) redirect(checkoutSync.resumeUrl);
   const prepared = await supabase.rpc("prepare_checkout", { target_job: jobId });
   if (prepared.error || !prepared.data) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(checkoutError(prepared.error?.message))}`);

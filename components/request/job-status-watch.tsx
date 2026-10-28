@@ -4,14 +4,30 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-/** Reload this job when its status changes, including a driver delivery update. */
-export function JobStatusWatch({ jobId, status }: { jobId: string; status: string }) {
+const paid = new Set(["authorized", "paid", "captured"]);
+
+/** Reload this job when its status or payment changes, including a card authorization. */
+export function JobStatusWatch({
+  jobId,
+  status,
+  paymentStatus,
+}: {
+  jobId: string;
+  status: string;
+  paymentStatus: string | null;
+}) {
   const router = useRouter();
   const seen = useRef(status);
+  const seenPayment = useRef(paymentStatus ?? "");
+  const waiting = useRef(status === "assigned" && !paid.has(paymentStatus ?? ""));
+  const rechecks = useRef(0);
 
   useEffect(() => {
     seen.current = status;
-  }, [status]);
+    seenPayment.current = paymentStatus ?? "";
+    waiting.current = status === "assigned" && !paid.has(paymentStatus ?? "");
+    if (!waiting.current) rechecks.current = 0;
+  }, [paymentStatus, status]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -21,9 +37,19 @@ export function JobStatusWatch({ jobId, status }: { jobId: string; status: strin
       timer = window.setTimeout(() => router.refresh(), 300);
     };
     const check = async () => {
-      const { data } = await supabase.from("jobs").select("status").eq("id", jobId).maybeSingle();
-      if (!data?.status || data.status === seen.current) return;
+      const { data } = await supabase.from("jobs").select("status, payment_status").eq("id", jobId).maybeSingle();
+      if (!data?.status) return;
+      const nextPayment = data.payment_status ?? "";
+      if (data.status === seen.current && nextPayment === seenPayment.current) {
+        if (waiting.current && document.visibilityState === "visible" && rechecks.current < 30) {
+          rechecks.current += 1;
+          refresh();
+        }
+        return;
+      }
       seen.current = data.status;
+      seenPayment.current = nextPayment;
+      waiting.current = data.status === "assigned" && !paid.has(nextPayment);
       refresh();
     };
     const channel = supabase

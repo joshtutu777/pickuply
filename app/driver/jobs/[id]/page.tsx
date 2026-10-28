@@ -151,7 +151,7 @@ async function DriverJob({
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-3">
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
-      <JobStatusWatch jobId={job.id} status={job.status} />
+      <JobStatusWatch jobId={job.id} status={job.status} paymentStatus={job.payment_status} />
       <BackLink href="/driver/jobs" label="Jobs" />
       <div className="flex items-center justify-between gap-3">
         <StatusPill status={job.status} />
@@ -354,8 +354,10 @@ async function DriverJob({
       </DetailsFold>
       {job.status === "cancelled" && job.rejection_reason ? (
         <p className="mt-4 text-base text-ink">
-          The customer rejected the item. The trip fee
-          {job.trip_fee_cents != null ? ` of ${formatCents(job.trip_fee_cents)}` : ""} is recorded by the existing payment rules.
+          The customer rejected the item.
+          {job.trip_fee_cents != null && job.trip_fee_cents > 0
+            ? ` The trip fee of ${formatCents(job.trip_fee_cents)} is recorded by the existing payment rules.`
+            : " No trip fee was charged."}
         </p>
       ) : null}
       {job.status === "completed" && ledger && !["recovery_due", "recovered"].includes(ledger.status) ? (

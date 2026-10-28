@@ -3,7 +3,7 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
-import { captureReadyPayment, releaseCustomerAuthorization } from "@/lib/payments/capture";
+import { captureReadyPayment, releaseCustomerAuthorization, releaseUnchargedCancel } from "@/lib/payments/capture";
 import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,10 +56,15 @@ export async function decidePickup(formData: FormData) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(stepError(result.error.message))}`);
   }
   if (decision === "reject") {
+    const recorded = await supabase.from("jobs").select("trip_fee_cents, payment_status").eq("id", jobId).maybeSingle();
     try {
-      await captureReadyPayment(jobId);
+      if ((recorded.data?.trip_fee_cents ?? 0) > 0) {
+        await captureReadyPayment(jobId);
+      } else if (recorded.data?.payment_status === "authorized") {
+        await releaseUnchargedCancel(jobId);
+      }
     } catch {
-      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The item was rejected. The trip fee still needs to be captured.")}`);
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The item was rejected. The card hold still needs to be finished.")}`);
     }
   }
   redirect(`/jobs/${jobId}`);

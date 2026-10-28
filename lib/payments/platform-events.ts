@@ -25,11 +25,11 @@ async function chargeDetails(intent: Stripe.PaymentIntent): Promise<{ id: string
   return { id, captureBefore: unix ? new Date(unix * 1000).toISOString() : null };
 }
 
-async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
-  if (intent.status !== "requires_capture") return;
+export async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<string> {
+  if (intent.status !== "requires_capture") return "skipped";
   const jobId = intent.metadata?.job_id;
   const driverId = intent.metadata?.driver_id;
-  if (!jobId || !driverId) return;
+  if (!jobId || !driverId) return "skipped";
   const charge = await chargeDetails(intent);
   const supabase = createServiceClient();
   const result = await supabase.rpc("apply_authorization", {
@@ -42,7 +42,8 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
   if (result.error) throw new Error(result.error.message);
   const marked = await supabase.rpc("note_stripe_livemode", { target_job: jobId, live: intent.livemode });
   if (marked.error) throw new Error(marked.error.message);
-  if (result.data === "released_late" || result.data === "duplicate") {
+  const outcome = typeof result.data === "string" ? result.data : "accepted";
+  if (outcome === "released_late" || outcome === "duplicate") {
     try {
       await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
     } catch {
@@ -50,6 +51,7 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
       if (current.status !== "canceled") throw new Error("The card hold could not be released.");
     }
   }
+  return outcome;
 }
 
 export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<void> {
