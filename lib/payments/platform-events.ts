@@ -2,27 +2,12 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
+import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
-const handled = new Set([
-  "checkout.session.completed",
-  "checkout.session.expired",
-  "payment_intent.amount_capturable_updated",
-  "payment_intent.payment_failed",
-  "payment_intent.canceled",
-  "payment_intent.succeeded",
-  "charge.captured",
-  "charge.dispute.created",
-  "charge.dispute.updated",
-  "charge.dispute.closed",
-  "refund.created",
-  "refund.updated",
-  "charge.refunded",
-]);
-
 export function isPlatformPaymentEvent(type: string): boolean {
-  return handled.has(type);
+  return isListedEvent(type, platformPaymentEvents);
 }
 
 type ChargeCard = { capture_before?: number | null };
