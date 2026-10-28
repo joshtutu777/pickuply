@@ -487,14 +487,23 @@ try {
   note("driver selects a customer window", true);
   localSql(`
     update public.job_pickup_windows
-    set starts_at = now() - interval '2 hours', ends_at = now() - interval '1 minute'
+    set starts_at = now(), ends_at = now() + interval '30 minutes'
     where job_id = '${windows.id}' and position = 1;
+    update public.job_offers o
+    set proposed_pickup_start = w.starts_at, proposed_pickup_end = w.ends_at
+    from public.job_pickup_windows w
+    where o.job_id = '${windows.id}' and o.pickup_window_id = w.id and w.position = 1;
   `);
   await customerPage.goto(`${base}/jobs/${windows.id}`);
   await customerPage.getByRole("button", { name: "Choose Ada" }).click();
   await customerPage.waitForURL(/error=/);
   const expiredText = decodeURIComponent(customerPage.url());
-  note("expired window cannot be accepted", expiredText.includes("This time has passed. Choose another offer."));
+  note("expired window cannot be accepted", expiredText.includes("This time has passed. Choose another offer."), expiredText);
+  localSql(`
+    update public.job_pickup_windows
+    set starts_at = now() - interval '2 hours', ends_at = now() - interval '1 minute'
+    where job_id = '${windows.id}' and position = 1;
+  `);
   await pageA.goto(`${base}/driver`);
   const windowCard = pageA.locator(`#job-${windows.id}`).first();
   await windowCard.getByText("Choose one pickup window").waitFor();
