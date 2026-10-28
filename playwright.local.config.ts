@@ -34,7 +34,7 @@ for (const [key, value] of Object.entries(testEnv)) {
 }
 
 function localServiceRole(): string {
-  const text = execFileSync("npx supabase status -o env", { encoding: "utf8", shell: true });
+  const text = execFileSync(process.env.SUPABASE_CLI || "npx supabase status -o env", { encoding: "utf8", shell: true });
   for (const line of text.split(/\r?\n/)) {
     const eq = line.indexOf("=");
     if (eq <= 0 || line.slice(0, eq) !== "SERVICE_ROLE_KEY") continue;
@@ -154,6 +154,11 @@ export default defineConfig({
     {
       name: "local-workflow",
       use: { ...devices["Pixel 5"] },
+      testMatch: /delivery-workflow-ui\.spec\.ts/,
+    },
+    {
+      name: "local-workflow-desktop",
+      use: { ...devices["Desktop Chrome"] },
       testMatch: /delivery-workflow-ui\.spec\.ts/,
     },
     {

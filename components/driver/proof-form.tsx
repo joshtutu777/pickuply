@@ -1,34 +1,41 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { UploadPicker } from "@/components/upload-picker";
-import { photoMaxBytes } from "@/lib/constants";
-import { compressImage, prepareProofVideo } from "@/lib/photos";
-import { createClient } from "@/lib/supabase/client";
+import { saveDriverProof } from "@/lib/driver/save-proof";
 
 export function ProofForm({
   jobId,
   locationEnabled,
   defaultStage = "pickup",
   idPrefix = "",
+  formId,
   submitLabel = "Save proof",
+  locked = false,
+  onFile,
   onSaved,
 }: {
   jobId: string;
   locationEnabled: boolean;
   defaultStage?: "pickup" | "dropoff" | "dump_receipt" | "no_show";
   idPrefix?: string;
+  formId?: string;
   submitLabel?: string;
+  locked?: boolean;
+  onFile?: (file: File | null) => void;
   onSaved?: (stage: string) => void;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [pickerKey, setPickerKey] = useState(0);
+  const saveLock = useRef(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saveLock.current || locked) return;
+    saveLock.current = true;
     const form = event.currentTarget;
     const data = new FormData(form);
     const file = data.get("file");
@@ -36,65 +43,37 @@ export function ProofForm({
     const note = String(data.get("note") ?? "");
     const share = data.get("shareLocation") === "on";
     if (!(file instanceof File) || file.size === 0) {
+      saveLock.current = false;
       setMessage("Choose a photo or a short video.");
-      return;
-    }
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-      setMessage("Choose a photo or a short video. Other file types are not accepted.");
       return;
     }
     setPending(true);
     setMessage(null);
     try {
-      const video = file.type.startsWith("video/");
-      const blob = video ? await prepareProofVideo(file) : await compressImage(file);
-      if (!video && blob.size > photoMaxBytes) {
-        throw new Error("That photo is too large.");
-      }
-      const id = crypto.randomUUID();
-      const path = `${jobId}/${stage}/${id}.${video ? "webm" : "jpg"}`;
-      let lat: number | null = null;
-      let lng: number | null = null;
-      if (share && locationEnabled && "geolocation" in navigator) {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 });
-        }).catch(() => null);
-        if (position) {
-          lat = Math.round(position.coords.latitude * 100) / 100;
-          lng = Math.round(position.coords.longitude * 100) / 100;
-        }
-      }
-      const supabase = createClient();
-      const uploaded = await supabase.storage.from("job-photos").upload(path, blob, {
-        contentType: video ? "video/webm" : "image/jpeg",
-        upsert: false,
+      await saveDriverProof({
+        jobId,
+        stage,
+        file,
+        note,
+        shareLocation: share,
+        locationEnabled,
       });
-      if (uploaded.error) throw new Error("The file could not be saved.");
-      const recorded = await supabase.rpc("record_proof", {
-        target_job: jobId,
-        photo_stage: stage,
-        storage_path: path,
-        photo_note: note,
-        media_kind: video ? "video" : "photo",
-        share_location: share && locationEnabled,
-        raw_lat: lat,
-        raw_lng: lng,
-      });
-      if (recorded.error) throw new Error("The proof could not be recorded.");
       form.reset();
       setPickerKey((key) => key + 1);
+      onFile?.(null);
       onSaved?.(stage);
       router.refresh();
       setMessage("Proof saved. It cannot be replaced.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The proof could not be saved.");
     } finally {
+      saveLock.current = false;
       setPending(false);
     }
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="grid gap-2 rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
+    <form id={formId} onSubmit={(event) => void submit(event)} className="grid gap-2 rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Add proof</h2>
       <UploadPicker
         key={pickerKey}
@@ -105,11 +84,18 @@ export function ProofForm({
         required
         label="Add a photo or video"
         kinds="JPG, PNG, or a video up to 30 seconds"
-        busy={pending}
+        busy={pending || locked}
+        disabled={pending || locked}
+        onChange={(files) => onFile?.(files && files.length > 0 ? files[0] : null)}
       />
       <p className="text-sm text-muted">
         Photos are saved as new files so location details in the original are removed. A video must be 30 seconds or less.
       </p>
+      {onFile ? (
+        <p className="text-sm text-muted">
+          After you choose a photo or video, tap the status button. It saves this proof and moves the job forward.
+        </p>
+      ) : null}
       <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-stage`}>
         Step
         <select id={`${idPrefix}proof-stage`} name="stage" className="mt-2 min-h-12 w-full rounded-2xl border border-line px-4" defaultValue={defaultStage}>
@@ -139,7 +125,7 @@ export function ProofForm({
       ) : null}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || locked}
         className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
       >
         {pending ? "Uploading..." : submitLabel}

@@ -13,6 +13,7 @@ export function UploadPicker({
   kinds,
   onChange,
   busy = false,
+  disabled = false,
   success = null,
   error = null,
   clearAfter = false,
@@ -27,6 +28,7 @@ export function UploadPicker({
   kinds: string;
   onChange?: (files: FileList | null) => void;
   busy?: boolean;
+  disabled?: boolean;
   success?: string | null;
   error?: string | null;
   clearAfter?: boolean;
@@ -62,6 +64,7 @@ export function UploadPicker({
           accept={accept}
           capture={capture}
           multiple={multiple}
+          disabled={disabled}
           onChange={changed}
           className="sr-only"
         />
