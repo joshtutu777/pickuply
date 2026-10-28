@@ -7,6 +7,7 @@ import {
   decideTipCharge,
   sameBookingCard,
   savedTipCharge,
+  tipFallbackAllowed,
   tipIdempotencyKey,
   tipOneTapQuestion,
 } from "./saved-card";
@@ -98,6 +99,9 @@ test("authentication or a declined card falls back, and a live card is refused",
   assert.equal(decideTipCharge({ livemode: true, status: "succeeded" }), "live");
   assert.equal(stripeModeProblem("sk_live_123", "pk_live_123"), "Live payments are not enabled.");
   assert.equal(stripeModeProblem("sk_test_123", "pk_test_123"), null);
+  assert.equal(tipFallbackAllowed("canceled"), true);
+  assert.equal(tipFallbackAllowed("paid"), false);
+  assert.equal(tipFallbackAllowed("blocked"), false);
 });
 
 test("the booking page and the receipt use the same card disclosure", () => {

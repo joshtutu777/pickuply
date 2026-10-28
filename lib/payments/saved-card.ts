@@ -120,3 +120,8 @@ export function decideTipCharge(input: {
   }
   return "uncertain";
 }
+
+/** Checkout is safe only after the off-session attempt is canceled and nothing was collected. */
+export function tipFallbackAllowed(release: "canceled" | "paid" | "blocked"): boolean {
+  return release === "canceled";
+}

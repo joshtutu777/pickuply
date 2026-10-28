@@ -1,7 +1,13 @@
 import "server-only";
 
 import type Stripe from "stripe";
-import { decideTipCharge, sameBookingCard, savedTipCharge, tipIdempotencyKey } from "@/lib/payments/saved-card";
+import {
+  decideTipCharge,
+  sameBookingCard,
+  savedTipCharge,
+  tipFallbackAllowed,
+  tipIdempotencyKey,
+} from "@/lib/payments/saved-card";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -98,16 +104,14 @@ export async function chargeSavedTip(input: {
       await recordPaidTip(failure.paymentIntent);
       return "paid";
     }
-    if (failure.paymentIntent?.id && failure.paymentIntent.status !== "succeeded") {
-      await stripe.paymentIntents.cancel(
-        failure.paymentIntent.id,
-        {},
-        { idempotencyKey: `tip-cancel:${failure.paymentIntent.id}` },
-      ).catch(() => undefined);
+    if (decision !== "authenticate" && decision !== "fallback") {
+      throw new Error("The tip could not be charged.");
     }
-    if (decision === "authenticate") return "authenticate";
-    if (decision === "fallback") return "fallback";
-    throw new Error("The tip could not be charged.");
+    if (!failure.paymentIntent?.id) return decision;
+    const released = await releaseTipIntent(failure.paymentIntent.id);
+    if (released === "paid") return "paid";
+    if (!tipFallbackAllowed(released)) throw new Error("The tip could not be charged.");
+    return decision;
   }
   const decision = decideTipCharge({ livemode: intent.livemode, status: intent.status });
   if (decision === "live") {
@@ -122,15 +126,38 @@ export async function chargeSavedTip(input: {
     return "paid";
   }
   if (decision === "authenticate" || decision === "fallback") {
-    await createServiceClient().rpc("note_tip_intent", {
-      target_tip: input.tipId,
-      payment_intent: intent.id,
-      next_status: "pending",
-    });
-    await stripe.paymentIntents.cancel(intent.id, {}, { idempotencyKey: `tip-cancel:${intent.id}` }).catch(() => undefined);
+    const released = await releaseTipIntent(intent.id);
+    if (released === "paid") return "paid";
+    if (!tipFallbackAllowed(released)) throw new Error("The tip could not be charged.");
     return decision;
   }
   throw new Error("The tip could not be charged.");
+}
+
+/** A fallback charge waits until this attempt is canceled. A collected tip is recorded instead. */
+async function releaseTipIntent(intentId: string): Promise<"canceled" | "paid" | "blocked"> {
+  const stripe = getStripe();
+  const finish = async (intent: Stripe.PaymentIntent): Promise<"canceled" | "paid" | "blocked"> => {
+    if (intent.status === "canceled") return "canceled";
+    if (intent.status === "succeeded") {
+      await recordPaidTip(intent);
+      return "paid";
+    }
+    return "blocked";
+  };
+  try {
+    return await finish(await stripe.paymentIntents.cancel(
+      intentId,
+      {},
+      { idempotencyKey: `tip-cancel:${intentId}` },
+    ));
+  } catch {
+    try {
+      return await finish(await stripe.paymentIntents.retrieve(intentId));
+    } catch {
+      return "blocked";
+    }
+  }
 }
 
 function readTipFailure(error: unknown): {
