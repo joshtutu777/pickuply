@@ -55,7 +55,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, dropoff_arrived_at, no_show_pending, require_disposal_receipt, pickup_availability, scheduled_pickup_start, scheduled_pickup_end",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, dropoff_arrived_at, no_show_pending, require_disposal_receipt, store_name, store_order_number, pickup_availability, scheduled_pickup_start, scheduled_pickup_end",
     )
     .eq("id", id)
     .maybeSingle();
@@ -170,6 +170,14 @@ async function DriverJob({
         {job.pickup_area}
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
+      {job.service === "construction" && job.store_name ? (
+        <p className="text-base text-ink">Store: {job.store_name}</p>
+      ) : null}
+      {job.service === "construction" && job.store_order_number ? (
+        <p className="text-base font-semibold text-ink">
+          Store order / pickup number: {job.store_order_number}
+        </p>
+      ) : null}
       {details?.customer_name ? <p className="text-base text-ink">Customer: {details.customer_name.split(" ")[0]}</p> : null}
       <JobMessageCard jobId={job.id} audience="driver" />
       <ScheduledPickup

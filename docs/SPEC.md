@@ -92,7 +92,7 @@ Goal: request a quote in **under 2 minutes**, no account required up front.
 | When | ASAP / today / choose date + time window |
 | Junk only | Load size (single item, ¼, ½, full), materials, includes mattress/tires/appliances? |
 | Item value | Approximate value. Over $1,000 is allowed but flagged `needs_value_approval` with the warning "Items over $1,000 need approval before booking." |
-| Construction only | Store name, optional order/pickup number |
+| Construction only | Store name, optional Store order / pickup number. The customer and the assigned driver see that number on the job. Open job feeds still omit it. |
 | Pricing method (required) | **Get a quote** (no amount). Copy: "Drivers can review this request and send offers. You choose who to book. Nothing is charged until you accept." **Name your price** (one amount, min $35). **Set a budget range** (min ≥ $35, max > min). Copy under both: "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept." |
 | Contact | Name, phone (required), email address (optional, helper text "For booking updates and receipts."), "How did you hear about us?" (Nextdoor, Facebook, friend, landlord/property manager, other). A saved email is stored once on `profiles.email` for both customer and driver use, prefilled on the next request, and can be changed in Profile. A blank field does not erase a saved email. The address is not marked verified. |
 
@@ -425,7 +425,7 @@ All admin actions are permission-checked on the server and audit-logged.
 
 ## 11. Notifications
 
-A new message appears in the recipient's Messages inbox and as a bell alert. The alert opens that conversation. Opening the conversation marks it read. Seen shows on the sender's last message after the other person opens it. Customers reply to an admin message or use Help. They cannot start an admin chat. A resolved support thread stays read-only. Document requests include Upload now for the matching profile field, and a successful upload notifies admin. Photos and PDFs in an admin conversation stay in a private bucket.
+Job chat closes when the job is completed or cancelled. Phone numbers and email addresses are rejected, including spaced, dotted, spelled-out, and “at”/“dot” forms. Gate codes, store order numbers, addresses, prices, sizes, and times are allowed. An admin may include contact details only in a support thread. A new message appears in the recipient's Messages inbox and as a bell alert. The alert opens that conversation. Opening the conversation marks it read. Seen shows on the sender's last message after the other person opens it. Customers reply to an admin message or use Help. They cannot start an admin chat. A resolved support thread stays read-only. Document requests include Upload now for the matching profile field, and a successful upload notifies admin. Photos and PDFs in an admin conversation stay in a private bucket.
 
 Built locally on 2026-10-22. Alerts are stored in the app, push is ready when VAPID keys are set, and email is ready when Resend is set. Texting is wired and stays off until an admin turns it on after Twilio approval. The one-time iPhone Home Screen note is on the alerts page. Job messages open at assignment and close 24 hours after completion. Proof photos are private, locked after upload, and any optional location is rounded and visible only to an admin.
 

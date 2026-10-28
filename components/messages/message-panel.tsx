@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UploadPicker } from "@/components/upload-picker";
-import { containsContact } from "@/lib/messages/contact";
+import { contactWarning, containsContact } from "@/lib/messages/contact";
 import { messageClock, messageDay } from "@/lib/messages/preview";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -98,6 +98,10 @@ export function MessagePanel({
   }
 
   async function addFile(file: File) {
+    if (containsContact(file.name)) {
+      setError(contactWarning);
+      return;
+    }
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
     if (!["jpg", "jpeg", "png", "webp", "pdf"].includes(extension) || file.size > 5_000_000) {
       setError("Choose a photo or PDF under 5 MB.");
@@ -171,13 +175,18 @@ export function MessagePanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: text, clientKey }),
     });
+    const payload = (await response.json().catch(() => null)) as { messages?: ChatMessage[]; error?: string } | null;
     if (!response.ok) {
+      if (payload?.error === "contact") {
+        setFailedKey(null);
+        setError(contactWarning);
+        return;
+      }
       setFailedKey(clientKey);
       setError("That message could not be sent.");
       return;
     }
-    const payload = (await response.json()) as { messages?: ChatMessage[] };
-    if (payload.messages) setMessages(payload.messages);
+    if (payload?.messages) setMessages(payload.messages);
     setText("");
     setFailedKey(null);
     setError(null);
@@ -309,7 +318,7 @@ export function MessagePanel({
           <p className="text-sm text-muted">Press Ctrl+Enter to send.</p>
           {warning ? (
             <p role="alert" className="text-base text-danger">
-              Remove the phone number or email before sending. Pickuply keeps contact details off the chat.
+              {contactWarning}
             </p>
           ) : null}
           <UploadPicker

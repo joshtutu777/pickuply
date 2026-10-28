@@ -245,7 +245,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect(customer.getByText(/Driver [Cc]onfirmed/).first()).toBeVisible();
       const box = customer.getByRole("textbox", { name: "Message", exact: true });
       await box.fill("Call me at 404-555-1212");
-      await expect(customer.getByText("Remove the phone number or email before sending.")).toBeVisible();
+      await expect(customer.getByText("For your safety, contact details can't be shared in chat")).toBeVisible();
       ux.push("A phone number in chat blocks Send and shows a warning. It is not stored with the number hidden.");
       await box.fill("The dresser is on the porch.");
       await customer.getByRole("button", { name: "Send", exact: true }).click();

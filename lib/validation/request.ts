@@ -116,8 +116,13 @@ function validateWhat(draft: RequestDraft, photoCount: number): FieldErrors {
     }
     if (draft.junkMaterials.trim().length > 1000) errors.junkMaterials = "Materials are too long.";
   }
-  if (draft.service === "construction" && draft.storeName.trim().length > 120) {
+  if (draft.service === "construction" && draft.storeName.trim().length === 0) {
+    errors.storeName = "Enter the store name.";
+  } else if (draft.service === "construction" && draft.storeName.trim().length > 120) {
     errors.storeName = "Store name is too long.";
+  }
+  if (draft.service === "construction" && draft.storeOrderNumber.trim().length > 80) {
+    errors.storeOrderNumber = "Store order / pickup number is too long.";
   }
   return errors;
 }

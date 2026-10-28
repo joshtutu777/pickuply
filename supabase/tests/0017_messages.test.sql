@@ -66,20 +66,22 @@ values (
 select pg_temp.as_user('f1717171-1717-4171-8171-171717171711');
 set local role authenticated;
 
-select lives_ok(
+select throws_ok(
   $$select public.post_message(
     'f1717171-1717-4171-8171-171717171721',
     'call me at 404-555-0100'
   )$$,
-  'a phone number is stored and hidden from the thread'
+  'For your safety, contact details can''t be shared in chat',
+  'a customer cannot send a phone number in a support thread'
 );
 
-select lives_ok(
+select throws_ok(
   $$select public.post_message(
     'f1717171-1717-4171-8171-171717171721',
     'reach me at person@example.com'
   )$$,
-  'an email address is stored and hidden from the thread'
+  'For your safety, contact details can''t be shared in chat',
+  'a customer cannot send an email in a support thread'
 );
 
 select lives_ok(
@@ -92,11 +94,9 @@ select lives_ok(
 
 select is(
   (select count(*) from public.messages
-    where thread_id = 'f1717171-1717-4171-8171-171717171721'
-      and body !~ '404-555-0100'
-      and body !~ 'person@example.com')::integer,
-  3,
-  'others see the redacted text'
+    where thread_id = 'f1717171-1717-4171-8171-171717171721')::integer,
+  1,
+  'a rejected contact message is not stored'
 );
 
 select throws_ok(

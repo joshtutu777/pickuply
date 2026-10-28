@@ -130,7 +130,7 @@ test("local marketplace assignment does not charge or reveal the address", async
   const messages = customer.page.getByRole("region", { name: "Messages" });
   const message = messages.getByRole("textbox", { name: "Message", exact: true });
   await message.fill("call me at 404-555-0100");
-  await expect(messages.getByText("Remove the phone number or email before sending.")).toBeVisible();
+  await expect(messages.getByText("For your safety, contact details can't be shared in chat")).toBeVisible();
   await expect(messages.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
   await message.fill("Please use the side door");
   await messages.getByRole("button", { name: "Send", exact: true }).click();

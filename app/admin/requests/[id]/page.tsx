@@ -100,6 +100,10 @@ async function RequestDetail({
       ) : null}
       <section className="mt-6 space-y-2 text-base text-ink">
         <p>{job.description}</p>
+        {job.service === "construction" && job.store_name ? <p>Store: {job.store_name}</p> : null}
+        {job.service === "construction" && job.store_order_number ? (
+          <p>Store order / pickup number: {job.store_order_number}</p>
+        ) : null}
         <p>
           {job.pieces != null ? `${job.pieces} pieces` : "Pieces not provided"}
           {" · "}
