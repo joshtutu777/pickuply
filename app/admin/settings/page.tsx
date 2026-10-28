@@ -5,6 +5,7 @@ import {
   saveOfferMinimums,
   saveSmsSetting,
   saveSupportContact,
+  savePickupLead,
   saveProofLocation,
   saveWavesSetting,
 } from "@/app/admin/settings/actions";
@@ -47,6 +48,8 @@ async function SettingsContent({
     junk_offer_min_cents: 5000,
     store_offer_min_cents: 3500,
     free_item_offer_min_cents: 3500,
+    accept_window_lead_minutes: 60,
+    offer_arrival_lead_minutes: 30,
   };
 
   return (
@@ -154,6 +157,39 @@ async function SettingsContent({
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
         >
           Save minimum offers
+        </button>
+      </form>
+      <form action={savePickupLead} className="mt-8 space-y-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Pickup timing</h2>
+        <p className="text-base text-muted">
+          A customer can accept a pickup window only while at least this many minutes remain.
+          A driver&apos;s Anytime or ASAP arrival has to be at least this many minutes ahead when the offer is sent.
+        </p>
+        <label className="block text-base font-semibold" htmlFor="acceptWindowLead">
+          Minutes left when a customer accepts a window
+          <input
+            id="acceptWindowLead"
+            name="acceptWindowLead"
+            inputMode="numeric"
+            defaultValue={settings.accept_window_lead_minutes ?? 60}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="offerArrivalLead">
+          Minutes ahead for a driver&apos;s proposed arrival
+          <input
+            id="offerArrivalLead"
+            name="offerArrivalLead"
+            inputMode="numeric"
+            defaultValue={settings.offer_arrival_lead_minutes ?? 30}
+            className={controlClass}
+          />
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save pickup timing
         </button>
       </form>
       <form action={saveWavesSetting} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">

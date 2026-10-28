@@ -11,6 +11,15 @@ import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
+import {
+  addCalendarDays,
+  arrivalError,
+  defaultOfferArrivalLeadMinutes,
+  formatScheduledPickup,
+  georgiaDateISO,
+  windowIsOpen,
+  type PickupPlan,
+} from "@/lib/time/pickup-schedule";
 import { createClient } from "@/lib/supabase/client";
 
 type FeedJob = {
@@ -46,7 +55,7 @@ const dateGroups = [
 ] as const;
 
 function toCard(job: FeedJob): FeedCard {
-  return { ...job, photos: [], earningsCents: job.driver_pay_cents };
+  return { ...job, photos: [], earningsCents: job.driver_pay_cents, schedule: undefined };
 }
 
 function countFrom(value: unknown) {
@@ -55,7 +64,7 @@ function countFrom(value: unknown) {
   return 0;
 }
 
-type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null };
+type FeedCard = FeedJob & { photos: string[]; earningsCents: number | null; schedule?: PickupPlan | null };
 
 function stairLabel(pickup: number, dropoff: number | null) {
   const drop = dropoff ?? 0;
@@ -85,15 +94,20 @@ function OfferActions({
   canAct,
   blockedReason,
   fees,
+  arrivalLeadMinutes,
   onDone,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
+  arrivalLeadMinutes: number;
   onDone: () => void;
 }) {
   const [amount, setAmount] = useState("");
+  const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("");
+  const [windowId, setWindowId] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [message, setMessage] = useState<{ text: string; alert: boolean } | null>(null);
   const [sending, setSending] = useState(false);
@@ -103,20 +117,29 @@ function OfferActions({
   const driverQuote = job.pricing_method === "quote" && !claimable;
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
+  const scheduleProblem = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
+
   async function send(kind: "accept" | "claim" | "offer") {
     if (sending) return;
+    const gap = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
+    if (gap) {
+      setMessage({ text: gap, alert: true });
+      return;
+    }
     setSending(true);
     setMessage(null);
     const supabase = createClient();
+    const proposal = scheduleArgs(job.schedule, pickupDate, pickupTime, windowId);
     try {
     const result =
       kind === "claim"
-        ? await supabase.rpc("claim_job", { target_job: job.id })
+        ? await supabase.rpc("claim_job", { target_job: job.id, ...proposal })
         : await supabase.rpc("submit_offer", {
             target_job: job.id,
             kind,
             earnings_cents: kind === "accept" ? null : offerCents,
             reason: "",
+            ...proposal,
           });
     if (result.error) {
       setMessage({ text: takenJobMessage(result.error.message), alert: true });
@@ -144,10 +167,20 @@ function OfferActions({
 
   return (
     <div className="mt-3 grid gap-3">
+      <PickupProposal
+        plan={job.schedule}
+        date={pickupDate}
+        time={pickupTime}
+        windowId={windowId}
+        arrivalLeadMinutes={arrivalLeadMinutes}
+        onDate={setPickupDate}
+        onTime={setPickupTime}
+        onWindow={setWindowId}
+      />
       {claimable ? (
         <button
           type="button"
-          disabled={!canAct || sending}
+          disabled={!canAct || sending || scheduleProblem != null}
           aria-busy={sending}
           onClick={() => void send("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
@@ -161,7 +194,7 @@ function OfferActions({
               <OfferMath cents={posted} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct || sending}
+                disabled={!canAct || sending || scheduleProblem != null}
                 aria-busy={sending}
                 onClick={() => void send("accept")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
@@ -189,7 +222,7 @@ function OfferActions({
               <OfferMath cents={offerCents} settings={fees} />
               <button
                 type="button"
-                disabled={!canAct || sending}
+                disabled={!canAct || sending || scheduleProblem != null}
                 aria-busy={sending}
                 onClick={() => void send("offer")}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
@@ -203,7 +236,7 @@ function OfferActions({
           ) : (
             <button
               type="button"
-              disabled={!canAct || offerCents <= 0}
+              disabled={!canAct || offerCents <= 0 || scheduleProblem != null}
               onClick={() => setReviewing(true)}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
             >
@@ -227,12 +260,14 @@ function JobCard({
   canAct,
   blockedReason,
   fees,
+  arrivalLeadMinutes,
   onDone,
 }: {
   job: FeedCard;
   canAct: boolean;
   blockedReason: string | null;
   fees: FeeSettings;
+  arrivalLeadMinutes: number;
   onDone: () => void;
 }) {
   return (
@@ -249,10 +284,7 @@ function JobCard({
         {job.required_vehicle?.replaceAll("_", " ") ?? "Any vehicle"} · {job.help_loading ? "2 people" : "1 person"} ·{" "}
         {stairLabel(job.stairs_pickup, job.stairs_dropoff)}
       </p>
-      <p>
-        {job.preferred_date}
-        {job.time_window ? ` · ${job.time_window}` : ""}
-      </p>
+      <p>{scheduleLine(job)}</p>
       {job.pricing_method === "fixed" && job.offer_cents != null ? (
         <p>Job Amount: {formatCents(job.offer_cents)}</p>
       ) : null}
@@ -264,7 +296,7 @@ function JobCard({
       {job.earningsCents != null ? (
         <p className="font-semibold">Your Estimated Earnings: {formatCents(job.earningsCents)}</p>
       ) : null}
-      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} onDone={onDone} />
+      <OfferActions job={job} canAct={canAct} blockedReason={blockedReason} fees={fees} arrivalLeadMinutes={arrivalLeadMinutes} onDone={onDone} />
       {job.photos.length > 0 ? (
         <ul className="mt-3 grid grid-cols-3 gap-2">
           {job.photos.map((url) => (
@@ -291,6 +323,7 @@ export function DriverHome({
   coverage,
   offlineAlerts,
   fees,
+  arrivalLeadMinutes = defaultOfferArrivalLeadMinutes,
   setup = null,
 }: {
   isOnline: boolean;
@@ -304,6 +337,7 @@ export function DriverHome({
   coverage: CoverageDraft;
   offlineAlerts: boolean;
   fees: FeeSettings;
+  arrivalLeadMinutes?: number;
   setup?: ReactNode;
 }) {
   const [online, setOnline] = useState(isOnline);
@@ -345,6 +379,28 @@ export function DriverHome({
   const enrich = useCallback(async (token: number, rows: FeedJob[]) => {
     if (rows.length === 0) return;
     const supabase = createClient();
+    const ids = [...new Set(rows.map((job) => job.id))];
+    const schedules = new Map<string, PickupPlan>();
+    let scheduleError = false;
+    for (let index = 0; index < ids.length; index += 50) {
+      const scheduleResult = await supabase.rpc("open_job_schedules", { job_ids: ids.slice(index, index + 50) });
+      if (scheduleResult.error) {
+        scheduleError = true;
+        break;
+      }
+      for (const row of (scheduleResult.data ?? []) as {
+        job_id: string;
+        pickup_availability: PickupPlan["availability"];
+        pickup_timezone: string | null;
+        windows: PickupPlan["windows"];
+      }[]) {
+        schedules.set(row.job_id, {
+          availability: row.pickup_availability,
+          timezone: row.pickup_timezone,
+          windows: Array.isArray(row.windows) ? row.windows : [],
+        });
+      }
+    }
     const photos = new Map<string, string[]>();
     const { data: photoRows } = await supabase
       .from("job_photos")
@@ -359,7 +415,11 @@ export function DriverHome({
     }
     if (token !== generation.current) return;
     const apply = (current: FeedCard[]) =>
-      current.map((job) => ({ ...job, photos: photos.get(job.id) ?? [] }));
+      current.map((job) => ({
+        ...job,
+        photos: photos.get(job.id) ?? job.photos,
+        schedule: scheduleError ? null : schedules.get(job.id) ?? null,
+      }));
     setMatched(apply);
     setGeorgia(apply);
   }, []);
@@ -672,6 +732,7 @@ export function DriverHome({
                       canAct={action.canAct}
                       blockedReason={action.blockedReason}
                       fees={fees}
+                      arrivalLeadMinutes={arrivalLeadMinutes}
                       onDone={() => void loadFeed()}
                     />
                   );
@@ -741,6 +802,7 @@ export function DriverHome({
                   canAct={action.canAct}
                   blockedReason={action.blockedReason}
                   fees={fees}
+                  arrivalLeadMinutes={arrivalLeadMinutes}
                   onDone={() => void loadFeed()}
                 />
               );
@@ -753,5 +815,119 @@ export function DriverHome({
     ) : null}
     </div>
     </>
+  );
+}
+
+function scheduleArgs(plan: PickupPlan | null | undefined, date: string, time: string, windowId: string) {
+  if (!plan?.availability || plan.availability === "windows") {
+    return { proposed_date: null, proposed_time: null, window_id: plan?.availability === "windows" ? windowId || null : null };
+  }
+  return { proposed_date: date, proposed_time: time, window_id: null };
+}
+
+function scheduleGap(
+  plan: PickupPlan | null | undefined,
+  date: string,
+  time: string,
+  windowId: string,
+  leadMinutes: number,
+): string | null {
+  if (plan === undefined) return "Loading pickup times.";
+  if (plan === null) return "We couldn't load pickup times. Refresh and try again.";
+  if (!plan.availability) return null;
+  if (plan.availability === "windows") {
+    const chosen = plan.windows.find((window) => window.id === windowId);
+    if (!chosen) return "Select one of the customer's pickup windows.";
+    if (!windowIsOpen(chosen.ends_at)) return "That pickup window has passed. Choose another time.";
+    return null;
+  }
+  return arrivalError(date, time, new Date(), leadMinutes);
+}
+
+function scheduleLine(job: FeedCard): string {
+  const plan = job.schedule;
+  if (!plan) return job.time_window ? `${job.preferred_date} · ${job.time_window}` : job.preferred_date;
+  if (plan.availability === "anytime") return "Available anytime. Propose a pickup time.";
+  if (plan.availability === "asap") return "As soon as possible. Propose your earliest arrival.";
+  if (plan.availability === "windows") {
+    const open = plan.windows.filter((window) => windowIsOpen(window.ends_at));
+    if (open.length === 0) return "The customer's pickup windows have passed.";
+    return open.map((window) => formatScheduledPickup(window.starts_at, window.ends_at)).join(" · ");
+  }
+  return job.time_window ? `${job.preferred_date} · ${job.time_window}` : job.preferred_date;
+}
+
+function PickupProposal({
+  plan,
+  date,
+  time,
+  windowId,
+  arrivalLeadMinutes,
+  onDate,
+  onTime,
+  onWindow,
+}: {
+  plan?: PickupPlan | null;
+  date: string;
+  time: string;
+  windowId: string;
+  arrivalLeadMinutes: number;
+  onDate: (value: string) => void;
+  onTime: (value: string) => void;
+  onWindow: (value: string) => void;
+}) {
+  if (!plan?.availability) return null;
+  const today = georgiaDateISO();
+  const latest = addCalendarDays(today, 6);
+  if (plan.availability === "windows") {
+    const open = plan.windows.filter((window) => windowIsOpen(window.ends_at));
+    return (
+      <fieldset className="grid gap-2">
+        <legend className="text-base font-semibold text-ink">Choose one pickup window</legend>
+        {open.length === 0 ? <p className="text-base text-ink">Those pickup windows have passed.</p> : null}
+        {open.map((window) => (
+          <label key={window.id} className="flex min-h-12 items-center gap-3 rounded-2xl bg-paper px-3 ring-1 ring-line">
+            <input
+              type="radio"
+              name={`window-${window.id}`}
+              checked={windowId === window.id}
+              onChange={() => onWindow(window.id)}
+              className="size-5"
+            />
+            <span>{formatScheduledPickup(window.starts_at, window.ends_at)}</span>
+          </label>
+        ))}
+      </fieldset>
+    );
+  }
+  return (
+    <div className="grid gap-3">
+      <p className="text-base text-ink">
+        {plan.availability === "asap"
+          ? "Enter your earliest realistic pickup date and arrival time. This does not promise an immediate pickup."
+          : "Propose a pickup date and arrival time. Do not arrive unannounced."}{" "}
+        The arrival has to be at least {arrivalLeadMinutes} minutes from now.
+      </p>
+      <label className="text-base font-semibold text-ink">
+        Pickup date
+        <input
+          type="date"
+          min={today}
+          max={latest}
+          value={date}
+          onChange={(event) => onDate(event.target.value)}
+          className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
+        />
+      </label>
+      <label className="text-base font-semibold text-ink">
+        Arrival time
+        <input
+          type="time"
+          value={time}
+          onChange={(event) => onTime(event.target.value)}
+          className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
+        />
+      </label>
+    </div>
   );
 }

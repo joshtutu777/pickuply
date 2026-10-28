@@ -14,17 +14,16 @@ import {
   serviceById,
   services,
   stairChoices,
-  timeWindows,
   type RequestStepId,
   type ServiceId,
 } from "@/lib/constants";
 import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
+import { PickupAvailability } from "@/components/request/pickup-availability";
 import { FreshRequestLink } from "@/components/request/fresh-request-link";
 import { TermsDialog } from "@/components/request/terms-dialog";
 import { UploadPicker } from "@/components/upload-picker";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
-import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { recordFunnel } from "@/lib/funnel";
@@ -36,6 +35,7 @@ import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
+import { availabilitySummary } from "@/lib/time/pickup-schedule";
 import { emptyDraft, type RequestDraft } from "@/lib/types";
 import { validateStep, valueWarning, type FieldErrors } from "@/lib/validation/request";
 import { CheckField, RadioCards, TextAreaField, TextField, YesNo } from "./fields";
@@ -502,7 +502,6 @@ export function RequestWizard({
   const verifying = stepIndex >= requestSteps.length;
   const step = requestSteps[Math.min(stepIndex, requestSteps.length - 1)];
   const warning = valueWarning(draft);
-  const today = localDateISO();
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
@@ -799,48 +798,14 @@ export function RequestWizard({
               error={errors.helpLoading}
               onChange={(value) => update("helpLoading", value)}
             />
-            <RadioCards
-              legend="When"
-              name="preferredDate"
-              value={
-                draft.preferredDate === "asap" || draft.preferredDate === "today"
-                  ? draft.preferredDate
-                  : draft.preferredDate
-                    ? "date"
-                    : ""
-              }
-              error={errors.preferredDate}
-              options={[
-                { id: "asap", label: "ASAP" },
-                { id: "today", label: "Today" },
-                { id: "date", label: "Choose a date" },
-              ]}
-              onChange={(id) => {
-                if (id === "asap" || id === "today") update("preferredDate", id);
-                else update("preferredDate", today);
+            <PickupAvailability
+              draft={draft}
+              error={errors.pickupAvailability}
+              onChange={(availability, windows) => {
+                update("pickupAvailability", availability);
+                update("pickupWindows", windows);
               }}
             />
-            {/^\d{4}-\d{2}-\d{2}$/.test(draft.preferredDate) ? (
-              <TextField
-                label="Date"
-                name="chosenDate"
-                type="date"
-                min={today}
-                max={addDays(today, 6)}
-                value={draft.preferredDate}
-                onChange={(value) => update("preferredDate", value)}
-              />
-            ) : null}
-            {draft.preferredDate !== "asap" ? (
-              <RadioCards
-                legend="Time window"
-                name="timeWindow"
-                value={draft.timeWindow}
-                error={errors.timeWindow}
-                options={timeWindows}
-                onChange={(id) => update("timeWindow", id as RequestDraft["timeWindow"])}
-              />
-            ) : null}
             <TextAreaField
               label="Access instructions"
               name="accessNotes"
@@ -1225,8 +1190,9 @@ function ReviewStep({
       </Summary>
       <Summary title="Your price" onEdit={() => onEdit("price")}>
         <p>
-          {draft.preferredDate === "asap" ? "ASAP" : draft.preferredDate === "today" ? "Today" : draft.preferredDate || "No date"}
-          {draft.timeWindow ? ` · ${labelOf(timeWindows, draft.timeWindow)}` : ""}
+          {draft.pickupAvailability === "anytime" || draft.pickupAvailability === "asap" || draft.pickupAvailability === "windows"
+            ? availabilitySummary(draft.pickupAvailability, draft.pickupWindows ?? [])
+            : "Choose when the item is available for pickup."}
         </p>
         <p>{labelOf(pricingMethods, draft.pricingMethod)}</p>
         {draft.pricingMethod === "fixed" && offer != null ? <p>{formatCents(offer)}</p> : null}

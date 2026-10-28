@@ -19,6 +19,7 @@ import { ReviewPanel } from "@/components/reviews/review-panel";
 import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { JobMessages } from "@/components/messages/job-messages";
+import { ScheduledPickup } from "@/components/jobs/scheduled-pickup";
 import { statusLabel } from "@/components/request/job-status";
 import { requireSignedIn } from "@/lib/auth/session";
 import { buildJobTracker, customerProgress, nextDriverAction } from "@/lib/jobs/tracker";
@@ -53,12 +54,12 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, dropoff_arrived_at, no_show_pending, require_disposal_receipt",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, dropoff_arrived_at, no_show_pending, require_disposal_receipt, pickup_availability, scheduled_pickup_start, scheduled_pickup_end",
     )
     .eq("id", id)
     .maybeSingle();
   if (!job) notFound();
-  const [{ data: details }, { data: events }, { data: proofRows }] = await Promise.all([
+  const [{ data: details }, { data: events }, { data: proofRows }, { data: windows }] = await Promise.all([
     supabase
       .from("job_private")
       .select("customer_name, pickup_address, dropoff_address, access_notes, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng")
@@ -66,6 +67,7 @@ async function DriverJob({
       .maybeSingle(),
     supabase.from("job_events").select("type, created_at, data").eq("job_id", id).order("created_at"),
     supabase.from("job_photos").select("stage").eq("job_id", id).is("report_id", null),
+    supabase.from("job_pickup_windows").select("id, starts_at, ends_at, position").eq("job_id", id).order("position"),
   ]);
   const { data: ledger } =
     job.status === "completed"
@@ -167,6 +169,18 @@ async function DriverJob({
         {job.pickup_area}
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
+      <ScheduledPickup
+        availability={job.pickup_availability}
+        start={job.scheduled_pickup_start}
+        end={job.scheduled_pickup_end}
+        windows={(windows ?? []).map((window) => ({
+          id: window.id,
+          starts_at: window.starts_at,
+          ends_at: window.ends_at,
+          position: window.position,
+        }))}
+        locked={job.scheduled_pickup_start != null}
+      />
       {jobAmount != null && job.driver_pay_cents != null ? (
         <div className="mt-3">
           <p>Job Amount: {formatCents(jobAmount)}</p>

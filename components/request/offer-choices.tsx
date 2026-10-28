@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { chooseOffer } from "@/app/jobs/offer-actions";
 import { PendingButton } from "@/components/pending-button";
 import { formatCents } from "@/lib/money";
+import { formatOfferWhen } from "@/lib/time/pickup-schedule";
 import { createClient } from "@/lib/supabase/client";
 
 export type OfferSummary = {
@@ -21,6 +22,8 @@ export type OfferSummary = {
   viewed?: boolean;
   rating_avg?: number | null;
   review_count?: number | null;
+  proposed_pickup_start?: string | null;
+  proposed_pickup_end?: string | null;
 };
 
 export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSummary[] }) {
@@ -81,10 +84,14 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-lg font-semibold text-ink">
-                {offer.driver_first_name} — {driverReputation(offer)}
+                {offer.driver_first_name} — {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}
+                {offer.proposed_pickup_start
+                  ? ` — ${formatOfferWhen(offer.proposed_pickup_start, offer.proposed_pickup_end ?? null)}`
+                  : ""}
               </p>
               {isNew ? <p className="text-sm font-semibold text-brand">New</p> : null}
             </div>
+            <p>{driverReputation(offer)}</p>
             <p>{offer.vehicle_label || "Vehicle"}</p>
             <p>Offer {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
             <p>Card processing fee {formatCents(offer.service_fee_cents)}</p>

@@ -133,7 +133,7 @@ async function DriverContent({
       approved
         ? supabase.from("ledger_entries").select("status, amount_cents").eq("driver_id", session.userId)
         : Promise.resolve({ data: null }),
-      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents").eq("id", 1).maybeSingle(),
+      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents, offer_arrival_lead_minutes").eq("id", 1).maybeSingle(),
       supabase
         .from("job_offers")
         .select("id, driver_amount_cents, platform_fee_cents, status")
@@ -165,6 +165,7 @@ async function DriverContent({
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
           fees={fees}
+          arrivalLeadMinutes={feeRow?.offer_arrival_lead_minutes ?? 30}
           setup={!approved ? checklist : null}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import type { PickupWindowPlan } from "@/lib/time/pickup-schedule";
 
 const signedUrlSeconds = 300;
 
@@ -76,6 +77,11 @@ export type JobDetail = {
   has_dump_receipt: boolean;
   pickup_review_until: string | null;
   dropoff_arrived_at: string | null;
+  pickup_availability: string | null;
+  pickup_timezone: string | null;
+  scheduled_pickup_start: string | null;
+  scheduled_pickup_end: string | null;
+  pickup_windows: PickupWindowPlan[];
   private: {
     customer_name: string;
     customer_phone: string;
@@ -139,13 +145,13 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     const { data: job, error } = await supabase
       .from("jobs")
       .select(
-        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, require_disposal_receipt, assigned_driver_id, distance_miles, distance_source, pickup_review_until, dropoff_arrived_at",
+        "id, service, status, created_at, updated_at, pricing_method, offer_cents, budget_min_cents, budget_max_cents, price_cents, driver_pay_cents, platform_fee_cents, service_fee_cents, payment_due_at, customer_confirmed_at, captured_cents, refunded_cents, trip_fee_cents, pickup_area, dropoff_area, description, pieces, size, needs_value_approval, preferred_date, time_window, source, junk_load_size, payment_status, dump_fee_cents, require_disposal_receipt, assigned_driver_id, distance_miles, distance_source, pickup_review_until, dropoff_arrived_at, pickup_availability, pickup_timezone, scheduled_pickup_start, scheduled_pickup_end",
       )
       .eq("id", id)
       .maybeSingle();
     if (error || !job) return null;
 
-    const [privateResult, eventResult, photoResult] = await Promise.all([
+    const [privateResult, eventResult, photoResult, windowResult] = await Promise.all([
       supabase
         .from("job_private")
         .select("customer_name, customer_phone, customer_email, pickup_address, dropoff_address, access_notes, pickup_unit, dropoff_unit, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_verified, dropoff_verified")
@@ -162,6 +168,11 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
         .eq("job_id", id)
         .in("stage", ["request", "dump_receipt"])
         .order("created_at", { ascending: true }),
+      supabase
+        .from("job_pickup_windows")
+        .select("id, starts_at, ends_at, position")
+        .eq("job_id", id)
+        .order("position", { ascending: true }),
     ]);
 
     const photos: JobPhoto[] = [];
@@ -189,6 +200,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
         };
       }),
       photos,
+      pickup_windows: (windowResult.data ?? []) as PickupWindowPlan[],
     };
   } catch {
     return null;
