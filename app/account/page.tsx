@@ -66,6 +66,11 @@ async function AccountContent({
           <p className="text-sm font-medium text-muted">See every job</p>
         </div>
       </div>
+      <p className="mt-4">
+        <Link href="/account/payments" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Saved cards
+        </Link>
+      </p>
       <h2 className="mt-8 text-lg font-semibold text-ink">Services</h2>
       <div className="mt-3">
         <ServiceTiles />

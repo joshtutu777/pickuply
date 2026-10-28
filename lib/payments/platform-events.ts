@@ -2,6 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
+import { confirmTipFromIntent, rememberSavedCard } from "@/lib/payments/tip-charge";
 import { recordTransferEvent } from "@/lib/payments/connect-events";
 import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
 import { getStripe } from "@/lib/stripe";
@@ -64,7 +65,27 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     const session = event.data.object as Stripe.Checkout.Session;
     const intentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
     if (!intentId) return;
-    await acceptOrRelease(await stripe.paymentIntents.retrieve(intentId));
+    const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ["latest_charge.balance_transaction"] });
+    if (session.metadata?.tip_id || intent.metadata?.tip_id) {
+      await confirmTipFromIntent(intent);
+      return;
+    }
+    await acceptOrRelease(intent);
+    if (session.metadata?.save_card === "yes") {
+      const methodId = typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id ?? null;
+      const customerId = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
+      const jobId = session.metadata.job_id;
+      if (jobId) {
+        const job = await supabase.from("jobs").select("customer_id").eq("id", jobId).maybeSingle();
+        if (job.data?.customer_id) {
+          await rememberSavedCard({
+            customerId: job.data.customer_id,
+            stripeCustomerId: customerId,
+            paymentMethodId: methodId,
+          });
+        }
+      }
+    }
     return;
   }
 
@@ -87,6 +108,10 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
 
   if (event.type === "payment_intent.payment_failed") {
     const intent = event.data.object as Stripe.PaymentIntent;
+    if (intent.metadata?.tip_id) {
+      await supabase.rpc("fail_tip", { target_tip: intent.metadata.tip_id, payment_intent: intent.id });
+      return;
+    }
     const jobId = intent.metadata?.job_id;
     if (!jobId) return;
     const failed = await supabase.rpc("mark_checkout_failed", {
@@ -99,6 +124,10 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
 
   if (event.type === "payment_intent.canceled") {
     const intent = event.data.object as Stripe.PaymentIntent;
+    if (intent.metadata?.tip_id) {
+      await supabase.rpc("fail_tip", { target_tip: intent.metadata.tip_id, payment_intent: intent.id });
+      return;
+    }
     const jobId = intent.metadata?.job_id;
     if (!jobId) return;
     const noted = await supabase.rpc("note_authorization_canceled", {
@@ -111,6 +140,10 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
 
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object as Stripe.PaymentIntent;
+    if (intent.metadata?.tip_id) {
+      await confirmTipFromIntent(intent);
+      return;
+    }
     const jobId = intent.metadata?.job_id;
     if (jobId) await captureReadyPayment(jobId);
     return;
@@ -121,6 +154,7 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
     if (!intentId) return;
     const intent = await stripe.paymentIntents.retrieve(intentId);
+    if (intent.metadata?.tip_id) return;
     const jobId = intent.metadata?.job_id;
     if (jobId) await captureReadyPayment(jobId);
     return;
@@ -177,6 +211,15 @@ async function syncRefund(refund: Stripe.Refund): Promise<void> {
   });
   if (action === "pending") return;
   const supabase = createServiceClient();
+  if (refund.metadata?.tip_refund_id) {
+    const applied = await supabase.rpc("apply_tip_refund", {
+      target_refund: refund.metadata.tip_refund_id,
+      stripe_refund_id: refund.id,
+      succeeded: refund.status === "succeeded",
+    });
+    if (applied.error) throw new Error("The tip refund could not be recorded.");
+    return;
+  }
   if (action === "app") {
     const applied = await supabase.rpc("apply_refund", {
       target_refund: refund.metadata?.refund_id,

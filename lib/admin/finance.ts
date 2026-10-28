@@ -46,6 +46,7 @@ export type FinanceJob = {
   refundedCents: number | null;
   platformFeeCents: number | null;
   serviceFeeCents: number | null;
+  tipCents?: number | null;
   stripeFeeCents: number | null;
   tripFeeCents: number | null;
   lateCancelCents: number | null;

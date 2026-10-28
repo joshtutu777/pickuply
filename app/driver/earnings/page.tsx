@@ -57,7 +57,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
   const [{ data: entries }, { data: bankPayout }, { count: completedJobs }] = await Promise.all([
     supabase
       .from("ledger_entries")
-      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at, available_on")
+      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at, available_on, entry_kind")
       .eq("driver_id", session.userId)
       .order("created_at", { ascending: false }),
     supabase
@@ -75,6 +75,9 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
   ]);
   const newDriver = (completedJobs ?? 0) < 5;
   const totals = ledgerBuckets(entries ?? []);
+  const tipRows = (entries ?? []).filter((entry) => entry.entry_kind === "tip");
+  const baseRows = (entries ?? []).filter((entry) => entry.entry_kind !== "tip");
+  const sum = (rows: { amount_cents: number }[]) => rows.reduce((total, row) => total + row.amount_cents, 0);
   const weekAgo = new Date().getTime() - 7 * 24 * 60 * 60 * 1000;
   const week = (entries ?? []).filter((entry) => new Date(entry.created_at).getTime() >= weekAgo);
   const weekTotal = (status: string) =>
@@ -89,6 +92,12 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         These totals are your earnings. A card authorization is not earnings until the payment is captured.
       </p>
       <section className="mt-6 grid gap-3" aria-label="Earnings summary">
+        <div className="grid grid-cols-3 gap-3">
+          <MoneyBox label="Base earnings" cents={sum(baseRows)} />
+          <MoneyBox label="Tips" cents={sum(tipRows)} />
+          <MoneyBox label="Total earnings" cents={sum(baseRows) + sum(tipRows)} />
+        </div>
+        <p className="text-base text-muted">Tips are separate from base earnings. A transfer is not a bank deposit. Tips are not shown before the job is completed.</p>
         <div className="rounded-3xl bg-brand p-4 text-white">
           <p className="text-sm font-semibold">Completed earnings</p>
           <p className="mt-1 font-display text-3xl font-semibold">{formatCents(totals.completedCents)}</p>
@@ -146,20 +155,20 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         <ul className="mt-3 grid gap-2">
           {(entries ?? []).map((entry) => (
             <li key={entry.id} className="rounded-2xl bg-paper px-3 py-3 ring-1 ring-line">
-              <p className="font-semibold">{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
-              <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
+              <p className="font-semibold">{entry.entry_kind === "tip" ? "Tip · " : ""}{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
+              <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}{entry.entry_kind === "tip" ? " · a transfer is not a bank deposit" : ""}</p>
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
               {ready ? <p>Scheduled — sends {sendWhen(entry)}</p> : null}
               {!ready && (entry.status === "held" || entry.status === "held_until_onboarding") ? (
                 <>
                   <p>Held — finish payout setup to get paid</p>
-                  {newDriver ? <p>Then sends 48 hours after completion ({sendWhen(entry)})</p> : null}
+                  {newDriver && entry.entry_kind !== "tip" ? <p>Then sends 48 hours after completion ({sendWhen(entry)})</p> : null}
                 </>
               ) : null}
               {!ready && entry.status !== "held" && entry.status !== "held_until_onboarding" && entry.hold_reason ? (
                 <p>{entry.hold_reason}</p>
               ) : null}
-              {entry.status === "pending" && entry.hold_reason?.includes("48 hours") ? (
+              {entry.entry_kind !== "tip" && entry.status === "pending" && entry.hold_reason?.includes("48 hours") ? (
                 <p>Eligible 48 hours after this job was completed. A transfer is not a bank deposit.</p>
               ) : null}
             </li>
