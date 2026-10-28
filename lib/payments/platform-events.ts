@@ -186,37 +186,52 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
   }
 
   if (event.type === "charge.refunded") {
-    await syncChargeRefunds(event.data.object as Stripe.Charge);
+    await syncChargeRefunds(event.data.object as Stripe.Charge, event.livemode);
     return;
   }
 
   if (event.type === "refund.created" || event.type === "refund.updated") {
-    await syncRefund(event.data.object as Stripe.Refund);
+    await syncRefund(event.data.object as Stripe.Refund, event.livemode);
   }
 }
 
-async function syncChargeRefunds(charge: Stripe.Charge): Promise<void> {
+async function syncChargeRefunds(charge: Stripe.Charge, livemode: boolean): Promise<void> {
   let refunds = charge.refunds?.data ?? [];
   if (!charge.refunds || charge.refunds.has_more) {
     const listed = await getStripe().refunds.list({ charge: charge.id, limit: 100 });
     refunds = listed.data;
   }
-  for (const refund of refunds) await syncRefund(refund);
+  for (const refund of refunds) await syncRefund(refund, livemode);
 }
 
-async function syncRefund(refund: Stripe.Refund): Promise<void> {
+async function syncRefund(refund: Stripe.Refund, livemode: boolean): Promise<void> {
   const action = stripeRefundAction({
     metadataRefundId: refund.metadata?.refund_id ?? null,
     status: refund.status,
   });
   if (action === "pending") return;
+  if (livemode) throw new Error("Live payments are not enabled.");
   const supabase = createServiceClient();
   if (refund.metadata?.tip_refund_id) {
+    const tipRefundId = refund.metadata.tip_refund_id;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tipRefundId)) {
+      throw new Error("The tip refund could not be recorded.");
+    }
     const applied = await supabase.rpc("apply_tip_refund", {
-      target_refund: refund.metadata.tip_refund_id,
+      target_refund: tipRefundId,
       stripe_refund_id: refund.id,
       succeeded: refund.status === "succeeded",
     });
+    if (applied.error?.message === "tip refund not found") {
+      const deferred = await supabase.rpc("defer_tip_refund", {
+        target_refund: tipRefundId,
+        stripe_refund_id: refund.id,
+        amount_cents: refund.amount,
+        succeeded: refund.status === "succeeded",
+      });
+      if (deferred.error) throw new Error("The tip refund could not be recorded.");
+      return;
+    }
     if (applied.error) throw new Error("The tip refund could not be recorded.");
     return;
   }
