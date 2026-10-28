@@ -725,6 +725,11 @@ try {
   }
   const cancelOffers = localSql(`select count(*)::text from public.job_offers where job_id = '${cancelled.id}'`);
   note("a cancelled job is rejected and leaves the feed", (await pageA.locator(`#job-${cancelled.id}`).count()) === 0 && cancelOffers === "0", cancelOffers);
+  await pageA.reload();
+  await pageA.getByRole("button", { name: "Dismiss" }).waitFor();
+  note("rejection stays after refresh for the same job", true);
+  await pageA.locator("section[aria-label='Matched for You']").locator("input, select").first().click();
+  note("opening another job clears the rejection", (await pageA.getByRole("button", { name: "Dismiss" }).count()) === 0);
 
   const taken = await createRequest(customerPage, { description: "Schedule audit taken sofa", mode: "anytime", phone: formPhone });
   ids.jobs.push(taken.id);
@@ -820,6 +825,8 @@ try {
     button.click();
   }, blocked.id);
   await pageA.getByText("go online before sending an offer").first().waitFor();
+  await pageA.getByRole("button", { name: "Dismiss" }).click();
+  note("dismiss clears the rejection", (await pageA.getByRole("button", { name: "Dismiss" }).count()) === 0);
   await blockedCard.getByRole("button", { name: "Edit Offer" }).click();
   const blockedAmount = await blockedCard.getByLabel(/Offer Amount/).inputValue();
   note("an offline driver is rejected once and the amount stays", blockedAmount === "67" && blockedSubmits === 1, `${blockedAmount} submits ${blockedSubmits}`);

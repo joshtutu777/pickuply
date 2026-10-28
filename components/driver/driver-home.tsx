@@ -12,6 +12,7 @@ import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { compareNewest, mergeFeedCards } from "@/lib/driver/feed-order";
+import { offerNoticeKey, readOfferNotice, writeOfferNotice, type OfferNotice } from "@/lib/jobs/offer-notice";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import {
   addCalendarDays,
@@ -331,6 +332,7 @@ function JobCard({
   drafts,
   onDone,
   onRejected,
+  onEngage,
 }: {
   job: FeedCard;
   canAct: boolean;
@@ -340,9 +342,15 @@ function JobCard({
   drafts: { current: Map<string, OfferDraft> };
   onDone: () => void;
   onRejected: (message: string) => void;
+  onEngage: () => void;
 }) {
   return (
-    <li id={`job-${job.id}`} className="scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+    <li
+      id={`job-${job.id}`}
+      className="scroll-mt-24 rounded-3xl bg-paper-raised p-4 ring-1 ring-line"
+      onFocusCapture={onEngage}
+      onPointerDown={onEngage}
+    >
       <p className="text-sm font-semibold text-brand">Available</p>
       <p className="mt-2 text-lg font-semibold text-ink">{job.service.replaceAll("_", " ")}</p>
       <p className="mt-1 text-base">
@@ -420,15 +428,27 @@ export function DriverHome({
   const [georgiaHasMore, setGeorgiaHasMore] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
-  const [offerNotice, setOfferNotice] = useState<string | null>(null);
+  const [offerNotice, setOfferNotice] = useState<OfferNotice | null>(null);
   useEffect(() => {
-    const saved = sessionStorage.getItem("pickuply.offer-notice");
+    const saved = readOfferNotice(sessionStorage.getItem(offerNoticeKey()));
     if (saved) setOfferNotice(saved);
   }, []);
-  function rememberRejection(message: string) {
-    sessionStorage.setItem("pickuply.offer-notice", message);
-    setOfferNotice(message);
+  function clearOfferNotice() {
+    sessionStorage.removeItem(offerNoticeKey());
+    setOfferNotice(null);
+  }
+  function rememberRejection(jobId: string, message: string) {
+    const notice = { jobId, message };
+    sessionStorage.setItem(offerNoticeKey(), writeOfferNotice(notice));
+    setOfferNotice(notice);
     void loadFeed();
+  }
+  function engageJob(jobId: string) {
+    setOfferNotice((current) => {
+      if (!current || current.jobId === jobId) return current;
+      sessionStorage.removeItem(offerNoticeKey());
+      return null;
+    });
   }
   const [busy, setBusy] = useState(false);
   const [areas, setAreas] = useState(coverage);
@@ -794,8 +814,11 @@ export function DriverHome({
         {refreshing && updatedAt ? <p className="text-base text-muted">Refreshing…</p> : null}
       </div>
       {offerNotice ? (
-        <p role="alert" className="mt-4 text-base text-danger">
-          {offerNotice}
+        <p role="alert" className="mt-4 flex items-start justify-between gap-3 text-base text-danger">
+          <span>{offerNotice.message}</span>
+          <button type="button" aria-label="Dismiss" onClick={clearOfferNotice} className="inline-flex min-h-12 min-w-12 items-center justify-center text-2xl leading-none">
+            ×
+          </button>
         </p>
       ) : null}
       {feedError ? (
@@ -835,11 +858,11 @@ export function DriverHome({
                   arrivalLeadMinutes={arrivalLeadMinutes}
                   drafts={drafts}
                   onDone={() => {
-                    sessionStorage.removeItem("pickuply.offer-notice");
-                    setOfferNotice(null);
+                    clearOfferNotice();
                     void loadFeed();
                   }}
-                  onRejected={rememberRejection}
+                  onRejected={(message) => rememberRejection(job.id, message)}
+                  onEngage={() => engageJob(job.id)}
                 />
               );
             })}
@@ -909,11 +932,11 @@ export function DriverHome({
                   arrivalLeadMinutes={arrivalLeadMinutes}
                   drafts={drafts}
                   onDone={() => {
-                    sessionStorage.removeItem("pickuply.offer-notice");
-                    setOfferNotice(null);
+                    clearOfferNotice();
                     void loadFeed();
                   }}
-                  onRejected={rememberRejection}
+                  onRejected={(message) => rememberRejection(job.id, message)}
+                  onEngage={() => engageJob(job.id)}
                 />
               );
             })}
