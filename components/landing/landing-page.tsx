@@ -52,7 +52,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <span className="font-display text-2xl font-semibold">Pickuply</span>
             <BetaBadge />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               href="/signup"
               className="inline-flex min-h-12 items-center rounded-full bg-[#17573E] px-4 text-base font-semibold text-[#FFFDF8]"
@@ -64,6 +64,12 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               className="inline-flex min-h-12 items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-4 text-base font-semibold text-[#14211B]"
             >
               Sign in
+            </Link>
+            <Link
+              href="/drive"
+              className="inline-flex min-h-12 items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-4 text-base font-semibold text-[#14211B]"
+            >
+              Drive with us
             </Link>
           </div>
           <nav aria-label="Main" className="flex w-full flex-wrap items-center gap-0 sm:gap-2">
