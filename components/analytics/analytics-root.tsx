@@ -22,10 +22,19 @@ type Gate = {
   settingsOpen: boolean;
 };
 
+function readStoredConsent(): ConsentChoice | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return storedConsent(window.localStorage.getItem(consentStorageKey));
+  } catch {
+    return null;
+  }
+}
+
 const listeners = new Set<() => void>();
 let loaded = false;
 let gate: Gate = {
-  consent: typeof window === "undefined" ? null : storedConsent(window.localStorage.getItem(consentStorageKey)),
+  consent: readStoredConsent(),
   isTest: false,
   ready: false,
   settingsOpen: false,
@@ -142,15 +151,24 @@ export function AnalyticsRoot() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
-    const supabase = createClient();
-    void supabase.auth.getUser().then(async ({ data }) => {
-      let isTest = false;
-      if (data.user) {
-        const profile = await supabase.from("profiles").select("is_test").eq("id", data.user.id).maybeSingle();
-        isTest = profile.data?.is_test === true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        let isTest = false;
+        if (data.user) {
+          const profile = await supabase.from("profiles").select("is_test").eq("id", data.user.id).maybeSingle();
+          isTest = profile.data?.is_test === true;
+        }
+        if (!cancelled) publish({ ready: true, isTest });
+      } catch {
+        if (!cancelled) publish({ ready: true, isTest: false });
       }
-      publish({ ready: true, isTest });
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -161,7 +179,11 @@ export function AnalyticsRoot() {
   }, [snapshot.ready, snapshot.consent, snapshot.isTest]);
 
   function choose(choice: ConsentChoice) {
-    localStorage.setItem(consentStorageKey, choice);
+    try {
+      localStorage.setItem(consentStorageKey, choice);
+    } catch {
+      // The choice still applies for this visit when the browser blocks storage.
+    }
     publish({ consent: choice, settingsOpen: false });
     if (snapshot.isTest) return;
     applyConsent(choice);
