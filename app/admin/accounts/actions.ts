@@ -62,6 +62,31 @@ export async function reinstateAccount(formData: FormData) {
   redirect(`${path}?saved=reinstated`);
 }
 
+function deletionError(message: string): string {
+  if (message.includes("still has obligations")) {
+    return "This account still has an open job or unpaid money. Finish that before deleting it.";
+  }
+  if (message.includes("last active admin")) return "The last admin account cannot be deleted.";
+  if (message.includes("own account")) return "You cannot delete the account you are signed in with.";
+  if (message.includes("not found")) return "That account was not found.";
+  if (message.includes("only an admin")) return "Only an admin can delete an account.";
+  return "The account could not be deleted.";
+}
+
+export async function releaseAccount(formData: FormData) {
+  await connection();
+  const path = returnTo(formData.get("returnTo"));
+  const target = String(formData.get("profileId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(target)) bounce(path, "Choose an account.");
+  if (formData.get("confirm") !== "on") {
+    bounce(path, "Confirm that this phone can sign up again.");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_release_account", { target });
+  if (error) bounce(path, deletionError(error.message));
+  redirect(`${path}?saved=deleted`);
+}
+
 export async function completeDeletion(formData: FormData) {
   await connection();
   const target = String(formData.get("profileId") ?? "");
