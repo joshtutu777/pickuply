@@ -27,6 +27,8 @@ export async function GET(request: Request) {
     if (retention.error) throw new Error("Account retention cleanup could not finish.");
     const announcements = await supabase.rpc("execute_due_announcements");
     if (announcements.error) throw new Error("Scheduled announcements could not be sent.");
+    const campaigns = await supabase.rpc("execute_due_sms_campaigns");
+    if (campaigns.error) throw new Error("Scheduled text campaigns could not be recorded.");
     await deliverPendingAlerts();
     return { ok: true };
   });

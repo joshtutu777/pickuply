@@ -45,7 +45,10 @@ async function Communications({
       <p className="mt-3 text-base text-ink">
         Announcements are one-way. A private conversation stays in Messages and is not copied here.
       </p>
-      <p className="mt-3">
+      <p className="mt-3 flex flex-wrap gap-4">
+        <Link href="/admin/communications/sms" className="inline-flex min-h-12 items-center font-semibold text-brand">
+          SMS campaigns
+        </Link>
         <Link href="/admin/messages" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Conversations
         </Link>
