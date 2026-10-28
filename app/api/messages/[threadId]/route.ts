@@ -64,7 +64,16 @@ export async function POST(
     message_body: body,
     client_key: clientKey,
   });
-  if (error) return NextResponse.json({ ok: false }, { status: 400 });
+  if (error) {
+    const message = error.message ?? "";
+    if (message.includes("contact details")) {
+      return NextResponse.json({ ok: false, error: "contact" }, { status: 400 });
+    }
+    if (message.includes("conversation is closed")) {
+      return NextResponse.json({ ok: false, error: "closed" }, { status: 400 });
+    }
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
   const messages = await loadMessages(threadId, true);
   return NextResponse.json({ messages: messages ?? [] });
 }
