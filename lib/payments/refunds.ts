@@ -12,12 +12,18 @@ type RefundStart = {
   amount_cents?: number;
 };
 
-export async function requestRefund(jobId: string, amountCents: number, reason: string): Promise<void> {
+export async function requestRefund(
+  jobId: string,
+  amountCents: number,
+  reason: string,
+  includeServiceFee = false,
+): Promise<void> {
   const user = await createClient();
   const started = await user.rpc("begin_refund", {
     target_job: jobId,
     amount_cents: amountCents,
     reason,
+    include_service_fee: includeServiceFee,
   });
   if (started.error || !started.data) {
     throw new Error(started.error?.message ?? "The refund could not be started.");

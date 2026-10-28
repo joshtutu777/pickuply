@@ -38,6 +38,7 @@ async function SettingsContent({
     platform_min_cents: 0,
     service_bps: 290,
     service_fixed_cents: 30,
+    service_fee_bps: 500,
     payment_due_minutes: 30,
     sms_enabled: false,
     support_phone: null,
@@ -57,9 +58,9 @@ async function SettingsContent({
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Settings</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
-        The commission is 15% of the customer offer and comes out of the driver's side. The customer
-        also pays the card-processing amount. Pickuply does not pay that processing amount. Whether
-        it can be charged on every card, including debit and prepaid, needs a review before live payments.
+        The commission is 15% of the customer offer and comes out of the driver&apos;s side. The customer
+        also pays a service fee. Stripe&apos;s processing cost stays Pickuply&apos;s expense. A change here
+        applies to new offers only.
       </p>
       <BackLink href="/admin" label="Admin" />
       {query.saved === "1" ? <p className="mt-4">Saved.</p> : null}
@@ -83,18 +84,10 @@ async function SettingsContent({
           />
         </label>
         <label className="block text-base font-semibold" htmlFor="serviceBps">
-          Card processing percent (basis points, 290 = 2.9%)
-          <input id="serviceBps" name="serviceBps" defaultValue={settings.service_bps} className={controlClass} />
+          Service fee (basis points, 500 = 5% of the offer)
+          <input id="serviceBps" name="serviceBps" defaultValue={settings.service_fee_bps} className={controlClass} />
         </label>
-        <label className="block text-base font-semibold" htmlFor="serviceFixed">
-          Card processing fixed amount (dollars)
-          <input
-            id="serviceFixed"
-            name="serviceFixed"
-            defaultValue={(settings.service_fixed_cents / 100).toFixed(2)}
-            className={controlClass}
-          />
-        </label>
+        <input type="hidden" name="serviceFixed" value="0" />
         <label className="block text-base font-semibold" htmlFor="paymentDueMinutes">
           Minutes to pay after a driver is confirmed
           <input

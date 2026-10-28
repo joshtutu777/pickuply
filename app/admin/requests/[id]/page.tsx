@@ -219,11 +219,15 @@ async function RequestDetail({
       <AdminOverride jobId={id} />
       <form action={refundJob} className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Refund</h2>
-        <p className="text-base text-muted">Before capture, enter the full total to release the hold. After capture, enter the amount to refund.</p>
+        <p className="text-base text-muted">Before capture, enter the full total to release the hold. After capture, a partial refund keeps the service fee unless you include it. A full refund for a driver or Pickuply fault includes the service fee. A late cancel or trip fee has no service fee.</p>
         <input type="hidden" name="jobId" value={id} />
         <label className="font-semibold" htmlFor="refund-amount">
           Amount in dollars
           <input id="refund-amount" name="amount" inputMode="decimal" required className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" />
+        </label>
+        <label className="flex min-h-12 items-center gap-3 font-semibold" htmlFor="include-service-fee">
+          <input id="include-service-fee" name="includeServiceFee" type="checkbox" value="yes" />
+          Also refund the service fee
         </label>
         <label className="font-semibold" htmlFor="refund-reason">
           Reason

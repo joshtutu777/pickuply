@@ -561,7 +561,7 @@ export function pricingBalances(job: FinanceJob): boolean {
   return parts && ledger;
 }
 
-/** Commission stays inside the offer. Card processing collected is the customer's separate fee, not a second Pickuply fee. */
+/** Commission stays inside the offer. The service fee is additional marketplace revenue. Stripe's fee is an expense. */
 export function revenue(jobs: FinanceJob[]): {
   platform: Money;
   service: Money;
@@ -573,7 +573,10 @@ export function revenue(jobs: FinanceJob[]): {
 } {
   const captured = jobs.filter((job) => job.capturedCents != null && job.capturedCents > 0);
   const platform = countMoney(captured, (job) => job.platformFeeCents).amount;
-  const service = countMoney(captured, (job) => job.serviceFeeCents).amount;
+  const service = countMoney(
+    captured.filter((job) => !isTripFee(job) && !isLateCancel(job)),
+    (job) => job.serviceFeeCents,
+  ).amount;
   const stripe = countMoney(captured, (job) => job.stripeFeeCents).amount;
   const tripJobs = captured.filter(isTripFee);
   const trip = countMoney(tripJobs, (job) => job.capturedCents).amount;

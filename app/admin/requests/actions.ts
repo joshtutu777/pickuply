@@ -126,8 +126,9 @@ export async function refundJob(formData: FormData) {
   const jobId = String(formData.get("jobId") ?? "");
   const amount = Math.round(Number(formData.get("amount") || 0) * 100);
   const reason = String(formData.get("reason") ?? "");
+  const includeServiceFee = formData.get("includeServiceFee") === "yes";
   try {
-    await requestRefund(jobId, amount, reason);
+    await requestRefund(jobId, amount, reason, includeServiceFee);
   } catch {
     redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The refund could not be completed.")}`);
   }

@@ -168,11 +168,11 @@ function Overview({ jobs, previous, filters, now }: { jobs: FinanceJob[]; previo
       </div>
       <h2 className="font-display text-2xl font-semibold">Pickuply revenue</h2>
       <p className="text-base text-muted">
-        Commission is deducted from the offer. Customers pay card processing on top. Pickuply does not absorb that fee, and it is not a second platform fee. Net is commission plus card processing collected, minus Stripe&apos;s fee and refunds.
+        Commission stays inside the offer. The service fee is extra marketplace revenue. Net is commission plus the service fee, minus Stripe&apos;s processing fee and refunds. Stripe&apos;s fee is an expense, not the service fee. A missing Stripe fee stays unavailable until the balance transaction arrives.
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyStat label="Pickuply commission" value={money.platform} />
-        <MoneyStat label="Card processing collected" value={money.service} />
+        <MoneyStat label="Service fees" value={money.service} />
         <MoneyStat label="Stripe processing fees" value={money.stripe} />
         <MoneyStat label="Trip fees captured" value={money.trip} />
         <MoneyStat label="Late-cancel fees" value={money.lateCancel} />
@@ -207,7 +207,7 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
     <div className="mt-6 overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
-          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Offer", "Processing", "Commission", "Driver net", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
+          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Offer", "Service fee", "Commission", "Driver net", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
         </thead>
         <tbody>
           {jobs.map((job) => {

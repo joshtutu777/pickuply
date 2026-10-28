@@ -126,7 +126,7 @@ export function JobStatus({
       />
       {job.price_cents != null ? <p className="mt-1 font-semibold text-ink">Total {formatCents(job.price_cents)}</p> : null}
       {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
-        <p className="text-sm text-ink">Card processing fee {formatCents(job.service_fee_cents)}</p>
+        <p className="text-sm text-ink">Service fee {formatCents(job.service_fee_cents)}</p>
       ) : null}
       {driver ? (
         <p className="text-base text-ink">
@@ -168,7 +168,7 @@ export function JobStatus({
           <QuoteViewed service={job.service} />
           <h2 className="text-lg font-semibold text-ink">Your quote</h2>
           <p>Offer {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
-          <p>Card processing fee {formatCents(notice.quote.serviceFeeCents)}</p>
+          <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>
           <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
           <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
           <p>

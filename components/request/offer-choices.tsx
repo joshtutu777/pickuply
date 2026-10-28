@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { chooseOffer } from "@/app/jobs/offer-actions";
 import { PendingButton } from "@/components/pending-button";
+import { ServiceFeeNote } from "@/components/payments/service-fee-note";
 import { formatCents } from "@/lib/money";
 import { formatOfferWhen } from "@/lib/time/pickup-schedule";
 import { createClient } from "@/lib/supabase/client";
@@ -93,9 +94,11 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
             </div>
             <p>{driverReputation(offer)}</p>
             <p>{offer.vehicle_label || "Vehicle"}</p>
-            <p>Offer {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
-            <p>Card processing fee {formatCents(offer.service_fee_cents)}</p>
-            <p className="font-semibold">Total {formatCents(offer.customer_total_cents)}</p>
+            <ServiceFeeNote
+              offerCents={offer.driver_earnings_cents + offer.platform_fee_cents}
+              feeCents={offer.service_fee_cents}
+              totalCents={offer.customer_total_cents}
+            />
             {offer.outside_range ? <p>Outside your range</p> : null}
             {offer.reason ? <p>Reason: {offer.reason}</p> : null}
             <p>Expires {new Date(offer.expires_at).toLocaleString()}</p>
