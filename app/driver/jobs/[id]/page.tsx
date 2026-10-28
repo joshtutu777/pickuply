@@ -18,6 +18,7 @@ import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
 import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { ScrollOnValue } from "@/components/scroll-restore";
+import { JobMessageCard } from "@/components/messages/message-card";
 import { JobMessages } from "@/components/messages/job-messages";
 import { ScheduledPickup } from "@/components/jobs/scheduled-pickup";
 import { statusLabel } from "@/components/request/job-status";
@@ -169,6 +170,8 @@ async function DriverJob({
         {job.pickup_area}
         {job.dropoff_area ? ` to ${job.dropoff_area}` : ""}
       </p>
+      {details?.customer_name ? <p className="text-base text-ink">Customer: {details.customer_name.split(" ")[0]}</p> : null}
+      <JobMessageCard jobId={job.id} audience="driver" />
       <ScheduledPickup
         availability={job.pickup_availability}
         start={job.scheduled_pickup_start}
@@ -375,7 +378,7 @@ async function DriverJob({
       <DetailsFold title="Photos">
         <ProofGallery jobId={job.id} />
       </DetailsFold>
-      <DetailsFold title="Messages">
+      <DetailsFold title="Messages" open>
         <div id="messages">
           <JobMessages jobId={job.id} showQuickReplies />
         </div>

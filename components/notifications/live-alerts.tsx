@@ -116,6 +116,9 @@ export function LiveAlerts() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
         void look();
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
+        router.refresh();
+      })
       .subscribe();
     return () => {
       window.clearTimeout(start);

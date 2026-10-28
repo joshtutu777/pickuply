@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UploadPicker } from "@/components/upload-picker";
 import { containsContact } from "@/lib/messages/contact";
+import { messageClock, messageDay } from "@/lib/messages/preview";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,11 +27,15 @@ function emptySubscribe(): () => void {
   return () => undefined;
 }
 
-let messageClock = "";
+let messageClockNow = "";
 
 function messageClockSnapshot(): string {
-  if (messageClock.length === 0) messageClock = new Date().toISOString();
-  return messageClock;
+  if (messageClockNow.length === 0) messageClockNow = new Date().toISOString();
+  return messageClockNow;
+}
+
+function newKey(): string {
+  return crypto.randomUUID();
 }
 
 export function MessagePanel({
@@ -54,10 +59,43 @@ export function MessagePanel({
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [offline, setOffline] = useState(
+    () => typeof navigator !== "undefined" && navigator.onLine === false,
+  );
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const countRef = useRef(initial.length);
+  const listRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+  const keyRef = useRef(newKey());
   const warning = containsContact(text);
   const nowIso = useSyncExternalStore(emptySubscribe, messageClockSnapshot, () => "");
   const closed = Boolean(closesAt && nowIso.length > 0 && closesAt <= nowIso);
   const lastMine = [...messages].reverse().find((message) => message.mine);
+
+  function nearBottom(): boolean {
+    const list = listRef.current;
+    if (!list) return true;
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+  }
+
+  function scrollToEnd() {
+    const list = listRef.current;
+    if (!list) return;
+    list.scrollTop = list.scrollHeight;
+  }
+
+  async function refresh(mark: boolean) {
+    const response = await fetch(`/api/messages/${threadId}${mark ? "?mark=1" : ""}`);
+    if (!response.ok) return;
+    const payload = (await response.json()) as { messages?: ChatMessage[] };
+    if (!payload.messages) return;
+    const next = payload.messages;
+    const incoming = next.length > countRef.current && next.at(-1)?.mine === false;
+    countRef.current = next.length;
+    setMessages(next);
+    if (stickRef.current || next.at(-1)?.mine) scrollToEnd();
+    if (incoming) router.refresh();
+  }
 
   async function addFile(file: File) {
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -88,11 +126,7 @@ export function MessagePanel({
         setError("That file could not be sent.");
         return;
       }
-      const response = await fetch(`/api/messages/${threadId}`);
-      if (response.ok) {
-        const payload = (await response.json()) as { messages?: ChatMessage[] };
-        if (payload.messages) setMessages(payload.messages);
-      }
+      await refresh(document.visibilityState === "visible");
       router.refresh();
     } finally {
       setUploading(false);
@@ -100,42 +134,87 @@ export function MessagePanel({
   }
 
   useEffect(() => {
-    const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/messages/${threadId}`);
-      if (!response.ok) return;
-      const payload = (await response.json()) as { messages?: ChatMessage[] };
-      if (payload.messages) setMessages(payload.messages);
-    }, 10000);
-    return () => window.clearInterval(timer);
+    const online = () => setOffline(false);
+    const gone = () => setOffline(true);
+    window.addEventListener("online", online);
+    window.addEventListener("offline", gone);
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`thread-${threadId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `thread_id=eq.${threadId}` },
+        () => {
+          void refresh(document.visibilityState === "visible");
+        },
+      )
+      .subscribe();
+    const pull = () => {
+      void refresh(document.visibilityState === "visible");
+    };
+    const first = window.setTimeout(pull, 0);
+    const timer = window.setInterval(pull, 15000);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", gone);
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+    // The thread id is the subscription boundary. Refresh reads the latest messages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (warning || closed || text.trim().length === 0 || sending) return;
-    setSending(true);
-    setError(null);
-    try {
+  async function deliver(clientKey: string) {
     const response = await fetch(`/api/messages/${threadId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: text }),
+      body: JSON.stringify({ body: text, clientKey }),
     });
     if (!response.ok) {
+      setFailedKey(clientKey);
       setError("That message could not be sent.");
       return;
     }
     const payload = (await response.json()) as { messages?: ChatMessage[] };
     if (payload.messages) setMessages(payload.messages);
     setText("");
+    setFailedKey(null);
+    setError(null);
+    keyRef.current = newKey();
+    stickRef.current = true;
+    scrollToEnd();
+    router.refresh();
+  }
+
+  async function send(event?: FormEvent) {
+    event?.preventDefault();
+    if (warning || closed || text.trim().length === 0 || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await deliver(failedKey ?? keyRef.current);
     } finally {
       setSending(false);
     }
   }
 
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      void send();
+    }
+  }
+
   return (
-    <section className="mt-6" aria-label="Messages">
+    <section className="mt-4" aria-label="Messages">
       <h2 className="text-lg font-semibold text-ink">Messages</h2>
-      {messages.length === 0 ? <p className="mt-2 text-base text-muted">No messages yet.</p> : null}
+      {offline ? (
+        <p role="status" className="mt-2 text-base text-danger">
+          You are offline. The message stays here until you can send it.
+        </p>
+      ) : null}
+      {messages.length === 0 ? <p className="mt-2 text-base text-muted">No messages yet. Say hello when you are ready.</p> : null}
       {attachments.length > 0 ? (
         <ul className="mt-3 grid gap-2">
           {attachments.map((file) =>
@@ -149,26 +228,50 @@ export function MessagePanel({
           )}
         </ul>
       ) : null}
-      <ul className="mt-3 grid gap-2">
-        {messages.map((message) => (
-          <li key={message.id} className="rounded-2xl bg-paper-raised px-4 py-3 ring-1 ring-line">
-            <p className="text-sm font-semibold text-muted">{message.sender_name}</p>
-            <p className="whitespace-pre-wrap text-base text-ink">{message.body}</p>
-            {message.action_href && /^\/jobs\/[0-9a-fA-F-]{36}\/edit$/.test(message.action_href) ? (
-              <Link
-                href={message.action_href}
-                className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
-              >
-                Add details
-              </Link>
-            ) : null}
-            <p className="text-sm text-muted">
-              {new Date(message.created_at).toLocaleString()}
-              {message.id === lastMine?.id && message.seen ? " · Seen" : ""}
-            </p>
-          </li>
-        ))}
-      </ul>
+      <div
+        ref={listRef}
+        onScroll={() => {
+          stickRef.current = nearBottom();
+        }}
+        className="mt-3 grid max-h-96 gap-2 overflow-y-auto"
+        aria-live="polite"
+      >
+        {messages.map((message, index) => {
+          const day = messageDay(message.created_at);
+          const previous = index > 0 ? messageDay(messages[index - 1].created_at) : "";
+          return (
+            <div key={message.id}>
+              {day !== previous ? <p className="py-2 text-center text-sm font-semibold text-muted">{day}</p> : null}
+              <div className={message.mine ? "flex justify-end" : "flex justify-start"}>
+                <div
+                  className={
+                    message.mine
+                      ? "max-w-[85%] rounded-2xl bg-brand px-4 py-3 text-white"
+                      : "max-w-[85%] rounded-2xl bg-paper-raised px-4 py-3 text-ink ring-1 ring-line"
+                  }
+                >
+                  <p className={`text-sm font-semibold ${message.mine ? "text-white/80" : "text-muted"}`}>
+                    {message.mine ? "You" : message.sender_name}
+                  </p>
+                  <p className="whitespace-pre-wrap text-base">{message.body}</p>
+                  {message.action_href && /^\/jobs\/[0-9a-fA-F-]{36}\/edit$/.test(message.action_href) ? (
+                    <Link
+                      href={message.action_href}
+                      className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 font-semibold text-ink"
+                    >
+                      Add details
+                    </Link>
+                  ) : null}
+                  <p className={`text-sm ${message.mine ? "text-white/80" : "text-muted"}`}>
+                    <time dateTime={message.created_at}>{messageClock(message.created_at)}</time>
+                    {message.id === lastMine?.id && message.seen ? " · Seen" : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
       {closed ? (
         <p className="mt-3 text-base text-muted">
           This conversation is closed. Need help? Visit <Link href="/help" className="font-semibold text-brand">Help</Link> or{" "}
@@ -196,11 +299,14 @@ export function MessagePanel({
               id={`message-${threadId}`}
               value={text}
               onChange={(event) => setText(event.target.value)}
+              onKeyDown={onKeyDown}
               rows={3}
               maxLength={1000}
+              enterKeyHint="send"
               className="mt-2 min-h-24 w-full rounded-2xl border border-line bg-paper-raised px-4 py-3 text-base font-normal"
             />
           </label>
+          <p className="text-sm text-muted">Press Ctrl+Enter to send.</p>
           {warning ? (
             <p role="alert" className="text-base text-danger">
               Remove the phone number or email before sending. Pickuply keeps contact details off the chat.
@@ -223,9 +329,19 @@ export function MessagePanel({
               {error}
             </p>
           ) : null}
+          {failedKey ? (
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={sending}
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper-raised px-6 font-semibold text-ink"
+            >
+              Retry
+            </button>
+          ) : null}
           <button
             type="submit"
-            disabled={warning || text.trim().length === 0 || sending}
+            disabled={warning || text.trim().length === 0 || sending || offline}
             aria-busy={sending}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
           >

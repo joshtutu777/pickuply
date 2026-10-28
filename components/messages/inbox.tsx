@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { ConversationContext } from "@/components/messages/conversation-context";
 import { MessagePanel, type ChatMessage } from "@/components/messages/message-panel";
 import { documentUploadHref, uploadLabel } from "@/lib/messages/documents";
+import { statusLabel } from "@/components/request/job-status";
+import { messageClock, previewSnippet, routeLabel, unreadLabel } from "@/lib/messages/preview";
 import { createClient } from "@/lib/supabase/server";
 
 type InboxRow = {
@@ -10,6 +13,14 @@ type InboxRow = {
   title: string;
   unread: number;
   last_at: string | null;
+  participant_name?: string | null;
+  participant_role?: string | null;
+  job_label?: string | null;
+  pickup_label?: string | null;
+  dropoff_label?: string | null;
+  job_status?: string | null;
+  snippet?: string | null;
+  job_id?: string | null;
 };
 
 export async function MessageInbox({
@@ -33,14 +44,14 @@ export async function MessageInbox({
       <BackLink href={selected ? listHref : backHref} label={selected ? "Messages" : backLabel} />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Messages</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
-        {selected ? selected.title : "Messages"}
+        {selected ? (selected.participant_name ?? selected.title) : "Messages"}
       </h1>
       {error ? (
         <p role="alert" className="mt-6 text-lg text-danger">
           We couldn&apos;t load your messages. Try again.
         </p>
       ) : selected ? (
-        <Conversation threadId={selected.thread_id} support={selected.kind === "support"} />
+        <Conversation row={selected} listHref={listHref} />
       ) : rows.length === 0 ? (
         <section className="mt-8 rounded-3xl bg-paper-raised p-5 ring-1 ring-line">
           <h2 className="text-xl font-semibold text-ink">No conversations yet</h2>
@@ -56,15 +67,31 @@ export async function MessageInbox({
                 href={`${listHref}?thread=${row.thread_id}`}
                 className="flex min-h-12 items-center justify-between gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line"
               >
-                <span>
+                <span className="min-w-0">
                   <span className={`block text-lg text-ink ${row.unread > 0 ? "font-bold" : "font-semibold"}`}>
-                    {row.title}
+                    {row.participant_name ?? row.title} — {row.participant_role ?? "Chat"}
+                  </span>
+                  <span className="mt-1 block truncate text-sm text-muted">
+                    {[row.job_label, routeLabel(row.pickup_label, row.dropoff_label)].filter(Boolean).join(" · ") || row.title}
+                  </span>
+                  <span className="mt-1 block truncate text-base text-ink">
+                    {row.snippet ? `"${previewSnippet(row.snippet)}"` : "No messages yet."}
                   </span>
                   <span className="mt-1 block text-sm text-muted">
-                    {row.unread > 0 ? `${row.unread} unread` : "Read"}
+                    {[
+                      row.job_status ? statusLabel(row.job_status) : "",
+                      unreadLabel(Number(row.unread ?? 0)) || "Read",
+                      messageClock(row.last_at),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
                 </span>
-                {row.unread > 0 ? <span className="size-3 shrink-0 rounded-full bg-brand" aria-hidden="true" /> : null}
+                {row.unread > 0 ? (
+                  <span className="rounded-full bg-brand px-2 py-1 text-sm font-semibold text-white">
+                    {row.unread}
+                  </span>
+                ) : null}
               </Link>
             </li>
           ))}
@@ -74,7 +101,14 @@ export async function MessageInbox({
   );
 }
 
-async function Conversation({ threadId, support }: { threadId: string; support: boolean }) {
+async function Conversation({ row, listHref }: { row: InboxRow; listHref: string }) {
+  const threadId = row.thread_id;
+  const support = row.kind === "support";
+  const jobHref = row.job_id
+    ? listHref.startsWith("/driver")
+      ? `/driver/jobs/${row.job_id}`
+      : `/jobs/${row.job_id}`
+    : null;
   const supabase = await createClient();
   await supabase.rpc("mark_thread_read", { target_thread: threadId });
   const [{ data: messages }, { data: thread }, { data: reviews }, { data: files }] = await Promise.all([
@@ -110,6 +144,15 @@ async function Conversation({ threadId, support }: { threadId: string; support: 
           })}
         </ul>
       ) : null}
+      <ConversationContext
+        name={row.participant_name ?? row.title}
+        role={row.participant_role ?? "Chat"}
+        jobLabel={row.job_label ?? null}
+        pickup={row.pickup_label ?? null}
+        dropoff={row.dropoff_label ?? null}
+        status={row.job_status ?? null}
+        jobHref={jobHref}
+      />
       <MessagePanel
         threadId={threadId}
         initial={(messages ?? []) as ChatMessage[]}
