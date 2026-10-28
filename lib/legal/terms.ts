@@ -38,9 +38,9 @@ export const termsSections: LegalSection[] = [
     id: "pricing",
     heading: "Pricing",
     paragraphs: [
-      "Before the customer confirms, Pickuply shows the selected driver's offer, the card processing fee, any additional charges that apply at booking, and the total. The offer is the customer price. Pickuply's commission is 15% of that offer unless the booking already stored a different rate. That commission is deducted from the offer, and the driver receives the rest. At 15%, the driver receives 85%. The commission is not added again, and there is no separate Pickuply service fee. Pickup, free-item, and store pickup offers start at $35. Junk removal offers start at $50.",
-      "The customer pays the offer plus the card processing fee. Pickuply does not pay that processing fee. The processing amount starts from 2.9% plus 30 cents of the charge and is labeled Card processing fee. It is shown separately before confirmation. Charging that fee on every card, including debit and prepaid cards, has to be reviewed against card-network rules before live payments. The amounts on the screen are the amounts used for that booking. A later change to the commission rate does not change a booking that already stored its own rate.",
-      "When a driver accepts a posted price, that posted amount is the offer. Card processing is added on top and shown before the customer confirms. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
+      "Before the customer confirms, Pickuply shows the selected driver's offer, the service fee, any additional charges that apply at booking, and the total. The offer is the price for the pickup. Pickuply's commission is 15% of that offer unless the booking already stored a different rate. That commission is deducted from the offer, and the driver receives the rest. At 15%, the driver receives 85%. The commission is not added again. Pickup, free-item, and store pickup offers start at $35. Junk removal offers start at $50.",
+      "The customer also pays a service fee on top of the offer. The default is 5% of the offer, rounded half up to the nearest cent. The rate and the amount are stored when the customer accepts, and a later settings change does not change that booking. The service fee supports secure payments, customer support, and Pickuply's damage policy. It is not insurance and it is not Stripe's processing fee. Stripe's processing cost is Pickuply's expense. A full refund when the driver or Pickuply is at fault includes the service fee. A partial refund keeps the service fee unless an admin chooses to refund it. A $15 late cancellation and a $25 trip fee do not include a service fee. A refund cannot be more than the amount collected.",
+      "When a driver accepts a posted price, that posted amount is the offer. The service fee is added on top and shown before the customer confirms. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
     ],
   },
   {
@@ -50,6 +50,7 @@ export const termsSections: LegalSection[] = [
       "No card is authorized before a driver is assigned. After assignment, the customer has the time shown on the request to confirm. That window starts at 30 minutes unless Pickuply changes the setting. Work does not start until the card is authorized.",
       "Confirming the booking authorizes the card. Pickuply captures the payment after the customer confirms delivery, or 24 hours after delivery if the customer does not confirm. If the card authorization expires first, Pickuply does not start a new charge.",
       "A Stripe transfer to a driver is not a deposit in the driver's bank. Driver earnings stay held until payout setup is finished, unless an admin records a payment outside Stripe. Refunds are not automatic.",
+      "After a job is completed, the customer may add an optional tip for 7 days. No tip is selected unless the customer chooses one. The driver receives 100% of the tip. Pickuply does not take a commission or a service fee from a tip. Stripe's processing cost on a tip is Pickuply's expense. Saving a card for tips and future bookings is optional, needs a separate unchecked choice, and is not required to book. A saved card is charged only for a tip amount the customer confirms. An admin can refund a tip. A customer cannot add a second tip after the first one succeeds.",
     ],
   },
   {
@@ -80,7 +81,7 @@ export const termsSections: LegalSection[] = [
     heading: "Safety, damage, and disputes",
     paragraphs: [
       "Customers must provide safe, lawful access and disclose material risks. Drivers must use appropriate care and follow transportation and disposal rules.",
-      "Report loss, damage, or misconduct to info@pickuplyapp.com. A problem report can hold capture of a payment that has not moved yet. It does not reverse money that has already moved. These Terms do not set a damage payout.",
+      "Report loss, damage, or misconduct to info@pickuplyapp.com. A problem report can hold capture of a payment that has not moved yet. It does not reverse money that has already moved. Pickuply may review a damage report and refund up to $250 for that job. Damage already visible at pickup is not covered. This is not insurance and it is not an automatic payment.",
     ],
   },
   {

@@ -1,5 +1,6 @@
 import { startCheckout } from "@/app/jobs/pay/actions";
 import { PendingButton } from "@/components/pending-button";
+import { ServiceFeeNote } from "@/components/payments/service-fee-note";
 import { formatCents } from "@/lib/money";
 
 const confirmed = new Set(["authorized", "paid", "captured"]);
@@ -9,6 +10,7 @@ export function PayPanel({
   driverPayCents,
   platformFeeCents,
   serviceFeeCents,
+  serviceFeeBps,
   totalCents,
   paymentStatus,
   minutesLeft,
@@ -19,6 +21,7 @@ export function PayPanel({
   driverPayCents: number;
   platformFeeCents: number;
   serviceFeeCents: number;
+  serviceFeeBps?: number | null;
   totalCents: number;
   paymentStatus: string | null;
   minutesLeft: number;
@@ -34,13 +37,11 @@ export function PayPanel({
         <h2 className="text-lg font-semibold text-ink">Confirm Your Booking</h2>
         {balanced ? (
           <>
-            <p>{"Selected driver's offer "}{formatCents(offerCents)}</p>
-            <p>Card processing fee {formatCents(serviceFeeCents)}</p>
-            <p className="text-muted">This processing fee is added to the offer. Pickuply does not add another service fee.</p>
+            <ServiceFeeNote offerCents={offerCents} feeCents={serviceFeeCents} totalCents={totalCents} bps={serviceFeeBps} />
             <p>{additionalCents === 0 ? "No additional charges" : `Additional charges ${formatCents(additionalCents)}`}</p>
           </>
         ) : null}
-        <p className="font-semibold">Total {formatCents(totalCents)}</p>
+        {balanced ? null : <p className="font-semibold">Total {formatCents(totalCents)}</p>}
         {confirmed.has(paymentStatus ?? "") ? (
           <p>Booking confirmed. {formatCents(totalCents)} is held on your card and charged only after delivery.</p>
         ) : windowOpen ? (
@@ -54,6 +55,10 @@ export function PayPanel({
             </p>
             <form action={startCheckout}>
               <input type="hidden" name="jobId" value={jobId} />
+              <label className="mb-3 flex min-h-12 items-start gap-3 text-base text-ink">
+                <input name="saveCard" type="checkbox" value="yes" className="mt-1 h-5 w-5" />
+                <span>Save this card for tips and future bookings. Saving a card is optional and is not required to book.</span>
+              </label>
               <PendingButton
                 idle="Confirm booking"
                 pendingLabel="Submitting..."

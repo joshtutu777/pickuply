@@ -4,6 +4,8 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
+import { getStripe } from "@/lib/stripe";
+import { createServiceClient } from "@/lib/supabase/service";
 import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -126,10 +128,52 @@ export async function refundJob(formData: FormData) {
   const jobId = String(formData.get("jobId") ?? "");
   const amount = Math.round(Number(formData.get("amount") || 0) * 100);
   const reason = String(formData.get("reason") ?? "");
+  const includeServiceFee = formData.get("includeServiceFee") === "yes";
   try {
-    await requestRefund(jobId, amount, reason);
+    await requestRefund(jobId, amount, reason, includeServiceFee);
   } catch {
     redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The refund could not be completed.")}`);
+  }
+  redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+export async function refundTip(formData: FormData) {
+  await connection();
+  const jobId = String(formData.get("jobId") ?? "");
+  const amount = Math.round(Number(formData.get("amount") || 0) * 100);
+  const reason = String(formData.get("reason") ?? "");
+  const supabase = await createClient();
+  const tip = await supabase.from("job_tips").select("id").eq("job_id", jobId).not("paid_at", "is", null).maybeSingle();
+  if (!tip.data?.id) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("This job has no tip to refund.")}`);
+  const started = await supabase.rpc("begin_tip_refund", {
+    target_tip: tip.data.id,
+    amount_cents: amount,
+    reason,
+  });
+  if (started.error || !started.data) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The tip refund could not be started.")}`);
+  }
+  const row = started.data as { refund_id: string; charge_id: string; amount_cents: number };
+  try {
+    const refund = await getStripe().refunds.create(
+      {
+        charge: row.charge_id,
+        amount: row.amount_cents,
+        metadata: { tip_refund_id: row.refund_id },
+      },
+      { idempotencyKey: `tip-refund:${row.refund_id}` },
+    );
+    if ((refund as { livemode?: boolean }).livemode) throw new Error("Live payments are not enabled.");
+    if (refund.status === "succeeded") {
+      const applied = await createServiceClient().rpc("apply_tip_refund", {
+        target_refund: row.refund_id,
+        stripe_refund_id: refund.id,
+        succeeded: true,
+      });
+      if (applied.error) throw new Error(applied.error.message);
+    }
+  } catch {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("The tip refund could not be completed.")}`);
   }
   redirect(`/admin/requests/${jobId}?saved=1`);
 }

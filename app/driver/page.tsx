@@ -133,7 +133,7 @@ async function DriverContent({
       approved
         ? supabase.from("ledger_entries").select("status, amount_cents").eq("driver_id", session.userId)
         : Promise.resolve({ data: null }),
-      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents, offer_arrival_lead_minutes").eq("id", 1).maybeSingle(),
+      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_fee_bps, offer_arrival_lead_minutes").eq("id", 1).maybeSingle(),
       supabase
         .from("job_offers")
         .select("id, driver_amount_cents, platform_fee_cents, status")
@@ -147,8 +147,7 @@ async function DriverContent({
       ? {
           platformBps: feeRow.platform_bps,
           platformMinCents: feeRow.platform_min_cents,
-          serviceBps: feeRow.service_bps,
-          serviceFixedCents: feeRow.service_fixed_cents,
+          serviceFeeBps: feeRow.service_fee_bps,
         }
       : defaultFeeSettings;
     return (

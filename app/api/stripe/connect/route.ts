@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { recordPayoutEvent, recordTransferEvent } from "@/lib/payments/connect-events";
 import { saveConnectAccount } from "@/lib/payments/connect";
+import { connectWebhookEvents, isListedEvent } from "@/lib/payments/event-types";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
-
-const handled = new Set([
-  "account.updated",
-  "transfer.created",
-  "transfer.updated",
-  "transfer.reversed",
-  "payout.paid",
-  "payout.failed",
-]);
 
 export async function POST(request: Request) {
   const event = await readStripeEvent(request, "STRIPE_CONNECT_WEBHOOK_SECRET");
   if (event instanceof NextResponse) return event;
-  if (!handled.has(event.type)) return NextResponse.json({ ok: true, ignored: true });
+  if (!isListedEvent(event.type, connectWebhookEvents)) return NextResponse.json({ ok: true, ignored: true });
 
   const claimed = await claimStripeEvent(event);
   if (claimed instanceof NextResponse) return claimed;
@@ -26,22 +19,9 @@ export async function POST(request: Request) {
     if (event.type === "account.updated") {
       await handleAccount(event.data.object as Stripe.Account);
     } else if (event.type.startsWith("transfer.")) {
-      const transfer = event.data.object as Stripe.Transfer;
-      const status = event.type === "transfer.reversed" || transfer.reversed ? "reversed" : "created";
-      const noted = await createServiceClient().rpc("note_transfer_status", {
-        transfer_id: transfer.id,
-        next_status: status,
-      });
-      if (noted.error) throw new Error("The transfer status could not be recorded.");
+      await recordTransferEvent(event);
     } else if (event.type === "payout.paid" || event.type === "payout.failed") {
-      const payout = event.data.object as Stripe.Payout;
-      const recorded = await createServiceClient().rpc("record_bank_payout", {
-        account_id: event.account ?? "",
-        payout_id: payout.id,
-        payout_status: event.type === "payout.paid" ? "paid" : "failed",
-        amount_cents: payout.amount,
-      });
-      if (recorded.error) throw new Error("The bank payout could not be recorded.");
+      await recordPayoutEvent(event);
     }
   } catch {
     await releaseStripeEvent(event.id);

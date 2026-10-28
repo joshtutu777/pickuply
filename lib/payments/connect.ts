@@ -31,18 +31,53 @@ export async function saveConnectAccount(driverId: string, account: Stripe.Accou
 
 const previewVersion = "2026-09-30.preview";
 
+async function contactEmail(driverId: string): Promise<string | null> {
+  const { data, error } = await createServiceClient().auth.admin.getUserById(driverId);
+  if (error) return null;
+  const email = data.user?.email?.trim();
+  return email || null;
+}
+
+async function requestTransfers(accountId: string, email: string): Promise<void> {
+  await getStripe().v2.core.accounts.update(
+    accountId,
+    {
+      contact_email: email,
+      configuration: {
+        recipient: {
+          capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
+        },
+      },
+    },
+    { apiVersion: previewVersion },
+  );
+}
+
 export async function ensureExpressAccount(driverId: string, existingId: string | null): Promise<string> {
-  if (existingId) return existingId;
+  const email = await contactEmail(driverId);
+  if (existingId) {
+    if (email) {
+      try {
+        await requestTransfers(existingId, email);
+      } catch {
+        // The setup link can still open if Stripe already has this capability.
+      }
+    }
+    return existingId;
+  }
   const stripe = getStripe();
-  // This test platform uses Accounts v2 with Managed Risk. Stripe must collect losses,
-  // and the account needs the Express dashboard plus card payments before transfers can be requested.
-  // The customer's card is still charged on the platform account. This account only receives transfers.
+  // This test platform uses Accounts v2 with Managed Risk. Stripe must collect losses.
+  // The customer's card is charged on the platform. The driver account receives transfers.
   const created = await stripe.v2.core.accounts.create(
     {
+      ...(email ? { contact_email: email } : {}),
       dashboard: "express",
       identity: { country: "US" },
       configuration: {
         merchant: { capabilities: { card_payments: { requested: true } } },
+        ...(email
+          ? { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } }
+          : {}),
       },
       defaults: {
         responsibilities: {
@@ -60,10 +95,19 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
 }
 
 export async function refreshConnectAccount(driverId: string, accountId: string): Promise<Stripe.Account> {
-  const account = await getStripe().accounts.retrieve(accountId);
+  let account = await getStripe().accounts.retrieve(accountId);
   const owner = account.metadata?.driver_id;
   if (owner && owner !== driverId) {
     throw new Error("This payout account belongs to someone else.");
+  }
+  const email = account.email ?? (await contactEmail(driverId));
+  if (email) {
+    try {
+      await requestTransfers(accountId, email);
+      account = await getStripe().accounts.retrieve(accountId);
+    } catch {
+      // Keep the account Stripe already returned.
+    }
   }
   await saveConnectAccount(driverId, account);
   return account;

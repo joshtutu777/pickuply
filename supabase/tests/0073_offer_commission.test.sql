@@ -57,13 +57,13 @@ select is((public.price_breakdown('forward', 5001)->>'driver_earnings_cents')::i
 select is(
   (public.price_breakdown('forward', 5000)->>'customer_total_cents')::int,
   5000 + (public.price_breakdown('forward', 5000)->>'service_fee_cents')::int,
-  'the customer pays the offer plus card processing only'
+  'the customer pays the offer plus the service fee'
 );
 select ok(
   (public.price_breakdown('forward', 5000)->>'service_fee_cents')::int > 0
     and (public.price_breakdown('forward', 5000)->>'driver_earnings_cents')::int
       + (public.price_breakdown('forward', 5000)->>'platform_fee_cents')::int = 5000,
-  'processing is added for the customer and the commission stays inside the offer'
+  'the service fee is added for the customer and the commission stays inside the offer'
 );
 
 select pg_temp.make_user('c1730000-0000-4000-8000-000000000001', 'fee-customer@pickuply.test');
