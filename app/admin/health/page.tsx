@@ -5,6 +5,8 @@ import { LoadingMain } from "@/components/loading-main";
 import { cronJobs, cronRunLabel } from "@/lib/cron/jobs";
 import { requireAdmin } from "@/lib/auth/session";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
+import { issueCountLabel } from "@/lib/observability/issues";
+import { loadIssueSummary } from "@/lib/observability/issue-count";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: { absolute: "Health · Pickuply Admin" } };
@@ -35,6 +37,7 @@ async function AdminHealth() {
       ? { data: [] as CronRow[], error: null }
       : await supabase.from("cron_job_runs").select("job_name, started_at, finished_at, ok, error_message");
   const byName = new Map(((runs.data ?? []) as CronRow[]).map((row) => [row.job_name, row]));
+  const issues = lane === "test" ? null : await loadIssueSummary();
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -48,6 +51,25 @@ async function AdminHealth() {
           Back to the dashboard
         </Link>
       </p>
+      <h2 className="mt-8 text-xl font-semibold text-ink">App errors</h2>
+      {issues == null ? (
+        <p className="mt-3 text-base text-ink">App errors are hidden from a test admin.</p>
+      ) : issues.state === "unconfigured" ? (
+        <p className="mt-3 text-base text-ink">App errors are not connected yet.</p>
+      ) : issues.state === "unavailable" ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          The error count could not be loaded.
+        </p>
+      ) : (
+        <p className="mt-3 text-base text-ink">{issueCountLabel(issues.count)}</p>
+      )}
+      {issues?.href ? (
+        <p className="mt-3">
+          <a href={issues.href} className="font-semibold text-brand">
+            Open the error list
+          </a>
+        </p>
+      ) : null}
       <h2 className="mt-8 text-xl font-semibold text-ink">Scheduled jobs</h2>
       {lane === "test" ? (
         <p className="mt-3 text-base text-ink">Scheduler status is hidden from a test admin.</p>

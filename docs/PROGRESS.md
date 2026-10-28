@@ -810,6 +810,8 @@ A returned Checkout now checks the stored Stripe session before the page renders
 
 A driver who has chosen a pickup or delivery photo can tap Item loaded, Junk removed, or Delivered. That tap stores the proof for the missing step and moves the job only after the file is recorded. A second tap while that save is running is ignored. A failed upload stays on the same step and can be tried again. A proof that is already saved is not uploaded again. No database migration.
 
+Sentry can receive client and server errors when NEXT_PUBLIC_SENTRY_DSN is set. The report keeps the page path, browser, and app version. Emails, phone numbers, user ids, and card secrets are removed first. /admin/health shows the unresolved count and a link when SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN are set. Nothing is sent until the DSN is added. No database migration. This is not deployed.
+
 A blocked cookie store no longer crashes the page while reading the analytics choice. The map uses NEXT_PUBLIC_GOOGLE_MAPS_API_KEY. That public name was not in the production build, so the page showed the text list instead of the map.
 
 Tag Manager GTM-WJ6GFSH4 loads only after the saved cookie choice is Allow. That choice turns on analytics and advertising together. Reject, or Cookie settings followed by Reject, turns both off and clears the analytics cookies. The container's Google tag and Meta pixel send the first page view. The app does not add a second container or a second page view. A booking card hold is not a purchase. A paid tip sends one purchase, using the tip id so a refresh does not count again. Test accounts do not load the container. No database migration.
