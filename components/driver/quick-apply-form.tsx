@@ -248,7 +248,9 @@ export function QuickApplyForm({
       <label className="flex min-h-12 items-start gap-3 text-base">
         <input type="checkbox" checked={termsOk} onChange={(event) => setTermsOk(event.target.checked)} />
         <span>
-          I agree to the <Link href="/terms/driver" className="font-semibold text-brand">Pickuply Driver Terms</Link>.
+          I agree to the <Link href="/terms/driver" className="font-semibold text-brand">Pickuply Driver Terms</Link>, the{" "}
+          <Link href="/terms" className="font-semibold text-brand">Terms of Service</Link>, and the{" "}
+          <Link href="/privacy" className="font-semibold text-brand">Privacy Policy</Link>.
         </span>
       </label>
       {progress ? (

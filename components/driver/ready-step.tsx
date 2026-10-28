@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import {
   completeTraining,
   saveInsurance,
@@ -189,7 +190,11 @@ export function ReadyStep({
       ) : null}
       {step === "agreement" ? (
         <form action={signAgreement} className="space-y-4">
-          <p>Type your full name to sign. You are an independent driver. You follow the locked price, photograph pickup and drop-off, and refuse prohibited items.</p>
+          <p>
+            Type your full name to sign. You are an independent driver. You follow the locked price, photograph pickup and drop-off, and refuse prohibited items. Read the{" "}
+            <Link href="/terms" className="font-semibold text-brand">Terms of Service</Link> and{" "}
+            <Link href="/privacy" className="font-semibold text-brand">Privacy Policy</Link>.
+          </p>
           <label className="block font-semibold" htmlFor="signature">
             Signature
             <input id="signature" name="signature" required defaultValue={existing.fullName ?? ""} className={controlClass} />
