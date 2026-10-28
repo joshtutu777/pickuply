@@ -171,5 +171,15 @@ export default defineConfig({
       use: { ...devices["Pixel 5"] },
       testMatch: /admin-proof\.spec\.ts/,
     },
+    {
+      name: "local-messages",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /message-ux\.spec\.ts/,
+    },
+    {
+      name: "local-messages-desktop",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /message-ux\.spec\.ts/,
+    },
   ],
 });

@@ -66,6 +66,7 @@ export function JobStatus({
   offers,
   support,
   footer,
+  message,
   children,
 }: {
   job: JobDetail;
@@ -79,6 +80,7 @@ export function JobStatus({
   offers?: ReactNode;
   support?: ReactNode;
   footer?: ReactNode;
+  message?: ReactNode;
   children?: ReactNode;
 }) {
   const service = serviceById(job.service as ServiceId);
@@ -128,14 +130,8 @@ export function JobStatus({
       {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
         <p className="text-sm text-ink">Service fee {formatCents(job.service_fee_cents)}</p>
       ) : null}
-      {driver ? (
-        <p className="text-base text-ink">
-          Driver: {driver.firstName}{" "}
-          <a href="#messages" className="inline-flex min-h-12 items-center font-semibold text-brand">
-            Chat
-          </a>
-        </p>
-      ) : null}
+      {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
+      {message}
       {stage && job.status !== "completed" ? <p className="mt-1 text-base font-semibold text-ink">{stage}</p> : null}
       {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p className="mt-1 text-base text-ink">
@@ -349,7 +345,6 @@ export function JobStatus({
         <JobTrackerView
           tracker={tracker}
           driver={driver}
-          chatHref={driver ? "#messages" : undefined}
           progress={customerProgress({
             status: job.status,
             paymentStatus: job.payment_status,

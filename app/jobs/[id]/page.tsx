@@ -9,6 +9,7 @@ import { DropoffReview, ItemDecision } from "@/components/request/item-decision"
 import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { JobReceipt } from "@/components/request/job-receipt";
 import { JobMissing, JobStatus } from "@/components/request/job-status";
+import { JobMessageCard } from "@/components/messages/message-card";
 import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
@@ -135,6 +136,7 @@ async function JobEntry({
             <p className="text-base text-muted">No offers to review.</p>
           )
         }
+        message={session?.role === "customer" ? <JobMessageCard jobId={id} audience="customer" /> : null}
         support={
           <>
             <div id="messages">
