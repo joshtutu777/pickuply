@@ -58,6 +58,23 @@ export async function saveSupportContact(formData: FormData) {
   redirect(error ? "/admin/settings?error=Could%20not%20save%20support%20contact" : "/admin/settings?saved=1");
 }
 
+export async function savePickupLead(formData: FormData) {
+  await requireAdmin("/admin/settings");
+  const acceptMinutes = Number(formData.get("acceptWindowLead"));
+  const offerMinutes = Number(formData.get("offerArrivalLead"));
+  if (!Number.isInteger(acceptMinutes) || !Number.isInteger(offerMinutes) || acceptMinutes < 0 || offerMinutes < 0 || acceptMinutes > 1440 || offerMinutes > 1440) {
+    redirect("/admin/settings?error=Enter%20each%20lead%20time%20in%20whole%20minutes%20from%200%20to%201440");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_pickup_lead_minutes", {
+    accept_minutes: acceptMinutes,
+    offer_minutes: offerMinutes,
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/driver");
+  redirect(error ? "/admin/settings?error=Could%20not%20save%20pickup%20timing" : "/admin/settings?saved=1");
+}
+
 export async function saveProofLocation(formData: FormData) {
   await requireAdmin("/admin/settings");
   const supabase = await createClient();

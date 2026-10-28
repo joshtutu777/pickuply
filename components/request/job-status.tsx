@@ -3,6 +3,7 @@ import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
 import { PendingButton } from "@/components/pending-button";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
+import { ScheduledPickup } from "@/components/jobs/scheduled-pickup";
 import { DetailsFold } from "@/components/details-fold";
 import { ScreenTabs } from "@/components/ui/screen-tabs";
 import { PhotoThumb } from "@/components/ui/photo-thumb";
@@ -116,6 +117,13 @@ export function JobStatus({
         {job.pickup_area}
         {job.dropoff_area ? ` → ${job.dropoff_area}` : ""}
       </p>
+      <ScheduledPickup
+        availability={job.pickup_availability}
+        start={job.scheduled_pickup_start}
+        end={job.scheduled_pickup_end}
+        windows={job.pickup_windows}
+        locked={job.scheduled_pickup_start != null && job.status !== "open"}
+      />
       {job.price_cents != null ? <p className="mt-1 font-semibold text-ink">Total {formatCents(job.price_cents)}</p> : null}
       {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
         <p className="text-sm text-ink">Card processing fee {formatCents(job.service_fee_cents)}</p>

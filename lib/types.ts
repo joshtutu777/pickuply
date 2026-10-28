@@ -8,6 +8,7 @@ import type {
   TimeWindow,
   ZoneSlug,
 } from "./constants";
+import type { PickupAvailability, PickupWindowDraft } from "./time/pickup-schedule";
 
 /** Fields the customer edits. Sensitive contact and street values live here only while the page is open. */
 export type RequestDraft = {
@@ -41,6 +42,8 @@ export type RequestDraft = {
   helpLoading: "" | "yes" | "no";
   preferredDate: string;
   timeWindow: TimeWindow | "";
+  pickupAvailability: PickupAvailability | "";
+  pickupWindows: PickupWindowDraft[];
   notes: string;
   junkLoadSize: JunkLoadSize | "";
   junkMaterials: string;
@@ -161,6 +164,8 @@ export function emptyDraft(service: ServiceId | "" = ""): RequestDraft {
     helpLoading: "no",
     preferredDate: service === "free_item" ? "asap" : "",
     timeWindow: "",
+    pickupAvailability: "anytime",
+    pickupWindows: [],
     notes: "",
     junkLoadSize: "",
     junkMaterials: "",

@@ -1,4 +1,5 @@
 import { splitJob } from "./split-job";
+import { legacyWhen } from "../time/pickup-schedule";
 import type { RequestDraft } from "../types";
 
 /**
@@ -8,6 +9,10 @@ import type { RequestDraft } from "../types";
 export function requestPayload(draft: RequestDraft): Record<string, unknown> {
   const { job, privateJob } = splitJob(draft, "00000000-0000-4000-8000-000000000000", []);
   const junk = job.service === "junk";
+  const availability = draft.pickupAvailability === "asap" || draft.pickupAvailability === "windows"
+    ? draft.pickupAvailability
+    : "anytime";
+  const when = legacyWhen(availability, availability === "windows" ? draft.pickupWindows : []);
   return {
     service: job.service,
     description: job.description,
@@ -27,8 +32,10 @@ export function requestPayload(draft: RequestDraft): Record<string, unknown> {
     junk_special_items: job.junk_special_items,
     store_name: job.store_name,
     store_order_number: job.store_order_number,
-    preferred_date: job.preferred_date,
-    time_window: job.time_window,
+    preferred_date: when.preferred_date,
+    time_window: when.time_window,
+    pickup_availability: availability,
+    pickup_windows: availability === "windows" ? draft.pickupWindows : [],
     notes: job.notes,
     pricing_method: job.pricing_method,
     offer_cents: job.offer_cents,

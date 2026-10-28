@@ -6,11 +6,10 @@ import {
   junkLoadSizes,
   serviceIds,
   stairChoices,
-  timeWindows,
   valueApprovalWarning,
   type RequestStepId,
 } from "../constants";
-import { isWithinBookingWindow } from "../dates";
+import { availabilityError } from "../time/pickup-schedule";
 import { parseDollarsToCents } from "../money";
 import { normalizeUsPhone } from "../phone";
 import type { RequestDraft } from "../types";
@@ -22,7 +21,6 @@ const serviceSchema = z.enum(serviceIds as unknown as [string, ...string[]]);
 const sizeSchema = z.enum(itemSizes.map((item) => item.id) as [string, ...string[]]);
 const loadSchema = z.enum(junkLoadSizes.map((item) => item.id) as [string, ...string[]]);
 const stairSchema = z.enum(stairChoices.map((item) => item.id) as [string, ...string[]]);
-const windowSchema = z.enum(timeWindows.map((item) => item.id) as [string, ...string[]]);
 const hearSchema = z.enum(hearAboutOptions.map((item) => item.id) as [string, ...string[]]);
 const yesNo = z.enum(["yes", "no"]);
 
@@ -153,16 +151,8 @@ function validateWhen(draft: RequestDraft): FieldErrors {
   if (draft.service !== "junk" && draft.stairsDropoff && !stairSchema.safeParse(draft.stairsDropoff).success) {
     errors.stairsDropoff = "Choose the stairs at drop-off.";
   }
-  if (!draft.preferredDate) {
-    errors.preferredDate = "Choose ASAP, today, or a date.";
-  } else if (draft.preferredDate !== "asap" && draft.preferredDate !== "today") {
-    if (!isWithinBookingWindow(draft.preferredDate)) {
-      errors.preferredDate = "Choose a date within the next 6 days.";
-    }
-  }
-  if (draft.preferredDate !== "asap" && !windowSchema.safeParse(draft.timeWindow).success) {
-    errors.timeWindow = "Choose a time window.";
-  }
+  const schedule = availabilityError(draft.pickupAvailability, draft.pickupWindows ?? []);
+  if (schedule) errors.pickupAvailability = schedule;
   return errors;
 }
 
