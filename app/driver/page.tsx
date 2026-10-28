@@ -111,6 +111,9 @@ async function DriverContent({
     : [];
   const statusCopy = applicationStatusCopy(application?.status ?? null);
   const approved = application && ["active", "approved_new"].includes(application.status);
+  if (approved && session.role === "driver") {
+    await supabase.rpc("remind_payout_setup");
+  }
   const statusLine =
     application?.status === "pending_review" || application?.status === "applied"
       ? "⏳ Application in review"

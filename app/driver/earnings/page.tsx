@@ -130,7 +130,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         ) : null}
         <form action={startPayoutSetup} className="mt-4">
           <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
-            {fresh ? (ready ? "Review payout setup" : "Finish payout setup") : "Set up payouts"}
+            {fresh ? "Update payout details" : "Set up payouts"}
           </button>
         </form>
         {fresh ? (
