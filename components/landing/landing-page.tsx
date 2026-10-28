@@ -44,7 +44,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
   return (
     <div className="bg-[#F4F1EB] text-[#14211B]">
       <header className="border-b border-[#E4DED2] bg-[#FFFDF8]">
-        <div className="mx-auto flex max-w-[1160px] flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <div className="mx-auto flex max-w-[1160px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <Link href="#top" className="flex items-center gap-2.5 text-[#14211B]">
             <span className="flex size-9 items-center justify-center rounded-[10px] bg-[#17573E] font-display text-xl font-bold text-[#FFFDF8]">
               P
@@ -52,7 +52,27 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <span className="font-display text-2xl font-semibold">Pickuply</span>
             <BetaBadge />
           </Link>
-          <nav aria-label="Main" className="flex flex-wrap items-center gap-0 sm:gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link
+              href="/signup"
+              className="inline-flex min-h-12 items-center rounded-full bg-[#17573E] px-4 text-base font-semibold text-[#FFFDF8]"
+            >
+              Sign up
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex min-h-12 items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-4 text-base font-semibold text-[#14211B]"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/drive"
+              className="inline-flex min-h-12 items-center rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-4 text-base font-semibold text-[#14211B]"
+            >
+              Drive with us
+            </Link>
+          </div>
+          <nav aria-label="Main" className="flex w-full flex-wrap items-center gap-0 sm:gap-2">
             <InstallButton tone="landing" />
             <Link href="#how" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               How it works
@@ -68,12 +88,6 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             </Link>
             <Link href="/drive" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               Drive with us
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-3 py-2 text-[13px] font-semibold text-[#14211B] sm:px-[18px] sm:py-2.5 sm:text-base"
-            >
-              Sign in
             </Link>
           </nav>
         </div>
