@@ -70,7 +70,7 @@ The in-app customer accept, job completion, and ledger path was not replayed in 
 ### 8. Pull requests
 
 - https://github.com/joshtutu777/pickuply/pull/17 — transfer lookup and read-only reconciliation. Do not merge until you approve it.
-- The refund branch is `feat/stripe-refunds`. Its pull request is added when it is opened.
+- https://github.com/joshtutu777/pickuply/pull/18 — Dashboard refunds and the test-key gate. Commit `c0fa6654e6c1f266be41f93eaf6b4e914c6c61d2`. It is based on pull request 17 and is not merged.
 
 ### 9. Manual actions
 
