@@ -39,7 +39,7 @@ export const termsSections: LegalSection[] = [
     heading: "Pricing",
     paragraphs: [
       "Before the customer confirms, Pickuply shows the selected driver's offer, the service fee, any additional charges that apply at booking, and the total. The offer is the price for the pickup. Pickuply's commission is 15% of that offer unless the booking already stored a different rate. That commission is deducted from the offer, and the driver receives the rest. At 15%, the driver receives 85%. The commission is not added again. Pickup, free-item, and store pickup offers start at $35. Junk removal offers start at $50.",
-      "The customer also pays a service fee on top of the offer. The default is 5% of the offer, rounded half up to the nearest cent. The rate and the amount are stored when the customer accepts, and a later settings change does not change that booking. The service fee supports secure payments, customer support, and Pickuply's damage policy. It is not insurance and it is not Stripe's processing fee. Stripe's processing cost is Pickuply's expense. A full refund when the driver or Pickuply is at fault includes the service fee. A partial refund keeps the service fee unless an admin chooses to refund it. A $15 late cancellation and a $25 trip fee do not include a service fee. A refund cannot be more than the amount collected.",
+      "The customer also pays a service fee on top of the offer. The default is 5% of the offer, rounded half up to the nearest cent. The rate and the amount are stored when the customer accepts, and a later settings change does not change that booking. The service fee supports secure payments, customer support, and Pickuply's damage policy. It is not insurance and it is not Stripe's processing fee. Stripe's processing cost is Pickuply's expense. A full refund when the driver or Pickuply is at fault includes the service fee. A partial refund keeps the service fee unless an admin chooses to refund it. The late-cancel fee and the trip fee are turned off. Canceling or rejecting an item does not add either charge. A booking that already recorded one of those fees keeps that record. A refund cannot be more than the amount collected.",
       "When a driver accepts a posted price, that posted amount is the offer. The service fee is added on top and shown before the customer confirms. Disposal and other later charges are not added to the authorized total unless they are shown and agreed.",
     ],
   },
@@ -57,7 +57,7 @@ export const termsSections: LegalSection[] = [
     id: "cancellations",
     heading: "Cancellations and refunds",
     paragraphs: [
-      "Whether money comes back depends on whether a driver is assigned, whether work has started, and whether a charge has already been captured. These Terms do not add a cancellation penalty beyond what the booking screen shows.",
+      "Whether money comes back depends on whether a driver is assigned, whether work has started, and whether a charge has already been captured. Canceling releases a card hold that has not been captured. These Terms do not add a late-cancel fee or a trip fee.",
       "Contact info@pickuplyapp.com for help with a cancellation or a refund question.",
     ],
   },

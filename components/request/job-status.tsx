@@ -175,10 +175,12 @@ export function JobStatus({
           <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>
           <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
           <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
-          <p>
-            Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
-            at pickup: {formatCents(fees.tripFeeCents)}.
-          </p>
+          {fees.lateCancelFeeCents > 0 || fees.tripFeeCents > 0 ? (
+            <p>
+              Cancel after a driver is assigned: {formatCents(fees.lateCancelFeeCents)}. Reject the item
+              at pickup: {formatCents(fees.tripFeeCents)}.
+            </p>
+          ) : null}
           <p>Accepting publishes the job. It does not assign a driver and it does not charge your card.</p>
           <form action={respondToQuote} className="grid gap-3 pt-2">
             <input type="hidden" name="jobId" value={job.id} />

@@ -200,7 +200,7 @@ function Overview({ jobs, previous, filters, now }: { jobs: FinanceJob[]; previo
       </div>
       <h2 className="font-display text-2xl font-semibold">Pickuply revenue</h2>
       <p className="text-base text-muted">
-        Commission stays inside the offer. The service fee is extra marketplace revenue. Tips are not Pickuply revenue. Net is commission plus the service fee, minus Stripe&apos;s processing fee and refunds. Stripe&apos;s fee, including the fee on a tip, is an expense, not the service fee. A missing Stripe fee stays unavailable until the balance transaction arrives. A transfer is not a bank payout.
+        Trip fees and late-cancel fees in this view are historical. New cancellations and rejected pickups do not add either fee. Commission stays inside the offer. The service fee is extra marketplace revenue. Tips are not Pickuply revenue. Net is commission plus the service fee, minus Stripe&apos;s processing fee and refunds. Stripe&apos;s fee, including the fee on a tip, is an expense, not the service fee. A missing Stripe fee stays unavailable until the balance transaction arrives. A transfer is not a bank payout.
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyStat label="Pickuply commission" value={money.platform} />

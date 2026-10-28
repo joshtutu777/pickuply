@@ -19,6 +19,7 @@ import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
+import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { measureTrip } from "@/lib/maps/route";
 import { getQuoteNotice } from "@/lib/data/quote";
 import { formatUsDay } from "@/lib/time/when";
@@ -53,7 +54,7 @@ async function JobEntry({
   await connection();
   const { id } = await params;
   const query = await searchParams;
-  const job = await getJobDetail(id);
+  let job = await getJobDetail(id);
   if (!job) return <JobMissing />;
   const [session, notice, driver] = await Promise.all([
     getOptionalSession(),
@@ -79,6 +80,19 @@ async function JobEntry({
       offers = [];
     }
   }
+  if (
+    session?.role === "customer" &&
+    job.status === "assigned" &&
+    (job.payment_status === "awaiting_payment" || job.payment_status === "failed")
+  ) {
+    try {
+      await syncCustomerCheckout(id);
+      const refreshed = await getJobDetail(id);
+      if (refreshed) job = refreshed;
+    } catch {
+      // The pay panel keeps the saved status. A refresh checks Stripe again.
+    }
+  }
   const pickup =
     job.private?.pickup_lat != null && job.private.pickup_lng != null
       ? { lat: job.private.pickup_lat, lng: job.private.pickup_lng }
@@ -98,7 +112,9 @@ async function JobEntry({
   return (
     <>
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
-      {session?.role === "customer" ? <JobStatusWatch jobId={id} status={job.status} /> : null}
+      {session?.role === "customer" ? (
+        <JobStatusWatch jobId={id} status={job.status} paymentStatus={job.payment_status} />
+      ) : null}
       <div className="mx-auto w-full max-w-xl px-4 pt-4">
         <BackLink href="/account/jobs" label="Jobs" />
       </div>

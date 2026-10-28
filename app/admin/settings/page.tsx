@@ -59,8 +59,9 @@ async function SettingsContent({
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Settings</h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
         The commission is 15% of the customer offer and comes out of the driver&apos;s side. The customer
-        also pays a service fee. Stripe&apos;s processing cost stays Pickuply&apos;s expense. A change here
-        applies to new offers only.
+        also pays a service fee. The late-cancel fee and the trip fee are off, so new cancellations
+        and rejected pickups do not charge them. Stripe&apos;s processing cost stays Pickuply&apos;s expense.
+        A change here applies to new offers only.
       </p>
       <BackLink href="/admin" label="Admin" />
       {query.saved === "1" ? <p className="mt-4">Saved.</p> : null}

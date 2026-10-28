@@ -1,11 +1,17 @@
-export const lateCancelCents = 1500;
-export const tripFeeCents = 2500;
+export const lateCancelCents = 0;
+export const tripFeeCents = 0;
 
-export function lateCancelSplit(enRouteOrLater: boolean): { totalCents: number; driverCents: number; platformCents: number } {
-  const driverCents = enRouteOrLater ? 1000 : 0;
-  return { totalCents: lateCancelCents, driverCents, platformCents: lateCancelCents - driverCents };
+export function lateCancelSplit(
+  enRouteOrLater: boolean,
+  totalCents = lateCancelCents,
+): { totalCents: number; driverCents: number; platformCents: number } {
+  const total = Math.max(0, totalCents);
+  const driverCents = total > 0 && enRouteOrLater ? Math.min(1000, total) : 0;
+  return { totalCents: total, driverCents, platformCents: total - driverCents };
 }
 
-export function tripFeeSplit(): { totalCents: number; driverCents: number; platformCents: number } {
-  return { totalCents: tripFeeCents, driverCents: 2000, platformCents: 500 };
+export function tripFeeSplit(totalCents = tripFeeCents): { totalCents: number; driverCents: number; platformCents: number } {
+  const total = Math.max(0, totalCents);
+  const driverCents = total > 0 ? Math.min(2000, total) : 0;
+  return { totalCents: total, driverCents, platformCents: total - driverCents };
 }
