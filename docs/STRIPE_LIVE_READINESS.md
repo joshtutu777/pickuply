@@ -2,9 +2,92 @@
 
 Local review on 2026-10-28. No production deploy, hosted migration, live charge, refund, transfer, payout, SMS, or production setting was changed for this review.
 
+## Remediation — 2026-10-28 morning
+
+### 1. Pull request 17
+
+**Safe to merge on its own. It does not enable live payments.**
+
+`0099_payment_reconciliation.sql` only creates a read-only function. It does not change tables, policies that the current app uses, or existing rows. The deployed app does not call it. Rollback is `drop function public.payment_reconciliation_issues();`. Customers and drivers get no rows. Admins and the service role can read mismatches.
+
+The transfer change keeps the ledger id as the Stripe idempotency key. Before creating a transfer it looks through the 500 most recent transfers to that connected account and reuses one with the same ledger id. If Stripe already returned a transfer id and the database write fails, the row is not marked failed, so the next run can record that same id. A transfer older than those 500, after the idempotency key expires, could still be sent twice. That window is small for a new platform. Financial math is unchanged.
+
+### 2. Dashboard refunds
+
+`charge.refunded` used to return without writing. A refund that did not carry the app's refund id never changed `refunded_cents` or the ledger.
+
+`0100_stripe_refunds.sql` records each Stripe refund id once. A repeated event does not add the amount again. A failed or pending refund does not move money. A partial refund adds only that amount. Before a transfer, driver earnings go down by the refund amount, not below zero. After a transfer, earnings stay put and a recovery row is added for an admin. The function does not reverse the Stripe transfer. A refund larger than the remaining capture is rejected, the webhook returns an error, and the event claim is released so Stripe can retry. `job_events` and `audit_log` keep the history.
+
+### 3. Connect webhook
+
+The platform route `/api/stripe/webhook` does not handle connected-account events. A separate destination is required:
+
+- URL: `https://pickuplyapp.com/api/stripe/connect`
+- Listen to events on connected accounts
+- Events: `account.updated`, `transfer.created`, `transfer.updated`, `transfer.reversed`, `payout.paid`, `payout.failed`
+- Put that endpoint's signing secret in `STRIPE_CONNECT_WEBHOOK_SECRET` on the production Vercel project
+
+`STRIPE_CONNECT_WEBHOOK_SECRET` is mandatory for that route. The verifier rejects a secret that does not start with `whsec_`. It is absent in production. No destination was created or changed.
+
+The route updates Express onboarding from `account.updated`, transfer status from the transfer events, and bank payout status from `payout.paid` and `payout.failed`. A transfer is not a bank payout.
+
+### 4. Test and live mode
+
+The `sk_test_` check is intentional launch protection. `getStripe()` now also refuses a live publishable key, a live secret, or a missing test publishable key. Checkout expires a session if Stripe reports `livemode`. There is no switch that turns live mode on. A later release would need both keys in live mode and a new explicit setting approved by the owner. That setting does not exist.
+
+Local test runs use the existing test secret in `.env.local`. Live keys were not copied.
+
+### 5. Card-processing fee
+
+Calculated in `lib/fees.ts` as the smallest cent total that covers 2.9% plus 30 cents on top of the offer. Shown on the offer comparison and as its own Checkout line in `app/jobs/pay/actions.ts`. The amount is fixed before the customer enters a card, so Checkout cannot skip debit or prepaid cards. A refund records the amount Stripe refunded. It does not calculate a separate processing-fee refund. Driver earnings are the offer minus commission. The processing amount is not part of driver earnings.
+
+Recommendation: stop adding this amount to the customer total and pay Stripe's fee from the existing 15% commission. Customer totals fall by the processing amount. Driver earnings stay the same. Pickuply's margin falls by the actual Stripe fee, which can exceed the old processing amount on some cards. This needs your approval before any price change. It is not implemented.
+
+A credit-only surcharge is not supportable with the current Checkout session, because the amount is set before the card funding type is known. A renamed "service fee" still needs Stripe and legal review before it is charged on debit or prepaid cards. Visa's U.S. surcharge Q&A prohibits debit and prepaid surcharges.
+
+### 6. Stripe TEST-mode lifecycle
+
+Using the local test secret only:
+
+- PASS. A test card authorization reached `requires_capture`.
+- PASS. Capture succeeded for 5000 cents.
+- PASS. A second capture was refused with `payment_intent_unexpected_state`.
+- PASS. A 1500-cent refund replayed with the same idempotency key returned the same refund.
+- The test-mode webhook endpoint `https://pickuplyapp.com/api/stripe/webhook` is enabled and `livemode` is false. Its events are the platform payment events, including `charge.refunded`. It does not include `account.updated`, transfer events, or payout events.
+- NOT VERIFIED. Express onboarding and a driver transfer. A test account was created with the app's Accounts v2 settings. `payouts_enabled` stayed false and `details_submitted` stayed false. No transfer was sent. The legacy custom-account call was rejected because this platform uses managed risk.
+
+The in-app customer accept, job completion, and ledger path was not replayed in the browser in this run. The database tests cover the refund ledger rules. The Stripe calls above were real test-mode API calls, not mocks.
+
+### 7. Remaining live blockers
+
+- Production publishable key is live, and live mode stays closed in code.
+- Connect webhook destination and `STRIPE_CONNECT_WEBHOOK_SECRET` are missing.
+- The card-processing amount is still added for every card.
+- The platform secret and platform webhook secret still could not be classified from the API.
+- Migration `0100` is local only.
+- A full in-app Connect onboarding and transfer was not completed in this run unless the test section says otherwise.
+
+### 8. Pull requests
+
+- https://github.com/joshtutu777/pickuply/pull/17 — transfer lookup and read-only reconciliation. Do not merge until you approve it.
+- The refund branch is `feat/stripe-refunds`. Its pull request is added when it is opened.
+
+### 9. Manual actions
+
+1. Review pull request 17. It is safe to merge without enabling live payments. Do not merge it from here.
+2. In Stripe test mode, create a Connect webhook endpoint for `https://pickuplyapp.com/api/stripe/connect` with the events listed above, for connected accounts. Do not create a live endpoint yet.
+3. Put that test signing secret in Vercel as `STRIPE_CONNECT_WEBHOOK_SECRET`. This session did not change Vercel.
+4. Confirm the production `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in the Vercel dashboard. Do not paste them into chat. They must both be test values while the publishable key is switched back to test, or checkout will keep failing closed.
+5. Decide the card-fee option before any live charge. The recommended option is to absorb processing in the commission.
+6. Apply `0099` and `0100` on the hosted database only after you approve those migrations.
+
+### 10. Recommendation
+
+**NO-GO** for live payments. **CONDITIONAL GO** to merge pull request 17 by itself.
+
 ## A. Executive summary
 
-**NO-GO.** Pickuply cannot safely accept its first real customer payment.
+**NO-GO** for the first real customer payment. Pull request 17 can merge without turning live payments on.
 
 The application still refuses every Stripe secret that does not start with `sk_test_`. The production publishable key is a live key. The Connect webhook secret is not set on the production project. A card-processing amount is added for every card before Pickuply knows whether the card is credit, debit, or prepaid. Those three facts block live payments even though the local ledger, capture, and transfer rules have tests.
 
@@ -39,11 +122,12 @@ The application still refuses every Stripe secret that does not start with `sk_t
 
 | Check | Result |
 | --- | --- |
-| Database suite | PASS. Files=50, Tests=808, including `0099_payment_reconciliation.test.sql`. |
-| Unit tests | PASS. 239 passed, 0 failed. Includes fee math, checkout line items, ledger refund rules, webhook event lists, and transfer matching. |
-| Lint | PASS. ESLint on the changed payment and admin files reported no problems. |
-| TypeScript and production build | PASS. `next build` finished TypeScript and completed after the back-link label and transfer lookup were corrected. |
-| Stripe TEST-mode PaymentIntent, capture, and transfer | NOT VERIFIED in this run. No PaymentIntent was created. |
+| Database suite | PASS. Files=51, Tests=816, including reconciliation and Dashboard refund tests. |
+| Unit tests | PASS. 241 passed, 0 failed. Includes the test/live key gate and Dashboard refund routing. |
+| Lint | PASS. ESLint on the changed payment files reported no problems. |
+| TypeScript and production build | PASS. `next build` completed on this branch. |
+| Stripe TEST-mode authorization, capture, and partial refund | PASS against the test API. A second capture was refused. The refund replay returned the same refund. |
+| Stripe TEST-mode Connect onboarding and transfer | NOT VERIFIED. The test account stayed not onboarded, and no transfer was sent. |
 | Headless live checkout | NOT VERIFIED. Production was not used for a payment. |
 | Driver-offer headless audit from the merged branch | PASS earlier the same night: 58 checks, then a production smoke of typing, review, and one submit. |
 

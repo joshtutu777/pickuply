@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
 import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
 import { getStripe } from "@/lib/stripe";
+import { stripeRefundAction } from "@/lib/stripe-mode";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export function isPlatformPaymentEvent(type: string): boolean {
@@ -144,17 +145,51 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     return;
   }
 
-  if (event.type === "charge.refunded") return;
+  if (event.type === "charge.refunded") {
+    await syncChargeRefunds(event.data.object as Stripe.Charge);
+    return;
+  }
 
   if (event.type === "refund.created" || event.type === "refund.updated") {
-    const refund = event.data.object as Stripe.Refund;
-    const refundId = refund.metadata?.refund_id;
-    if (!refundId || refund.status === "pending") return;
+    await syncRefund(event.data.object as Stripe.Refund);
+  }
+}
+
+async function syncChargeRefunds(charge: Stripe.Charge): Promise<void> {
+  let refunds = charge.refunds?.data ?? [];
+  if (!charge.refunds || charge.refunds.has_more) {
+    const listed = await getStripe().refunds.list({ charge: charge.id, limit: 100 });
+    refunds = listed.data;
+  }
+  for (const refund of refunds) await syncRefund(refund);
+}
+
+async function syncRefund(refund: Stripe.Refund): Promise<void> {
+  const action = stripeRefundAction({
+    metadataRefundId: refund.metadata?.refund_id ?? null,
+    status: refund.status,
+  });
+  if (action === "pending") return;
+  const supabase = createServiceClient();
+  if (action === "app") {
     const applied = await supabase.rpc("apply_refund", {
-      target_refund: refundId,
+      target_refund: refund.metadata?.refund_id,
       stripe_refund_id: refund.id,
       succeeded: refund.status === "succeeded",
     });
     if (applied.error) throw new Error("The refund could not be recorded.");
+    return;
   }
+  const chargeId = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+  if (!chargeId) return;
+  const payment = await supabase.from("job_payments").select("job_id").eq("charge_id", chargeId).maybeSingle();
+  if (payment.error) throw new Error("The refund could not be matched to a job.");
+  if (!payment.data?.job_id) return;
+  const recorded = await supabase.rpc("record_stripe_refund", {
+    target_job: payment.data.job_id,
+    stripe_refund_id: refund.id,
+    amount_cents: refund.amount,
+    succeeded: refund.status === "succeeded",
+  });
+  if (recorded.error) throw new Error("The refund could not be recorded.");
 }
