@@ -293,3 +293,7 @@ Do not start this sequence until the blockers in section K are accepted.
 3. It cannot safely pay the driver. Connect payout events are not configured, and no transfer was verified against Stripe.
 4. Before live transactions: matching keys, both webhook destinations, a fee decision, a full Stripe test-mode authorization-capture-transfer, and an explicit code change that allows a live secret.
 5. The safest next release is this read-only reconciliation and transfer-recovery branch, after review. It does not turn on live payments. Driver-offer UX is already in production and should stay there.
+
+## M. Combined candidate
+
+Section J above is the earlier reconciliation-only sequence. The combined service-fee, refund, transfer, and tip candidate is `docs/FINANCIAL_RELEASE.md`. Do not apply `0099` by itself as that release. The customer charge on the combined branch is the 5% service fee, not the older card-processing total.

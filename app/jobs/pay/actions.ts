@@ -56,6 +56,13 @@ export async function startCheckout(formData: FormData) {
   const profile = user.data.user
     ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
     : null;
+  const saveCard = String(formData.get("saveCard") ?? "") === "yes";
+  if (saveCard) {
+    const consented = await supabase.rpc("record_card_consent");
+    if (consented.error) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card could not be saved. You can still pay without saving it.")}`);
+    }
+  }
   const customerEmail = checkoutCustomerEmail(profile?.data?.email);
   let sessionId = "";
   let sessionUrl: string | null = null;
@@ -71,9 +78,16 @@ export async function startCheckout(formData: FormData) {
         line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",
+          ...(saveCard ? { setup_future_usage: "off_session" as const } : {}),
           metadata: { job_id: jobId, driver_id: row.driver_id },
         },
-        metadata: { job_id: jobId, driver_id: row.driver_id, attempt: String(row.attempt) },
+        ...(saveCard ? { customer_creation: "always" as const } : {}),
+        metadata: {
+          job_id: jobId,
+          driver_id: row.driver_id,
+          attempt: String(row.attempt),
+          ...(saveCard ? { save_card: "yes" } : {}),
+        },
         ...(customerEmail ? { customer_email: customerEmail } : {}),
         expires_at: expiresAt,
         success_url: `${origin}/jobs/${jobId}?paid=return`,

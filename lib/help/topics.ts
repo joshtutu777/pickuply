@@ -24,6 +24,10 @@ export const customerTopics: HelpTopic[] = [
     title: "Payments and card holds",
     questions: [
       {
+        q: "Do drivers keep tips?",
+        a: "Yes. Drivers receive 100% of customer tips. Pickuply does not take a commission or service fee from tips.",
+      },
+      {
         q: "When is my card charged?",
         a: "No card is authorized until a driver is confirmed. The card is authorized, not captured. Capture happens after you confirm delivery, or 24 hours after delivery if you do not.",
       },
@@ -126,7 +130,7 @@ export const driverTopics: HelpTopic[] = [
       },
       {
         q: "What do I earn from an offer?",
-        a: "The amount you enter is the offer. Pickuply keeps 15% of it. You see that commission and your estimated earnings before you confirm. The customer also pays a service fee on top. That fee is not taken from your earnings.",
+        a: "The amount you enter is the offer. Pickuply keeps 15% of it. You see that commission and your estimated earnings before you confirm. The customer also pays a service fee on top. That fee is not taken from your earnings. A tip after delivery is extra. You keep 100% of it. It is not part of the 48-hour wait for a new driver's base earnings.",
       },
     ],
   },

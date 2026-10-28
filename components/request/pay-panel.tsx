@@ -55,6 +55,10 @@ export function PayPanel({
             </p>
             <form action={startCheckout}>
               <input type="hidden" name="jobId" value={jobId} />
+              <label className="mb-3 flex min-h-12 items-start gap-3 text-base text-ink">
+                <input name="saveCard" type="checkbox" value="yes" className="mt-1 h-5 w-5" />
+                <span>Save this card for tips and future bookings. Saving a card is optional and is not required to book.</span>
+              </label>
               <PendingButton
                 idle="Confirm booking"
                 pendingLabel="Submitting..."

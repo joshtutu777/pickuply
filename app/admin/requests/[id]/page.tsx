@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob } from "@/app/admin/requests/actions";
+import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob, refundTip } from "@/app/admin/requests/actions";
 import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
@@ -235,6 +235,22 @@ async function RequestDetail({
         </label>
         <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Refund
+        </button>
+      </form>
+      <form action={refundTip} className="mt-6 grid gap-2 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Refund a tip</h2>
+        <p className="text-base text-muted">Only an admin can refund a tip. If the tip was already transferred, the driver keeps that transfer and a recovery is recorded. A refund cannot be more than the tip.</p>
+        <input type="hidden" name="jobId" value={id} />
+        <label className="font-semibold" htmlFor="tip-refund-amount">
+          Amount in dollars
+          <input id="tip-refund-amount" name="amount" inputMode="decimal" required className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" />
+        </label>
+        <label className="font-semibold" htmlFor="tip-refund-reason">
+          Reason
+          <input id="tip-refund-reason" name="reason" required minLength={3} className="mt-1 min-h-12 w-full rounded-2xl border border-line px-3" />
+        </label>
+        <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+          Refund tip
         </button>
       </form>
       {extra?.status === "open" ? (

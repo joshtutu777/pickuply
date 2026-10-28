@@ -13,6 +13,7 @@ import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
+import { TipGate } from "@/components/request/tip-panel";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
@@ -151,6 +152,16 @@ async function JobEntry({
         }
         footer={
           <>
+            {session?.role === "customer" && job.status === "completed" ? (
+              <TipGate
+                jobId={id}
+                status={job.status}
+                completedAt={job.completed_at}
+                driverFirstName={driver?.firstName ?? "your driver"}
+                bookingTotalCents={job.price_cents}
+                preset={typeof query.tip === "string" ? query.tip : undefined}
+              />
+            ) : null}
             {session && job.status === "completed" ? (
               <ReviewPanel
                 jobId={id}

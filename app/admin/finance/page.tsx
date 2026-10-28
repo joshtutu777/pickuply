@@ -36,12 +36,12 @@ import {
   type Money,
 } from "@/lib/admin/finance";
 import { loadFinanceJobs } from "@/lib/admin/finance-load";
+import { createClient } from "@/lib/supabase/server";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { IncludeTestData } from "@/components/admin/include-test-data";
 import { compareWithStripe } from "@/lib/admin/finance-stripe";
 import { requireAdmin } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
 
 type FinancePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -72,13 +72,36 @@ async function Finance({ searchParams }: FinancePageProps) {
   const filters = parseFinanceFilters(params);
   const lane = await resolveTestLane(includeTestParam(params.get("includeTest") ?? undefined));
   const loaded = await loadFinanceJobs(lane);
+  const tipClient = await createClient();
+  const [{ data: tipList }, { data: tipLedger }, { data: tipRecovery }] = await Promise.all([
+    tipClient.from("job_tips").select("id, job_id, amount_cents, stripe_fee_cents, paid_at, refunded_cents, status"),
+    tipClient.from("ledger_entries").select("tip_id, status, transfer_status").eq("entry_kind", "tip"),
+    tipClient.from("recovery_obligations").select("amount_cents, status, reason").like("reason", "tip refund%"),
+  ]);
+  const ledgerByTip = new Map((tipLedger ?? []).map((row) => [row.tip_id, row]));
+  const tipStates = { held: 0, available: 0, transferred: 0, refunded: 0, reconcile: 0, stripeFees: 0 };
+  const tipByJob = new Map<string, number>();
+  for (const tip of tipList ?? []) {
+    if (tip.paid_at) tipByJob.set(tip.job_id, (tipByJob.get(tip.job_id) ?? 0) + tip.amount_cents);
+    if ((tip.refunded_cents ?? 0) > 0) tipStates.refunded += tip.refunded_cents ?? 0;
+    if (tip.stripe_fee_cents != null) tipStates.stripeFees += tip.stripe_fee_cents;
+    const ledger = ledgerByTip.get(tip.id);
+    if (ledger?.status === "held" || ledger?.status === "held_until_onboarding") tipStates.held += tip.amount_cents;
+    else if (ledger?.status === "ready") tipStates.available += tip.amount_cents;
+    else if (ledger?.status === "transferred" || ledger?.status === "externally_paid") tipStates.transferred += tip.amount_cents;
+  }
+  for (const recovery of tipRecovery ?? []) {
+    if (recovery.status === "recovery_due") tipStates.reconcile += recovery.amount_cents;
+  }
+  const jobsWithTips = loaded.jobs.map((job) => ({ ...job, tipCents: tipByJob.get(job.id) ?? null }));
+  const tipped = params.get("tips") === "1" ? jobsWithTips.filter((job) => (job.tipCents ?? 0) > 0) : jobsWithTips;
   const now = new Date();
   const window = dateWindow(filters, now);
-  const filtered = sortJobs(filterJobs(loaded.jobs, filters, now, window), filters);
+  const filtered = sortJobs(filterJobs(tipped, filters, now, window), filters);
   const visible = pageRows(filtered, filters.page);
   const pages = Math.max(1, Math.ceil(filtered.length / 25));
   const checks = filters.tab === "reconcile" ? await compareWithStripe(filtered) : null;
-  const previous = filters.compare && window ? filterJobs(loaded.jobs, filters, now, previousWindow(window)) : [];
+  const previous = filters.compare && window ? filterJobs(tipped, filters, now, previousWindow(window)) : [];
   const cities = [...new Set(loaded.jobs.map((job) => job.pickupCity).filter(Boolean))] as string[];
   const zips = [...new Set(loaded.jobs.map((job) => job.pickupZip).filter(Boolean))] as string[];
   const customers = uniquePeople(loaded.jobs, "customer");
@@ -102,7 +125,16 @@ async function Finance({ searchParams }: FinancePageProps) {
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href={`/admin/finance?${quickView("refunds")}`}>Refunds this month</Link>
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href={`/admin/finance?${quickView("holds")}`}>Unpaid holds</Link>
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href="/admin/finance/reconciliation">Record mismatches</Link>
+        <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href="/admin/finance?tab=payments&tips=1">Tips</Link>
       </div>
+      <section className="mt-4 grid gap-2 sm:grid-cols-3" aria-label="Tips">
+        <p>Tips held {showMoney({ cents: tipStates.held })}</p>
+        <p>Tips available {showMoney({ cents: tipStates.available })}</p>
+        <p>Tips transferred {showMoney({ cents: tipStates.transferred })}</p>
+        <p>Tips refunded {showMoney({ cents: tipStates.refunded })}</p>
+        <p>Tips needing recovery {showMoney({ cents: tipStates.reconcile })}</p>
+        <p>Stripe tip fees (expense) {showMoney({ cents: tipStates.stripeFees })}</p>
+      </section>
       <nav aria-label="Finance" className="mt-4 flex flex-wrap gap-2">
         {(["overview", "payments", "payouts", "attention", "reconcile"] as const).map((tab) => (
           <Link key={tab} href={tabHref(filters, tab)} className={`rounded-full px-4 py-2 font-semibold ${filters.tab === tab ? "bg-brand text-white" : "bg-paper-raised ring-1 ring-line"}`}>
@@ -168,7 +200,7 @@ function Overview({ jobs, previous, filters, now }: { jobs: FinanceJob[]; previo
       </div>
       <h2 className="font-display text-2xl font-semibold">Pickuply revenue</h2>
       <p className="text-base text-muted">
-        Commission stays inside the offer. The service fee is extra marketplace revenue. Net is commission plus the service fee, minus Stripe&apos;s processing fee and refunds. Stripe&apos;s fee is an expense, not the service fee. A missing Stripe fee stays unavailable until the balance transaction arrives.
+        Commission stays inside the offer. The service fee is extra marketplace revenue. Tips are not Pickuply revenue. Net is commission plus the service fee, minus Stripe&apos;s processing fee and refunds. Stripe&apos;s fee, including the fee on a tip, is an expense, not the service fee. A missing Stripe fee stays unavailable until the balance transaction arrives. A transfer is not a bank payout.
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyStat label="Pickuply commission" value={money.platform} />
@@ -207,7 +239,7 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
     <div className="mt-6 overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
-          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Offer", "Service fee", "Commission", "Driver net", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
+          <tr>{["Date", "Job", "Customer", "Driver", "Status", "Offer", "Service fee", "Commission", "Driver net", "Tips", "Total", "Captured", "Refunded", "Hold ends"].map((label) => <th key={label} className="py-2 pr-3">{label}</th>)}</tr>
         </thead>
         <tbody>
           {jobs.map((job) => {
@@ -229,6 +261,7 @@ function PaymentTable({ jobs }: { jobs: FinanceJob[] }) {
                 <td className="py-2 pr-3">{job.serviceFeeCents == null ? "Unavailable" : showMoney({ cents: job.serviceFeeCents })}</td>
                 <td className="py-2 pr-3">{job.platformFeeCents == null ? "Unavailable" : showMoney({ cents: job.platformFeeCents })}</td>
                 <td className="py-2 pr-3">{job.driverPayCents == null ? "Unavailable" : showMoney({ cents: job.driverPayCents })} {pricingBalances(job) ? "" : "Check"}</td>
+                <td className="py-2 pr-3">{job.tipCents == null ? "None" : showMoney({ cents: job.tipCents })}</td>
                 <td className="py-2 pr-3">{job.priceCents == null ? "Unavailable" : showMoney({ cents: job.priceCents })}</td>
                 <td className="py-2 pr-3">{job.capturedCents == null ? "Unavailable" : showMoney({ cents: job.capturedCents })}</td>
                 <td className="py-2 pr-3">{job.refundedCents == null ? "Unavailable" : showMoney({ cents: job.refundedCents })}</td>

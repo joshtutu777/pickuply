@@ -46,7 +46,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
       ? supabase.from("job_payments").select("job_id, payment_intent_id, capture_before, stripe_fee_cents, captured_at").in("job_id", ids)
       : Promise.resolve({ data: [], error: null }),
     ids.length
-      ? supabase.from("ledger_entries").select("job_id, amount_cents, status, hold_reason, transfer_status, stripe_transfer_id, available_on, updated_at").in("job_id", ids)
+      ? supabase.from("ledger_entries").select("job_id, amount_cents, status, hold_reason, transfer_status, stripe_transfer_id, available_on, updated_at, entry_kind").in("job_id", ids)
       : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("card_disputes").select("job_id, status").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("job_disputes").select("job_id, resolved_at, capture_hold").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
@@ -59,7 +59,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
   if (payments.error || ledger.error || profiles.error) return { jobs: [], error: "The payment details could not be loaded." };
 
   const paymentByJob = new Map((payments.data ?? []).map((row) => [row.job_id, row]));
-  const ledgerByJob = new Map((ledger.data ?? []).map((row) => [row.job_id, row]));
+  const ledgerByJob = new Map((ledger.data ?? []).filter((row) => row.entry_kind !== "tip").map((row) => [row.job_id, row]));
   const names = new Map((profiles.data ?? []).map((row) => [row.id, row.full_name]));
   const payouts = new Map((accounts.data ?? []).map((row) => [row.driver_id, row.payouts_enabled]));
   const openDispute = new Set((disputes.data ?? []).filter((row) => row.status !== "won" && row.status !== "lost" && row.status !== "warning_closed").map((row) => row.job_id));
