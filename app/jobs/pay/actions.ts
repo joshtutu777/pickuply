@@ -84,6 +84,10 @@ export async function startCheckout(formData: FormData) {
     sessionId = session.id;
     sessionUrl = session.url;
     checkoutLive = session.livemode;
+    if (checkoutLive) {
+      await getStripe().checkout.sessions.expire(session.id);
+      throw new Error("Live payments are not enabled.");
+    }
   } catch {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
   }

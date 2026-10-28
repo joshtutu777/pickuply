@@ -101,6 +101,7 @@ async function Finance({ searchParams }: FinancePageProps) {
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href={`/admin/finance?${quickView("payouts")}`}>This week&apos;s payouts</Link>
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href={`/admin/finance?${quickView("refunds")}`}>Refunds this month</Link>
         <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href={`/admin/finance?${quickView("holds")}`}>Unpaid holds</Link>
+        <Link className="rounded-full bg-paper-raised px-4 py-2 font-semibold ring-1 ring-line" href="/admin/finance/reconciliation">Record mismatches</Link>
       </div>
       <nav aria-label="Finance" className="mt-4 flex flex-wrap gap-2">
         {(["overview", "payments", "payouts", "attention", "reconcile"] as const).map((tab) => (
