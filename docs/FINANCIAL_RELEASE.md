@@ -21,8 +21,10 @@ Apply on a database that already has `0001` through `0097`:
 3. `0100_stripe_refunds.sql`
 4. `0101_transfer_claims.sql`
 5. `0102_driver_tips.sql`
+6. `0103_tip_refund_before_payment.sql`
+7. `0104_tip_fee_backfill.sql`
 
-`0098` adds the service-fee rate and snapshots. It does not rewrite stored prices, earnings, commission, service-fee cents, or refunds. `0099` adds a read-only reconciliation function. `0100` records a Stripe refund once and does not reverse a transfer. `0101` stores one transfer claim per ledger row. `0102` adds a separate tip ledger row. A booking refund after `0102` updates only the base row. A tip refund uses the tip row.
+`0098` adds the service-fee rate and snapshots. It does not rewrite stored prices, earnings, commission, service-fee cents, or refunds. `0099` adds a read-only reconciliation function. `0100` records a Stripe refund once and does not reverse a transfer. `0101` stores one transfer claim per ledger row. `0102` adds a separate tip ledger row. A booking refund after `0102` updates only the base row. A tip refund uses the tip row. `0103` keeps a refund that is recorded before the payment event and credits only the remainder. `0104` lets a repeated confirmation fill in a missing Stripe fee without adding a second ledger row.
 
 ## Hosted backup and gates
 
@@ -30,9 +32,9 @@ Before any hosted apply:
 
 1. Take a hosted database backup and record its id.
 2. Confirm hosted `schema_migrations` ends at `0097`.
-3. Confirm a clean local database applies `0098` through `0102` and the full database suite passes.
+3. Confirm a clean local database applies `0098` through `0104` and the full database suite passes.
 4. Confirm no job row changes price, driver pay, commission, or service-fee cents during the apply.
-5. Apply the five files in the order above. Do not edit an already applied file.
+5. Apply the seven files in the order above. Do not edit an already applied file.
 6. Deploy the same commit only after that apply succeeds.
 7. Smoke with test accounts. Do not use a live card.
 
@@ -46,6 +48,11 @@ Do not delete ledger rows, refund rows, tip rows, or transfer claims to undo a r
 - If `0100` was applied, restore the previous `apply_refund` and drop `record_stripe_refund` and `stripe_refunds` only when `stripe_refunds` is empty.
 - If `0101` was applied, stop transfers first. Drop the claim functions only when no claim is `sending` or `ambiguous`. Keep the table if any Stripe transfer id is stored.
 - If `0102` was applied, stop tip charges first. Keep `job_tips` and tip ledger rows if any tip has `paid_at` set. A rollback that deletes a paid tip would destroy financial history.
+- If `0103` or `0104` was applied, restore `confirm_tip_payment` from `0102`. Do not delete tip or ledger rows.
+
+## Local test runtime
+
+`.env.local` keeps one live secret and one live publishable key. The test secret and test publishable key are stored beside them as `STRIPE_TEST_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY`, so the live lines do not hide them. `.env.test.local` is gitignored and is the only file a test process should load. `scripts/stripe-test-runtime.mjs` refuses to start unless both Stripe keys are test keys. It does not change Vercel or the hosted webhook.
 
 ## Stripe test setup, still not done
 

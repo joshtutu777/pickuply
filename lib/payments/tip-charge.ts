@@ -26,16 +26,20 @@ export async function confirmTipFromIntent(intent: Stripe.PaymentIntent): Promis
     ).catch(() => undefined);
     throw new Error("Live payments are not enabled.");
   }
-  const expanded = intent.latest_charge
+  // A signed webhook lists the charge id. The fee is on the balance transaction, so retrieve it when the event did not expand it.
+  const knownFee = await stripeFeeCents(intent);
+  const expanded = knownFee != null
     ? intent
     : await getStripe().paymentIntents.retrieve(intent.id, { expand: ["latest_charge.balance_transaction"] });
+  const fee = await stripeFeeCents(expanded);
+  if (fee == null) throw new Error("The card fee is not available yet.");
   const charge = expanded.latest_charge;
   const chargeId = typeof charge === "string" ? charge : charge?.id ?? null;
   const confirmed = await createServiceClient().rpc("confirm_tip_payment", {
     target_tip: tipId,
     payment_intent: expanded.id,
     charge_id: chargeId,
-    fee_cents: await stripeFeeCents(expanded),
+    fee_cents: fee,
     live: false,
   });
   if (confirmed.error) throw new Error(confirmed.error.message);

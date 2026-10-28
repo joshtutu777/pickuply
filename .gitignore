@@ -34,6 +34,7 @@ yarn-error.log*
 # .env* ignores .env.local and .env.test. The example file is committed on purpose.
 .env*
 !.env.local.example
+!.env.test.local.example
 
 # playwright
 /test-results/
