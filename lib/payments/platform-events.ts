@@ -2,7 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
-import { confirmTipFromIntent, rememberSavedCard } from "@/lib/payments/tip-charge";
+import { confirmTipFromIntent, rememberBookingCard } from "@/lib/payments/tip-charge";
 import { recordTransferEvent } from "@/lib/payments/connect-events";
 import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
 import { getStripe } from "@/lib/stripe";
@@ -43,6 +43,9 @@ export async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<str
   const marked = await supabase.rpc("note_stripe_livemode", { target_job: jobId, live: intent.livemode });
   if (marked.error) throw new Error(marked.error.message);
   const outcome = typeof result.data === "string" ? result.data : "accepted";
+  if (outcome === "accepted") {
+    await rememberBookingCard(intent).catch(() => undefined);
+  }
   if (outcome === "released_late" || outcome === "duplicate") {
     try {
       await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
@@ -73,21 +76,6 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
       return;
     }
     await acceptOrRelease(intent);
-    if (session.metadata?.save_card === "yes") {
-      const methodId = typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id ?? null;
-      const customerId = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
-      const jobId = session.metadata.job_id;
-      if (jobId) {
-        const job = await supabase.from("jobs").select("customer_id").eq("id", jobId).maybeSingle();
-        if (job.data?.customer_id) {
-          await rememberSavedCard({
-            customerId: job.data.customer_id,
-            stripeCustomerId: customerId,
-            paymentMethodId: methodId,
-          });
-        }
-      }
-    }
     return;
   }
 

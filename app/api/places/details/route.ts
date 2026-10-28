@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { placeDetails } from "@/app/api/places/suggest/route";
+import { placeDetails } from "@/lib/maps/place-details";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {

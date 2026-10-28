@@ -7,7 +7,7 @@ import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Saved cards",
+  title: "Payment methods",
 };
 
 export default function PaymentsPage() {
@@ -30,9 +30,9 @@ async function SavedCards() {
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <BackLink href="/account" label="Account" />
-      <h1 className="mt-3 font-display text-4xl font-semibold text-ink">Saved cards</h1>
+      <h1 className="mt-3 font-display text-4xl font-semibold text-ink">Payment methods</h1>
       <p className="mt-3 text-base text-muted">
-        A saved card can be used for a tip you confirm, or a future booking. Pickuply does not store the card number.
+        A saved card can be used for a tip you confirm. Removing a card stops one-tap tipping for future jobs. Pickuply does not store the card number.
       </p>
       {cards.length === 0 ? <p className="mt-4">No saved card.</p> : null}
       <ul className="mt-4 grid gap-3">

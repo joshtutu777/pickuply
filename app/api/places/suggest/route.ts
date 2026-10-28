@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addressFromComponents, type PlaceSuggestion } from "@/lib/maps/address";
+import { type PlaceSuggestion } from "@/lib/maps/address";
 import { createClient } from "@/lib/supabase/server";
 
 const georgiaBox = {
@@ -70,24 +70,4 @@ export async function GET(request: Request) {
     lng: null,
   }));
   return NextResponse.json({ suggestions });
-}
-
-export async function placeDetails(placeId: string, session: string) {
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) return null;
-  const response = await fetch(
-    `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?sessionToken=${encodeURIComponent(session)}`,
-    {
-      headers: {
-        "X-Goog-Api-Key": key,
-        "X-Goog-FieldMask": "addressComponents,location",
-      },
-    },
-  );
-  if (!response.ok) return null;
-  const body = (await response.json()) as {
-    addressComponents?: { types?: string[]; longText?: string; shortText?: string }[];
-    location?: { latitude?: number; longitude?: number };
-  };
-  return addressFromComponents(body.addressComponents ?? [], body.location);
 }

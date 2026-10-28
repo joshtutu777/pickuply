@@ -22,6 +22,12 @@ type OwnedJob = {
   assigned_driver_id: string | null;
 };
 
+function sessionSavesCard(session: Stripe.Checkout.Session): boolean {
+  const intent = session.payment_intent;
+  if (!intent || typeof intent === "string") return false;
+  return intent.setup_future_usage === "off_session";
+}
+
 function intentId(value: string | Stripe.PaymentIntent | null): string | null {
   if (!value) return null;
   return typeof value === "string" ? value : value.id;
@@ -155,7 +161,8 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
         session.status === "open" &&
         typeof session.url === "string" &&
         session.amount_total === job.price_cents &&
-        session.metadata?.driver_id === job.assigned_driver_id,
+        session.metadata?.driver_id === job.assigned_driver_id &&
+        sessionSavesCard(session),
     )
     .sort((left, right) => right.created - left.created)[0];
   for (const session of openSessions) {

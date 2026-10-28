@@ -4,12 +4,11 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requestOrigin } from "@/lib/payments/connect";
-import { chargeSavedTip, tipIdempotencyKey } from "@/lib/payments/tip-charge";
+import { chargeSavedTip, loadBookingCard, tipIdempotencyKey } from "@/lib/payments/tip-charge";
 import { tipAmountError } from "@/lib/payments/tips";
 import { checkoutExcludedPaymentMethods } from "@/lib/payments/checkout-lines";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
 
 function tipError(message: string | undefined): string {
   const text = message ?? "";
@@ -50,31 +49,27 @@ export async function submitTip(formData: FormData) {
   const supabase = await createClient();
   const tipRow = await supabase.from("job_tips").select("driver_id").eq("id", tip.tip_id).maybeSingle();
   const user = await supabase.auth.getUser();
-  const saved = user.data.user
-    ? await supabase
-        .from("customer_payment_methods")
-        .select("stripe_customer_id, stripe_payment_method_id")
-        .eq("customer_id", user.data.user.id)
-        .is("detached_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : null;
-  const method = saved?.data;
-  if (method?.stripe_customer_id && method.stripe_payment_method_id) {
+  const card = user.data.user ? await loadBookingCard(jobId, user.data.user.id) : null;
+  if (card) {
     try {
       const result = await chargeSavedTip({
         tipId: tip.tip_id,
         amountCents: tip.amount_cents,
-        customerId: method.stripe_customer_id,
-        paymentMethodId: method.stripe_payment_method_id,
+        customerId: card.customerId,
+        paymentMethodId: card.paymentMethodId,
         jobId,
         driverId: tipRow.data?.driver_id ?? "",
       });
       if (result === "paid") redirect(`/jobs/${jobId}?tip=paid`);
-    } catch {
-      await createServiceClient().rpc("fail_tip", { target_tip: tip.tip_id, payment_intent: "" });
-      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The saved card could not be charged. You can try checkout.")}`);
+    } catch (error) {
+      if (error && typeof error === "object" && "digest" in error) throw error;
+      const message = error instanceof Error &&
+        (error.message.includes("Live payments are not enabled.") ||
+          error.message === "The tip was charged and could not be recorded." ||
+          error.message === "The tip could not be charged.")
+        ? error.message
+        : "The tip could not be charged.";
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent(message)}`);
     }
   }
 
@@ -103,7 +98,7 @@ export async function submitTip(formData: FormData) {
         success_url: `${origin}/jobs/${jobId}?tip=return`,
         cancel_url: `${origin}/jobs/${jobId}?tip=cancel`,
       },
-      { idempotencyKey: `tip-checkout:${tipIdempotencyKey(tip.tip_id)}` },
+      { idempotencyKey: `tip-checkout:${tipIdempotencyKey(jobId, tip.tip_id)}` },
     );
     if (session.livemode) {
       await getStripe().checkout.sessions.expire(session.id);

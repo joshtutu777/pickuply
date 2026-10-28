@@ -25,7 +25,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "Do drivers keep tips?",
-        a: "Yes. Drivers receive 100% of customer tips. Pickuply does not take a commission or service fee from tips.",
+        a: "Yes. Drivers receive 100% of customer tips. Pickuply does not take a commission or service fee from tips. Your card is held for this booking and saved so you can add an optional tip in one tap. You won't be charged extra without your OK. You can remove a saved card under Profile, Payment methods.",
       },
       {
         q: "When is my card charged?",
