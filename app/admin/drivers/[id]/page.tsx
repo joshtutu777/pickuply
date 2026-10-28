@@ -121,6 +121,7 @@ async function DriverDetail({
         All drivers
       </Link>
       {query.saved === "1" ? <p className="mt-4 text-base text-ink">Saved.</p> : null}
+      {query.saved === "deleted" ? <p className="mt-4 text-base text-ink">Account deleted. That phone can sign up again.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}
