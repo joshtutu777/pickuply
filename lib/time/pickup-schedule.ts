@@ -169,6 +169,34 @@ export function pickupWindowError(windows: PickupWindowDraft[], now = new Date()
   return null;
 }
 
+export function georgiaWallClock(iso: string): { date: string; time: string } {
+  return wallClock(new Date(iso));
+}
+
+export function windowArrivalError(
+  window: { starts_at: string; ends_at: string },
+  time: string,
+  now = new Date(),
+): string | null {
+  const start = new Date(window.starts_at);
+  const end = new Date(window.ends_at);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end.getTime() <= now.getTime()) {
+    return "That pickup window has passed. Choose another time.";
+  }
+  if (!timePattern.test(time)) return "Enter an arrival time inside the pickup window.";
+  let arrival: Date;
+  try {
+    arrival = zonedWallTime(wallClock(start).date, time);
+  } catch (error) {
+    return error instanceof Error ? error.message : "Enter an arrival time inside the pickup window.";
+  }
+  if (arrival.getTime() < start.getTime() || arrival.getTime() > end.getTime()) {
+    return "Choose an arrival inside the pickup window.";
+  }
+  if (arrival.getTime() <= now.getTime()) return "That pickup time has passed. Choose a later time.";
+  return null;
+}
+
 export function arrivalError(
   date: string,
   time: string,

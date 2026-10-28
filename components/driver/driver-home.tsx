@@ -16,6 +16,8 @@ import {
   arrivalError,
   defaultOfferArrivalLeadMinutes,
   formatScheduledPickup,
+  georgiaWallClock,
+  windowArrivalError,
   georgiaDateISO,
   windowIsOpen,
   type PickupPlan,
@@ -819,8 +821,14 @@ export function DriverHome({
 }
 
 function scheduleArgs(plan: PickupPlan | null | undefined, date: string, time: string, windowId: string) {
-  if (!plan?.availability || plan.availability === "windows") {
-    return { proposed_date: null, proposed_time: null, window_id: plan?.availability === "windows" ? windowId || null : null };
+  if (!plan?.availability) return { proposed_date: null, proposed_time: null, window_id: null };
+  if (plan.availability === "windows") {
+    const chosen = plan.windows.find((window) => window.id === windowId);
+    return {
+      proposed_date: chosen ? georgiaWallClock(chosen.starts_at).date : null,
+      proposed_time: time || null,
+      window_id: windowId || null,
+    };
   }
   return { proposed_date: date, proposed_time: time, window_id: null };
 }
@@ -838,8 +846,7 @@ function scheduleGap(
   if (plan.availability === "windows") {
     const chosen = plan.windows.find((window) => window.id === windowId);
     if (!chosen) return "Select one of the customer's pickup windows.";
-    if (!windowIsOpen(chosen.ends_at)) return "That pickup window has passed. Choose another time.";
-    return null;
+    return windowArrivalError(chosen, time);
   }
   return arrivalError(date, time, new Date(), leadMinutes);
 }
@@ -881,15 +888,17 @@ function PickupProposal({
   const latest = addCalendarDays(today, 6);
   if (plan.availability === "windows") {
     const open = plan.windows.filter((window) => windowIsOpen(window.ends_at));
+    const selected = open.find((window) => window.id === windowId);
     return (
-      <fieldset className="grid gap-2">
+      <fieldset className="grid gap-3">
         <legend className="text-base font-semibold text-ink">Choose one pickup window</legend>
+        <p className="text-base text-ink">Then enter the exact arrival time inside that window.</p>
         {open.length === 0 ? <p className="text-base text-ink">Those pickup windows have passed.</p> : null}
         {open.map((window) => (
           <label key={window.id} className="flex min-h-12 items-center gap-3 rounded-2xl bg-paper px-3 ring-1 ring-line">
             <input
               type="radio"
-              name={`window-${window.id}`}
+              name={`windows-${open[0]?.id ?? "pickup"}`}
               checked={windowId === window.id}
               onChange={() => onWindow(window.id)}
               className="size-5"
@@ -897,6 +906,20 @@ function PickupProposal({
             <span>{formatScheduledPickup(window.starts_at, window.ends_at)}</span>
           </label>
         ))}
+        {selected ? (
+          <label className="text-base font-semibold text-ink" htmlFor={`arrival-${selected.id}`}>
+            Arrival time
+            <input
+              id={`arrival-${selected.id}`}
+              type="time"
+              value={time}
+              min={georgiaWallClock(selected.starts_at).time}
+              max={georgiaWallClock(selected.ends_at).time}
+              onChange={(event) => onTime(event.target.value)}
+              className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4"
+            />
+          </label>
+        ) : null}
       </fieldset>
     );
   }

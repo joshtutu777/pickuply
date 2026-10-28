@@ -195,6 +195,7 @@ async function sendQuote(page, jobId, { date, time, windowIndex, dollars }) {
   }
   if (windowIndex != null) {
     await card.getByRole("radio").nth(windowIndex).check();
+    await card.getByLabel("Arrival time").fill(time ?? "10:00");
   }
   await card.getByLabel(/Offer Amount/).fill(dollars);
   const rpcNotes = [];
@@ -225,7 +226,20 @@ async function claimPricedQuote(page, jobId, { date, time }) {
   await card.locator("input[type='date']").fill(date);
   await card.locator("input[type='time']").fill(time);
   await card.getByRole("button", { name: "Claim this job" }).click();
-  await card.getByText(/You are assigned/).waitFor({ timeout: 20_000 });
+  const started = Date.now();
+  while (Date.now() - started < 20_000) {
+    const assigned = localSql(
+      `select (assigned_driver_id is not null)::text from public.jobs where id = '${jobId}'`,
+    );
+    if (assigned === "true") return;
+    const text = await card.innerText().catch(() => "");
+    if (/passed|Choose an arrival|Enter the pickup|already taken/i.test(text)) {
+      throw new Error(text.slice(0, 300));
+    }
+    await page.waitForTimeout(250);
+  }
+  const text = await card.innerText().catch(() => "");
+  throw new Error(text.slice(0, 300) || "The priced quote was not assigned.");
 }
 
 async function userRpc(api, token, name, args) {
@@ -479,11 +493,14 @@ try {
     bodyB.includes("100 Audit Lane") ? "street visible" : "street hidden",
   );
 
-  await sendQuote(pageA, oneWindow.id, { windowIndex: 0, dollars: "60" });
+  await sendQuote(pageA, oneWindow.id, { windowIndex: 0, time: "10:00", dollars: "60" });
   note("driver selects the only customer window", true);
-  await sendQuote(pageB, twoWindows.id, { windowIndex: 1, dollars: "62" });
+  await customerPage.goto(`${base}/jobs/${oneWindow.id}`);
+  await customerPage.getByText(/10:00 AM/).waitFor();
+  note("customer sees the exact arrival with the offer", true);
+  await sendQuote(pageB, twoWindows.id, { windowIndex: 1, time: "14:00", dollars: "62" });
   note("driver selects the second customer window", true);
-  await sendQuote(pageA, windows.id, { windowIndex: 0, dollars: "60" });
+  await sendQuote(pageA, windows.id, { windowIndex: 0, time: "10:00", dollars: "60" });
   note("driver selects a customer window", true);
   localSql(`
     update public.job_pickup_windows

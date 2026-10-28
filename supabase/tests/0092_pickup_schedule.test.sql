@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(46);
+select plan(55);
 
 do $$
 declare
@@ -280,12 +280,37 @@ select throws_ok(
   'Select one of the customer pickup windows.',
   'a driver cannot invent a pickup window'
 );
+select throws_ok(
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000023', 'offer', 5200, '', %L, null,
+      (select id from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000023')
+    )$$,
+    pg_temp.day_offset(1)
+  ),
+  'Enter an arrival time inside the pickup window.',
+  'a window arrival needs both a date and a time'
+);
+select throws_ok(
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000023', 'offer', 5300, '', %L, '08:00',
+      (select id from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000023')
+    )$$,
+    pg_temp.day_offset(1)
+  ),
+  'Choose an arrival inside the pickup window.',
+  'an arrival before the window is rejected'
+);
 select lives_ok(
-  $$select public.submit_offer(
-    'c1920000-0000-4000-8000-000000000023', 'offer', 5500, '', null, null,
-    (select id from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000023')
-  )$$,
-  'a driver can select the customer window'
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000023', 'offer', 5500, '', %L, '10:00',
+      (select id from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000023')
+    )$$,
+    pg_temp.day_offset(1)
+  ),
+  'a driver can propose an arrival inside the customer window'
 );
 select lives_ok(
   format(
@@ -297,6 +322,18 @@ select lives_ok(
   'a second driver can propose a different time'
 );
 
+select pg_temp.as_user('c1920000-0000-4000-8000-000000000003');
+select lives_ok(
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000024', 'offer', 6600, '', %L, '15:00',
+      (select id from public.job_pickup_windows
+       where job_id = 'c1920000-0000-4000-8000-000000000024' and position = 2)
+    )$$,
+    pg_temp.day_offset(2)
+  ),
+  'an arrival at the end of a window is allowed'
+);
 select pg_temp.clear_auth();
 reset role;
 update public.job_pickup_windows
@@ -325,14 +362,13 @@ select lives_ok(
   'the customer can choose the window offer'
 );
 select is(
-  (select scheduled_pickup_start = (
-      select starts_at from public.job_pickup_windows
-      where job_id = 'c1920000-0000-4000-8000-000000000023'
-    )
+  (select scheduled_pickup_end is null
+    and to_char(scheduled_pickup_start at time zone 'America/New_York', 'HH24:MI') = '10:00'
+    and (select count(*) from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000023') = 1
     and assigned_driver_id = 'c1920000-0000-4000-8000-000000000003'
     from public.jobs where id = 'c1920000-0000-4000-8000-000000000023'),
   true,
-  'the chosen window becomes the confirmed pickup'
+  'the exact arrival becomes the confirmed pickup and the window stays'
 );
 select throws_ok(
   $$select public.choose_offer((
@@ -562,11 +598,15 @@ values (
 select pg_temp.as_user('c1920000-0000-4000-8000-000000000002');
 set local role authenticated;
 select lives_ok(
-  $$select public.submit_offer(
-    'c1920000-0000-4000-8000-000000000033', 'offer', 6000, '', null, null,
-    'c1920000-0000-4000-8000-000000000133'
-  )$$,
-  'a driver can still choose a saved window that has 30 minutes left'
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000033', 'offer', 6000, '', %L, %L,
+      'c1920000-0000-4000-8000-000000000133'
+    )$$,
+    to_char((now() + interval '15 minutes') at time zone 'America/New_York', 'YYYY-MM-DD'),
+    to_char((now() + interval '15 minutes') at time zone 'America/New_York', 'HH24:MI')
+  ),
+  'a driver can propose an arrival inside a window that is still open'
 );
 select is(
   (select accept_window_lead_minutes from public.platform_settings where id = 1),
@@ -637,6 +677,79 @@ select lives_ok(
     to_char((now() + interval '45 minutes') at time zone 'America/New_York', 'HH24:MI')
   ),
   'an Anytime arrival 45 minutes out is accepted'
+);
+
+select pg_temp.as_user('c1920000-0000-4000-8000-000000000001');
+select lives_ok(
+  format(
+    $$select public.create_customer_request(
+      'c1920000-0000-4000-8000-000000000035',
+      jsonb_build_object(
+        'service', 'junk', 'description', 'Current app window', 'pieces', 1, 'size', 'medium',
+        'item_value_cents', 0, 'stairs_pickup', 0, 'elevator', false, 'help_loading', false,
+        'preferred_date', %L, 'time_window', 'afternoon', 'pricing_method', 'fixed',
+        'offer_cents', 6500, 'budget_min_cents', null, 'budget_max_cents', null,
+        'zone_slug', 'west_metro', 'pickup_area', 'Austell, 30106', 'pickup_address', '35 Synthetic Lane',
+        'customer_name', 'Sched Customer', 'customer_phone', '+14045550192',
+        'junk_load_size', 'quarter', 'junk_materials', 'Wood furniture',
+        'junk_special_items', jsonb_build_object('mattress', false, 'tires', false, 'appliances', false),
+        'pickup_availability', 'windows',
+        'pickup_windows', jsonb_build_array(jsonb_build_object('date', %L, 'start', '13:00', 'end', '16:00'))
+      )
+    )$$,
+    pg_temp.day_offset(1), pg_temp.day_offset(1)
+  ),
+  'a window request for the current app'
+);
+select pg_temp.as_user('c1920000-0000-4000-8000-000000000002');
+select lives_ok(
+  $$select public.submit_offer(
+    'c1920000-0000-4000-8000-000000000035', 'offer', 6800, '', null, null,
+    (select id from public.job_pickup_windows where job_id = 'c1920000-0000-4000-8000-000000000035')
+  )$$,
+  'the current app can offer a window without an arrival time'
+);
+select is(
+  (select o.proposed_pickup_start = w.starts_at and o.proposed_pickup_end = w.ends_at
+   from public.job_offers o
+   join public.job_pickup_windows w on w.id = o.pickup_window_id
+   where o.job_id = 'c1920000-0000-4000-8000-000000000035' and o.status = 'active'),
+  true,
+  'a window offer without an arrival stores the whole window'
+);
+select pg_temp.as_user('c1920000-0000-4000-8000-000000000001');
+select lives_ok(
+  $$select public.choose_offer((
+    select id from public.job_offers
+    where job_id = 'c1920000-0000-4000-8000-000000000035' and status = 'active'
+  ))$$,
+  'the customer can accept that whole-window offer'
+);
+select is(
+  (select scheduled_pickup_start = (
+      select starts_at from public.job_pickup_windows
+      where job_id = 'c1920000-0000-4000-8000-000000000035'
+    )
+    and scheduled_pickup_end = (
+      select ends_at from public.job_pickup_windows
+      where job_id = 'c1920000-0000-4000-8000-000000000035'
+    )
+    from public.jobs where id = 'c1920000-0000-4000-8000-000000000035'),
+  true,
+  'accepting a current-app window locks that window'
+);
+select pg_temp.as_user('c1920000-0000-4000-8000-000000000002');
+select throws_ok(
+  format(
+    $$select public.submit_offer(
+      'c1920000-0000-4000-8000-000000000024', 'offer', 6700, '', null, %L,
+      (select id from public.job_pickup_windows
+       where job_id = 'c1920000-0000-4000-8000-000000000024' and position = 3)
+    )$$,
+    '17:00'
+  ),
+  'Enter an arrival time inside the pickup window.',
+  'an arrival time without its date is rejected'
 );
 
 select * from finish();
