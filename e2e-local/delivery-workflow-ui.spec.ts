@@ -12,6 +12,14 @@ const png = Buffer.from(
 
 test("a driver continues after item loaded, and junk removal stops at the pickup", async ({ browser }) => {
   const status = localStatus();
+  localSql(`
+    alter table public.job_photos disable trigger job_photos_lock;
+    delete from public.job_photos where job_id in ('${deliveryId}', '${junkId}');
+    delete from public.job_events where job_id in ('${deliveryId}', '${junkId}');
+    delete from public.notifications where job_id in ('${deliveryId}', '${junkId}');
+    delete from public.jobs where id in ('${deliveryId}', '${junkId}');
+    alter table public.job_photos enable trigger job_photos_lock;
+  `);
   const customer = await makeUser(status, `flow-customer-${Date.now()}@pickuply.test`);
   const driver = await makeUser(status, `flow-driver-${Date.now()}@pickuply.test`);
   localSql(`
@@ -68,21 +76,29 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
     );
     expect(Date.now() - missingStarted).toBeLessThan(1000);
     await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("arrived");
-    await driverPage.locator("#proof-stage").selectOption("pickup");
     await driverPage.locator("#proof-file").setInputFiles({ name: "pickup.png", mimeType: "image/png", buffer: png });
-    await driverPage.getByRole("button", { name: "Save proof" }).click();
-    await expect(driverPage.getByText("Proof saved. It cannot be replaced.")).toBeVisible();
-    await driverPage.route("**/*", async (route) => {
-      if (route.request().method() === "POST") await new Promise((resolve) => setTimeout(resolve, 800));
+    let storageMode: "abort" | "delay" | "pass" = "abort";
+    await driverPage.route("**/storage/v1/object/**", async (route) => {
+      if (storageMode === "abort") {
+        await route.abort();
+        return;
+      }
+      if (storageMode === "delay") await new Promise((resolve) => setTimeout(resolve, 700));
       await route.continue();
     });
+    await driverPage.getByRole("button", { name: "Item loaded" }).click();
+    await expect(driverPage.getByText("The file could not be saved.")).toBeVisible();
+    await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("arrived");
+    storageMode = "delay";
+    const loaded = driverPage.getByRole("button", { name: "Item loaded" });
     const actionStarted = Date.now();
-    await driverPage.getByRole("button", { name: "Item loaded" }).click({ noWaitAfter: true });
-    await expect(driverPage.getByRole("button", { name: "Updating status..." })).toBeVisible();
-    const feedbackMs = Date.now() - actionStarted;
-    expect(feedbackMs).toBeLessThan(500);
+    await loaded.click({ noWaitAfter: true });
+    await expect(driverPage.getByRole("button", { name: "Saving proof…" })).toBeVisible();
+    expect(Date.now() - actionStarted).toBeLessThan(500);
+    await loaded.click({ timeout: 500, noWaitAfter: true }).catch(() => undefined);
     await expect(driverPage.getByRole("button", { name: "Proceed to drop-off" })).toBeVisible();
-    await driverPage.unroute("**/*");
+    expect(localSql(`select count(*) from public.job_photos where job_id = '${deliveryId}' and stage = 'pickup' and report_id is null`).trim()).toBe("1");
+    storageMode = "pass";
     await expect(driverPage.getByRole("button", { name: "Waiting for customer pickup review." })).toHaveCount(0);
 
     await customerPage.goto(`/jobs/${deliveryId}`);
@@ -91,6 +107,20 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
 
     await driverPage.getByRole("button", { name: "Proceed to drop-off" }).click();
     await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("in_transit");
+    await driverPage.getByRole("button", { name: "Arrived at drop-off" }).click();
+    await expect(driverPage.getByRole("button", { name: "Delivered" })).toBeVisible();
+    await driverPage.getByRole("button", { name: "Delivered" }).click();
+    await expect(driverPage.locator("#proof-needed")).toContainText(
+      "Please upload a delivery photo or video before marking this job as Delivered.",
+    );
+    await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("in_transit");
+    await driverPage.locator("#proof-file").setInputFiles({ name: "dropoff.png", mimeType: "image/png", buffer: png });
+    await driverPage.getByRole("button", { name: "Delivered" }).click();
+    await expect(driverPage.getByRole("heading", { name: "Awaiting customer confirmation" })).toBeVisible();
+    expect(localSql(`select count(*) from public.job_photos where job_id = '${deliveryId}' and stage = 'dropoff' and report_id is null`).trim()).toBe("1");
+    await customerPage.goto(`/jobs/${deliveryId}`);
+    await expect(customerPage.getByRole("heading", { name: "Does everything look good?" })).toBeVisible();
+    await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
 
     await driverPage.goto(`/driver/jobs/${junkId}`);
     await expect(driverPage.getByRole("button", { name: "Junk removed" })).toBeVisible();
@@ -101,10 +131,7 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
     await expect.poll(() => localSql(`select status from public.jobs where id = '${junkId}'`).trim()).toBe("arrived");
     await expect(driverPage.getByRole("button", { name: "Proceed to drop-off" })).toHaveCount(0);
     await expect(driverPage.getByRole("button", { name: "Arrived at drop-off" })).toHaveCount(0);
-    await driverPage.locator("#proof-stage").selectOption("pickup");
     await driverPage.locator("#proof-file").setInputFiles({ name: "removed.png", mimeType: "image/png", buffer: png });
-    await driverPage.getByRole("button", { name: "Save proof" }).click();
-    await expect(driverPage.getByText("Proof saved. It cannot be replaced.")).toBeVisible();
     await driverPage.getByRole("button", { name: "Junk removed" }).click();
     await expect(driverPage.getByRole("heading", { name: "Awaiting customer confirmation" })).toBeVisible();
     await expect.poll(() => localSql(`select status || '|' || (dropoff_arrived_at is null)::text from public.jobs where id = '${junkId}'`).trim()).toBe("delivered|true");
@@ -114,8 +141,8 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
     await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
     await expect(customerPage.getByRole("button", { name: "Report an Issue" })).toBeVisible();
   } finally {
-    await driverContext.close();
-    await customerContext.close();
+    await driverContext.close().catch(() => undefined);
+    await customerContext.close().catch(() => undefined);
     localSql(`
       alter table public.job_photos disable trigger job_photos_lock;
       delete from public.job_photos where job_id in ('${deliveryId}', '${junkId}');
@@ -139,7 +166,7 @@ async function hideDevOverlay(page: Page) {
 }
 
 function localStatus() {
-  const text = execFileSync("npx supabase status -o env", { encoding: "utf8", shell: true });
+  const text = execFileSync(process.env.SUPABASE_CLI || "npx supabase status -o env", { encoding: "utf8", shell: true });
   const values = new Map<string, string>();
   for (const line of text.split(/\r?\n/)) {
     const eq = line.indexOf("=");
