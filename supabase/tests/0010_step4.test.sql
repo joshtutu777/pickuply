@@ -160,8 +160,8 @@ select is(
 );
 select is(
   (public.price_breakdown('accept', 3500)->>'service_fee_cents')::int,
-  135,
-  'a posted $35 offer adds card processing on top'
+  175,
+  'a posted $35 offer adds a 5 percent service fee'
 );
 select is(
   (public.price_breakdown('accept', 15000)->>'driver_earnings_cents')::int,
@@ -175,13 +175,13 @@ select is(
 );
 select is(
   (public.price_breakdown('accept', 15000)->>'service_fee_cents')::int,
-  479,
-  'a posted $150 offer adds card processing on top'
+  750,
+  'a posted $150 offer adds a 5 percent service fee'
 );
 select is(
   (public.price_breakdown('forward', 6000)->>'customer_total_cents')::int,
-  6210,
-  'a $60 customer offer totals $62.10 with card processing'
+  6300,
+  'a $60 customer offer totals $63.00 with the service fee'
 );
 select is(
   (public.price_breakdown('forward', 6000)->>'driver_earnings_cents')::int,
@@ -190,8 +190,8 @@ select is(
 );
 select is(
   (public.price_breakdown('forward', 12000)->>'customer_total_cents')::int,
-  12389,
-  'a $120 customer offer adds card processing on top'
+  12600,
+  'a $120 customer offer adds a 5 percent service fee'
 );
 
 select pg_temp.as_user('c1111111-1111-4111-8111-111111111111');

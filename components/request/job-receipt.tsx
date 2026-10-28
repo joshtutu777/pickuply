@@ -36,7 +36,7 @@ export function JobReceipt({
         <p className="break-words">Service {service}</p>
         <p className="break-words">Driver {driverFirstName ?? "Assigned driver"}</p>
         <p className="break-words">Offer {driverSubtotalCents == null ? "not set" : formatCents(driverSubtotalCents)}</p>
-        <p className="break-words">Card processing fee {serviceFeeCents == null ? "not set" : formatCents(serviceFeeCents)}</p>
+        <p className="break-words">Service fee {serviceFeeCents == null ? "not set" : formatCents(serviceFeeCents)}</p>
         <p className="break-words font-semibold">Total {totalCents == null ? "not set" : formatCents(totalCents)}</p>
         {tripFeeCents != null && tripFeeCents > 0 ? <p className="break-words">Trip fee {formatCents(tripFeeCents)}</p> : null}
         <p className="break-words">Refunds {formatCents(refundedCents)}</p>

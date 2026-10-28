@@ -198,6 +198,7 @@ async function JobEntry({
             driverPayCents={job.driver_pay_cents!}
             platformFeeCents={job.platform_fee_cents!}
             serviceFeeCents={job.service_fee_cents!}
+            serviceFeeBps={job.service_fee_bps}
             totalCents={job.price_cents!}
             paymentStatus={job.payment_status}
             minutesLeft={

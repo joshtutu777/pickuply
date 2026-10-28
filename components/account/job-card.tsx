@@ -44,7 +44,7 @@ export function CustomerJobCard({
       {driverName ? <p className="text-sm text-ink">Driver: {driverName}</p> : null}
       {job.price_cents != null ? <p className="text-sm font-semibold text-ink">Total {formatCents(job.price_cents)}</p> : null}
       {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
-        <p className="text-sm text-ink">Card processing fee {formatCents(job.service_fee_cents)}</p>
+        <p className="text-sm text-ink">Service fee {formatCents(job.service_fee_cents)}</p>
       ) : null}
       {tab === "history" ? (
         <p className="text-sm text-muted">{formatUsWhen(job.updated_at)}</p>
