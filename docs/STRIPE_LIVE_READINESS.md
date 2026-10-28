@@ -129,11 +129,9 @@ No secret is written into this report. The publishable key is public by design. 
 
 - Production main includes driver-offer UX: merge `ee20ff2`, pull request 16. There is no migration `0098`. Newest-first uses the existing Georgia page parameter and a page sort of the matched list.
 - `supabase/tests/0013_security.test.sql` on main already checks the current `claim_job(uuid, text, text, uuid)` signature and still requires `assert_driver_can_take_job`.
-- This review is branch `feat/stripe-readiness`, based on `ee20ff2`.
+- This review is branch `feat/stripe-readiness`, commit `a855d42b33b2fbc98bb5db14e94d47f545327853`, pull request https://github.com/joshtutu777/pickuply/pull/17. It is based on `ee20ff2` and is not merged.
 - Migration `0099_payment_reconciliation.sql` is local until the owner applies it. It only adds a read-only admin function.
 - `release/mobile-ux` was not changed.
-
-The pull request URL and commit SHA are in the chat summary after the branch is pushed.
 
 ## J. Release sequence
 
