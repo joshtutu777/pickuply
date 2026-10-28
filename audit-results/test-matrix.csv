@@ -1,0 +1,197 @@
+id,status,environment,evidence,detail
+ADMIN-A2,NOT IMPLEMENTED,local-database,supabase/tests/0112_marketplace_audit.sql,"customer,driver,admin"
+ADMIN-C-011,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,PLY-22B29862 messages 3
+ADMIN-D-009,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Add a clearer license photo
+ADMIN-D-030,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,audit rows 1
+ADMIN-D-031,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,only an admin can review drivers
+BOOK-001,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,created a11d0004-0000-4000-8000-000000000010
+BOOK-004,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,private pickup address
+BOOK-005,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,description stored
+BOOK-010,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,add a photo or a short description
+BOOK-011,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"{""offer_cents"": 5000, ""commission_bps"": 1500, ""subtotal_cents"": 5000, ""service_fee_bps"": 500, ""service_fee_cents"": 250, ""platform_fee_cents"": 750, ""customer_total_cents"": 5250, ""driver_earnings_cents"": 4250}"
+BOOK-012,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,service fee 250 at 500 bps
+BOOK-021,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"{""outcome"": ""free"", ""payment_intent_id"": null, ""checkout_session_id"": null} status cancelled"
+BOOK-022,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,cancel wrote cancelled
+BOOK-023,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,jobs after retry 1
+CUST-009,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Audit C2 Edited
+CUST-013,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,only an admin can review drivers
+CUST-014,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,second auth row with the same phone
+DEL-007,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,add the pickup photo first
+DEL-009,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,pickup photo rows 1
+DEL-012,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,delivered
+DEL-013,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,add the delivery photo first
+DEL-014,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,confirmed at 2026-10-28 23:06:30.587282+00
+DEL-016,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,thread 2783ac78-f48b-4ddb-a9e7-a3cbb07251b5 closes 2026-10-28 23:06:30.587282+00
+DEL-016B,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,this conversation is closed
+DEL-017,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,cancelled thread none closes null
+DEL-019,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,delivered
+DEL-021,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,only the assigned driver can update this job
+DRV-005,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Austell 30106
+DRV-011,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,vehicle row
+DRV-014,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,your license expiration must be in the future
+DRV-015,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,upload a profile photo
+DRV-016,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,pending_review
+DRV-017,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,pending_review is the admin pending state
+DRV-018,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,active/false
+DRV-020,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Finish setup to accept jobs.
+DRV-021,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,go online before claiming a job
+DRV-023,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Your Pickuply driver account is restricted. You cannot submit offers or accept new jobs while this restriction is active.
+DRV-025,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"customer sees 0, admin sees 1"
+DRV-028,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,payout alerts before 1 after 1
+MSG-001,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"For your safety, contact details can't be shared in chat"
+MSG-002,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,gate code stored
+OFFER-001,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Austell matched count 1
+OFFER-002,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,Savannah matched count 0; all-Georgia feed is allowed to show it
+OFFER-004,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,feed count 1
+OFFER-005,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,unassigned private street hidden
+OFFER-006,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,matched driver pay 4250
+OFFER-007,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,a11d0002-0000-4000-8000-000000000004
+OFFER-010,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,job already taken
+OFFER-012,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,job already taken
+OFFER-014,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,claimed event
+OFFER-015,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,notification rows 1
+OFFER-017,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,feed 0 winner a11d0002-0000-4000-8000-000000000004
+PAY-008,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,completed/captured
+PAY-012,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,ledger 4250
+PAY-013,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"commission bps 1500 breakdown {""offer_cents"": 5000, ""commission_bps"": 1500, ""subtotal_cents"": 5000, ""service_fee_bps"": 500, ""service_fee_cents"": 250, ""platform_fee_cents"": 750, ""customer_total_cents"": 5250, ""driver_earnings_cents"": 4250}"
+PAY-014,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"service fee bps 500 breakdown {""offer_cents"": 5000, ""commission_bps"": 1500, ""subtotal_cents"": 5000, ""service_fee_bps"": 500, ""service_fee_cents"": 250, ""platform_fee_cents"": 750, ""customer_total_cents"": 5250, ""driver_earnings_cents"": 4250}"
+PAY-015,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,expected 85 percent of 5000 when commission is 15 percent; driver 4250 at 1500 bps
+PAY-016,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,paid amount 500
+PAY-017,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,only the customer can tip
+PAY-019,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,"{""status"": ""pending"", ""tip_id"": ""3d5683cd-83f1-44f3-b6b4-af11ad7426d8"", ""amount_cents"": 500} / {""status"": ""pending"", ""tip_id"": ""3d5683cd-83f1-44f3-b6b4-af11ad7426d8"", ""amount_cents"": 500}"
+PAY-019B,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,duplicate rows 1
+PAY-020,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,driver ledger 500
+PAY-021,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,tip ledger equals the tip
+PAY-LIVE,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,live payments are not enabled
+SEC-CUSTOMER-JOB,PASS,local-database,supabase/tests/0112_marketplace_audit.sql,other job rows 0 private 0
+PROD-TERMS,PASS,production-read-only,https://pickuplyapp.com/terms,200 https://pickuplyapp.com/terms
+PROD-PRIVACY,PASS,production-read-only,https://pickuplyapp.com/privacy,200 https://pickuplyapp.com/privacy
+PROD-DRIVER-TERMS,PASS,production-read-only,https://pickuplyapp.com/terms/driver,200 https://pickuplyapp.com/terms/driver
+PROD-DRIVE,PASS,production-read-only,https://pickuplyapp.com/drive,200 https://pickuplyapp.com/drive
+PROD-LOGIN,PASS,production-read-only,https://pickuplyapp.com/login,200 https://pickuplyapp.com/login
+PAY-001,PASS,stripe-test,stripe API test mode,"isolated test PaymentIntent status requires_capture, then canceled. No Pickuply job was attached."
+PAY-003,PASS,stripe-test,stripe API test mode,One isolated authorization was created and then canceled. It was not a customer booking.
+CUST-001,BLOCKED,not-executed,audit catalog,A new production phone signup would send a real text. Local test OTP was used instead.
+CUST-004,NOT VERIFIED,not-executed,audit catalog,The local test code does not expose a controllable expiration without waiting or sending a real text.
+CUST-008,NOT VERIFIED,not-executed,audit catalog,Session expiration was not waited out.
+CUST-010,NOT VERIFIED,not-executed,audit catalog,Saved address book was not exercised in the browser.
+CUST-012,NOT VERIFIED,not-executed,audit catalog,A booking draft was not carried through a fresh signup in the browser.
+CUST-015,PASS,not-executed,audit catalog,The mobile Playwright project used a 390px-class phone viewport.
+DRV-002,NOT VERIFIED,not-executed,audit catalog,A new driver phone was not verified on production.
+DRV-003,NOT VERIFIED,not-executed,audit catalog,Driver OTP used the same local login form as the customer tests. A separate driver number was not given a wrong code.
+DRV-006,BLOCKED,not-executed,audit catalog,Address autocomplete needs the Google Places key and was not driven in this run.
+DRV-007,NOT VERIFIED,not-executed,audit catalog,City dropdown was not clicked in the browser.
+DRV-008,NOT VERIFIED,not-executed,audit catalog,"ZIP selection was covered by the database application, not the browser control."
+DRV-009,NOT VERIFIED,not-executed,audit catalog,"Radius buttons were not clicked. The database accepts 10, 25, 50, or 100 miles."
+DRV-012,NOT VERIFIED,not-executed,audit catalog,Profile photo bytes were not uploaded. The application rejects a missing path.
+DRV-013,NOT VERIFIED,not-executed,audit catalog,License photo bytes were not uploaded. The application rejects a missing path.
+DRV-019,NOT VERIFIED,not-executed,audit catalog,"Approved status was checked in the database, not in the signed-in driver browser."
+DRV-022,PASS,not-executed,audit catalog,The online driver claimed the open quote job in the local database.
+DRV-024,NOT VERIFIED,not-executed,audit catalog,Coverage edit after approval was not given its own case. Matching coverage was saved on the application.
+DRV-026,NOT VERIFIED,not-executed,audit catalog,Earnings and history pages were not opened in the browser.
+DRV-027,BLOCKED,not-executed,audit catalog,Stripe Connect onboarding needs the hosted Stripe screen. It was not clicked.
+BOOK-002,BLOCKED,not-executed,audit catalog,Pickup autocomplete was not driven against Google.
+BOOK-003,BLOCKED,not-executed,audit catalog,Drop-off autocomplete was not driven against Google.
+BOOK-006,NOT VERIFIED,not-executed,audit catalog,Item photo upload was not performed in the browser.
+BOOK-007,NOT VERIFIED,not-executed,audit catalog,Vehicle requirement controls were not selected in the browser.
+BOOK-008,NOT VERIFIED,not-executed,audit catalog,Scheduling controls were not selected in the browser. The database request used ASAP.
+BOOK-009,NOT VERIFIED,not-executed,audit catalog,The database stores a typed address. It does not reject an unknown street.
+BOOK-013,NOT VERIFIED,not-executed,audit catalog,The review step was not reached in the browser.
+BOOK-014,NOT VERIFIED,not-executed,audit catalog,A draft was not preserved across signup.
+BOOK-015,NOT VERIFIED,not-executed,audit catalog,Stripe Checkout was not opened in the browser.
+BOOK-016,NOT VERIFIED,not-executed,audit catalog,A test card was not entered in Checkout. An isolated manual authorization was created separately when the test key was present.
+BOOK-017,NOT VERIFIED,not-executed,audit catalog,A declined card was not submitted through Checkout.
+BOOK-018,NOT VERIFIED,not-executed,audit catalog,An abandoned Checkout session was not created.
+BOOK-019,NOT VERIFIED,not-executed,audit catalog,The customer dashboard was not opened for the audit job. The job row existed in the local database.
+BOOK-020,NOT VERIFIED,not-executed,audit catalog,The admin booking screen was not opened.
+BOOK-024,NOT VERIFIED,not-executed,audit catalog,Store order numbers were not submitted. Private fields stay off the driver feed in the database tests.
+OFFER-003,PASS,not-executed,audit catalog,An offline approved driver was rejected until Online. An online driver could claim.
+OFFER-008,NOT VERIFIED,not-executed,audit catalog,The customer screen was not opened after assignment. The database stored the assigned driver.
+OFFER-009,NOT VERIFIED,not-executed,audit catalog,The driver job screen was not opened after assignment.
+OFFER-011,NOT VERIFIED,not-executed,audit catalog,An expired quote was not given its own row.
+OFFER-013,PASS,not-executed,audit catalog,The suspended driver was rejected.
+OFFER-016,NOT VERIFIED,not-executed,audit catalog,Release and reassignment were not executed.
+DEL-001,NOT VERIFIED,not-executed,audit catalog,The assigned job screen was not opened. The database advanced the same job.
+DEL-003,PASS,not-executed,audit catalog,The database moved the job to arrived.
+DEL-004,PASS,not-executed,audit catalog,Arrived is the pickup arrival status.
+DEL-005,PASS,not-executed,audit catalog,A pickup proof row was stored by record_proof.
+DEL-006,PASS,not-executed,audit catalog,Item loaded ran after the pickup photo.
+DEL-008,NOT VERIFIED,not-executed,audit catalog,A failed upload retry was not simulated.
+DEL-010,NOT VERIFIED,not-executed,audit catalog,The customer progress screen was not opened. Status notifications were written.
+DEL-011,PASS,not-executed,audit catalog,Drop-off arrival was recorded.
+DEL-015,NOT VERIFIED,not-executed,audit catalog,The completed screen was not checked for read-only controls.
+DEL-018,NOT VERIFIED,not-executed,audit catalog,Signed photo URLs were not requested. Another customer could not read the job row.
+DEL-020,NOT VERIFIED,not-executed,audit catalog,The admin proof screen was not opened.
+DEL-022,PASS,not-executed,audit catalog,A repeated proof path did not create a second photo. A wrong status was rejected.
+PAY-002,NOT VERIFIED,not-executed,audit catalog,The isolated PaymentIntent was not attached to a Pickuply Stripe Customer.
+PAY-004,NOT VERIFIED,not-executed,audit catalog,Duplicate Checkout was not opened.
+PAY-005,NOT VERIFIED,not-executed,audit catalog,A valid signed webhook was not posted. The invalid signature was rejected.
+PAY-006,NOT VERIFIED,not-executed,audit catalog,A valid test webhook was not reconciled against a job.
+PAY-009,PASS,not-executed,audit catalog,Cancel of an unpaid open assignment returned outcome free and status cancelled.
+PAY-010,NOT VERIFIED,not-executed,audit catalog,A Stripe refund was not created.
+PAY-011,NOT VERIFIED,not-executed,audit catalog,Customer payment history was not opened.
+PAY-018,NOT VERIFIED,not-executed,audit catalog,One-tap tip with a saved card was not run in the browser. The database accepted one $5 tip row.
+PAY-022,NOT VERIFIED,not-executed,audit catalog,A saved card was not removed.
+PAY-023,NOT VERIFIED,not-executed,audit catalog,An authentication-required card was not used.
+PAY-024,NOT VERIFIED,not-executed,audit catalog,A declined tip card was not charged. The database rejects a live-mode tip flag.
+PAY-025,BLOCKED,not-executed,audit catalog,Connect onboarding was not completed in the browser.
+PAY-026,NOT VERIFIED,not-executed,audit catalog,A Stripe transfer was not created.
+PAY-027,NOT VERIFIED,not-executed,audit catalog,Transfer reconciliation was not run against Stripe.
+PAY-028,NOT VERIFIED,not-executed,audit catalog,A failed transfer was not created.
+PAY-029,NOT VERIFIED,not-executed,audit catalog,The payout page copy was not opened in this run. The earnings page already says a transfer is not a bank deposit.
+PAY-030,NOT VERIFIED,not-executed,audit catalog,The local ledger was not compared with the Stripe test balance.
+ADMIN-C-001,NOT VERIFIED,not-executed,audit catalog,Admin customer search was not opened.
+ADMIN-C-002,NOT VERIFIED,not-executed,audit catalog,Customer filters were not used.
+ADMIN-C-003,NOT VERIFIED,not-executed,audit catalog,A customer profile was not opened in admin.
+ADMIN-C-004,NOT VERIFIED,not-executed,audit catalog,Booking history was not opened in admin.
+ADMIN-C-005,NOT VERIFIED,not-executed,audit catalog,An active booking was not opened in admin.
+ADMIN-C-006,NOT VERIFIED,not-executed,audit catalog,A completed booking was not opened in admin.
+ADMIN-C-007,NOT VERIFIED,not-executed,audit catalog,Cancellation history was not opened in admin.
+ADMIN-C-008,NOT VERIFIED,not-executed,audit catalog,Payment status was not opened in admin.
+ADMIN-C-009,NOT VERIFIED,not-executed,audit catalog,Refund records were not opened in admin.
+ADMIN-C-010,PASS,not-executed,audit catalog,A support ticket was created from the customer account in the database.
+ADMIN-C-012,NOT VERIFIED,not-executed,audit catalog,The customer did not open the support reply in the browser.
+ADMIN-C-013,PASS,not-executed,audit catalog,The customer reply function stored a second message.
+ADMIN-C-014,PASS,not-executed,audit catalog,The admin reply function stored a message on the same ticket.
+ADMIN-C-015,NOT VERIFIED,not-executed,audit catalog,Unread counters were not checked.
+ADMIN-C-016,NOT VERIFIED,not-executed,audit catalog,Support history was not refreshed in the browser.
+ADMIN-C-017,NOT IMPLEMENTED,not-executed,audit catalog,Support attachment upload was not found as a required ticket field.
+ADMIN-C-018,NOT VERIFIED,not-executed,audit catalog,Customer suspension was not clicked in admin.
+ADMIN-C-019,NOT VERIFIED,not-executed,audit catalog,Permissions after a customer status change were not rechecked.
+ADMIN-C-020,NOT VERIFIED,not-executed,audit catalog,Admin booking intervention was not clicked.
+ADMIN-C-021,NOT VERIFIED,not-executed,audit catalog,Refund controls were not clicked.
+ADMIN-C-022,NOT VERIFIED,not-executed,audit catalog,Invalid admin form errors were not provoked in the browser.
+ADMIN-C-023,PASS,not-executed,audit catalog,Driver review wrote an audit_log row. Customer support did not get a separate audit assertion.
+ADMIN-D-001,NOT VERIFIED,not-executed,audit catalog,Driver search was not opened.
+ADMIN-D-002,NOT VERIFIED,not-executed,audit catalog,Driver filters were not used.
+ADMIN-D-003,NOT VERIFIED,not-executed,audit catalog,The driver profile was not opened in admin.
+ADMIN-D-004,NOT VERIFIED,not-executed,audit catalog,License bytes were not opened. The admin database read could see the license path and a customer could not.
+ADMIN-D-005,NOT VERIFIED,not-executed,audit catalog,Vehicle details were not opened in admin. The vehicle row was stored.
+ADMIN-D-006,NOT VERIFIED,not-executed,audit catalog,Areas I Cover were not opened in admin. Coverage matching was tested in the feed.
+ADMIN-D-007,PASS,not-executed,audit catalog,review_driver approve_active set the driver to active.
+ADMIN-D-008,PASS,not-executed,audit catalog,The profile role became driver and the driver status became active.
+ADMIN-D-010,NOT VERIFIED,not-executed,audit catalog,The driver did not open the change-request note in the browser. The note was stored.
+ADMIN-D-011,NOT VERIFIED,not-executed,audit catalog,A corrected application was not resubmitted.
+ADMIN-D-012,NOT VERIFIED,not-executed,audit catalog,Decline was not executed.
+ADMIN-D-013,NOT VERIFIED,not-executed,audit catalog,A rejected driver screen was not opened.
+ADMIN-D-014,NOT VERIFIED,not-executed,audit catalog,Pause was not executed. A separate account suspension was tested.
+ADMIN-D-015,PASS,not-executed,audit catalog,The suspended driver could not claim.
+ADMIN-D-016,NOT VERIFIED,not-executed,audit catalog,Reinstate was not executed.
+ADMIN-D-017,NOT VERIFIED,not-executed,audit catalog,Permissions after reinstate were not rechecked.
+ADMIN-D-018,NOT VERIFIED,not-executed,audit catalog,Assigned jobs were not opened in admin.
+ADMIN-D-019,NOT VERIFIED,not-executed,audit catalog,Delivery history was not opened in admin.
+ADMIN-D-020,NOT VERIFIED,not-executed,audit catalog,Earnings and tips were not opened in admin.
+ADMIN-D-021,NOT VERIFIED,not-executed,audit catalog,Connect status was not opened in admin.
+ADMIN-D-022,NOT VERIFIED,not-executed,audit catalog,A driver support conversation was not opened in the browser.
+ADMIN-D-023,NOT VERIFIED,not-executed,audit catalog,A driver support message was not sent.
+ADMIN-D-024,NOT VERIFIED,not-executed,audit catalog,The driver did not see a support message.
+ADMIN-D-025,NOT VERIFIED,not-executed,audit catalog,The driver did not reply.
+ADMIN-D-026,NOT VERIFIED,not-executed,audit catalog,An admin did not see a driver reply.
+ADMIN-D-027,NOT VERIFIED,not-executed,audit catalog,Read state was not checked.
+ADMIN-D-028,NOT VERIFIED,not-executed,audit catalog,Support history was not refreshed.
+ADMIN-D-029,NOT VERIFIED,not-executed,audit catalog,A driver problem report was not answered.
+SEC-DRIVER-PRIVATE,PASS,not-executed,audit catalog,Another customer could not read the driver row or another job.
+SEC-ADMIN-IMPERSONATION,PASS,not-executed,audit catalog,A customer cannot review drivers.
+SEC-MESSAGES,PASS,not-executed,audit catalog,"Phone numbers are rejected in job chat, and a finished job chat is closed."
+SEC-PUSH,BLOCKED,not-executed,audit catalog,Push keys are not in production. Delivery of a phone push was not tested.
+SEC-SMS,BLOCKED,not-executed,audit catalog,No marketing or job SMS was sent.
