@@ -2,6 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
+import { recordTransferEvent } from "@/lib/payments/connect-events";
 import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
 import { getStripe } from "@/lib/stripe";
 import { stripeRefundAction } from "@/lib/stripe-mode";
@@ -53,6 +54,11 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
 export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<void> {
   const stripe = getStripe();
   const supabase = createServiceClient();
+
+  if (event.type.startsWith("transfer.")) {
+    await recordTransferEvent(event);
+    return;
+  }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -187,7 +193,7 @@ async function syncRefund(refund: Stripe.Refund): Promise<void> {
   if (!payment.data?.job_id) return;
   const recorded = await supabase.rpc("record_stripe_refund", {
     target_job: payment.data.job_id,
-    stripe_refund_id: refund.id,
+    external_refund_id: refund.id,
     amount_cents: refund.amount,
     succeeded: refund.status === "succeeded",
   });

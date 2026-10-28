@@ -13,9 +13,15 @@ export const platformPaymentEvents = [
   "refund.created",
   "refund.updated",
   "charge.refunded",
+  "transfer.created",
+  "transfer.updated",
+  "transfer.reversed",
 ] as const;
 
-/** Connected-account events. These are not delivered to the platform payment endpoint. */
+/**
+ * Stripe delivers transfer events on the platform account.
+ * account.updated and payout events are delivered only to a connected-account endpoint.
+ */
 export const connectWebhookEvents = [
   "account.updated",
   "transfer.created",

@@ -2,6 +2,54 @@
 
 Local review on 2026-10-28. No production deploy, hosted migration, live charge, refund, transfer, payout, SMS, or production setting was changed for this review.
 
+## Financial safety — 2026-10-28 afternoon
+
+### Duplicate transfers
+
+`0101_transfer_claims.sql` stores one claim per ledger row. The Stripe idempotency key stays the ledger id. Only the first caller, or a later caller that has checked Stripe and is still inside 23 hours, may create a transfer. A second caller gets `lookup` and does not create one. A lost response is marked ambiguous and is not sent again until a Stripe search says the transfer is absent. After 23 hours an unresolved attempt is reported by `payment_reconciliation_issues()` and is not sent again. The same Stripe transfer id cannot be stored on two ledger rows. Customers cannot call the functions. Local and hosted ledgers had no existing transfer ids, so the unique index does not collide with current rows. The migration is local only.
+
+### Pull requests 17 and 18
+
+`0099` adds a read-only function and does not change existing rows. `0100` adds `stripe_refunds` and replaces the refund function. Existing refund history is kept. A repeated Stripe refund id does not add the amount again. A partial refund adds only that amount. A refund after a transfer leaves the ledger amount and adds a recovery row. It does not reverse the Stripe transfer. Customers cannot call `record_stripe_refund`. The webhook now passes `external_refund_id`, which is the database argument name. Reconciliation stays read-only and returns no rows to a customer or driver.
+
+Rollback for `0099` alone is `drop function public.payment_reconciliation_issues();`. After `0101`, restore the `0099` function body before dropping `stripe_transfer_claims`, because the later function reads that table. Rollback for `0100` is to restore the previous `apply_refund` and drop `record_stripe_refund` and `stripe_refunds` only when that table is empty. Rollback for `0101` drops `begin_transfer_send`, `record_claimed_transfer`, `note_transfer_unknown`, `stripe_transfer_claims`, and the unique transfer index, then restores the `0099` function. None of these migrations are on the hosted database.
+
+### Connect onboarding
+
+A new test Express account was not onboarded. Stripe reported `payouts_enabled` false, `charges_enabled` false, and `details_submitted` false. That is Stripe's account, not a local flag. The onboarding link host is `connect.stripe.com`. The app previously requested card payments and did not request the transfers capability. New and refreshed accounts now request transfers when the driver has an email.
+
+Stripe's published test values were saved: address token `address_full_match`, id number `000000000`, date of birth `1902-01-01`, phone token `0000000000`, and test bank routing `110000000` with account `000123456789`. The only fields still due were `tos_acceptance.date` and `tos_acceptance.ip`. Stripe rejected a platform terms acceptance because this Express account collects requirements itself. The hosted test form offers "Use test phone number". A headless browser reached that page. hCaptcha blocked the click. The form was not completed, and no payout was reported.
+
+### Webhooks
+
+Stripe delivers `transfer.created`, `transfer.updated`, and `transfer.reversed` on the platform account. It delivers `account.updated`, `payout.paid`, and `payout.failed` on connected accounts. The platform route now records transfer events. The Connect route still records account, transfer, and payout events. No webhook destination was created or changed. No Vercel setting was changed.
+
+Test-mode setup, when you approve it:
+
+1. Stripe Dashboard, test mode. Developers, Webhooks. Add an endpoint for your account: `https://pickuplyapp.com/api/stripe/webhook`. Add `transfer.created`, `transfer.updated`, and `transfer.reversed` to the existing test endpoint. Do not open live mode.
+2. Add a second endpoint: `https://pickuplyapp.com/api/stripe/connect`. Listen to events on Connected accounts. Events: `account.updated`, `payout.paid`, `payout.failed`.
+3. Put the Connect signing secret in Vercel as `STRIPE_CONNECT_WEBHOOK_SECRET`. Leave the existing platform webhook secret in place.
+
+### Card-fee proposal
+
+Not activated. Checkout still adds card processing. The estimate below uses the configured 2.9% plus 30 cents on the offer, rounded the same way as the fee code. It is not a Stripe balance-transaction fee. Driver earnings stay 85% of the offer. Commission stays 15%.
+
+| Offer | Current customer total | Proposed customer total | Driver earnings | Commission | Estimated Stripe fee | Estimated net |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| $35.00 | $36.35 | $35.00 | $29.75 | $5.25 | $1.32 | $3.93 |
+| $50.00 | $51.80 | $50.00 | $42.50 | $7.50 | $1.75 | $5.75 |
+| $75.00 | $77.55 | $75.00 | $63.75 | $11.25 | $2.48 | $8.77 |
+| $100.00 | $103.30 | $100.00 | $85.00 | $15.00 | $3.20 | $11.80 |
+| $200.00 | $206.28 | $200.00 | $170.00 | $30.00 | $6.10 | $23.90 |
+
+### Checks run
+
+Database suite: PASS, 52 files, 826 tests. Unit tests: PASS, 242. TypeScript: PASS. ESLint on the changed payment files: PASS. The full-repo lint still reports existing errors in blog, settings, and driver screens. Those files were not part of this change. Production build: PASS. Stripe test authorization, capture, and partial refund from the earlier run remain PASS. A new transfer and a bank payout were not sent, because no test account reached `payouts_enabled`. Webhook delivery was not replayed to the site, because no destination was added.
+
+### Recommendation
+
+**CONDITIONAL GO** to merge the financial-safety changes after review. They do not enable live payments. Apply `0099`, `0100`, and `0101` on the hosted database only after that review. **NO-GO** for live payments.
+
 ## Remediation — 2026-10-28 morning
 
 ### 1. Pull request 17
