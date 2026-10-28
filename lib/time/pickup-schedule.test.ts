@@ -8,6 +8,7 @@ import {
   availabilityError,
   availabilitySummary,
   formatOfferWhen,
+  windowArrivalError,
   legacyWhen,
   pickupWindowError,
   zonedWallTime,
@@ -129,6 +130,29 @@ test("a customer window must end at least 60 minutes from now", () => {
   assert.deepEqual(defaultPickupWindow(justAfterEvening), { date: "2026-10-28", start: "09:00", end: "11:00" });
   const ended = zonedWallTime("2026-10-27", "11:00");
   assert.match(pickupWindowError([{ date: "2026-10-27", start: "09:00", end: "11:00" }], ended) ?? "", /past/);
+});
+
+test("a window arrival stays inside the selected window", () => {
+  const now = zonedWallTime("2026-10-27", "12:00");
+  const window = {
+    starts_at: zonedWallTime("2026-10-28", "13:00").toISOString(),
+    ends_at: zonedWallTime("2026-10-28", "16:00").toISOString(),
+  };
+  assert.equal(windowArrivalError(window, "13:00", now), null);
+  assert.equal(windowArrivalError(window, "16:00", now), null);
+  assert.match(windowArrivalError(window, "12:59", now) ?? "", /inside/);
+  assert.match(windowArrivalError(window, "16:01", now) ?? "", /inside/);
+  assert.match(windowArrivalError(window, "", now) ?? "", /arrival time/);
+  const folded = {
+    starts_at: zonedWallTime("2026-11-01", "01:00").toISOString(),
+    ends_at: zonedWallTime("2026-11-01", "03:00").toISOString(),
+  };
+  assert.equal(windowArrivalError(folded, "01:30", zonedWallTime("2026-10-31", "12:00")), null);
+  const gap = {
+    starts_at: zonedWallTime("2026-03-08", "01:00").toISOString(),
+    ends_at: zonedWallTime("2026-03-08", "03:00").toISOString(),
+  };
+  assert.match(windowArrivalError(gap, "02:30", zonedWallTime("2026-03-07", "12:00")) ?? "", /does not exist/);
 });
 
 test("offer times read as tomorrow or a window without a phone or street", () => {

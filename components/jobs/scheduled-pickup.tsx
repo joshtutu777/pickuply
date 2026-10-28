@@ -23,6 +23,11 @@ export function ScheduledPickup({
       <section aria-label="Scheduled Pickup" className="mt-3 rounded-2xl bg-brand-soft px-4 py-3">
         <p className="text-sm font-semibold tracking-wide text-brand uppercase">Scheduled Pickup</p>
         <p className="text-lg font-semibold text-ink">{formatScheduledPickup(start, end ?? null)}</p>
+        {windows.length > 0 ? (
+          <p className="mt-1 text-base text-ink">
+            Availability: {windows.map((window) => formatScheduledPickup(window.starts_at, window.ends_at)).join("; ")}
+          </p>
+        ) : null}
         {locked ? <p className="mt-1 text-base text-ink">{scheduleLockedMessage}</p> : null}
       </section>
     );
