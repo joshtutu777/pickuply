@@ -14,6 +14,7 @@ import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
+import { TipPurchase } from "@/components/analytics/tip-purchase";
 import { TipGate } from "@/components/request/tip-panel";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -63,11 +64,25 @@ async function JobEntry({
   ]);
   let offers: OfferSummary[] = [];
   let detailRequest: { items: string[]; note: string } | null = null;
+  let paidTip: { id: string; amountCents: number } | null = null;
+  let customerIsTest = false;
   if (session?.role === "customer") {
     try {
       const supabase = await createClient();
       const { data } = await supabase.rpc("offer_summaries", { target_job: id });
       offers = (data ?? []) as OfferSummary[];
+      try {
+        const [tipRow, profileRow] = await Promise.all([
+          supabase.from("job_tips").select("id, amount_cents").eq("job_id", id).not("paid_at", "is", null).maybeSingle(),
+          supabase.from("profiles").select("is_test").eq("id", session.userId).maybeSingle(),
+        ]);
+        if (typeof tipRow.data?.id === "string" && typeof tipRow.data.amount_cents === "number") {
+          paidTip = { id: tipRow.data.id, amountCents: tipRow.data.amount_cents };
+        }
+        customerIsTest = profileRow.data?.is_test === true;
+      } catch {
+        paidTip = null;
+      }
       const details = await supabase.rpc("open_detail_request", { target_job: id });
       if (details.data && typeof details.data === "object") {
         const body = details.data as { items?: unknown; note?: unknown };
@@ -170,6 +185,7 @@ async function JobEntry({
         }
         footer={
           <>
+            {paidTip ? <TipPurchase tipId={paidTip.id} amountCents={paidTip.amountCents} isTest={customerIsTest} /> : null}
             {session?.role === "customer" && job.status === "completed" ? (
               <TipGate
                 jobId={id}
