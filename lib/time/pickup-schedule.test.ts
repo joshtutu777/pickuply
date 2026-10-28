@@ -7,6 +7,9 @@ import {
   extraPickupWindow,
   availabilityError,
   availabilitySummary,
+  arrivalSummary,
+  clockParts,
+  clockValue,
   formatOfferWhen,
   windowArrivalError,
   legacyWhen,
@@ -153,6 +156,16 @@ test("a window arrival stays inside the selected window", () => {
     ends_at: zonedWallTime("2026-03-08", "03:00").toISOString(),
   };
   assert.match(windowArrivalError(gap, "02:30", zonedWallTime("2026-03-07", "12:00")) ?? "", /does not exist/);
+});
+
+test("a digital arrival uses hour, minute, and AM or PM", () => {
+  assert.deepEqual(clockParts("00:00"), { hour: "12", minute: "00", meridiem: "AM" });
+  assert.deepEqual(clockParts("12:00"), { hour: "12", minute: "00", meridiem: "PM" });
+  assert.equal(clockValue({ hour: "2", minute: "30", meridiem: "PM" }), "14:30");
+  assert.equal(clockValue({ hour: "2", minute: "", meridiem: "PM" }), null);
+  assert.equal(arrivalSummary("2026-10-28", "14:30", now), "Tomorrow, 2:30 PM");
+  assert.equal(arrivalSummary("2026-11-01", "01:30", zonedWallTime("2026-10-31", "12:00")), "Tomorrow, 1:30 AM");
+  assert.equal(arrivalSummary("2026-03-08", "02:30", zonedWallTime("2026-03-07", "12:00")), null);
 });
 
 test("offer times read as tomorrow or a window without a phone or street", () => {

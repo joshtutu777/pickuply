@@ -5,7 +5,7 @@ begin;
 
 set local search_path to public, extensions;
 
-select plan(16);
+select plan(17);
 
 do $$
 declare
@@ -144,6 +144,13 @@ values (
   'e5200000-0000-4000-8000-000000000001'
 );
 
+update public.jobs
+set created_at = now() - interval '2 days'
+where id = 'e5200000-0000-4000-8000-000000000010';
+update public.jobs
+set created_at = now()
+where id = 'e5200000-0000-4000-8000-000000000011';
+
 select pg_temp.as_user('e5200000-0000-4000-8000-000000000001');
 
 select is(
@@ -208,6 +215,21 @@ select is(
   (select count(*)::int from public.driver_georgia_page(20, 0, 'nearest', 'construction', null, 'any', false) where id = 'e5200000-0000-4000-8000-000000000015'),
   1,
   'turning vehicle fit off keeps that request in All Georgia Requests'
+);
+select ok(
+  (
+    select ord_new < ord_old
+    from (
+      select
+        max(ord) filter (where id = 'e5200000-0000-4000-8000-000000000011') as ord_new,
+        max(ord) filter (where id = 'e5200000-0000-4000-8000-000000000010') as ord_old
+      from (
+        select id, row_number() over () as ord
+        from public.driver_georgia_page(50, 0, 'newest')
+      ) page
+    ) ranks
+  ),
+  'newest requests are listed before older requests'
 );
 
 select throws_ok(

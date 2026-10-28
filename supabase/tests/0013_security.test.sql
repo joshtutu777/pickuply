@@ -397,8 +397,10 @@ select ok(
   'offer summaries do not return a phone or address'
 );
 select ok(
-  position('assert_driver_can_take_job' in pg_get_functiondef('public.claim_job(uuid)'::regprocedure)) > 0
-    and position('assert_driver_can_take_job' in pg_get_functiondef('public.submit_offer(uuid, text, integer, text)'::regprocedure)) > 0
+  to_regprocedure('public.claim_job(uuid)') is null
+    and to_regprocedure('public.submit_offer(uuid, text, integer, text)') is null
+    and position('assert_driver_can_take_job' in pg_get_functiondef('public.claim_job(uuid, text, text, uuid)'::regprocedure)) > 0
+    and position('assert_driver_can_take_job' in pg_get_functiondef('public.submit_offer(uuid, text, integer, text, text, text, uuid)'::regprocedure)) > 0
     and position('driver_is_eligible_for_job' in pg_get_functiondef('public.assert_driver_can_take_job(uuid, text)'::regprocedure)) > 0
     and position('driver_is_eligible_for_job' in pg_get_functiondef('public.request_photo_visible(uuid)'::regprocedure)) > 0,
   'claim, offer, and request photo checks use eligibility'
