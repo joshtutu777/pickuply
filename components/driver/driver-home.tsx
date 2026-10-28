@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { acceptDriverTerms, dismissOnlinePrompt } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { services } from "@/lib/constants";
 import { offerBreakdown, type FeeSettings } from "@/lib/fees";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
@@ -681,10 +682,16 @@ export function DriverHome({
     {termsAccepted ? null : (
       <section id="driver-terms" className="mb-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">Driver Terms</h2>
-        <p className="mt-2 text-base text-ink">
-          <a href="/terms/driver" className="font-semibold text-brand">
-            Review the Driver Terms
-          </a>
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-base text-ink">
+          <Link href="/terms/driver" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Driver Terms
+          </Link>
+          <Link href="/terms" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Terms of Service
+          </Link>
+          <Link href="/privacy" className="inline-flex min-h-12 items-center font-semibold text-brand">
+            Privacy Policy
+          </Link>
         </p>
         <form action={acceptDriverTerms} className="mt-3">
           <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white">

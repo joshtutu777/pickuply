@@ -7,5 +7,12 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
-  return <LegalDocument title="Terms of Service" effective={termsEffective} sections={termsSections} />;
+  return (
+    <LegalDocument
+      title="Terms of Service"
+      effective={termsEffective}
+      sections={termsSections}
+      related={{ href: "/privacy", label: "Privacy Policy" }}
+    />
+  );
 }

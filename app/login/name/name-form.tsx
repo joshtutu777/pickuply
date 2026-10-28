@@ -35,17 +35,18 @@ export function NameForm({ next, intent }: { next: string; intent: string }) {
       </label>
       <label className="flex min-h-12 items-start gap-3 text-base text-ink">
         <input className="mt-1 size-5" type="checkbox" name="consent" value="yes" required />
-        <span>I agree to the Terms and Privacy Policy.</span>
+        <span>
+          I agree to the{" "}
+          <Link href="/terms" className="font-semibold text-brand" onClick={(event) => event.stopPropagation()}>
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="font-semibold text-brand" onClick={(event) => event.stopPropagation()}>
+            Privacy Policy
+          </Link>
+          .
+        </span>
       </label>
-      <p className="text-sm text-muted">
-        <Link href="/terms" className="font-semibold text-brand">
-          Terms
-        </Link>
-        {" · "}
-        <Link href="/privacy" className="font-semibold text-brand">
-          Privacy
-        </Link>
-      </p>
       {state.error ? (
         <p id="fullName-error" role="alert" className="text-sm font-medium text-danger">
           {state.error}

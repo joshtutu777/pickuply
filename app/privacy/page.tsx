@@ -7,5 +7,12 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  return <LegalDocument title="Privacy Policy" effective={privacyEffective} sections={privacySections} />;
+  return (
+    <LegalDocument
+      title="Privacy Policy"
+      effective={privacyEffective}
+      sections={privacySections}
+      related={{ href: "/terms", label: "Terms of Service" }}
+    />
+  );
 }

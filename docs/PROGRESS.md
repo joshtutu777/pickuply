@@ -822,4 +822,6 @@ An admin can delete a customer or driver from that person's admin page when ther
 
 An approved driver gets one in-app alert, Add your payout details, until Stripe payout setup is finished. Opening Driver home again does not add a second alert. A driver who already finished setup is not reminded. Profile has Update payout details, which opens the same Stripe setup as Earnings. This is not a text. Migration 0111 is local only. It is not applied to the hosted database, and the site is not deployed.
 
+The Terms of Service and Privacy Policy effective October 28, 2026 are published at /terms and /privacy. Driver application, Driver home, the agreement step, and Driver Terms link to both. No database migration. This is not deployed.
+
 Booking checkout now saves the card for a later tip. The customer sees that before paying and on the receipt. A completed job can tip that same card in one tap. If the bank asks for authentication, the card fails, or the job has no saved card, the tip opens Checkout instead. Checkout opens only after that off-session attempt is canceled. If it cannot be canceled, Checkout stays closed so the card is not charged twice. Profile, Payment methods lists saved cards, and removing one stops one-tap tipping later. No database migration. Stripe stays in test mode. This is not deployed.

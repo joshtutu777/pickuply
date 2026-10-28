@@ -10,10 +10,12 @@ export function LegalDocument({
   title,
   effective,
   sections,
+  related,
 }: {
   title: string;
   effective: string;
   sections: LegalSection[];
+  related?: { href: string; label: string };
 }) {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-12">
@@ -46,7 +48,12 @@ export function LegalDocument({
           </section>
         ))}
       </div>
-      <p className="mt-10">
+      <p className="mt-10 flex flex-wrap gap-4">
+        {related ? (
+          <Link href={related.href} className="inline-flex min-h-12 items-center font-semibold text-brand">
+            {related.label}
+          </Link>
+        ) : null}
         <Link href="/" className="inline-flex min-h-12 items-center font-semibold text-brand">
           Back to Pickuply
         </Link>
