@@ -63,7 +63,7 @@ async function handleAccount(account: Stripe.Account, eventId: string) {
       target_job: null,
       kind: "connect_ready",
       title: "Payouts are ready",
-      body: "Stripe can send your earnings to your Stripe account. They usually reach your bank about 2 business days after the job.",
+      body: "Stripe can send your earnings to your Stripe account. Bank deposits follow Stripe's payout schedule and may take a few additional business days.",
       href: "/driver/earnings",
       dedupe_key: `connect-ready:${account.id}`,
     });

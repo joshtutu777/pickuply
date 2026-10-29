@@ -127,6 +127,10 @@ export const driverTopics: HelpTopic[] = [
     title: "Payouts",
     questions: [
       {
+        q: "When do I get paid?",
+        a: "After a job is completed, Pickuply sends your earnings to your Stripe account. Bank deposits follow Stripe's payout schedule and may take a few additional business days. Check your payout status in Stripe.",
+      },
+      {
         q: "Do I need Stripe before I take a job?",
         a: "No. Payout setup does not block going Online or accepting a job. Earnings stay held until payouts are set up.",
       },

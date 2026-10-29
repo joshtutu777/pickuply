@@ -2,6 +2,7 @@ const ledgerId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 export type LedgerTransfer = {
   id: string;
+  transfer_group?: string | null;
   metadata?: { ledger_id?: string | null } | null;
 };
 
@@ -28,9 +29,18 @@ export function nextTransferStep(action: TransferGateAction, located: TransferSe
   return "wait";
 }
 
-/** A transfer already recorded in Stripe for this ledger row, if the search result includes it. */
+/** Three failed lookups, then create with the same idempotency key. Stripe deduplicates that key for about 24 hours. */
+export function afterLookupFailure(attempts: number): "retry" | "create" {
+  return attempts >= 3 ? "create" : "retry";
+}
+
+/** A transfer already recorded in Stripe for this ledger row. */
 export function transferForLedger(rows: LedgerTransfer[], entryId: string): string | null {
   if (!isLedgerEntryId(entryId)) return null;
-  const match = rows.find((row) => row.id.startsWith("tr_") && row.metadata?.ledger_id === entryId);
+  const match = rows.find(
+    (row) =>
+      row.id.startsWith("tr_") &&
+      (row.transfer_group === entryId || row.metadata?.ledger_id === entryId),
+  );
   return match?.id ?? null;
 }

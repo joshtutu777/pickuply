@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { driverEarningCents, earningsAvailability, sentToStripeAccount } from "./earnings";
+import { bankDepositNote, driverEarningCents, earningsAvailability, sentToStripeAccount, sentTransferLine, transferSentNotice } from "./earnings";
 
 test("a completed job earns the driver pay and not the dump estimate", () => {
   assert.equal(
@@ -34,10 +34,19 @@ test("held earnings say payout setup is required", () => {
   assert.equal(earningsAvailability("ready").label, "Available");
 });
 
-test("a sent transfer names the Stripe account and the usual bank timing", () => {
-  const copy = sentToStripeAccount(new Date("2026-10-29T16:00:00.000Z"));
-  assert.match(copy, /Sent to your Stripe account on October 29, 2026/);
-  assert.match(copy, /Usually in your bank about 2 business days after the job/);
-  assert.doesNotMatch(copy, /bank deposit/i);
-  assert.doesNotMatch(earningsAvailability("transferred").detail, /bank deposit/i);
+test("a sent transfer names the Stripe account and Stripe's later payout", () => {
+  const sentOn = new Date("2026-10-29T16:00:00.000Z");
+  const line = sentTransferLine(4250, sentOn);
+  assert.equal(line, "✓ $42.50 sent to your Stripe account on Oct 29, 2026.");
+  assert.doesNotMatch(line, /bank deposit/i);
+  const copy = sentToStripeAccount(sentOn, 4250);
+  assert.match(copy, /✓ \$42\.50 sent to your Stripe account on Oct 29, 2026/);
+  assert.match(copy, /Bank deposits follow Stripe's payout schedule/);
+  assert.equal(copy.includes(bankDepositNote), true);
+  assert.doesNotMatch(copy, /Usually in your bank/i);
+  assert.doesNotMatch(earningsAvailability("transferred").detail, /Usually in your bank/i);
+  assert.equal(
+    transferSentNotice(4250, "33fd2571-f19b-4d94-aac5-400972d26f9f"),
+    "Your $42.50 for job #D26F9F was sent to your Stripe account",
+  );
 });
