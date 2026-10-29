@@ -1,4 +1,4 @@
--- Login and the request form use the same phone and network buckets.
+-- Several people on one network can request codes. A script cannot.
 
 begin;
 
@@ -10,71 +10,68 @@ select lives_ok(
     declare
       sent integer;
     begin
-      for sent in 1..5 loop
-        perform public.consume_rate_limit(
-          'otp-phone',
-          'shared-phone',
-          5,
-          3600,
-          'Too many codes for this number. Try again in an hour.'
-        );
+      for sent in 1..12 loop
+        perform public.reserve_otp_send(repeat(sent::text, 16), repeat('9', 64));
       end loop;
     end
     $body$;
   $$,
-  'five login and request sends share one phone bucket'
+  'twelve different numbers on one network can each request a code'
 );
 
 select throws_ok(
-  $$select public.consume_rate_limit('otp-phone', 'shared-phone', 5, 3600, 'Too many codes for this number. Try again in an hour.')$$,
-  'Too many codes for this number. Try again in an hour.',
-  'the sixth send is refused with a sentence that has no phone number'
-);
-
-select is(
-  (select count(*)::integer from public.rate_limit_events where scope = 'otp-phone' and actor_key = 'shared-phone'),
-  5,
-  'a refused send does not add another phone count'
-);
-
-select lives_ok(
-  $$select public.consume_rate_limit('otp-phone', 'other-phone', 5, 3600, 'Too many codes for this number. Try again in an hour.')$$,
-  'a different phone still has its own bucket'
-);
-
-select lives_ok(
   $$
     do $body$
     declare
       sent integer;
     begin
-      for sent in 1..10 loop
-        perform public.consume_rate_limit(
-          'otp-ip',
-          'shared-network',
-          10,
-          3600,
-          'Too many codes from this network. Try again in an hour.'
-        );
+      for sent in 1..16 loop
+        perform public.reserve_otp_send(repeat(chr(64 + sent), 16), repeat('8', 64));
       end loop;
     end
     $body$;
   $$,
-  'ten sends from one network are allowed'
+  'Too many new numbers from this network right now. Try again in a few minutes.',
+  'the sixteenth new number from that network is refused'
+);
+
+select lives_ok(
+  $$select public.reserve_otp_send(repeat('a', 64), repeat('b', 64))$$,
+  'one number can request a code'
 );
 
 select throws_ok(
-  $$select public.consume_rate_limit('otp-ip', 'shared-network', 10, 3600, 'Too many codes from this network. Try again in an hour.')$$,
-  'Too many codes from this network. Try again in an hour.',
-  'the eleventh send from that network is refused'
+  $$select public.reserve_otp_send(repeat('a', 64), repeat('b', 64))$$,
+  'Wait 30 seconds before requesting another code.',
+  'the same number has to wait 30 seconds'
+);
+
+select is(
+  (select count(*)::integer from public.otp_send_log where phone_key = repeat('a', 64)),
+  1,
+  'a refused send does not add another row'
+);
+
+select lives_ok(
+  $$
+    do $body$
+    begin
+      update public.otp_send_log
+      set created_at = now() - interval '31 seconds'
+      where phone_key = repeat('a', 64);
+      perform public.reserve_otp_send(repeat('a', 64), repeat('b', 64));
+    end
+    $body$;
+  $$,
+  'the same number can request another code after 30 seconds'
 );
 
 set local role anon;
 
 select throws_ok(
-  $$select public.consume_rate_limit('otp-phone', 'direct', 5, 3600, 'hidden')$$,
+  $$select public.reserve_otp_send(repeat('c', 64), repeat('d', 64))$$,
   '42501',
-  'permission denied for function consume_rate_limit',
+  'permission denied for function reserve_otp_send',
   'a direct request cannot record its own code limit'
 );
 

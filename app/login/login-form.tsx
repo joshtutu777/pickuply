@@ -6,8 +6,8 @@ import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-send-gate";
 import { SignInSmsNotice, SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
-import { createClient } from "@/lib/supabase/client";
 import { sendSignInCode } from "@/app/login/otp-limit";
+import { verifyPhoneCode } from "@/lib/auth/otp-verify-client";
 
 const RESEND_MS = 30_000;
 
@@ -108,14 +108,9 @@ export function LoginForm({
     setPending(true);
     setError("");
     try {
-      const supabase = createClient();
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        phone: sentPhone,
-        token: code,
-        type: "sms",
-      });
+      const verifyError = await verifyPhoneCode(sentPhone, code);
       if (verifyError) {
-        setError(mapOtpError(verifyError, "verify"));
+        setError(verifyError);
         setPending(false);
         return;
       }
