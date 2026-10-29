@@ -1,10 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reconcilePaymentAction } from "./reconcile";
+import { reconcilePaymentAction, type ReconcileAction } from "./reconcile";
+
+const open = {
+  paymentDueAt: "2026-10-29T03:00:00.000Z",
+  now: "2026-10-29T02:00:00.000Z",
+};
+
+function decide(input: {
+  livemode: boolean;
+  intentStatus: string;
+  jobStatus: string;
+  paymentStatus: string;
+  paymentDueAt?: string | null;
+  now?: string;
+}): ReconcileAction {
+  return reconcilePaymentAction({
+    paymentDueAt: open.paymentDueAt,
+    now: open.now,
+    ...input,
+  });
+}
 
 test("a live PaymentIntent is left alone", () => {
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: true,
       intentStatus: "requires_capture",
       jobStatus: "assigned",
@@ -16,7 +36,7 @@ test("a live PaymentIntent is left alone", () => {
 
 test("a missed test hold uses the same authorization function as the webhook", () => {
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: false,
       intentStatus: "requires_capture",
       jobStatus: "assigned",
@@ -28,7 +48,7 @@ test("a missed test hold uses the same authorization function as the webhook", (
 
 test("a hold that was already stored is not authorized again from a later job step", () => {
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: false,
       intentStatus: "requires_capture",
       jobStatus: "arrived",
@@ -38,9 +58,41 @@ test("a hold that was already stored is not authorized again from a later job st
   );
 });
 
+test("a canceled or expired booking is not authorized from a capturable PaymentIntent", () => {
+  assert.equal(
+    decide({
+      livemode: false,
+      intentStatus: "requires_capture",
+      jobStatus: "cancelled",
+      paymentStatus: "awaiting_payment",
+    }),
+    "skip_closed",
+  );
+  assert.equal(
+    decide({
+      livemode: false,
+      intentStatus: "requires_capture",
+      jobStatus: "assigned",
+      paymentStatus: "canceled",
+    }),
+    "skip_closed",
+  );
+  assert.equal(
+    decide({
+      livemode: false,
+      intentStatus: "requires_capture",
+      jobStatus: "assigned",
+      paymentStatus: "awaiting_payment",
+      paymentDueAt: "2026-10-29T01:00:00.000Z",
+      now: "2026-10-29T02:00:00.000Z",
+    }),
+    "skip_closed",
+  );
+});
+
 test("a canceled hold that was stored is noted, and one that was never stored is only recorded", () => {
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: false,
       intentStatus: "canceled",
       jobStatus: "assigned",
@@ -49,7 +101,7 @@ test("a canceled hold that was stored is noted, and one that was never stored is
     "note_canceled",
   );
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: false,
       intentStatus: "canceled",
       jobStatus: "assigned",
@@ -61,7 +113,7 @@ test("a canceled hold that was stored is noted, and one that was never stored is
 
 test("the reconciler does not capture a succeeded PaymentIntent", () => {
   assert.equal(
-    reconcilePaymentAction({
+    decide({
       livemode: false,
       intentStatus: "succeeded",
       jobStatus: "delivered",

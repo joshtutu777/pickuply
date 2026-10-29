@@ -9,6 +9,7 @@ type OpenJob = {
   id: string;
   status: string;
   payment_status: string;
+  payment_due_at: string | null;
   is_test: boolean;
 };
 
@@ -22,7 +23,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
   const supabase = createServiceClient();
   const jobs = await supabase
     .from("jobs")
-    .select("id, status, payment_status, is_test")
+    .select("id, status, payment_status, payment_due_at, is_test")
     .in("payment_status", ["awaiting_payment", "failed", "authorized"])
     .in("status", ["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered"])
     .limit(30);
@@ -51,13 +52,27 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
     if (!intentId || seen.has(intentId)) continue;
     seen.add(intentId);
     const intent = await stripe.paymentIntents.retrieve(intentId);
+    const fresh = await supabase
+      .from("jobs")
+      .select("id, status, payment_status, payment_due_at, is_test")
+      .eq("id", job.id)
+      .maybeSingle();
+    if (fresh.error || !fresh.data) throw new Error("The booking could not be read before reconciliation.");
+    const current = fresh.data as OpenJob;
+    const now = new Date().toISOString();
     const action = reconcilePaymentAction({
       livemode: intent.livemode,
       intentStatus: intent.status,
-      jobStatus: job.status,
-      paymentStatus: job.payment_status,
+      jobStatus: current.status,
+      paymentStatus: current.payment_status,
+      paymentDueAt: current.payment_due_at,
+      now,
     });
     if (action === "skip") continue;
+    if (action === "skip_closed") {
+      await recordReconcile(supabase, current, intent.id, intent.status, action);
+      continue;
+    }
     const eventId = eventByIntent.get(intent.id) ?? null;
     let claimedNow = false;
     if (eventId) {
@@ -76,6 +91,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
         if (claimedNow && eventId) await supabase.from("stripe_events").delete().eq("id", eventId);
         throw error;
       }
+      await recordReconcile(supabase, current, intent.id, intent.status, action);
       applied += 1;
       continue;
     }
@@ -88,20 +104,53 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
     if (prior.error) throw new Error("Earlier payment attempts could not be read.");
     if ((prior.data ?? []).length > 0) continue;
     const noted = await supabase.rpc("note_authorization_canceled", {
-      target_job: job.id,
+      target_job: current.id,
       payment_intent: intent.id,
     });
     if (noted.error) {
       if (claimedNow && eventId) await supabase.from("stripe_events").delete().eq("id", eventId);
       throw new Error("The canceled authorization could not be recorded.");
     }
-    if (action === "record_unpaid_cancel" && !job.is_test) {
-      const released = await supabase.rpc("release_overdue_job", { target_job: job.id });
+    if (action === "record_unpaid_cancel" && !current.is_test) {
+      const released = await supabase.rpc("release_overdue_job", { target_job: current.id });
       if (released.error) throw new Error("An unpaid job could not be released.");
     }
+    await recordReconcile(supabase, current, intent.id, intent.status, action);
     applied += 1;
   }
   return { checked: seen.size, applied };
+}
+
+async function recordReconcile(
+  supabase: ReturnType<typeof createServiceClient>,
+  job: OpenJob,
+  paymentIntentId: string,
+  intentStatus: string,
+  decision: string,
+): Promise<void> {
+  const existing = await supabase
+    .from("audit_log")
+    .select("id")
+    .eq("action", "payment_reconciled")
+    .eq("target_id", job.id)
+    .contains("data", { payment_intent_id: paymentIntentId, decision })
+    .limit(1);
+  if (existing.error) throw new Error("The reconciliation record could not be read.");
+  if ((existing.data ?? []).length > 0) return;
+  const inserted = await supabase.from("audit_log").insert({
+    actor_id: null,
+    action: "payment_reconciled",
+    target_type: "job",
+    target_id: job.id,
+    data: {
+      payment_intent_id: paymentIntentId,
+      decision,
+      intent_status: intentStatus,
+      job_status: job.status,
+      payment_status: job.payment_status,
+    },
+  });
+  if (inserted.error) throw new Error("The reconciliation record could not be saved.");
 }
 
 async function eventIdsByIntent(
