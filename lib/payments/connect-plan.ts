@@ -10,6 +10,14 @@ export function connectWebhookAction(type: string): ConnectWebhookAction {
   return "ignore";
 }
 
+/** Stored when an account.updated event has no driver row. The webhook still returns 200. */
+export const unknownDriverNote = "ignored — no matching driver";
+
+export function accountMatch(input: { driverId: string | null; driverExists: boolean }): "save" | "ignore" {
+  if (!input.driverId || !input.driverExists) return "ignore";
+  return "save";
+}
+
 /** The bank-payout row status. A transfer is not a bank deposit. */
 export function payoutRecordStatus(type: string): "paid" | "failed" | null {
   if (type === "payout.paid") return "paid";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { connectWebhookEvents } from "./event-types";
-import { connectWebhookAction, connectWebhookSecretName, payoutRecordStatus } from "./connect-plan";
+import { accountMatch, connectWebhookAction, connectWebhookSecretName, payoutRecordStatus, unknownDriverNote } from "./connect-plan";
 
 test("Connect events map to one handler, and payment events are ignored", () => {
   assert.equal(connectWebhookSecretName, "STRIPE_CONNECT_WEBHOOK_SECRET");
@@ -16,6 +16,13 @@ test("Connect events map to one handler, and payment events are ignored", () => 
   assert.equal(connectWebhookAction("payout.failed"), "payout");
   assert.equal(connectWebhookAction("payment_intent.succeeded"), "ignore");
   assert.equal(connectWebhookAction("checkout.session.completed"), "ignore");
+});
+
+test("an unknown Connect account is stored and ignored instead of failing", () => {
+  assert.equal(unknownDriverNote, "ignored — no matching driver");
+  assert.equal(accountMatch({ driverId: null, driverExists: false }), "ignore");
+  assert.equal(accountMatch({ driverId: "not-a-driver", driverExists: false }), "ignore");
+  assert.equal(accountMatch({ driverId: "driver-1", driverExists: true }), "save");
 });
 
 test("a payout event records paid or failed, and a transfer is not a payout", () => {
