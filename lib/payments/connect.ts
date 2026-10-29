@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import { accountLinkKind, fallbackAccountLinkKind, type AccountLinkKind } from "@/lib/payments/account-link";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { alignPaymentsMode } from "@/lib/payments/mode-sync";
-import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { readStripeLivemode, stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { readTransfersActive, requestDriverTransfers } from "@/lib/payments/connect-capability";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
@@ -27,7 +27,7 @@ export async function saveConnectAccount(
   account: Stripe.Account,
 ): Promise<{ payoutsEnabled: boolean; transfersActive: boolean }> {
   const mode = paymentsMode(process.env.PAYMENTS_MODE);
-  const accountLive = typeof account.livemode === "boolean" ? account.livemode : mode === "live";
+  const accountLive = readStripeLivemode(account) ?? mode === "live";
   if (!stripeObjectMatchesMode(mode, accountLive)) {
     await alertPaymentsIssue(
       `connect-account-mode:${account.id}`,

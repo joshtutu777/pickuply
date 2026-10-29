@@ -3,7 +3,7 @@ import test from "node:test";
 import { liveDriverCanAccept, payoutRequirementNote, sameModeConnectAccount } from "./connect-eligibility";
 import { readFileSync } from "node:fs";
 import { modeAlignmentLabel, paymentsModeMayChangeDatabase, paymentsModesMatch } from "./mode-alignment";
-import { stripeObjectMatchesMode } from "./object-mode";
+import { readStripeLivemode, stripeObjectMatchesMode } from "./object-mode";
 import { paymentsMode, transferLivemode, webhookSecretName } from "./payments-mode";
 import { reconcilePaymentAction } from "./reconcile";
 import { decideTipCharge } from "./saved-card";
@@ -13,6 +13,13 @@ const open = {
   paymentDueAt: "2026-10-29T03:00:00.000Z",
   now: "2026-10-29T02:00:00.000Z",
 };
+
+test("livemode is read when the Stripe type omits it", () => {
+  assert.equal(readStripeLivemode({ livemode: false }), false);
+  assert.equal(readStripeLivemode({ livemode: true }), true);
+  assert.equal(readStripeLivemode({ id: "acct_test" }), null);
+  assert.equal(readStripeLivemode({ livemode: "true" }), null);
+});
 
 test("test checkout and capture stay on test objects", () => {
   assert.equal(paymentsMode(undefined), "test");

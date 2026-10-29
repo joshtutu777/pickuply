@@ -6,7 +6,7 @@ import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { alignPaymentsMode } from "@/lib/payments/mode-sync";
-import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { readStripeLivemode, stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordFunnelServer } from "@/lib/funnel-server";
@@ -181,7 +181,8 @@ export async function refundTip(formData: FormData) {
       },
       { idempotencyKey: `tip-refund:${row.refund_id}` },
     );
-    if (!stripeObjectMatchesMode(aligned.mode, refund.livemode)) {
+    const refundLive = readStripeLivemode(refund);
+    if (refundLive === null || !stripeObjectMatchesMode(aligned.mode, refundLive)) {
       await alertPaymentsIssue(
         `tip-refund-result:${refund.id}`,
         "Tip refund mode mismatch",
