@@ -1,13 +1,32 @@
 {
-  "ranAt": "2026-10-29T00:25:35.906Z",
+  "ranAt": "2026-10-29T00:59:18.985Z",
   "browser": "chromium",
   "webkit": "unavailable",
-  "results": [],
-  "jobId": "ad2c7907-ba4c-4704-bb56-56d9ebb2876b",
-  "authorization": {
-    "paymentIntentId": "pi_3UVh6vD5IFQdbLky1weIezpw",
-    "amount": 15750,
-    "status": "requires_capture",
-    "livemode": false
-  }
+  "results": [
+    {
+      "id": "ADMIN-MSG-CUSTOMER",
+      "status": "PASS",
+      "detail": "thread 6d863c93-37cf-4583-a540-f00ce6d65ce1; unread shown before open; reply visible to admin"
+    },
+    {
+      "id": "ADMIN-MSG-DRIVER",
+      "status": "PASS",
+      "detail": "thread ed7e2776-6406-417a-a6b1-4a1d634ef0e8; driver saw unread and replied; customer cannot see that thread"
+    }
+  ],
+  "customerId": "1adff874-cf13-4f4f-aebb-4ea71bae60de",
+  "messageDirectory": [
+    "Bea · driver",
+    "Flow · customer",
+    "Flow · driver",
+    "Flow · customer",
+    "Flow · driver",
+    "Flow · customer",
+    "Flow · driver",
+    "Flow · driver",
+    "Flow · customer",
+    "Flow · driver",
+    "Flow · customer",
+    "Flow · driver"
+  ]
 }

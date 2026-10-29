@@ -107,13 +107,25 @@ The payout-setup error "Valid types for this account are account_onboarding" is 
 
 Webhook events `evt_3UVglbD5IFQdbLky12Nl1xVo` and `evt_3UVglbD5IFQdbLky1GTqkFxv` still have `pending_webhooks` 1. Stripe's API does not return the attempt status code or response body. A bad signature from this app is HTTP 400 with body `{"ok":false}`. A signed test event using the provided test webhook secret got HTTP 200 and body `{"ok":true,"ignored":true}` from `https://pickuplyapp.com/api/stripe/webhook`, so the app's `STRIPE_WEBHOOK_SECRET` matches that secret. Stripe's own deliveries are still pending, so the secret on the Stripe endpoint may not be the one the app has. That endpoint secret cannot be read back.
 
-A hosted test job `086c4d7b-57ef-411a-84e4-81bae0ede760` was inserted as assigned, `is_test`, and awaiting payment, without opening it to drivers. PaymentIntent `pi_3UVhKKD5IFQdbLky0Rzjx6FZ` is a test-mode manual hold for 5,250 cents, status `requires_capture`. Its event `evt_3UVhKKD5IFQdbLky0fnwysp9` also has `pending_webhooks` 1 and is not in hosted `stripe_events`. The job is still `awaiting_payment`. The hold was left in place so a later successful retry can record it. Hosted SMS is on. The job insert skipped notification triggers. The customer and driver are test profiles, so an authorization alert would stay in the app.
+## Review matrix — October 28, late
 
-`STRIPE_CONNECT_WEBHOOK_SECRET` is still absent. The platform endpoint does not subscribe to transfer, account, or payout events.
+Transfers and payouts stay not verified. No eligible test account has payouts enabled.
 
-Driver onboarding in the browser, admin conversations, and the Playwright rerun were not run in this pass. They are not marked passed.
-
-Driver Terms v2 is prepared in pull request 37 and is not published. Migration `0112` is not applied to the hosted database.
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Driver Terms v2 revised | Ready for review | Pull request 37, commit `00c6442`. Not merged, not deployed, migration `0112` not applied. Georgia counsel still has to review injury, insurance limits, and the 48-hour sentence. |
+| Public $250 promise | Removed from the draft | The public sentence no longer offers a dollar amount or a goodwill payment. |
+| Stripe-generated webhook | BLOCKED | Events `evt_3UVglbD5IFQdbLky12Nl1xVo`, `evt_3UVglbD5IFQdbLky1GTqkFxv`, `evt_3UVhKKD5IFQdbLky0fnwysp9`, and `evt_3UVhKKD5IFQdbLky0Ojedv05` each still have `pending_webhooks` 1. None of those ids is in hosted `stripe_events`. Stripe's attempt API returns 404. A locally signed ping was accepted earlier, so the app secret matches the provided test secret, but Stripe's own signature has not produced a stored row. |
+| $52.50 test hold | Canceled in Stripe | PaymentIntent `pi_3UVhKKD5IFQdbLky0Rzjx6FZ` is `canceled`, 5,250 cents, `livemode` false. Hosted job `086c4d7b-57ef-411a-84e4-81bae0ede760` is `cancelled` and `is_test`. A `payment_attempts` row says `canceled`. Payment status is still `awaiting_payment` because the authorization was never stored. The webhook did not write that row. |
+| Connect webhook | BLOCKED | The only test endpoint is `we_1UUPtZD5IFQdbLkyQz2rWJv2` at `/api/stripe/webhook`. It does not subscribe to `transfer.created`, `transfer.updated`, `transfer.reversed`, `account.updated`, `payout.paid`, or `payout.failed`. There is no Connect endpoint. `STRIPE_CONNECT_WEBHOOK_SECRET` is not on Vercel. The app route is `/api/stripe/connect`. A secret and a redeploy are required before those events can be verified. No live Stripe setting was changed. |
+| Payout-link fallback | PASS for unfinished accounts | Existing `acct_1UVglpD5IFdeuy8H` and new `acct_1UVhTxD5IFgxqSkr` both have `details_submitted` false. `account_onboarding` returned a link. `account_update` was rejected and the fallback returned an onboarding link. An account that has already submitted details and accepts `account_update` was not available. |
+| Transfer | NOT VERIFIED | No `tr_` id. `payouts_enabled` is false on `acct_1UVglpD5IFdeuy8H`. |
+| Payout | NOT VERIFIED | No payout object. A test payout would not be a bank deposit. |
+| Driver onboarding in the browser | PASS, earlier this evening | License photo, admin approval, and driver home were recorded in the browser continuation below. Not repeated in this pass because that driver is already active. |
+| Admin to customer message | PASS | Thread `6d863c93-37cf-4583-a540-f00ce6d65ce1`. The customer saw an unread support note, replied "Customer reply received.", and that row is stored for customer `1adff874-cf13-4f4f-aebb-4ea71bae60de`. Admin then saw the reply. After opening, the inbox said Read. |
+| Admin to driver message | PASS | Thread `ed7e2776-6406-417a-a6b1-4a1d634ef0e8`. The driver saw the unread note and the stored reply is "Driver reply received." The customer account did not see that thread. |
+| Support tickets | NOT VERIFIED | Both contact forms returned a sent page. The admin support reply form was not completed before the 7-minute test limit. |
+| WebKit | Unavailable | Chromium only. |
 
 ## Legal document gaps (not software)
 
@@ -236,8 +248,9 @@ Chromium only. WebKit is not installed, so it is unavailable, not a product fail
 | Connect account | PASS for account creation only | Browser opened Stripe from driver earnings. Account `acct_1UVglpD5IFdeuy8H`. `payouts_enabled` false. `charges_enabled` false. `details_submitted` false. Stripe still requires business profile, representative, bank account, and terms acceptance. |
 | Transfer | NOT VERIFIED | No `tr_` id. The captured ledger row says finish payout setup before a transfer can be sent. |
 | Payout | NOT VERIFIED | No payout object was created. A test-mode payout would not be a bank deposit. |
-| Admin-to-customer message | NOT VERIFIED | The admin message was saved and visible twice in the admin thread. The strict test stopped before the customer unread state and reply were checked. |
-| Admin support tickets | NOT VERIFIED | Not completed in this continuation. |
+| Admin-to-customer message | PASS, later the same evening | Thread `6d863c93-37cf-4583-a540-f00ce6d65ce1`. Unread, customer reply stored, admin saw the reply. |
+| Admin-to-driver message | PASS, later the same evening | Thread `ed7e2776-6406-417a-a6b1-4a1d634ef0e8`. Driver reply stored. Customer could not see it. |
+| Admin support tickets | NOT VERIFIED | Contact forms sent. The admin reply form was not finished before the test limit. |
 | Admin pages | PARTIAL | Dashboard, Drivers, Customers, and Payments loaded. Requests did not show the expected heading before the server died. Payouts, Finance, Alerts, Feedback, Accounts, Health, and Settings were not reached. Refund, pause, delete account, outside payment, and test-data cleanup were not executed. |
 | Older Playwright file | NOT VERIFIED | Not rerun to completion after the server recovered. |
 

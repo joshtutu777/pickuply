@@ -53,12 +53,15 @@ async function signIn(page: Page, person: { phone: string; code: string }, next:
   await code.fill(person.code);
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 60_000, waitUntil: "commit" });
+  const rejectCookies = page.getByRole("button", { name: "Reject optional cookies" });
+  await rejectCookies.click({ timeout: 3000 }).catch(() => undefined);
   if (page.url().includes("/login/name")) {
     await page.getByLabel("First name").fill(person.phone === driver.phone ? driver.name : person.phone === admin.phone ? admin.name : customer.name);
     const terms = page.getByRole("checkbox", { name: /Terms/ });
     if (await terms.count()) await terms.check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 60_000, waitUntil: "commit" });
+    await rejectCookies.click({ timeout: 3000 }).catch(() => undefined);
   }
 }
 
@@ -178,14 +181,17 @@ test("admin messages and support replies are visible to the recipient", async ({
   await expect(page.getByText("Audit customer note from Pickuply.").first()).toBeVisible();
 
   await signIn(page, customer, "/account/messages");
-  await expect(page.getByText("1 unread")).toBeVisible();
-  await page.getByRole("link", { name: /Pickuply|Support|Admin/i }).first().click();
+  await expect(page.getByRole("link", { name: /Audit customer note from Pickuply/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Audit customer note from Pickuply/ })).toContainText(/unread/);
+  await page.getByRole("link", { name: /Audit customer note from Pickuply/ }).click();
   await expect(page.getByText("Audit customer note from Pickuply.").first()).toBeVisible();
-  await page.getByLabel("Message").fill("Customer reply received.");
+  const customerBox = page.getByRole("textbox", { name: "Message" });
+  await customerBox.click();
+  await customerBox.pressSequentially("Customer reply received.");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Customer reply received.")).toBeVisible();
+  await expect(page.getByRole("paragraph").filter({ hasText: "Customer reply received." })).toBeVisible();
   await page.goto("/account/messages");
-  await expect(page.getByText("1 unread")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Pickuply Support/ })).not.toContainText(/unread/);
 
   await signIn(page, admin, `/admin/messages/${customerThread}`);
   await expect(page.getByText("Customer reply received.")).toBeVisible();
@@ -199,12 +205,15 @@ test("admin messages and support replies are visible to the recipient", async ({
   const driverThread = page.url().split("/").pop() ?? "";
 
   await signIn(page, driver, "/driver/messages");
-  await expect(page.getByText("1 unread")).toBeVisible();
-  await page.getByRole("link", { name: /Pickuply|Support|Admin/i }).first().click();
+  await expect(page.getByRole("link", { name: /Audit driver note from Pickuply/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Audit driver note from Pickuply/ })).toContainText(/unread/);
+  await page.getByRole("link", { name: /Audit driver note from Pickuply/ }).click();
   await expect(page.getByText("Audit driver note from Pickuply.")).toBeVisible();
-  await page.getByLabel("Message").fill("Driver reply received.");
+  const driverBox = page.getByRole("textbox", { name: "Message" });
+  await driverBox.click();
+  await driverBox.pressSequentially("Driver reply received.");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Driver reply received.")).toBeVisible();
+  await expect(page.getByRole("paragraph").filter({ hasText: "Driver reply received." })).toBeVisible();
 
   await signIn(page, admin, `/admin/messages/${driverThread}`);
   await expect(page.getByText("Driver reply received.")).toBeVisible();
