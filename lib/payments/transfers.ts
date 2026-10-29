@@ -278,8 +278,6 @@ export async function sendReadyTransfers(only?: { jobId?: string; driverId?: str
       const failure = await recordLookupFailure(row.entry_id, reason);
       const action = lookupFailureAction({
         attempts: failure.attempts,
-        firstAttemptAt: failure.firstAttemptAt,
-        now: new Date(),
         kind: "transient",
       });
       if (action === "retry") {
@@ -291,21 +289,13 @@ export async function sendReadyTransfers(only?: { jobId?: string; driverId?: str
         await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
         continue;
       }
-      if (action === "reconcile") {
-        try {
-          await alertNeedsReconciliation(row.entry_id);
-        } catch {
-          // The claim stays unresolved. The reconciliation page reads the same 23-hour rule.
-        }
-        await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
-        await beginTransfer(row.entry_id, true);
-        continue;
+      try {
+        await alertNeedsReconciliation(row.entry_id);
+      } catch {
+        // The claim stays unresolved. A failed lookup does not create a transfer.
       }
-      located = { id: null, located: "absent", error: null, kind: "transient" };
-      if (gate.action !== "send") {
-        gate = await beginTransfer(row.entry_id, true);
-        if (!gate || gate.idempotency_key !== row.entry_id || gate.action !== "send") continue;
-      }
+      await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
+      continue;
     }
     let step = nextTransferStep(gate.action, located.located);
     if (step === "confirm") {

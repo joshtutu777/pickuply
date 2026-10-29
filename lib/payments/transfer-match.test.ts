@@ -42,29 +42,20 @@ test("a successful lookup records a found transfer and creates only when none ex
   assert.equal(nextTransferStep("send", "unknown"), "wait");
 });
 
-test("lookup errors retry, and the third try depends on the 23-hour boundary", () => {
-  const first = new Date("2026-10-28T12:00:00.000Z");
-  const inside = new Date(first.getTime() + 23 * 60 * 60 * 1000 - 1);
-  const exact = new Date(first.getTime() + 23 * 60 * 60 * 1000);
-  assert.equal(lookupFailureAction({ attempts: 1, firstAttemptAt: first, now: inside, kind: "transient" }), "retry");
-  assert.equal(lookupFailureAction({ attempts: 2, firstAttemptAt: first, now: inside, kind: "transient" }), "retry");
-  assert.equal(lookupFailureAction({ attempts: 3, firstAttemptAt: first, now: inside, kind: "transient" }), "create");
-  assert.equal(lookupFailureAction({ attempts: 3, firstAttemptAt: first, now: exact, kind: "transient" }), "reconcile");
-  assert.equal(
-    lookupFailureAction({ attempts: 3, firstAttemptAt: first, now: new Date(exact.getTime() + 1000), kind: "transient" }),
-    "reconcile",
-  );
-  assert.equal(lookupFailureAction({ attempts: 3, firstAttemptAt: null, now: exact, kind: "transient" }), "reconcile");
+test("a failed lookup retries twice and then reconciles without creating", () => {
+  assert.equal(lookupFailureAction({ attempts: 1, kind: "transient" }), "retry");
+  assert.equal(lookupFailureAction({ attempts: 2, kind: "transient" }), "retry");
+  assert.equal(lookupFailureAction({ attempts: 3, kind: "transient" }), "reconcile");
+  assert.equal(lookupFailureAction({ attempts: 4, kind: "transient" }), "reconcile");
 });
 
 test("a configuration error is alerted and is not a retry", () => {
-  const now = new Date("2026-10-29T12:00:00.000Z");
   assert.equal(lookupErrorKind({ type: "StripeAuthenticationError", statusCode: 401 }), "configuration");
   assert.equal(lookupErrorKind({ type: "StripePermissionError", statusCode: 403, code: "account_invalid" }), "configuration");
   assert.equal(lookupErrorKind({ message: "Invalid API key provided" }), "configuration");
   assert.equal(lookupErrorKind({ type: "StripeConnectionError", statusCode: 500 }), "transient");
   assert.equal(
-    lookupFailureAction({ attempts: 1, firstAttemptAt: now, now, kind: "configuration" }),
+    lookupFailureAction({ attempts: 1, kind: "configuration" }),
     "alert",
   );
 });
