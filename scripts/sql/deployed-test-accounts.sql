@@ -74,7 +74,7 @@ select
   current_date + 30,
   case when seed_people.insurance then seed_ids.id::text || '/insurance.jpg' else null end,
   case when seed_people.insurance then current_date + 30 else null end,
-  'driver-terms-v1',
+  'driver-terms-v2',
   now(),
   case when seed_people.driver_status in ('active', 'paused') then now() else null end,
   true

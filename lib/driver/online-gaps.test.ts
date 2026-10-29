@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { driverTermsVersion } from "@/lib/constants";
 import { onlineGaps } from "./online-gaps";
 
 const ready = {
@@ -10,7 +11,7 @@ const ready = {
   vehicleApproved: true,
   checklistRequired: true,
   agreementSigned: true,
-  termsVersion: "driver-terms-v1",
+  termsVersion: driverTermsVersion,
   trainingDone: true,
   serviceCount: 1,
   today: "2026-10-22",
@@ -23,6 +24,8 @@ test("an approved driver with the checklist done has nothing missing", () => {
 test("an older agreement does not count as the current Driver Terms", () => {
   const gaps = onlineGaps({ ...ready, termsVersion: null });
   assert.match(gaps[0]?.label ?? "", /Driver Terms/);
+  const previous = onlineGaps({ ...ready, termsVersion: "driver-terms-v1" });
+  assert.match(previous[0]?.label ?? "", /Driver Terms/);
 });
 
 test("a missing insurance upload is not an Online block, and an expired policy is", () => {

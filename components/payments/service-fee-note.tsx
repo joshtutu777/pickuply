@@ -30,8 +30,9 @@ export function ServiceFeeNote({
       <details>
         <summary className="cursor-pointer text-sm text-muted">About the service fee</summary>
         <p className="text-sm text-muted">
-          Supports secure payments, customer support, and our damage policy. A damage report can be reviewed up to
-          $250. This is not insurance.
+          Supports secure payments and customer support. Report damage within 48 hours of delivery and include photos.
+          Pickuply may review the report and, at its discretion, provide a goodwill payment of up to $250. That
+          review is not insurance, not a guarantee, and not a promise that any amount will be paid.
         </p>
       </details>
     </div>

@@ -1,3 +1,5 @@
+import { driverTermsVersion } from "@/lib/constants";
+
 export type OnlineGap = {
   label: string;
   href: string | null;
@@ -43,7 +45,7 @@ export function onlineGaps(input: {
       href: "/driver/ready/insurance",
     });
   }
-  if (input.checklistRequired && input.termsVersion !== "driver-terms-v1") {
+  if (input.checklistRequired && input.termsVersion !== driverTermsVersion) {
     gaps.push({
       label: "Accept the Driver Terms to go Online.",
       href: "/terms/driver",

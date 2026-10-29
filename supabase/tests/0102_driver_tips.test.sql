@@ -40,7 +40,7 @@ insert into public.drivers (
   profile_id, status, home_city, home_zip, license_url, license_expires, terms_version, terms_accepted_at, agreement_signed_at, is_online
 ) values (
   'c1020000-0000-4000-8000-000000000002', 'active', 'Austell', '30106',
-  'c1020000-0000-4000-8000-000000000002/license.jpg', current_date + 30, 'driver-terms-v1', now(), now(), true
+  'c1020000-0000-4000-8000-000000000002/license.jpg', current_date + 30, 'driver-terms-v2', now(), now(), true
 );
 
 insert into public.driver_connect_accounts (driver_id, stripe_account_id, payouts_enabled, charges_enabled, details_submitted)

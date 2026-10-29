@@ -1,6 +1,7 @@
 import "server-only";
 
 import type Stripe from "stripe";
+import { accountLinkKind, fallbackAccountLinkKind, type AccountLinkKind } from "@/lib/payments/account-link";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -113,23 +114,36 @@ export async function refreshConnectAccount(driverId: string, accountId: string)
   return account;
 }
 
-export async function onboardingLink(accountId: string, origin: string, detailsSubmitted: boolean): Promise<string> {
+async function createAccountLink(accountId: string, origin: string, kind: AccountLinkKind): Promise<string> {
   const refreshUrl = `${origin}/driver/earnings/refresh`;
   const returnUrl = `${origin}/driver/earnings?connect=return`;
   const link = await getStripe().v2.core.accountLinks.create(
     {
       account: accountId,
-      use_case: detailsSubmitted
-        ? { type: "account_update", account_update: { refresh_url: refreshUrl, return_url: returnUrl } }
-        : { type: "account_onboarding", account_onboarding: { refresh_url: refreshUrl, return_url: returnUrl } },
+      use_case:
+        kind === "account_update"
+          ? { type: "account_update", account_update: { refresh_url: refreshUrl, return_url: returnUrl } }
+          : { type: "account_onboarding", account_onboarding: { refresh_url: refreshUrl, return_url: returnUrl } },
     },
     {
       apiVersion: previewVersion,
-      idempotencyKey: `connect-link:${accountId}:${detailsSubmitted ? "update" : "onboard"}:${Math.floor(Date.now() / 60000)}`,
+      idempotencyKey: `connect-link:${accountId}:${kind}:${Math.floor(Date.now() / 60000)}`,
     },
   );
   if (!link.url) throw new Error("Stripe did not return a setup link.");
   return link.url;
+}
+
+export async function onboardingLink(accountId: string, origin: string, detailsSubmitted: boolean): Promise<string> {
+  const preferred = accountLinkKind(detailsSubmitted);
+  try {
+    return await createAccountLink(accountId, origin, preferred);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const fallback = fallbackAccountLinkKind(preferred, message);
+    if (!fallback) throw error;
+    return createAccountLink(accountId, origin, fallback);
+  }
 }
 
 export function requestOrigin(headerList: Headers): string {

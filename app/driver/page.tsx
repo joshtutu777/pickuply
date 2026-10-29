@@ -17,6 +17,7 @@ import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
+import { driverTermsVersion } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -163,7 +164,7 @@ async function DriverContent({
           vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
-          termsAccepted={application?.terms_version === "driver-terms-v1"}
+          termsAccepted={application?.terms_version === driverTermsVersion}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
           fees={fees}
