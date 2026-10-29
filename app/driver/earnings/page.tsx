@@ -5,7 +5,8 @@ import { refreshPayoutSetup, startPayoutSetup } from "@/app/driver/connect/actio
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
-import { sentToStripeAccount } from "@/lib/payments/earnings";
+import { sentTransferLine } from "@/lib/payments/earnings";
+import { expressDashboardUrl } from "@/lib/payments/express-link";
 import { payoutSetupLabel, payoutsReady, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
 import { formatCents } from "@/lib/money";
@@ -73,6 +74,9 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       .limit(1)
       .maybeSingle(),
   ]);
+  const dashboardUrl = (entries ?? []).some((entry) => entry.status === "transferred")
+    ? await expressDashboardUrl(fresh?.stripe_account_id)
+    : null;
   const totals = ledgerBuckets(entries ?? []);
   const tipRows = (entries ?? []).filter((entry) => entry.entry_kind === "tip");
   const baseRows = (entries ?? []).filter((entry) => entry.entry_kind !== "tip");
@@ -111,7 +115,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">{payoutSetupLabel(fresh)}</h2>
         {ready ? (
-          <p className="mt-2 text-base text-ink">Stripe can send your earnings to your Stripe account. Usually in your bank about 2 business days after the job.</p>
+          <p className="mt-2 text-base text-ink">Stripe can send your earnings to your Stripe account. Bank deposits follow Stripe's payout schedule and may take a few additional business days.</p>
         ) : (
           <p className="mt-2 text-base text-ink">
             You can still take jobs. Earnings stay held until Stripe can pay you, unless an admin records an outside payment.
@@ -154,11 +158,26 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         <ul className="mt-3 grid gap-2">
           {(entries ?? []).map((entry) => (
             <li key={entry.id} className="rounded-2xl bg-paper px-3 py-3 ring-1 ring-line">
-              <p className="font-semibold">{entry.entry_kind === "tip" ? "Tip · " : ""}{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
               {entry.status === "transferred" ? (
-                <p className="text-sm text-muted">{sentToStripeAccount(new Date(entry.updated_at))}</p>
+                <>
+                  <p className="font-semibold">{entry.entry_kind === "tip" ? "Tip · " : ""}{sentTransferLine(entry.amount_cents, new Date(entry.updated_at))}</p>
+                  <p className="text-sm text-muted">
+                    Bank deposits follow Stripe's payout schedule and may take a few additional business days.{" "}
+                    {dashboardUrl ? (
+                      <a href={dashboardUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand">
+                        Check your payout status in Stripe
+                      </a>
+                    ) : (
+                      "Check your payout status in Stripe"
+                    )}
+                    .
+                  </p>
+                </>
               ) : (
-                <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
+                <>
+                  <p className="font-semibold">{entry.entry_kind === "tip" ? "Tip · " : ""}{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
+                  <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
+                </>
               )}
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
               {(entry.status === "held" || entry.status === "held_until_onboarding") ? (

@@ -6,6 +6,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { ReportForm } from "@/components/request/report-form";
 import { customerTopics, driverTopics, type HelpTopic } from "@/lib/help/topics";
+import { expressDashboardUrl } from "@/lib/payments/express-link";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Help" };
@@ -29,6 +30,10 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
   const supabase = await createClient();
   const driver = session.role === "driver";
   const topics = filterTopics(driver ? driverTopics : customerTopics, query);
+  const connect = driver
+    ? await supabase.from("driver_connect_accounts").select("stripe_account_id").eq("driver_id", session.userId).maybeSingle()
+    : { data: null };
+  const dashboardUrl = driver ? await expressDashboardUrl(connect.data?.stripe_account_id) : null;
   const { data: jobs } = await supabase
     .from("jobs")
     .select("id, service, status, pickup_area")
@@ -88,7 +93,7 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
             {topic.questions.map((item) => (
               <li key={item.q} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
                 <h3 className="font-semibold text-ink">{item.q}</h3>
-                <p className="mt-2 text-base text-ink">{item.a}</p>
+                <HelpAnswer text={item.a} dashboardUrl={dashboardUrl} />
               </li>
             ))}
           </ul>
@@ -142,6 +147,23 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
         ) : null}
       </section>
     </main>
+  );
+}
+
+function HelpAnswer({ text, dashboardUrl }: { text: string; dashboardUrl: string | null }) {
+  const phrase = "Check your payout status in Stripe";
+  const index = text.indexOf(phrase);
+  if (index < 0 || !dashboardUrl) {
+    return <p className="mt-2 text-base text-ink">{text}</p>;
+  }
+  return (
+    <p className="mt-2 text-base text-ink">
+      {text.slice(0, index)}
+      <a href={dashboardUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand">
+        {phrase}
+      </a>
+      {text.slice(index + phrase.length)}
+    </p>
   );
 }
 
