@@ -44,7 +44,7 @@ test("a failed send can be retried", async () => {
   assert.equal(sendGate.coolingUntil, 0);
 });
 
-test("request form: two rapid sends start only one request", async () => {
+test("a second tap during the request starts only one send", async () => {
   const sendGate = gate();
   let requests = 0;
 
@@ -65,7 +65,7 @@ test("request form: two rapid sends start only one request", async () => {
   assert.equal(sendGate.coolingUntil, 0);
 });
 
-test("request form: a failed send can be retried immediately", async () => {
+test("a failed send can be retried immediately", async () => {
   const sendGate = gate();
   let requests = 0;
 
@@ -83,13 +83,13 @@ test("request form: a failed send can be retried immediately", async () => {
   assert.equal(sendGate.coolingUntil, 0);
 });
 
-test("request form: a successful send does not add a resend cooldown", () => {
+test("signup and sign-in both keep the 30 second resend cooldown", () => {
   const sendGate = gate();
   assert.equal(claimOtpSend(sendGate, 4_000), true);
-  finishOtpSend(sendGate, "sent", 4_100, 0);
+  finishOtpSend(sendGate, "sent", 4_100, COOLDOWN_MS);
   assert.equal(sendGate.inFlight, false);
-  assert.equal(sendGate.coolingUntil, 0);
-  assert.equal(claimOtpSend(sendGate, 4_100), true);
+  assert.equal(claimOtpSend(sendGate, 4_100), false);
+  assert.equal(claimOtpSend(sendGate, 4_100 + COOLDOWN_MS), true);
 });
 
 test("a sent code keeps the 30 second resend cooldown", () => {

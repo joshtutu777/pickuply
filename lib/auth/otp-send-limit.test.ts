@@ -1,51 +1,95 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { otpSendLimits, reserveOtpSend, type OtpLimitLedger } from "./otp-send-limit";
+import {
+  otpLimitCoverage,
+  otpSendMessages,
+  otpSendPolicy,
+  otpVerifyBlocked,
+  reserveOtpSend,
+  type OtpSendEvent,
+} from "./otp-send-limit";
 
-function ledger(): OtpLimitLedger {
-  return { phones: new Map(), ips: new Map() };
+const now = 1_000_000_000_000;
+
+function send(events: OtpSendEvent[], phone: string, ip: string, at = now): string | null {
+  return reserveOtpSend(events, phone, ip, at);
 }
 
-test("login and the request form share one hourly phone limit", () => {
-  const counts = ledger();
-  const phone = "same-phone";
-  const ip = "same-network";
-  const sources = ["login", "request", "login", "request", "login"] as const;
-
-  for (const source of sources) {
-    assert.equal(reserveOtpSend(counts, phone, ip), null, source);
+test("several people on one network can each request a code", () => {
+  const events: OtpSendEvent[] = [];
+  for (let index = 0; index < 12; index += 1) {
+    assert.equal(send(events, `phone-${index}`, "shared-wifi"), null);
   }
-
-  assert.equal(reserveOtpSend(counts, phone, ip), otpSendLimits.phone.message);
-  assert.equal(reserveOtpSend(counts, phone, ip), otpSendLimits.phone.message);
-  assert.equal(counts.phones.get(phone), otpSendLimits.phone.max);
-  assert.equal(otpSendLimits.phone.max, 5);
-  assert.equal(otpSendLimits.phone.windowSeconds, 3600);
-  assert.equal(otpSendLimits.phone.message.includes("555"), false);
-  assert.equal(otpSendLimits.phone.message.includes("+1"), false);
+  assert.equal(events.length, 12);
 });
 
-test("login and the request form share one hourly network limit", () => {
-  const counts = ledger();
-  const ip = "shared-network";
-
-  for (let index = 0; index < otpSendLimits.ip.max; index += 1) {
-    const source = index % 2 === 0 ? "login" : "request";
-    assert.equal(reserveOtpSend(counts, `phone-${index}`, ip), null, source);
-  }
-
-  assert.equal(reserveOtpSend(counts, "one-more-phone", ip), otpSendLimits.ip.message);
-  assert.equal(counts.ips.get(ip), otpSendLimits.ip.max);
-  assert.equal(otpSendLimits.ip.max, 10);
-  assert.equal(otpSendLimits.ip.windowSeconds, 3600);
-  assert.equal(otpSendLimits.ip.message.includes("555"), false);
+test("the same phone must wait 30 seconds, then can request again", () => {
+  const events: OtpSendEvent[] = [];
+  assert.equal(send(events, "phone", "home", now), null);
+  assert.equal(send(events, "phone", "home", now + 1_000), otpSendMessages.cooldown);
+  assert.equal(events.length, 1);
+  assert.equal(send(events, "phone", "home", now + otpSendPolicy.cooldownMs), null);
+  assert.equal(events.length, 2);
 });
 
-test("a different phone is not blocked by another number on the same limit", () => {
-  const counts = ledger();
-  for (let index = 0; index < otpSendLimits.phone.max; index += 1) {
-    assert.equal(reserveOtpSend(counts, "first-phone", "network"), null);
+test("a script that tries many new numbers from one network is stopped", () => {
+  const events: OtpSendEvent[] = [];
+  for (let index = 0; index < otpSendPolicy.burstDistinctPhones; index += 1) {
+    assert.equal(send(events, `bot-${index}`, "script", now), null);
   }
-  assert.equal(reserveOtpSend(counts, "first-phone", "network"), otpSendLimits.phone.message);
-  assert.equal(reserveOtpSend(counts, "second-phone", "another-network"), null);
+  assert.equal(send(events, "bot-extra", "script", now + 1_000), otpSendMessages.burst);
+  assert.equal(events.length, otpSendPolicy.burstDistinctPhones);
+  assert.equal(send(events, "bot-0", "script", now + otpSendPolicy.cooldownMs), null);
+});
+
+test("a number can still be used through the day, then stops", () => {
+  const events: OtpSendEvent[] = [];
+  for (let index = 0; index < otpSendPolicy.phoneDailyMax; index += 1) {
+    assert.equal(send(events, "phone", "home", now + index * otpSendPolicy.cooldownMs), null);
+  }
+  assert.equal(
+    send(events, "phone", "home", now + otpSendPolicy.phoneDailyMax * otpSendPolicy.cooldownMs),
+    otpSendMessages.phoneDaily,
+  );
+  assert.equal(events.length, otpSendPolicy.phoneDailyMax);
+});
+
+test("a sustained flood of new numbers is stopped without blocking an earlier number", () => {
+  const events: OtpSendEvent[] = [];
+  const batch = otpSendPolicy.burstDistinctPhones;
+  let added = 0;
+  for (let wave = 0; added < otpSendPolicy.sustainedDistinctPhones; wave += 1) {
+    const at = now + wave * otpSendPolicy.burstMs;
+    const room = otpSendPolicy.sustainedDistinctPhones - added;
+    const count = Math.min(batch, room);
+    for (let index = 0; index < count; index += 1) {
+      assert.equal(send(events, `person-${added + index}`, "carrier", at), null);
+    }
+    added += count;
+  }
+  const later = now + 5 * otpSendPolicy.burstMs;
+  assert.equal(send(events, "one-more", "carrier", later), otpSendMessages.sustained);
+  assert.equal(send(events, "person-0", "carrier", later), null);
+});
+
+test("five wrong codes block another try until the window passes", () => {
+  const failures = [now, now + 1, now + 2, now + 3, now + 4];
+  assert.equal(otpVerifyBlocked(failures.slice(0, 4), now + 5), false);
+  assert.equal(otpVerifyBlocked(failures, now + 5), true);
+  assert.equal(otpVerifyBlocked(failures, now + otpSendPolicy.verifyWindowMs + 5), false);
+  assert.equal(otpSendMessages.verify.includes("555"), false);
+});
+
+test("a direct Auth request is outside the custom text and wrong-code limits", () => {
+  assert.equal(otpLimitCoverage.appSendChecksCustomPolicy, true);
+  assert.equal(otpLimitCoverage.directAuthSendChecksCustomPolicy, false);
+  assert.equal(otpLimitCoverage.sendSmsHookRequiredForEveryText, true);
+  assert.equal(otpLimitCoverage.appVerifyChecksFiveWrongCodes, true);
+  assert.equal(otpLimitCoverage.directAuthVerifyChecksFiveWrongCodes, false);
+});
+
+test("the old hourly phone and network quotas are gone", () => {
+  const messages = Object.values(otpSendMessages).join(" ");
+  assert.equal(messages.includes("in an hour"), false);
+  assert.equal(otpSendPolicy.cooldownMs, 30_000);
 });

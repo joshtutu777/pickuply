@@ -29,6 +29,7 @@ import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { sendSignInCode } from "@/app/login/otp-limit";
+import { verifyPhoneCode } from "@/lib/auth/otp-verify-client";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { claimOtpSend, finishOtpSend, type OtpSendGate } from "@/lib/auth/otp-send-gate";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
@@ -354,7 +355,6 @@ export function RequestWizard({
       setOtpError(otpErrorCopy.invalidNumber);
       return;
     }
-    // This form has no resend countdown. The lock only blocks a second tap during this request.
     if (!claimOtpSend(sendGate.current, Date.now())) return;
 
     setSubmitting(true);
@@ -373,7 +373,7 @@ export function RequestWizard({
       const name = caught instanceof Error ? caught.name : "";
       setOtpError(mapOtpError({ message, name }, "send"));
     } finally {
-      finishOtpSend(sendGate.current, sent ? "sent" : "failed", Date.now(), 0);
+      finishOtpSend(sendGate.current, sent ? "sent" : "failed", Date.now(), 30_000);
       setSubmitting(false);
     }
   }
@@ -387,13 +387,9 @@ export function RequestWizard({
     setSubmitting(true);
     setOtpError("");
     try {
-      const { error } = await createClient().auth.verifyOtp({
-        phone,
-        token: code,
-        type: "sms",
-      });
-      if (error) {
-        setOtpError(mapOtpError(error, "verify"));
+      const verifyError = await verifyPhoneCode(phone, code);
+      if (verifyError) {
+        setOtpError(verifyError);
         setSubmitting(false);
         return;
       }
