@@ -99,7 +99,7 @@ test("item loaded advances once, and the customer is not asked to confirm yet", 
     await customerPage.goto(`/jobs/${jobId}`);
     await dismissChrome(customerPage);
     await expect(customerPage.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
-    await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
+    await expect(customerPage.getByRole("button", { name: "Confirm delivery" })).toHaveCount(0);
     await driverPage.screenshot({ path: "C:/Users/Josh/AppData/Local/Temp/pickuply-hotfix-evidence/item-loaded-driver.png", fullPage: true });
     await customerPage.screenshot({ path: "C:/Users/Josh/AppData/Local/Temp/pickuply-hotfix-evidence/item-loaded-customer.png", fullPage: true });
     await expect(customerPage.getByText("Your item is loaded.", { exact: true })).toBeVisible();

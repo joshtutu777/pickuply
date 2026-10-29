@@ -246,11 +246,12 @@ function customerAction(input: {
   status: string;
   paymentStatus: string | null;
   pricingMethod: string;
+  service: string;
 }): string | null {
   if (input.status === "quoted") return "Accept quote";
   if (input.status === "open" && input.pricingMethod !== "quote") return "Choose driver";
   if (input.status === "assigned" && !paid.has(input.paymentStatus ?? "")) return "Add card";
-  if (input.status === "delivered") return "Confirm";
+  if (input.status === "delivered") return input.service === "junk" ? "Confirm removal" : "Confirm delivery";
   return null;
 }
 

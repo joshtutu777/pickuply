@@ -281,10 +281,10 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("delivered");
       await expect.poll(async () => {
         await customer.reload();
-        return customer.getByRole("button", { name: "Confirm", exact: true }).isVisible().catch(() => false);
+        return customer.getByRole("button", { name: "Confirm delivery" }).isVisible().catch(() => false);
       }, { timeout: 45_000, intervals: [1_000, 2_000, 3_000] }).toBe(true);
       await expect(customer.getByText("Delivered").first()).toBeVisible();
-      await customer.getByRole("button", { name: "Confirm", exact: true }).click();
+      await customer.getByRole("button", { name: "Confirm delivery" }).click();
       const confirmed = customer.getByText("You confirmed this delivery.");
       const review = customer.getByRole("heading", { name: "Review" });
       await expect(confirmed.or(review)).toBeVisible({ timeout: 30_000 });

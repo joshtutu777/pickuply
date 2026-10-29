@@ -76,19 +76,19 @@ test("a delivered job opens on Drop-off Review", async ({ page }) => {
     const tabsBox = await tabs.boundingBox();
     expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y < 700).toBe(true);
     expect(reviewBox && tabsBox && reviewBox.y < tabsBox.y).toBe(true);
-    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Report an Issue" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Report a problem" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Wrong item?" })).toHaveCount(0);
 
     setStatus("in_transit");
     await page.reload();
     await expect(page.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm delivery" })).toHaveCount(0);
 
     setStatus("item_check");
     await page.reload();
     await expect(page.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm delivery" })).toHaveCount(0);
   } finally {
     sql(
       `select set_config('pickuply.system_payment', 'yes', true); update public.jobs set status = 'requested', payment_status = 'none' where id = '${jobId}';`,

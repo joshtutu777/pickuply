@@ -184,6 +184,14 @@ test("customer tracking uses four milestones", () => {
   assert.equal(paidAndAssigned.milestones.find((step) => step.id === "pickup")?.state, "upcoming");
   assert.equal(paidAndAssigned.action, null);
   assert.equal(awaiting.action, "Add card");
+  assert.equal(
+    customerProgress({ status: "delivered", paymentStatus: "authorized", service: "delivery", pricingMethod: "fixed" }).action,
+    "Confirm delivery",
+  );
+  assert.equal(
+    customerProgress({ status: "delivered", paymentStatus: "authorized", service: "junk", pricingMethod: "fixed" }).action,
+    "Confirm removal",
+  );
 
   const completed = customerProgress({
     status: "completed",

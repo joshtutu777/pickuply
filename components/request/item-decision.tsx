@@ -63,17 +63,19 @@ export function DropoffReview({
       {confirmed ? (
         <p className="text-lg font-semibold text-ink">Thanks. Pickuply is finishing this job.</p>
       ) : (
-        <>
-          <form action={confirmDelivery}>
-            <input type="hidden" name="jobId" value={jobId} />
-            <PendingButton
-              idle="Confirm"
-              pendingLabel="Confirming..."
-              className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white disabled:opacity-60"
-            />
-          </form>
-          <ReportToggle jobId={jobId} />
-        </>
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <form action={confirmDelivery}>
+              <input type="hidden" name="jobId" value={jobId} />
+              <PendingButton
+                idle={junk ? "Confirm removal" : "Confirm delivery"}
+                pendingLabel="Confirming..."
+                className="inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-3 text-base font-semibold text-white disabled:opacity-60"
+              />
+            </form>
+            <ReportToggle jobId={jobId} />
+          </div>
+        </div>
       )}
       <p className="text-base text-ink">
         {junk
