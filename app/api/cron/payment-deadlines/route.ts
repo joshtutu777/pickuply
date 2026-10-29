@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { runCron } from "@/lib/cron/record";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
+import { reconcileOpenPayments } from "@/lib/payments/reconcile-run";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
 
     const flagged = await supabase.rpc("flag_capture_windows");
     if (flagged.error) throw new Error("Capture windows could not be checked.");
+    await reconcileOpenPayments();
     await deliverPendingAlerts();
     return { ok: true };
   });
