@@ -7,10 +7,11 @@ declare
   def text;
   fn text;
 begin
+  -- regprocedure takes types only. Argument names make the cast fail.
   foreach fn in array array[
     'public.accept_driver_terms()',
-    'public.set_driver_online(go_online boolean)',
-    'public.submit_quick_application(payload jsonb)'
+    'public.set_driver_online(boolean)',
+    'public.submit_quick_application(jsonb)'
   ]
   loop
     def := pg_get_functiondef(fn::regprocedure);
