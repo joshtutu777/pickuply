@@ -94,6 +94,8 @@ export function AdvanceButton({
         }
         ready.current = true;
         setAttempted(false);
+        const button = form.querySelector('button[type="submit"]');
+        if (button instanceof HTMLButtonElement) button.disabled = false;
         form.requestSubmit();
       })
       .catch(() => {
