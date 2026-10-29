@@ -29,8 +29,6 @@ export function nextTransferStep(action: TransferGateAction, located: TransferSe
   return "wait";
 }
 
-const idempotencyWindowMs = 23 * 60 * 60 * 1000;
-
 export type LookupErrorKind = "transient" | "configuration";
 
 /** A key, permission, or account problem is not a retry. Other lookup errors can be tried again. */
@@ -57,23 +55,15 @@ export function lookupErrorKind(error: {
 }
 
 /**
- * A failed lookup retries. The third failure may create only while the first
- * attempt is still inside Stripe's idempotency window. After that, reconcile.
+ * A failed lookup retries twice. The third failure is reconciled and is not created.
+ * A successful empty lookup is the only path that creates a transfer.
  */
 export function lookupFailureAction(input: {
   attempts: number;
-  firstAttemptAt: Date | null;
-  now: Date;
   kind: LookupErrorKind;
-}): "retry" | "create" | "reconcile" | "alert" {
+}): "retry" | "reconcile" | "alert" {
   if (input.kind === "configuration") return "alert";
   if (input.attempts < 3) return "retry";
-  if (
-    input.firstAttemptAt &&
-    input.now.getTime() - input.firstAttemptAt.getTime() < idempotencyWindowMs
-  ) {
-    return "create";
-  }
   return "reconcile";
 }
 
