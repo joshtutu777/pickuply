@@ -32,11 +32,11 @@ async function Customers({ searchParams }: CustomersPageProps) {
   const supabase = await createClient();
   let request = supabase
     .from("profiles")
-    .select("id, full_name, phone, role, deleted_at, reclaim_hold_at, is_test")
+    .select("id, full_name, phone, email, role, deleted_at, reclaim_hold_at, is_test")
     .order("full_name", { ascending: true })
     .limit(80);
   if (lane !== "all") request = request.eq("is_test", lane === "test");
-  if (q) request = request.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`);
+  if (q) request = request.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
   if (filter === "review") request = request.not("reclaim_hold_at", "is", null);
   if (filter === "deleted") request = request.not("deleted_at", "is", null);
   const { data, error } = await request;
@@ -87,6 +87,7 @@ async function Customers({ searchParams }: CustomersPageProps) {
               <span>
                 <span className="block font-semibold text-ink">{row.full_name ?? "Unnamed"}</span>
                 <span className="block text-sm text-muted">{row.phone ? formatUsPhone(row.phone) ?? row.phone : "No phone"}</span>
+                <span className="block text-sm text-muted">{row.email?.trim() || "No email"}</span>
               </span>
               <span className="text-sm text-muted">
                 {row.deleted_at ? "Deleted" : row.reclaim_hold_at ? "Phone review" : suspended.has(row.id) ? "Suspended" : pending.has(row.id) ? "Deletion pending" : row.role}

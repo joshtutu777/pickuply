@@ -173,6 +173,8 @@ async function signInFromLogin(page: Page, person: { phone: string; code: string
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
     await page.getByLabel("First name").fill(person.name);
+    const email = page.getByLabel("Email address");
+    if (await email.isVisible().catch(() => false)) await email.fill(`${person.phone}@example.com`);
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login") && !url.pathname.startsWith("/auth"));
@@ -183,6 +185,8 @@ async function openAccount(page: Page, name: string) {
   await page.goto("/account");
   if (page.url().includes("/login/name")) {
     await page.getByLabel("First name").fill(name);
+    const email = page.getByLabel("Email address");
+    if (await email.isVisible().catch(() => false)) await email.fill("customer@example.com");
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname === "/account");
@@ -251,6 +255,7 @@ async function fillRequest(
   if (await name.isVisible()) {
     await name.fill(input.person.name);
     await page.getByLabel("Phone number").fill(input.person.phone);
+    await page.getByLabel("Email address").fill(`${input.person.phone}@example.com`);
     await page.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("heading", { name: "Confirm your phone" })).toBeVisible();

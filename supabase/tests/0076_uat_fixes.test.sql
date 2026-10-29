@@ -85,10 +85,10 @@ insert into public.jobs (
   ('c1760000-0000-4000-8000-000000000011', 'c1760000-0000-4000-8000-000000000001', 'delivery', 'open', (select id from public.zones where slug = 'west_metro'), 'Austell 30106', 'real lane', 1, 'medium', 0, 0, false, false, 'asap', 'fixed', 5000),
   ('c1760000-0000-4000-8000-000000000012', 'c1760000-0000-4000-8000-000000000007', 'delivery', 'open', (select id from public.zones where slug = 'west_metro'), 'Austell 30106', 'test lane', 1, 'medium', 0, 0, false, false, 'asap', 'fixed', 5000);
 
-insert into public.job_private (job_id, pickup_address, customer_name, customer_phone)
+insert into public.job_private (job_id, pickup_address, customer_name, customer_phone, customer_email)
 values
-  ('c1760000-0000-4000-8000-000000000011', '1 Synthetic Lane', 'UAT Customer', '+14045550101'),
-  ('c1760000-0000-4000-8000-000000000012', '2 Synthetic Lane', 'UAT Test Customer', '+14045550102');
+  ('c1760000-0000-4000-8000-000000000011', '1 Synthetic Lane', 'UAT Customer', '+14045550101', 'uat.customer@example.com'),
+  ('c1760000-0000-4000-8000-000000000012', '2 Synthetic Lane', 'UAT Test Customer', '+14045550102', 'uat.test@example.com');
 
 update public.jobs
 set status = 'assigned', assigned_driver_id = 'c1760000-0000-4000-8000-000000000002', payment_status = 'authorized'

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fees } from "../constants";
 import { emptyDraft } from "../types";
-import { driverApplyEmailError, profileEmailError } from "./email";
+import { customerEmailError, driverApplyEmailError, normalizeEmail, profileEmailError } from "./email";
 import { validateStep } from "./request";
 
 test("quote pricing needs no amount", () => {
@@ -56,7 +56,15 @@ test("profile email is optional and rejects a bad address", () => {
   assert.equal(driverApplyEmailError("not-an-email"), "Enter a valid email.");
 });
 
-test("phone numbers must be US numbers and email may be blank", () => {
+test("a customer email is required, rejected when invalid, and stored in one case", () => {
+  assert.equal(customerEmailError(""), "Enter your email.");
+  assert.equal(customerEmailError("   "), "Enter your email.");
+  assert.equal(customerEmailError("not-an-email"), "Enter a valid email.");
+  assert.equal(customerEmailError("Ada@Example.com"), null);
+  assert.equal(normalizeEmail("  Ada@Example.com "), "ada@example.com");
+});
+
+test("a pickup request requires a valid email", () => {
   const draft = emptyDraft("delivery");
   draft.pricingMethod = "quote";
   draft.customerName = "Ada";
@@ -65,10 +73,13 @@ test("phone numbers must be US numbers and email may be blank", () => {
   draft.hearAbout = "facebook";
   assert.match(validateStep("verify", draft).customerPhone ?? "", /10-digit/);
   draft.customerPhone = "404-555-1212";
-  draft.customerEmail = "not-an-email";
   draft.agreedToTerms = true;
   assert.equal(validateStep("verify", draft).customerPhone, undefined);
-  assert.match(validateStep("verify", draft).customerEmail ?? "", /valid email/);
+  assert.equal(validateStep("verify", draft).customerEmail, "Enter your email.");
+  draft.customerEmail = "not-an-email";
+  assert.equal(validateStep("verify", draft).customerEmail, "Enter a valid email.");
+  draft.customerEmail = "Ada@Example.com";
+  assert.equal(validateStep("verify", draft).customerEmail, undefined);
 });
 
 test("item value over the cap is allowed", () => {

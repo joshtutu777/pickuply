@@ -2,6 +2,7 @@ import { fees, zoneForCity } from "../constants";
 import { parseDollarsToCents } from "../money";
 import { normalizeUsPhone } from "../phone";
 import type { PrivateJob, PublicJob, RequestDraft } from "../types";
+import { normalizeEmail } from "../validation/email";
 import { itemValueCents, needsValueApproval } from "../validation/request";
 
 const privateKeys = [
@@ -151,7 +152,7 @@ export function splitJob(
     dropoff_address: junk ? null : draft.dropoffStreet.trim(),
     customer_name: draft.customerName.trim(),
     customer_phone: phone,
-    customer_email: draft.customerEmail.trim() || null,
+    customer_email: normalizeEmail(draft.customerEmail) || null,
     access_notes: draft.accessNotes.trim() || null,
   };
 

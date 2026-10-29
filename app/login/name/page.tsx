@@ -5,6 +5,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Your name",
@@ -32,7 +33,11 @@ async function NameContent({
   const intent = safeIntent(singleQuery(params.intent));
   const located = authLocation("/login/name", next, intent);
   const signedInSearch = located.startsWith("/login/name?") ? located.slice("/login/name".length) : "";
-  await requireSignedIn("/login/name", signedInSearch);
+  const session = await requireSignedIn("/login/name", signedInSearch);
+  const supabase = await createClient();
+  const profile = await supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle();
+  const savedEmail = typeof profile.data?.email === "string" ? profile.data.email.trim() : "";
+  const requireEmail = intent !== "driver" && savedEmail.length === 0;
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -41,9 +46,11 @@ async function NameContent({
         Your name
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        Enter your first name. We&apos;ll ask again the next time you sign in until it is saved.
+        {requireEmail
+          ? "Enter your first name and email. We'll ask again the next time you sign in until they are saved."
+          : "Enter your first name. We'll ask again the next time you sign in until it is saved."}
       </p>
-      <NameForm next={next ?? ""} intent={intent ?? ""} />
+      <NameForm next={next ?? ""} intent={intent ?? ""} requireEmail={requireEmail} />
     </main>
   );
 }
