@@ -1234,12 +1234,12 @@ function ReviewStep({
         </>
       )}
       <TextField
-        label="Email address"
+        label="Email address *"
         name="customerEmail"
         type="email"
         inputMode="email"
         autoComplete="email"
-        optional
+        required
         hint="For booking updates and receipts."
         value={draft.customerEmail}
         error={errors.customerEmail}

@@ -131,12 +131,13 @@ insert into public.jobs (
 
 select set_config('pickuply.quote_accepted', '', true);
 
-insert into public.job_private (job_id, pickup_address, customer_name, customer_phone)
+insert into public.job_private (job_id, pickup_address, customer_name, customer_phone, customer_email)
 values (
   'daaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
   '100 Market Street',
   'Sec Customer',
-  '+15555550111'
+  '+15555550111',
+  'sec@example.com'
 );
 
 insert into public.job_offers (

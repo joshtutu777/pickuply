@@ -164,6 +164,7 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await customer.getByRole("button", { name: "Next", exact: true }).click();
       await customer.getByLabel("Your name").fill(customerPerson.name);
       await customer.getByLabel("Phone number").fill(customerPerson.phone);
+      await customer.getByLabel("Email address").fill(`${customerPerson.phone}@example.com`);
       await customer.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
       await customer.getByRole("button", { name: "Continue" }).click();
       await customer.getByRole("button", { name: "Text me a code" }).click();
@@ -361,6 +362,10 @@ test("three people walk a pickup from signup through delivery", async ({ browser
           ux.push("A signed-in customer still had to enter a name on the next request.");
           await repeatName.fill(customerPerson.name);
         }
+      }
+      const repeatEmail = customer.getByLabel("Email address");
+      if (await repeatEmail.isVisible().catch(() => false) && !(await repeatEmail.inputValue()).trim()) {
+        await repeatEmail.fill(`${customerPerson.phone}@example.com`);
       }
       await customer.getByRole("checkbox", { name: "I agree to the terms, fees, and prohibited items." }).check();
       await customer.getByRole("button", { name: "Send request" }).click();

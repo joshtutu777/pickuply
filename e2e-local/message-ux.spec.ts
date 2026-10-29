@@ -129,10 +129,10 @@ update public.jobs
 set status = 'assigned', assigned_driver_id = '${patId}', payment_status = 'authorized'
 where id in ('${sofaJob}', '${tableJob}');
 set session_replication_role = origin;
-insert into public.job_private (job_id, pickup_address, customer_name, customer_phone)
+insert into public.job_private (job_id, pickup_address, customer_name, customer_phone, customer_email)
 values
-  ('${sofaJob}', '${street}, Norcross, GA 30071', 'Robin Returning', '15555550177'),
-  ('${tableJob}', '${street}, Norcross, GA 30071', 'Robin Returning', '15555550177');
+  ('${sofaJob}', '${street}, Norcross, GA 30071', 'Robin Returning', '15555550177', 'robin@example.com'),
+  ('${tableJob}', '${street}, Norcross, GA 30071', 'Robin Returning', '15555550177', 'robin@example.com');
 insert into public.message_threads (id, job_id, requester_id, driver_id, kind) values
   ('${sofaThread}', '${sofaJob}', '${robinId}', '${patId}', 'job'),
   ('${tableThread}', '${tableJob}', '${robinId}', '${patId}', 'job');

@@ -1,4 +1,5 @@
 import { validateFullName } from "../auth/name";
+import { customerEmailError, normalizeEmail } from "../validation/email";
 import { photoMaxBytes } from "../constants";
 import { loadPhoto } from "../photo-store";
 import { createClient } from "../supabase/client";
@@ -65,17 +66,17 @@ export async function createRequest(
     throw new RequestSubmitError("auth", "Sign in again before saving this request.");
   }
 
-  const email = draft.customerEmail.trim();
-  if (email) {
-    const saved = await supabase.rpc("save_profile_email", { next_email: email });
-    if (saved.error) {
-      throw new RequestSubmitError(
-        "rejected",
-        saved.error.message.includes("email is not valid")
-          ? "Enter a valid email, or leave it blank."
-          : "We couldn't save this request. Your draft is still here.",
-      );
-    }
+  const email = normalizeEmail(draft.customerEmail);
+  const emailProblem = customerEmailError(email);
+  if (emailProblem) throw new RequestSubmitError("rejected", emailProblem);
+  const saved = await supabase.rpc("save_profile_email", { next_email: email });
+  if (saved.error) {
+    throw new RequestSubmitError(
+      "rejected",
+      saved.error.message.includes("email is not valid")
+        ? "Enter a valid email."
+        : "We couldn't save this request. Your draft is still here.",
+    );
   }
 
   const id = submissionId();

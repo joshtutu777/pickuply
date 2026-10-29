@@ -12,7 +12,15 @@ const inputClass =
 const primaryButton =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 text-base font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60";
 
-export function NameForm({ next, intent }: { next: string; intent: string }) {
+export function NameForm({
+  next,
+  intent,
+  requireEmail,
+}: {
+  next: string;
+  intent: string;
+  requireEmail: boolean;
+}) {
   const [state, action, pending] = useActionState(saveFullName, initialState);
   return (
     <form action={action} className="mt-8 flex flex-col gap-4">
@@ -33,6 +41,21 @@ export function NameForm({ next, intent }: { next: string; intent: string }) {
           className={inputClass}
         />
       </label>
+      {requireEmail ? (
+        <label className="block" htmlFor="email">
+          <span className="text-base font-semibold text-ink">Email address *</span>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            maxLength={200}
+            className={inputClass}
+          />
+        </label>
+      ) : null}
       <label className="flex min-h-12 items-start gap-3 text-base text-ink">
         <input className="mt-1 size-5" type="checkbox" name="consent" value="yes" required />
         <span>
