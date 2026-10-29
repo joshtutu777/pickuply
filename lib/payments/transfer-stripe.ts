@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { transferForLedger } from "@/lib/payments/transfer-match";
+import { selectLedgerTransfer, transferForLedger } from "@/lib/payments/transfer-match";
 
 export type LedgerTransferRequest = {
   entryId: string;
@@ -8,10 +8,26 @@ export type LedgerTransferRequest = {
   chargeId: string;
 };
 
-/** Lists by transfer group. Stripe Search does not support transfers. */
-export async function findTransferByLedger(stripe: Stripe, entryId: string): Promise<string | null> {
-  const listed = await stripe.transfers.list({ transfer_group: entryId, limit: 1 });
-  return transferForLedger(listed.data, entryId);
+export type LegacyTransferSearch = {
+  destination: string;
+  createdAfter: Date;
+};
+
+/** Lists by transfer group, then by destination for transfers made before transfer groups existed. */
+export async function findTransferByLedger(
+  stripe: Stripe,
+  entryId: string,
+  legacy?: LegacyTransferSearch,
+): Promise<string | null> {
+  const grouped = await stripe.transfers.list({ transfer_group: entryId, limit: 1 });
+  const groupedId = transferForLedger(grouped.data, entryId);
+  if (groupedId || !legacy) return groupedId;
+  const listed = await stripe.transfers.list({
+    destination: legacy.destination,
+    created: { gte: Math.floor(legacy.createdAfter.getTime() / 1000) },
+    limit: 100,
+  });
+  return selectLedgerTransfer([], listed.data, entryId);
 }
 
 /** Creates one transfer. The ledger id is both the transfer group and the idempotency key. */

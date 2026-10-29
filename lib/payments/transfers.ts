@@ -6,8 +6,9 @@ import { getStripe } from "@/lib/stripe";
 import { transferSentNotice } from "@/lib/payments/earnings";
 import { createLedgerTransfer, findTransferByLedger } from "@/lib/payments/transfer-stripe";
 import {
-  afterLookupFailure,
   isLedgerEntryId,
+  lookupErrorKind,
+  lookupFailureAction,
   nextTransferStep,
   transferIdempotencyKey,
   type TransferGateAction,
@@ -37,13 +38,32 @@ function responseLost(error: unknown): boolean {
   return type === "StripeConnectionError" || status >= 500;
 }
 
-async function locateTransfer(entryId: string): Promise<{ id: string | null; located: TransferSearch; error: string | null }> {
+async function locateTransfer(
+  entryId: string,
+  destination: string,
+  createdAfter: Date | null,
+): Promise<{ id: string | null; located: TransferSearch; error: string | null; kind: "transient" | "configuration" }> {
   try {
-    const id = await findTransferByLedger(getStripe(), entryId);
-    return { id, located: id ? "found" : "absent", error: null };
+    const id = await findTransferByLedger(
+      getStripe(),
+      entryId,
+      createdAfter ? { destination, createdAfter } : undefined,
+    );
+    return { id, located: id ? "found" : "absent", error: null, kind: "transient" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "The transfer lookup failed.";
-    return { id: null, located: "unknown", error: message.slice(0, 300) };
+    const details = error && typeof error === "object" ? error : {};
+    return {
+      id: null,
+      located: "unknown",
+      error: message.slice(0, 300),
+      kind: lookupErrorKind({
+        type: "type" in details ? String(details.type) : "",
+        statusCode: "statusCode" in details ? Number(details.statusCode) : 0,
+        code: "code" in details ? String(details.code) : "",
+        message,
+      }),
+    };
   }
 }
 
@@ -91,14 +111,18 @@ async function refreshHeldTransferCapabilities(): Promise<void> {
   }
 }
 
-async function recordLookupFailure(entryId: string, reason: string): Promise<number> {
+async function recordLookupFailure(entryId: string, reason: string): Promise<{ attempts: number; firstAttemptAt: Date | null }> {
   const result = await createServiceClient().rpc("note_transfer_lookup_failure", {
     target_entry: entryId,
     reason: reason.slice(0, 300),
   });
-  const count = Number(result.data);
-  if (result.error || !Number.isInteger(count)) return 1;
-  return count;
+  const data = result.data as { failures?: number; first_attempt_at?: string | null } | null;
+  const attempts = Number(data?.failures);
+  if (result.error || !Number.isInteger(attempts)) return { attempts: 1, firstAttemptAt: new Date() };
+  return {
+    attempts,
+    firstAttemptAt: data?.first_attempt_at ? new Date(data.first_attempt_at) : null,
+  };
 }
 
 async function alertLookupFailure(entryId: string, reason: string): Promise<void> {
@@ -118,9 +142,63 @@ async function alertLookupFailure(entryId: string, reason: string): Promise<void
       job_id: null,
       kind: "transfer_lookup",
       title: "Transfer lookup failed",
-      body: "A transfer lookup failed. It will be tried again. After three failures the same ledger transfer is sent.",
+      body: "A transfer lookup failed. It will be tried again on the next transfer job.",
       href: "/admin/finance",
       dedupe_key: `transfer-lookup:${entryId}`,
+      push_sent_at: now,
+      email_sent_at: now,
+      sms_sent_at: now,
+    });
+  }
+}
+
+async function alertLookupConfiguration(entryId: string, reason: string): Promise<void> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  await supabase.from("audit_log").insert({
+    actor_id: null,
+    action: "transfer_lookup_config",
+    target_type: "ledger_entry",
+    target_id: entryId,
+    data: { note: reason.slice(0, 300) },
+  });
+  const admins = await supabase.from("profiles").select("id").eq("role", "admin");
+  for (const admin of admins.data ?? []) {
+    await supabase.from("notifications").insert({
+      profile_id: admin.id,
+      job_id: null,
+      kind: "transfer_lookup_config",
+      title: "Transfer lookup needs attention",
+      body: "A transfer lookup failed because of a Stripe key, permission, or account problem. It was not counted as a retry.",
+      href: "/admin/finance",
+      dedupe_key: `transfer-lookup-config:${entryId}`,
+      push_sent_at: now,
+      email_sent_at: now,
+      sms_sent_at: now,
+    });
+  }
+}
+
+async function alertNeedsReconciliation(entryId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  await supabase.from("audit_log").insert({
+    actor_id: null,
+    action: "transfer_needs_reconciliation",
+    target_type: "ledger_entry",
+    target_id: entryId,
+    data: { note: "Needs reconciliation" },
+  });
+  const admins = await supabase.from("profiles").select("id").eq("role", "admin");
+  for (const admin of admins.data ?? []) {
+    await supabase.from("notifications").insert({
+      profile_id: admin.id,
+      job_id: null,
+      kind: "transfer_reconcile",
+      title: "Transfer needs reconciliation",
+      body: "A transfer was not sent again because the first attempt is at least 23 hours old. It needs reconciliation.",
+      href: "/admin/finance/reconciliation",
+      dedupe_key: `transfer-reconcile:${entryId}`,
       push_sent_at: now,
       email_sent_at: now,
       sms_sent_at: now,
@@ -182,19 +260,48 @@ export async function sendReadyTransfers(only?: { jobId?: string; driverId?: str
     if (!isLedgerEntryId(row.entry_id) || transferIdempotencyKey(row.entry_id) !== row.entry_id) continue;
     let gate = await beginTransfer(row.entry_id, false);
     if (!gate || gate.idempotency_key !== row.entry_id) continue;
-    let located = await locateTransfer(row.entry_id);
+    const job = await supabase.from("jobs").select("completed_at").eq("id", row.job_id).maybeSingle();
+    const completedAt = job.data?.completed_at ? new Date(job.data.completed_at) : null;
+    const createdAfter = completedAt ? new Date(completedAt.getTime() - 2 * 60 * 1000) : null;
+    let located = await locateTransfer(row.entry_id, row.stripe_account_id, createdAfter);
     if (located.located === "unknown") {
-      const failures = await recordLookupFailure(row.entry_id, located.error ?? "The transfer lookup failed.");
-      try {
-        await alertLookupFailure(row.entry_id, located.error ?? "The transfer lookup failed.");
-      } catch {
-        // The count is already stored. The next transfer job reads it again.
-      }
-      if (afterLookupFailure(failures) === "retry") {
+      const reason = located.error ?? "The transfer lookup failed.";
+      if (located.kind === "configuration") {
+        try {
+          await alertLookupConfiguration(row.entry_id, reason);
+        } catch {
+          // The next transfer job tries the lookup again. This failure is not counted.
+        }
         await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
         continue;
       }
-      located = { id: null, located: "absent", error: null };
+      const failure = await recordLookupFailure(row.entry_id, reason);
+      const action = lookupFailureAction({
+        attempts: failure.attempts,
+        firstAttemptAt: failure.firstAttemptAt,
+        now: new Date(),
+        kind: "transient",
+      });
+      if (action === "retry") {
+        try {
+          await alertLookupFailure(row.entry_id, reason);
+        } catch {
+          // The count is already stored. The next transfer job reads it again.
+        }
+        await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
+        continue;
+      }
+      if (action === "reconcile") {
+        try {
+          await alertNeedsReconciliation(row.entry_id);
+        } catch {
+          // The claim stays unresolved. The reconciliation page reads the same 23-hour rule.
+        }
+        await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
+        await beginTransfer(row.entry_id, true);
+        continue;
+      }
+      located = { id: null, located: "absent", error: null, kind: "transient" };
       if (gate.action !== "send") {
         gate = await beginTransfer(row.entry_id, true);
         if (!gate || gate.idempotency_key !== row.entry_id || gate.action !== "send") continue;
