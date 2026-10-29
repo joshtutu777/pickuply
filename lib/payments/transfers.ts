@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readTransfersStatus, requestDriverTransfers } from "@/lib/payments/connect-capability";
+import { missingTransfersCapability, transfersCapabilityActive } from "@/lib/payments/transfer-readiness";
 import { getStripe } from "@/lib/stripe";
 import {
   isLedgerEntryId,
@@ -18,6 +20,7 @@ type ReadyTransfer = {
   driver_id: string;
   stripe_account_id: string;
   charge_id: string;
+  job_id: string;
 };
 
 type TransferGate = {
@@ -56,8 +59,71 @@ async function beginTransfer(entryId: string, confirmAbsent: boolean): Promise<T
   return result.data as TransferGate;
 }
 
-export async function sendReadyTransfers(): Promise<string | null> {
+async function refreshHeldTransferCapabilities(): Promise<void> {
   const supabase = createServiceClient();
+  const held = await supabase
+    .from("ledger_entries")
+    .select("driver_id")
+    .eq("status", "held_until_onboarding")
+    .is("stripe_transfer_id", null)
+    .limit(20);
+  const driverIds = [...new Set((held.data ?? []).map((row) => row.driver_id).filter(Boolean))];
+  if (driverIds.length === 0) return;
+  const accounts = await supabase
+    .from("driver_connect_accounts")
+    .select("driver_id, stripe_account_id")
+    .in("driver_id", driverIds);
+  for (const account of accounts.data ?? []) {
+    try {
+      let status = await readTransfersStatus(account.stripe_account_id);
+      if (!transfersCapabilityActive(status)) {
+        try {
+          await requestDriverTransfers(account.stripe_account_id);
+        } catch {
+          // Stripe may already have the request. The status read below is what we store.
+        }
+        status = await readTransfersStatus(account.stripe_account_id);
+      }
+      await supabase
+        .from("driver_connect_accounts")
+        .update({ transfers_active: transfersCapabilityActive(status), synced_at: new Date().toISOString() })
+        .eq("driver_id", account.driver_id);
+    } catch {
+      // The next transfer run reads Stripe again.
+    }
+  }
+}
+
+async function alertNeedsPayoutSetup(entryId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  await supabase.from("audit_log").insert({
+    actor_id: null,
+    action: "transfer_needs_setup",
+    target_type: "ledger_entry",
+    target_id: entryId,
+    data: { note: "Needs payout setup" },
+  });
+  const admins = await supabase.from("profiles").select("id").eq("role", "admin");
+  for (const admin of admins.data ?? []) {
+    await supabase.from("notifications").insert({
+      profile_id: admin.id,
+      job_id: null,
+      kind: "transfer_setup",
+      title: "Transfer needs payout setup",
+      body: "A driver transfer is waiting because Stripe transfers are not active. It will be sent again once that capability is active.",
+      href: "/admin/finance",
+      dedupe_key: `transfer-setup:${entryId}`,
+      push_sent_at: now,
+      email_sent_at: now,
+      sms_sent_at: now,
+    });
+  }
+}
+
+export async function sendReadyTransfers(only?: { jobId?: string; driverId?: string }): Promise<string | null> {
+  const supabase = createServiceClient();
+  await refreshHeldTransferCapabilities();
   const refreshed = await supabase.rpc("refresh_ledger_readiness");
   if (refreshed.error) return "The payout list could not be refreshed.";
   const ready = await supabase.rpc("ready_transfers");
@@ -65,6 +131,8 @@ export async function sendReadyTransfers(): Promise<string | null> {
 
   let limit: string | null = null;
   for (const row of (ready.data ?? []) as ReadyTransfer[]) {
+    if (only?.jobId && row.job_id !== only.jobId) continue;
+    if (only?.driverId && row.driver_id !== only.driverId) continue;
     if (!isLedgerEntryId(row.entry_id) || transferIdempotencyKey(row.entry_id) !== row.entry_id) continue;
     let gate = await beginTransfer(row.entry_id, false);
     if (!gate || gate.idempotency_key !== row.entry_id) continue;
@@ -108,6 +176,16 @@ export async function sendReadyTransfers(): Promise<string | null> {
       });
       if (marked.error) throw new Error("The transfer could not be recorded.");
     } catch (error) {
+      if (missingTransfersCapability(error)) {
+        await supabase.from("driver_connect_accounts").update({ transfers_active: false }).eq("driver_id", row.driver_id);
+        await supabase.rpc("note_transfer_needs_setup", { target_entry: row.entry_id });
+        try {
+          await alertNeedsPayoutSetup(row.entry_id);
+        } catch {
+          // The ledger is already marked. The next account update retries the same claim.
+        }
+        continue;
+      }
       await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
       if (responseLost(error)) continue;
       const message = error instanceof Error ? error.message : "The transfer could not be sent.";

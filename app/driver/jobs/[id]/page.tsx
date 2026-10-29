@@ -74,7 +74,7 @@ async function DriverJob({
     job.status === "completed"
       ? await supabase
           .from("ledger_entries")
-          .select("amount_cents, status")
+          .select("amount_cents, status, updated_at")
           .eq("job_id", id)
           .eq("driver_id", session.userId)
           .maybeSingle()
@@ -365,8 +365,8 @@ async function DriverJob({
           <p className="text-base font-semibold text-ink">
             Earnings for this job {formatCents(ledger.amount_cents)}
           </p>
-          <p className="mt-1 text-base text-ink">Earnings status: {earningsAvailability(ledger.status).label}</p>
-          <p className="mt-1 text-base text-ink">{earningsAvailability(ledger.status).detail}</p>
+          <p className="mt-1 text-base text-ink">Earnings status: {earningsAvailability(ledger.status, ledger.updated_at ? new Date(ledger.updated_at) : null).label}</p>
+          <p className="mt-1 text-base text-ink">{earningsAvailability(ledger.status, ledger.updated_at ? new Date(ledger.updated_at) : null).detail}</p>
           <Link href="/driver/earnings" className="mt-2 inline-flex min-h-12 items-center font-semibold text-brand">
             Earnings and payouts
           </Link>

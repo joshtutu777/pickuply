@@ -3,6 +3,7 @@ import "server-only";
 import type Stripe from "stripe";
 import { sendEmail } from "@/lib/email";
 import { buildReceiptText } from "@/lib/payments/receipt";
+import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -69,6 +70,11 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
     target_job: jobId,
     available_on: balance.availableOn,
   });
+  try {
+    await sendReadyTransfers({ jobId });
+  } catch {
+    // The 15-minute transfer job retries a row that is ready and not held.
+  }
   await sendReceipt(jobId);
 }
 

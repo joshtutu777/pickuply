@@ -35,9 +35,11 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
       .eq("status", "recovery_due")
       .limit(25),
     supabase.from("drivers").select("profile_id, status").in("status", ["approved_new", "active", "paused"]),
-    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled"),
+    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled, transfers_active"),
   ]);
-  const readyAccounts = new Set((accounts ?? []).filter((account) => account.payouts_enabled).map((account) => account.driver_id));
+  const readyAccounts = new Set(
+    (accounts ?? []).filter((account) => account.payouts_enabled && account.transfers_active).map((account) => account.driver_id),
+  );
   const entryJobs = [...new Set((entries ?? []).map((entry) => entry.job_id))];
   const driverIds = (drivers ?? []).map((driver) => driver.profile_id);
   const [{ data: jobFlags }, { data: driverFlags }] = await Promise.all([
