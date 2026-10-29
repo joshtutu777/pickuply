@@ -52,9 +52,9 @@ insert into public.drivers (
   profile_id, status, zone_id, service_level, services, is_online,
   license_expires, terms_version, terms_accepted_at, agreement_signed_at
 ) values
-  ('c1900000-0000-4000-8000-000000000002', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now()),
-  ('c1900000-0000-4000-8000-000000000003', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now()),
-  ('c1900000-0000-4000-8000-000000000004', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now());
+  ('c1900000-0000-4000-8000-000000000002', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now()),
+  ('c1900000-0000-4000-8000-000000000003', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now()),
+  ('c1900000-0000-4000-8000-000000000004', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery', 'junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now());
 
 insert into public.vehicles (driver_id, type, make, approved)
 values

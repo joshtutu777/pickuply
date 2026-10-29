@@ -1,11 +1,12 @@
 import { resolveDispute } from "@/app/admin/requests/dispute-actions";
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 
 export function DisputeResolution({ jobId }: { jobId: string }) {
   return (
     <form action={resolveDispute} className="mt-6 grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Resolve the problem report</h2>
       <p className="text-base text-muted">
-        A refund outcome refunds the card through Stripe, then records the decision. A transfer that already moved is not reversed from here.
+        {damagePolicyCopy} A refund outcome refunds the card through Stripe, then records the decision. A transfer that already moved is not reversed from here.
       </p>
       <input type="hidden" name="jobId" value={jobId} />
       <label className="text-base font-semibold" htmlFor="dispute-outcome">

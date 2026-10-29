@@ -59,7 +59,7 @@ values
     array['delivery']::public.job_service[],
     true,
     current_date + 30,
-    'driver-terms-v1',
+    'driver-terms-v2',
     now(),
     now()
   ),
@@ -71,7 +71,7 @@ values
     array['delivery']::public.job_service[],
     true,
     current_date + 30,
-    'driver-terms-v1',
+    'driver-terms-v2',
     now(),
     now()
   );

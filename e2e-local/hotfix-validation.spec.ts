@@ -33,7 +33,7 @@ test("item loaded advances once, and the customer is not asked to confirm yet", 
     ) values (
       '${driver.id}', 'active', (select id from public.zones where slug = 'west_metro'),
       'full', array['delivery']::public.job_service[], true,
-      current_date + 30, 'driver-terms-v1', now(), now()
+      current_date + 30, 'driver-terms-v2', now(), now()
     );
     insert into public.vehicles (driver_id, type, make, approved)
     values ('${driver.id}', 'pickup', 'Ford', true);
@@ -141,7 +141,7 @@ test("customer and driver receipts keep long text inside the screen", async ({ b
     ) values (
       '${driver.id}', 'active', (select id from public.zones where slug = 'west_metro'),
       'full', array['delivery']::public.job_service[], true,
-      current_date + 30, 'driver-terms-v1', now(), now()
+      current_date + 30, 'driver-terms-v2', now(), now()
     );
     insert into public.jobs (
       id, customer_id, service, status, zone_id, pickup_area, dropoff_area, description, pieces, size,
@@ -342,9 +342,9 @@ test("a new quote is offered by two drivers and the customer chooses one", async
       profile_id, status, zone_id, service_level, services, is_online,
       license_expires, terms_version, terms_accepted_at, agreement_signed_at
     ) values
-      ('${ada.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now()),
-      ('${bea.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now()),
-      ('${outsider.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v1', now(), now());
+      ('${ada.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now()),
+      ('${bea.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now()),
+      ('${outsider.id}', 'active', (select id from public.zones where slug = 'west_metro'), 'full', array['delivery','junk']::public.job_service[], true, current_date + 30, 'driver-terms-v2', now(), now());
     insert into public.vehicles (driver_id, type, make, approved)
     values ('${ada.id}', 'pickup', 'Ford', true), ('${bea.id}', 'pickup', 'Ford', true), ('${outsider.id}', 'pickup', 'Ford', true);
     insert into public.driver_feed_filters (profile_id, cities, zips)

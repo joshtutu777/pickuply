@@ -1,4 +1,5 @@
 import type { LegalSection } from "@/components/legal-document";
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 
 export const termsEffective = "October 28, 2026";
 
@@ -73,6 +74,7 @@ export const termsSections: LegalSection[] = [
     heading: "Safety, damage and disputes",
     paragraphs: [
       "Customers must ensure safe, lawful access; disclose stairs, weight, dimensions, fragile or hazardous conditions, and special handling requirements; secure permission from the owner or premises controller; and appropriately package items unless a Driver expressly agrees to packaging services. Drivers must use reasonable care, appropriate equipment and safe loading, securing, transport, unloading and disposal methods. The Driver performing the service—not Pickuply—is ordinarily responsible for operational decisions and any resulting vehicle accident, injury, cargo loss, damage to goods, damage to homes, driveways or other property, or third-party harm attributable to that Driver's conduct, subject to applicable law. Pickuply does not promise insurance coverage or reimbursement for these events. Customers and Drivers should document item condition and promptly report incidents to info@pickuplyapp.com; Pickuply may facilitate communications or review platform records without accepting liability or becoming the insurer, claims adjuster, or guarantor of the underlying service. Users should preserve photos, receipts, communications and any police or insurer reports. Reporting an incident to Pickuply does not replace notifying the responsible Driver, insurer, law enforcement or other appropriate party.",
+      damagePolicyCopy,
     ],
   },
   {

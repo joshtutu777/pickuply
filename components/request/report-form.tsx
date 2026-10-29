@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { UploadPicker } from "@/components/upload-picker";
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -75,7 +76,7 @@ export function ReportForm({ jobId, embedded = false }: { jobId: string; embedde
     <form id="report" onSubmit={(event) => void submit(event)} className={`${embedded ? "" : "mt-6"} grid gap-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line`}>
       <h2 className="text-lg font-semibold text-ink">Report a problem</h2>
       <p className="text-base text-ink">
-        Damage must be reported within 48 hours of delivery, with photos. Pickup photos are the before picture. Damage that was already visible at pickup is not covered. Pickuply reviews the report. Nothing is refunded automatically. Customer-packed or disassembled items, loose parts, and normal wear are not covered.
+        {damagePolicyCopy}
       </p>
       <label className="text-base font-semibold" htmlFor="report-category">
         What happened

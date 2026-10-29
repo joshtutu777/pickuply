@@ -1,3 +1,5 @@
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
+
 export type HelpTopic = {
   id: string;
   title: string;
@@ -63,7 +65,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "What is covered?",
-        a: "Report damage within 48 hours of delivery and include photos. Pickup photos are the before picture. Damage already visible at pickup is not covered. Pickuply reviews the report. There is no automatic refund. Customer-packed or disassembled items, loose parts, and normal wear are not covered.",
+        a: damagePolicyCopy,
       },
     ],
   },

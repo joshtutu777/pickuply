@@ -1,3 +1,5 @@
+import { driverTermsVersion } from "@/lib/constants";
+
 export type OnlineGap = {
   label: string;
   href: string | null;
@@ -15,6 +17,7 @@ export function onlineGaps(input: {
   trainingDone: boolean;
   serviceCount: number;
   today: string;
+  isTest: boolean;
 }): OnlineGap[] {
   const gaps: OnlineGap[] = [];
   if (!input.status || !["active", "approved_new"].includes(input.status)) {
@@ -42,8 +45,17 @@ export function onlineGaps(input: {
       label: "Your insurance expired. Upload a new card to go Online.",
       href: "/driver/ready/insurance",
     });
+  } else if (
+    ["active", "approved_new"].includes(input.status ?? "") &&
+    !input.isTest &&
+    (!input.insuranceUrl || !input.insuranceExpires)
+  ) {
+    gaps.push({
+      label: "Upload your insurance to go Online.",
+      href: "/driver/ready/insurance",
+    });
   }
-  if (input.checklistRequired && input.termsVersion !== "driver-terms-v1") {
+  if (input.checklistRequired && input.termsVersion !== driverTermsVersion) {
     gaps.push({
       label: "Accept the Driver Terms to go Online.",
       href: "/terms/driver",

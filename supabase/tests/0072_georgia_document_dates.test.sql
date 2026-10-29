@@ -69,11 +69,11 @@ update public.profiles set role = 'driver', full_name = 'Test Driver', is_test =
 insert into public.drivers (
   profile_id, status, home_city, home_zip, license_url, license_expires, terms_version, terms_accepted_at, agreement_signed_at
 ) values
-  ('c1720000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000002/license.jpg', public.georgia_today() - 1, 'driver-terms-v1', now(), now()),
-  ('c1720000-0000-4000-8000-000000000003', 'pending_review', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000003/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now()),
-  ('c1720000-0000-4000-8000-000000000004', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000004/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now()),
+  ('c1720000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000002/license.jpg', public.georgia_today() - 1, 'driver-terms-v2', now(), now()),
+  ('c1720000-0000-4000-8000-000000000003', 'pending_review', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000003/license.jpg', public.georgia_today(), 'driver-terms-v2', now(), now()),
+  ('c1720000-0000-4000-8000-000000000004', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000004/license.jpg', public.georgia_today(), 'driver-terms-v2', now(), now()),
   ('c1720000-0000-4000-8000-000000000005', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000005/license.jpg', public.georgia_today(), null, null, now()),
-  ('c1720000-0000-4000-8000-000000000007', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000007/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now());
+  ('c1720000-0000-4000-8000-000000000007', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000007/license.jpg', public.georgia_today(), 'driver-terms-v2', now(), now());
 
 insert into public.account_suspensions (profile_id, status, kind, reason, created_by)
 values (

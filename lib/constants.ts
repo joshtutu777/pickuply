@@ -39,7 +39,7 @@ export function serviceFromQuery(value: string | undefined): ServiceId | null {
     : null;
 }
 
-export const driverTermsVersion = "driver-terms-v1";
+export const driverTermsVersion = "driver-terms-v2";
 
 export function serviceById(id: ServiceId) {
   const service = services.find((item) => item.id === id);

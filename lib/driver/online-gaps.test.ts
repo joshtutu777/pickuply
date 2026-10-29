@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { driverTermsVersion } from "@/lib/constants";
 import { onlineGaps } from "./online-gaps";
 
 const ready = {
@@ -10,10 +11,11 @@ const ready = {
   vehicleApproved: true,
   checklistRequired: true,
   agreementSigned: true,
-  termsVersion: "driver-terms-v1",
+  termsVersion: driverTermsVersion,
   trainingDone: true,
   serviceCount: 1,
   today: "2026-10-22",
+  isTest: false,
 };
 
 test("an approved driver with the checklist done has nothing missing", () => {
@@ -23,13 +25,19 @@ test("an approved driver with the checklist done has nothing missing", () => {
 test("an older agreement does not count as the current Driver Terms", () => {
   const gaps = onlineGaps({ ...ready, termsVersion: null });
   assert.match(gaps[0]?.label ?? "", /Driver Terms/);
+  const previous = onlineGaps({ ...ready, termsVersion: "driver-terms-v1" });
+  assert.match(previous[0]?.label ?? "", /Driver Terms/);
 });
 
-test("a missing insurance upload is not an Online block, and an expired policy is", () => {
+test("a real driver needs current insurance, and a test driver does not", () => {
   const missing = onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null });
-  assert.equal(missing.find((gap) => gap.href === "/driver/ready/insurance"), undefined);
+  assert.equal(missing[0]?.label, "Upload your insurance to go Online.");
+  const testDriver = onlineGaps({ ...ready, isTest: true, insuranceUrl: null, insuranceExpires: null });
+  assert.equal(testDriver.find((gap) => gap.href === "/driver/ready/insurance"), undefined);
   const expired = onlineGaps({ ...ready, insuranceExpires: "2020-01-01" });
   assert.match(expired[0]?.label ?? "", /insurance expired/);
+  const expiredTest = onlineGaps({ ...ready, isTest: true, insuranceExpires: "2020-01-01" });
+  assert.match(expiredTest[0]?.label ?? "", /insurance expired/);
 });
 
 test("an unready driver is told the application is still in review", () => {

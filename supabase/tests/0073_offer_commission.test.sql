@@ -77,8 +77,8 @@ update public.profiles set role = 'driver', full_name = 'Fee Test', is_test = tr
 insert into public.drivers (
   profile_id, status, home_city, home_zip, license_url, license_expires, terms_version, terms_accepted_at, agreement_signed_at, is_online
 ) values
-  ('c1730000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1730000-0000-4000-8000-000000000002/license.jpg', current_date + 30, 'driver-terms-v1', now(), now(), true),
-  ('c1730000-0000-4000-8000-000000000003', 'active', 'Austell', '30106', 'c1730000-0000-4000-8000-000000000003/license.jpg', current_date + 30, 'driver-terms-v1', now(), now(), true);
+  ('c1730000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1730000-0000-4000-8000-000000000002/license.jpg', current_date + 30, 'driver-terms-v2', now(), now(), true),
+  ('c1730000-0000-4000-8000-000000000003', 'active', 'Austell', '30106', 'c1730000-0000-4000-8000-000000000003/license.jpg', current_date + 30, 'driver-terms-v2', now(), now(), true);
 
 insert into public.jobs (
   id, customer_id, service, status, zone_id, pickup_area, description, pieces, size,

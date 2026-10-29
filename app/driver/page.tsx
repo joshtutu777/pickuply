@@ -17,6 +17,7 @@ import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
+import { driverTermsVersion } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -69,6 +70,7 @@ async function DriverContent({
   const saved = singleQuery(params.saved);
 
   const supabase = await createClient();
+  const { data: profile } = await supabase.from("profiles").select("is_test").eq("id", session.userId).maybeSingle();
   const { data: application } = await supabase
     .from("drivers")
     .select(
@@ -163,7 +165,7 @@ async function DriverContent({
           vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
-          termsAccepted={application?.terms_version === "driver-terms-v1"}
+          termsAccepted={application?.terms_version === driverTermsVersion}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
           fees={fees}
@@ -176,7 +178,9 @@ async function DriverContent({
         <RestrictionNotice surface="driver" />
         <BetaNotice from="/driver" />
         {approved && !application?.insurance_url ? (
-          <p className="mt-3 text-base text-ink">Add your insurance card.</p>
+          <p className="mt-3 text-base text-ink">
+            {profile?.is_test ? "Add your insurance card." : "Upload your insurance to go Online."}
+          </p>
         ) : null}
         {saved ? (
           <p role="status" className="mt-3 text-base font-semibold text-ink">
