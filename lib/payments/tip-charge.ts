@@ -8,6 +8,7 @@ import {
   tipFallbackAllowed,
   tipIdempotencyKey,
 } from "@/lib/payments/saved-card";
+import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -49,6 +50,14 @@ export async function confirmTipFromIntent(intent: Stripe.PaymentIntent): Promis
     live: false,
   });
   if (confirmed.error) throw new Error(confirmed.error.message);
+  const jobId = expanded.metadata?.job_id;
+  if (jobId) {
+    try {
+      await sendReadyTransfers({ jobId });
+    } catch {
+      // The 15-minute transfer job retries a row that is ready and not held.
+    }
+  }
 }
 
 export async function chargeSavedTip(input: {

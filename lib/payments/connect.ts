@@ -2,6 +2,8 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { accountLinkKind, fallbackAccountLinkKind, type AccountLinkKind } from "@/lib/payments/account-link";
+import { readTransfersActive, requestDriverTransfers } from "@/lib/payments/connect-capability";
+import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -16,18 +18,25 @@ export type ConnectRow = {
   synced_at: string | null;
 };
 
-export async function saveConnectAccount(driverId: string, account: Stripe.Account): Promise<void> {
+export async function saveConnectAccount(
+  driverId: string,
+  account: Stripe.Account,
+): Promise<{ payoutsEnabled: boolean; transfersActive: boolean }> {
+  const payoutsEnabled = Boolean(account.payouts_enabled);
+  const transfersActive = await readTransfersActive(account.id);
   const supabase = createServiceClient();
   const { error } = await supabase.rpc("upsert_connect_account", {
     target_driver: driverId,
     account_id: account.id,
     charges_enabled: Boolean(account.charges_enabled),
-    payouts_enabled: Boolean(account.payouts_enabled),
+    payouts_enabled: payoutsEnabled,
     details_submitted: Boolean(account.details_submitted),
     requirements_due: account.requirements?.currently_due ?? [],
     disabled_reason: account.requirements?.disabled_reason ?? null,
+    transfers_active: transfersActive,
   });
   if (error) throw new Error("The payout account could not be saved.");
+  return { payoutsEnabled, transfersActive };
 }
 
 const previewVersion = "2026-09-30.preview";
@@ -39,29 +48,21 @@ async function contactEmail(driverId: string): Promise<string | null> {
   return email || null;
 }
 
-async function requestTransfers(accountId: string, email: string): Promise<void> {
-  await getStripe().v2.core.accounts.update(
-    accountId,
-    {
-      contact_email: email,
-      configuration: {
-        recipient: {
-          capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
-        },
-      },
-    },
-    { apiVersion: previewVersion },
-  );
-}
-
 export async function ensureExpressAccount(driverId: string, existingId: string | null): Promise<string> {
   const email = await contactEmail(driverId);
   if (existingId) {
-    if (email) {
+    try {
+      await requestDriverTransfers(existingId, email);
+    } catch {
+      // The setup link can still open if Stripe already has this capability.
+    }
+    const account = await getStripe().accounts.retrieve(existingId);
+    const saved = await saveConnectAccount(driverId, account);
+    if (saved.payoutsEnabled && saved.transfersActive) {
       try {
-        await requestTransfers(existingId, email);
+        await sendReadyTransfers({ driverId });
       } catch {
-        // The setup link can still open if Stripe already has this capability.
+        // The 15-minute transfer job retries a row that is ready and not held.
       }
     }
     return existingId;
@@ -76,9 +77,7 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
       identity: { country: "US" },
       configuration: {
         merchant: { capabilities: { card_payments: { requested: true } } },
-        ...(email
-          ? { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } }
-          : {}),
+        recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
       },
       defaults: {
         responsibilities: {
@@ -102,15 +101,20 @@ export async function refreshConnectAccount(driverId: string, accountId: string)
     throw new Error("This payout account belongs to someone else.");
   }
   const email = account.email ?? (await contactEmail(driverId));
-  if (email) {
+  try {
+    await requestDriverTransfers(accountId, email);
+    account = await getStripe().accounts.retrieve(accountId);
+  } catch {
+    // Keep the account Stripe already returned.
+  }
+  const saved = await saveConnectAccount(driverId, account);
+  if (saved.payoutsEnabled && saved.transfersActive) {
     try {
-      await requestTransfers(accountId, email);
-      account = await getStripe().accounts.retrieve(accountId);
+      await sendReadyTransfers({ driverId });
     } catch {
-      // Keep the account Stripe already returned.
+      // The 15-minute transfer job retries a row that is ready and not held.
     }
   }
-  await saveConnectAccount(driverId, account);
   return account;
 }
 

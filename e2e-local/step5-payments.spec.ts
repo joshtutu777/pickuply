@@ -229,9 +229,9 @@ test("earnings stay held until payout setup, and an outside payment is labeled",
     `select status || '|' || coalesce(hold_reason, '') from public.ledger_entries where job_id = '${session.jobId}'`,
     /held_until_onboarding\|/,
   );
-  expect(held).toContain("Finish payout setup");
+  expect(held).toContain("Needs payout setup");
   await session.driver.page.goto("/driver/earnings");
-  await expect(session.driver.page.getByText("Finish payout setup before a transfer can be sent")).toBeVisible();
+  await expect(session.driver.page.getByText("Needs payout setup")).toBeVisible();
   await session.admin.page.goto("/admin/payouts");
   const card = session.admin.page.locator("li").filter({ hasText: "held until onboarding" }).first();
   await card.getByLabel("Method").fill("cash");

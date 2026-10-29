@@ -5,7 +5,8 @@ import { refreshPayoutSetup, startPayoutSetup } from "@/app/driver/connect/actio
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
-import { payoutSetupLabel, requirementLabels } from "@/lib/payments/requirements";
+import { sentToStripeAccount } from "@/lib/payments/earnings";
+import { payoutSetupLabel, payoutsReady, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
 import { formatCents } from "@/lib/money";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
@@ -35,7 +36,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
   const supabase = await createClient();
   const { data } = await supabase
     .from("driver_connect_accounts")
-    .select("stripe_account_id, charges_enabled, payouts_enabled, details_submitted, requirements_due, disabled_reason")
+    .select("stripe_account_id, charges_enabled, payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
     .maybeSingle();
 
@@ -49,15 +50,19 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
 
   const { data: fresh } = await supabase
     .from("driver_connect_accounts")
-    .select("stripe_account_id, charges_enabled, payouts_enabled, details_submitted, requirements_due, disabled_reason")
+    .select("stripe_account_id, charges_enabled, payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
     .maybeSingle();
   const missing = requirementLabels(fresh?.requirements_due ?? []);
-  const ready = Boolean(fresh?.payouts_enabled);
-  const [{ data: entries }, { data: bankPayout }, { count: completedJobs }] = await Promise.all([
+  const ready = payoutsReady(
+    fresh
+      ? { payouts_enabled: Boolean(fresh.payouts_enabled), transfers_active: Boolean(fresh.transfers_active) }
+      : null,
+  );
+  const [{ data: entries }, { data: bankPayout }] = await Promise.all([
     supabase
       .from("ledger_entries")
-      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at, available_on, entry_kind")
+      .select("id, job_id, amount_cents, status, hold_reason, transfer_status, external_method, created_at, updated_at, available_on, entry_kind")
       .eq("driver_id", session.userId)
       .order("created_at", { ascending: false }),
     supabase
@@ -67,13 +72,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("jobs")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_driver_id", session.userId)
-      .eq("status", "completed"),
   ]);
-  const newDriver = (completedJobs ?? 0) < 5;
   const totals = ledgerBuckets(entries ?? []);
   const tipRows = (entries ?? []).filter((entry) => entry.entry_kind === "tip");
   const baseRows = (entries ?? []).filter((entry) => entry.entry_kind !== "tip");
@@ -97,7 +96,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
           <MoneyBox label="Tips" cents={sum(tipRows)} />
           <MoneyBox label="Total earnings" cents={sum(baseRows) + sum(tipRows)} />
         </div>
-        <p className="text-base text-muted">Tips are separate from base earnings. A transfer is not a bank deposit. Tips are not shown before the job is completed.</p>
+        <p className="text-base text-muted">Tips are separate from base earnings. Tips are not shown before the job is completed.</p>
         <div className="rounded-3xl bg-brand p-4 text-white">
           <p className="text-sm font-semibold">Completed earnings</p>
           <p className="mt-1 font-display text-3xl font-semibold">{formatCents(totals.completedCents)}</p>
@@ -112,7 +111,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">{payoutSetupLabel(fresh)}</h2>
         {ready ? (
-          <p className="mt-2 text-base text-ink">Stripe can send your earnings. Bank deposit timing is separate and shows after a transfer.</p>
+          <p className="mt-2 text-base text-ink">Stripe can send your earnings to your Stripe account. Usually in your bank about 2 business days after the job.</p>
         ) : (
           <p className="mt-2 text-base text-ink">
             You can still take jobs. Earnings stay held until Stripe can pay you, unless an admin records an outside payment.
@@ -149,27 +148,24 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
         <p>Held {formatCents(weekTotal("held") + weekTotal("held_until_onboarding"))}</p>
         <p>Transferred {formatCents(weekTotal("transferred"))}</p>
         <p className="mt-2 text-base text-muted">
-          Latest bank payout: {bankPayout ? `${bankPayout.status} ${formatCents(bankPayout.amount_cents ?? 0)}` : "none yet"}. A transfer is not a bank deposit.
+          Latest bank payout: {bankPayout ? `${bankPayout.status} ${formatCents(bankPayout.amount_cents ?? 0)}` : "none yet"}.
         </p>
         {(entries ?? []).length === 0 ? <p className="mt-3">No earnings yet.</p> : null}
         <ul className="mt-3 grid gap-2">
           {(entries ?? []).map((entry) => (
             <li key={entry.id} className="rounded-2xl bg-paper px-3 py-3 ring-1 ring-line">
               <p className="font-semibold">{entry.entry_kind === "tip" ? "Tip · " : ""}{formatCents(entry.amount_cents)} · {entry.status === "externally_paid" ? "Paid outside Stripe" : entry.status.replaceAll("_", " ")}</p>
-              <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}{entry.entry_kind === "tip" ? " · a transfer is not a bank deposit" : ""}</p>
+              {entry.status === "transferred" ? (
+                <p className="text-sm text-muted">{sentToStripeAccount(new Date(entry.updated_at))}</p>
+              ) : (
+                <p className="text-sm text-muted">Transfer {entry.transfer_status ?? "not sent"}</p>
+              )}
               {entry.external_method ? <p>Paid outside Stripe by {entry.external_method}</p> : null}
-              {ready ? <p>Scheduled — sends {sendWhen(entry)}</p> : null}
-              {!ready && (entry.status === "held" || entry.status === "held_until_onboarding") ? (
-                <>
-                  <p>Held — finish payout setup to get paid</p>
-                  {newDriver && entry.entry_kind !== "tip" ? <p>Then sends 48 hours after completion ({sendWhen(entry)})</p> : null}
-                </>
-              ) : null}
-              {!ready && entry.status !== "held" && entry.status !== "held_until_onboarding" && entry.hold_reason ? (
-                <p>{entry.hold_reason}</p>
+              {(entry.status === "held" || entry.status === "held_until_onboarding") ? (
+                <p>{entry.hold_reason ?? "Needs payout setup"}</p>
               ) : null}
               {entry.entry_kind !== "tip" && entry.status === "pending" && entry.hold_reason?.includes("48 hours") ? (
-                <p>Eligible 48 hours after this job was completed. A transfer is not a bank deposit.</p>
+                <p>Eligible 48 hours after this job was completed.</p>
               ) : null}
             </li>
           ))}
@@ -182,20 +178,6 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       </p>
     </main>
   );
-}
-
-function sendWhen(entry: { available_on: string | null; created_at: string }) {
-  const when = entry.available_on
-    ? new Date(entry.available_on)
-    : new Date(new Date(entry.created_at).getTime() + 48 * 60 * 60 * 1000);
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(when);
 }
 
 function sumStatus(entries: { status: string; amount_cents: number }[], statuses: string[]) {

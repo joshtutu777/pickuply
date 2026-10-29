@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { recordPayoutEvent, recordTransferEvent } from "@/lib/payments/connect-events";
 import { saveConnectAccount } from "@/lib/payments/connect";
+import { requestDriverTransfers } from "@/lib/payments/connect-capability";
+import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { accountMatch, connectWebhookAction, unknownDriverNote } from "@/lib/payments/connect-plan";
 import { connectWebhookEvents, isListedEvent } from "@/lib/payments/event-types";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
@@ -49,18 +51,28 @@ async function handleAccount(account: Stripe.Account, eventId: string) {
     }
     return;
   }
-  await saveConnectAccount(driverId as string, account);
-  if (account.payouts_enabled) {
+  try {
+    await requestDriverTransfers(account.id);
+  } catch {
+    // The status read below still records whatever Stripe has now.
+  }
+  const saved = await saveConnectAccount(driverId as string, account);
+  if (saved.payoutsEnabled && saved.transfersActive) {
     await supabase.rpc("enqueue_notification", {
       recipient: driverId,
       target_job: null,
       kind: "connect_ready",
       title: "Payouts are ready",
-      body: "Stripe can send your earnings to your bank.",
+      body: "Stripe can send your earnings to your Stripe account. They usually reach your bank about 2 business days after the job.",
       href: "/driver/earnings",
       dedupe_key: `connect-ready:${account.id}`,
     });
-  } else if ((account.requirements?.currently_due ?? []).length > 0) {
+    try {
+      await sendReadyTransfers({ driverId: driverId as string });
+    } catch {
+      // The 15-minute transfer job retries a row that is ready and not held.
+    }
+  } else if ((account.requirements?.currently_due ?? []).length > 0 || saved.payoutsEnabled) {
     await supabase.rpc("enqueue_notification", {
       recipient: driverId,
       target_job: null,

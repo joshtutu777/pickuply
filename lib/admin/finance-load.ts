@@ -52,7 +52,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
     ids.length ? supabase.from("job_disputes").select("job_id, resolved_at, capture_hold").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
     people.length ? supabase.from("profiles").select("id, full_name").in("id", people) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("job_events").select("job_id, created_at, data").eq("type", "status").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
-    people.length ? supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled").in("driver_id", people) : Promise.resolve({ data: [], error: null }),
+    people.length ? supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled, transfers_active").in("driver_id", people) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("help_requests").select("job_id, case_number").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("refund_requests").select("job_id, created_at, status").eq("status", "succeeded").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
   ]);
@@ -61,7 +61,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
   const paymentByJob = new Map((payments.data ?? []).map((row) => [row.job_id, row]));
   const ledgerByJob = new Map((ledger.data ?? []).filter((row) => row.entry_kind !== "tip").map((row) => [row.job_id, row]));
   const names = new Map((profiles.data ?? []).map((row) => [row.id, row.full_name]));
-  const payouts = new Map((accounts.data ?? []).map((row) => [row.driver_id, row.payouts_enabled]));
+  const payouts = new Map((accounts.data ?? []).map((row) => [row.driver_id, Boolean(row.payouts_enabled && row.transfers_active)]));
   const openDispute = new Set((disputes.data ?? []).filter((row) => row.status !== "won" && row.status !== "lost" && row.status !== "warning_closed").map((row) => row.job_id));
   const openReport = new Set((reports.data ?? []).filter((row) => row.resolved_at == null && row.capture_hold).map((row) => row.job_id));
   const booked = new Map<string, string>();

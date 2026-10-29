@@ -62,7 +62,7 @@ async function DriverDetail({
       .maybeSingle(),
     supabase
       .from("driver_connect_accounts")
-      .select("payouts_enabled, details_submitted, requirements_due, disabled_reason")
+      .select("payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
       .eq("driver_id", id)
       .maybeSingle(),
     supabase
@@ -109,7 +109,7 @@ async function DriverDetail({
       ) : null}
       <p className="mt-2 text-base text-ink">
         Payout setup:{" "}
-        {payout?.payouts_enabled
+        {payout?.payouts_enabled && payout.transfers_active
           ? "ready to receive transfers"
           : payout
             ? "started, not ready"
