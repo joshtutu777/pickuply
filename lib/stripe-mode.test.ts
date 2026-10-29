@@ -9,7 +9,7 @@ test("test and live keys cannot be mixed, and live mode stays closed", () => {
   assert.equal(stripeKeyMode("pk_live_123"), "live");
   assert.equal(stripeKeyMode(""), "missing");
   assert.equal(stripeModeProblem("sk_test_123", "pk_test_123"), null);
-  assert.equal(stripeModeProblem("sk_test_123", "pk_live_123"), "Live payments are not enabled.");
+  assert.equal(stripeModeProblem("sk_test_123", "pk_live_123"), "Live and test Stripe keys cannot be mixed.");
   assert.equal(stripeModeProblem("sk_live_123", "pk_live_123"), "Live payments are not enabled.");
   assert.equal(stripeModeProblem("sk_test_123", ""), "The publishable key is not a test key.");
   assert.equal(stripeModeProblem("", "pk_test_123"), "Stripe test mode is not configured.");

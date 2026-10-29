@@ -1,6 +1,6 @@
 export type StripeKeyMode = "test" | "live" | "missing";
 
-/** Live mode stays closed. A later release can open it only with an explicit owner approval. */
+/** A key is test, live, or missing. The payments switch decides which pair is allowed. */
 export function stripeKeyMode(value: string | undefined): StripeKeyMode {
   if (!value) return "missing";
   if (value.startsWith("sk_test_") || value.startsWith("pk_test_")) return "test";
@@ -9,15 +9,27 @@ export function stripeKeyMode(value: string | undefined): StripeKeyMode {
 }
 
 /**
- * The server accepts a test secret only when the publishable key is also test.
- * A live secret is refused even if a future environment sets one.
+ * Test mode accepts a test pair. Live mode accepts a live pair only.
+ * A test key and a live key together are refused in either mode.
  */
-export function stripeModeProblem(secret: string | undefined, publishable: string | undefined): string | null {
+export function stripeModeProblem(
+  secret: string | undefined,
+  publishable: string | undefined,
+  mode: "test" | "live" = "test",
+): string | null {
   const secretMode = stripeKeyMode(secret);
   const publishableMode = stripeKeyMode(publishable);
-  if (secretMode === "live" || publishableMode === "live") {
-    return "Live payments are not enabled.";
+  if (
+    (secretMode === "live" && publishableMode === "test") ||
+    (secretMode === "test" && publishableMode === "live")
+  ) {
+    return "Live and test Stripe keys cannot be mixed.";
   }
+  if (mode === "live") {
+    if (secretMode !== "live" || publishableMode !== "live") return "Live payments are not configured.";
+    return null;
+  }
+  if (secretMode === "live" || publishableMode === "live") return "Live payments are not enabled.";
   if (secretMode !== "test") return "Stripe test mode is not configured.";
   if (publishableMode !== "test") return "The publishable key is not a test key.";
   return null;

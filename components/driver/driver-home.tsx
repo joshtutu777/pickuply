@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { acceptDriverTerms, dismissOnlinePrompt } from "@/app/driver/actions";
+import { acceptDriverTerms, dismissOnlinePrompt, prepareDriverPayments } from "@/app/driver/actions";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { services } from "@/lib/constants";
@@ -165,6 +165,13 @@ function OfferActions({
     const supabase = createClient();
     const proposal = scheduleArgs(job.schedule, pickupDate, pickupTime, windowId);
     try {
+    const prepared = await prepareDriverPayments();
+    if (prepared.mode === "live" && !prepared.saved) {
+      const text = "Payout setup could not be checked. Try again.";
+      onRejected(text);
+      setMessage({ text, alert: true });
+      return;
+    }
     const result =
       kind === "claim"
         ? await supabase.rpc("claim_job", { target_job: job.id, ...proposal })

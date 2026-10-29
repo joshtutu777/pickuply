@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
 import { stripeWebhookEvent } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -8,12 +9,12 @@ type ServiceClient = ReturnType<typeof createServiceClient>;
 
 export async function readStripeEvent(
   request: Request,
-  secretName: "STRIPE_WEBHOOK_SECRET" | "STRIPE_CONNECT_WEBHOOK_SECRET",
+  kind: "payments" | "connect",
 ): Promise<Stripe.Event | NextResponse> {
   await connection();
   const payload = await request.text();
   const signature = request.headers.get("stripe-signature") ?? "";
-  const secret = process.env[secretName] ?? "";
+  const secret = process.env[webhookSecretName(kind, paymentsMode(process.env.PAYMENTS_MODE))] ?? "";
   try {
     return stripeWebhookEvent(payload, signature, secret);
   } catch {

@@ -3,7 +3,7 @@ import { handlePlatformPaymentEvent, isPlatformPaymentEvent } from "@/lib/paymen
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 
 export async function POST(request: Request) {
-  const event = await readStripeEvent(request, "STRIPE_WEBHOOK_SECRET");
+  const event = await readStripeEvent(request, "payments");
   if (event instanceof NextResponse) return event;
   if (!isPlatformPaymentEvent(event.type)) return NextResponse.json({ ok: true, ignored: true });
 

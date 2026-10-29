@@ -11,7 +11,7 @@ Vercel already has unused names `STRIPE_LIVE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE
 - [ ] Owner approval for this checklist, in writing, for one named test customer and one named pilot driver.
 - [ ] A fresh database backup in `C:\Users\Josh\PickuplyBackups\`.
 - [ ] Pull request #46 is merged and deployed, or the owner accepts the older rule: after three failed transfer lookups the sender may still create a transfer if the first attempt is under 23 hours old.
-- [ ] A new approved migration changes `ready_transfers()` so a live charge can be selected. The function applied in `0114` only returns rows whose payment is not live (`stripe_livemode` is false). A live capture would record earnings and then never send them.
+- [ ] Apply migration `0118` from the payments-mode pull request before setting `PAYMENTS_MODE=live`. It changes `ready_transfers(target_livemode)` so a live charge is selected only while that argument is true. The default stays false. The function applied in `0114` only returns rows whose payment is not live.
 
 ## 1. Stripe account activation
 
@@ -74,37 +74,37 @@ Each new endpoint has its own signing secret. The test secrets must stay in plac
 | `STRIPE_CONNECT_WEBHOOK_SECRET` | Signing secret for `/api/stripe/connect` | Same project, Production, server-only |
 | `STRIPE_TEST_WEBHOOK_SECRET` | Saved test platform secret, not read by the app | Keep for rollback. Server-only |
 | `STRIPE_TEST_CONNECT_WEBHOOK_SECRET` | Saved test Connect secret, not read by the app | Keep for rollback. Server-only |
-| `STRIPE_LIVE_WEBHOOK_SECRET` | Saved live platform secret, not read by the app today | Do not point the app at this name until code says so |
-| `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET` | Saved live Connect secret, not read by the app today | Same |
+| `STRIPE_LIVE_WEBHOOK_SECRET` | Live platform signing secret | Read only when `PAYMENTS_MODE=live`. Server-only |
+| `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET` | Live Connect signing secret | Read only when `PAYMENTS_MODE=live`. Server-only |
 
 The verifier rejects a secret that does not start with `whsec_`. Never paste a secret into git, chat, or a client component.
 
 ## 6. Live API keys in Vercel
 
-The site reads only these two names:
+Leave the test secret in `STRIPE_SECRET_KEY` and the test publishable key in `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. The live pair uses its own names, and the app reads those names only when `PAYMENTS_MODE=live`.
 
-| Variable | Live value | Visibility |
+| Variable | What it holds | Visibility |
 | --- | --- | --- |
-| `STRIPE_SECRET_KEY` | `sk_live_...` | Server-only |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_live_...` | Public. It is visible in the browser |
+| `PAYMENTS_MODE` | `test` unless the owner sets `live` | Server-only |
+| `STRIPE_LIVE_SECRET_KEY` | `sk_live_...` | Server-only. Read only in live mode |
+| `NEXT_PUBLIC_STRIPE_LIVE_PUBLISHABLE_KEY` | `pk_live_...` | Public when the site is built with live mode. Read only in live mode |
 
-Do not put the live secret in `NEXT_PUBLIC_*`. Do not delete `STRIPE_TEST_SECRET_KEY` or `NEXT_PUBLIC_STRIPE_TEST_PUBLISHABLE_KEY`. Those saved copies are the rollback values. They are not what the app reads.
+Do not put the live secret in `NEXT_PUBLIC_*`. Do not put a live key in `STRIPE_SECRET_KEY`. Do not put a test key in `STRIPE_LIVE_SECRET_KEY`. A mixed pair is refused.
 
 ## 7. Code restriction on live keys
 
-`lib/stripe-mode.ts` treats `sk_live_` and `pk_live_` as live, and `getStripe()` throws "Live payments are not enabled." Swapping the Vercel values without a code change makes checkout and webhooks fail. It does not charge cards.
-
-A later pull request, approved on its own, has to allow a live pair only when the owner has turned on an explicit live switch. That switch does not exist yet. Deploy that pull request before pasting live keys into `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+`getStripe()` reads the test pair while `PAYMENTS_MODE` is missing or `test`. It reads the live pair only when `PAYMENTS_MODE=live`. A live key in the test names throws "Live payments are not enabled." A test key while the switch is live throws "Live payments are not configured." A test key paired with a live key throws "Live and test Stripe keys cannot be mixed."
 
 ## 8. Enabling live mode
 
-- [ ] The approved code change from step 7 is deployed.
-- [ ] The approved `ready_transfers()` change is applied.
-- [ ] Paste the live platform signing secret into `STRIPE_WEBHOOK_SECRET`.
-- [ ] Paste the live Connect signing secret into `STRIPE_CONNECT_WEBHOOK_SECRET`.
-- [ ] Paste the live secret into `STRIPE_SECRET_KEY` and the live publishable key into `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
-- [ ] Redeploy production so the public key is rebuilt into the site.
-- [ ] Open the live site and confirm the browser is using a `pk_live_` key. Confirm one test-mode PaymentIntent is not created.
+- [ ] The payments-mode pull request is deployed.
+- [ ] Migration `0118` is applied.
+- [ ] Confirm `STRIPE_SECRET_KEY` is still `sk_test_` and `STRIPE_LIVE_SECRET_KEY` is `sk_live_`.
+- [ ] Confirm the live webhook secrets are in `STRIPE_LIVE_WEBHOOK_SECRET` and `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET`.
+- [ ] Set `PAYMENTS_MODE=live` in Vercel Production.
+- [ ] Redeploy production.
+- [ ] Open `/admin/health` and confirm it says Payments: LIVE. That visit writes the database switch the driver check reads.
+- [ ] A real driver without Stripe payouts and transfers active cannot accept a job. A test driver still can. Test mode does not add this check.
 
 ## 9. Test data
 
@@ -116,7 +116,7 @@ Keep:
 - Test jobs, including #D26F9F and the earlier completed test job.
 - Test ledger rows, the test transfer that was reversed, and test payout `po_1UVrlwD5IFSb3cY3964tLUfd`.
 
-`ready_transfers()` currently sends test-mode rows, including `is_test` jobs, while the Stripe secret is a test key. After live mode, test rows must stay out of live transfers. The new migration has to keep `is_test` jobs and `stripe_livemode = false` rows from being sent with a live secret.
+`ready_transfers(false)` sends test-mode rows, including `is_test` jobs. `ready_transfers(true)` sends only rows whose stored charge is live. A test job's payment is not live, so live mode does not send it.
 
 Ask before archiving or removing any of those rows.
 
@@ -150,7 +150,7 @@ Separate approval. Do not do this in the same step as the one-dollar charge.
 
 The ledger id is the Stripe idempotency key. A second create with that key returns the original transfer for about 24 hours. The sender also lists by `transfer_group` and, for older transfers, by the ledger id on transfers to that driver after the job completed.
 
-Until pull request #46 is deployed, three failed lookups can still create a transfer when the first attempt is under 23 hours old. At 23 hours the current code stops and asks for reconciliation. After #46, a failed lookup never creates a transfer.
+A failed lookup never creates a transfer. After three failed lookups the ledger stays unresolved and needs reconciliation.
 
 ## 14. Refunds and disputes
 
@@ -162,10 +162,10 @@ Admin alerts for a failed lookup, a missing payout setup, and a transfer that ne
 
 ## 16. Emergency stop
 
-- [ ] In Stripe, pause live charges or disable the live card payments capability.
-- [ ] In Vercel, put the saved test secret back into `STRIPE_SECRET_KEY` and the saved test publishable key back into `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
-- [ ] Put the test webhook secrets back into `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET`.
-- [ ] Redeploy production.
+- [ ] In Vercel, set `PAYMENTS_MODE=test`. Leave the test keys in `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Leave the live keys in their own names.
+- [ ] Redeploy production. New charges and webhooks use the test keys as soon as the new deployment is serving.
+- [ ] Open `/admin/health` and confirm it says Payments: TEST. That visit writes the database switch back to test, so a real driver is no longer blocked by the live payout rule.
+- [ ] In Stripe, pause live charges if a charge could still be created outside the app.
 - [ ] Leave the live webhook endpoints disabled, not deleted, until the owner decides.
 - [ ] Do not refund or reverse anything that already succeeded unless the owner asks for that charge by id.
 

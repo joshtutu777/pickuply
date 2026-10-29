@@ -2,7 +2,12 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { syncPaymentsMode } from "@/lib/payments/mode-sync";
 import { createClient } from "@/lib/supabase/server";
+
+export async function prepareDriverPayments() {
+  return syncPaymentsMode();
+}
 
 export async function acceptDriverTerms() {
   const supabase = await createClient();

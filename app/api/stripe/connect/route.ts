@@ -10,7 +10,7 @@ import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/pay
 import { createServiceClient } from "@/lib/supabase/service";
 
 export async function POST(request: Request) {
-  const event = await readStripeEvent(request, "STRIPE_CONNECT_WEBHOOK_SECRET");
+  const event = await readStripeEvent(request, "connect");
   if (event instanceof NextResponse) return event;
   if (!isListedEvent(event.type, connectWebhookEvents)) return NextResponse.json({ ok: true, ignored: true });
 
