@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FreshRequestLink } from "@/components/request/fresh-request-link";
@@ -13,6 +14,7 @@ import { firstName } from "@/lib/auth/name";
 import { requireSignedIn } from "@/lib/auth/session";
 import { listOwnJobs } from "@/lib/data/job-queries";
 import { pickCurrentJob } from "@/lib/jobs/next-action";
+import { customerEmptyAction, customerEmptyTitle } from "@/lib/ui/marketplace-empty";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -80,13 +82,14 @@ async function AccountContent({
           We couldn&apos;t load your requests. Try again.
         </p>
       ) : jobs.length === 0 ? (
-        <section className="mt-8 rounded-3xl bg-paper-raised p-5 ring-1 ring-line">
-          <h2 className="text-xl font-semibold text-ink">No pickups yet</h2>
-          <p className="mt-2 text-base leading-relaxed text-muted">
+        <section className="mt-8 rounded-3xl bg-brand-soft p-5 ring-1 ring-brand/15">
+          <Inbox className="size-8 text-brand" aria-hidden="true" />
+          <h2 className="mt-3 text-xl font-semibold text-ink">{customerEmptyTitle}</h2>
+          <p className="mt-2 text-base leading-relaxed text-ink">
             When you request a pickup, it shows up here.
           </p>
           <FreshRequestLink className="mt-4 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white">
-            Request a pickup
+            {customerEmptyAction}
           </FreshRequestLink>
         </section>
       ) : (

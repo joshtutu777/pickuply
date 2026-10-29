@@ -5,6 +5,9 @@ import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { supportStatusLabel, supportTopicLabel } from "@/lib/support/ticket";
 import { createClient } from "@/lib/supabase/server";
+import { IncludeTestData } from "@/components/admin/include-test-data";
+import { includeTestParam } from "@/lib/admin/test-lane";
+import { resolveTestLane } from "@/lib/admin/test-lane-server";
 
 export const metadata: Metadata = { title: "Support" };
 
@@ -21,12 +24,15 @@ export default function AdminSupportPage({ searchParams }: PageProps<"/admin/sup
 async function SupportInbox({ searchParams }: { searchParams: PageProps<"/admin/support">["searchParams"] }) {
   await requireAdmin("/admin/support");
   const query = await searchParams;
+  const lane = await resolveTestLane(includeTestParam(query.includeTest));
   const status = statuses.includes(query.status as (typeof statuses)[number]) ? String(query.status ?? "") : "";
   const q = typeof query.q === "string" ? query.q.replace(/[^a-zA-Z0-9 @.-]/g, "").trim().slice(0, 80) : "";
   const supabase = await createClient();
   const counts = await Promise.all(
     (["open", "awaiting_customer", "resolved", "closed"] as const).map(async (item) => {
-      const result = await supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", item).eq("is_test", false);
+      let countRequest = supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", item);
+      if (lane !== "all") countRequest = countRequest.eq("is_test", lane === "test");
+      const result = await countRequest;
       return [item, result.count ?? 0] as const;
     }),
   );
@@ -36,12 +42,16 @@ async function SupportInbox({ searchParams }: { searchParams: PageProps<"/admin/
     .select("id, reference, first_name, last_name, email, topic, status, is_test, created_at, updated_at")
     .order("created_at", { ascending: false })
     .limit(50);
+  if (lane !== "all") request = request.eq("is_test", lane === "test");
   if (status) request = request.eq("status", status);
   if (q) request = request.or(`reference.ilike.%${q}%,email.ilike.%${q}%,first_name.ilike.%${q}%`);
   const { data, error } = await request;
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
       <h1 className="font-display text-4xl font-semibold tracking-tight">Support</h1>
+      {lane === "test" ? null : (
+        <IncludeTestData include={lane === "all"} path="/admin/support" search={lane === "all" ? "includeTest=1" : ""} />
+      )}
       <ul className="mt-4 flex flex-wrap gap-2">
         <li><Link href="/admin/support" className="inline-flex min-h-12 items-center rounded-full bg-paper-raised px-4 font-semibold ring-1 ring-line">All {(countOf.open ?? 0) + (countOf.awaiting_customer ?? 0) + (countOf.resolved ?? 0) + (countOf.closed ?? 0)}</Link></li>
         <li><Link href="/admin/support?status=open" className="inline-flex min-h-12 items-center rounded-full bg-paper-raised px-4 font-semibold ring-1 ring-line">Open {countOf.open}</Link></li>

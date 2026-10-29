@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { StatusChip } from "@/components/admin/status-chip";
@@ -20,6 +21,7 @@ import { IncludeTestData } from "@/components/admin/include-test-data";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
+import { adminEmptyMessage, adminEmptyTitle, showAdminRequestEmpty } from "@/lib/ui/marketplace-empty";
 
 const statuses = [
   ["", "All statuses"],
@@ -85,9 +87,17 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
       )}
       <FilterForm filters={filters} />
       {jobs.length === 0 ? (
-        <p className="mt-6 rounded-3xl bg-paper-raised p-5 text-base text-muted ring-1 ring-line">
-          {filters.status === "new" ? "No new requests" : "No requests match these filters."}
-        </p>
+        showAdminRequestEmpty(data.jobs.length, jobs.length) ? (
+          <div className="mt-6 rounded-3xl bg-brand-soft p-5 ring-1 ring-brand/15">
+            <Inbox className="size-8 text-brand" aria-hidden="true" />
+            <h2 className="mt-3 text-xl font-semibold text-ink">{adminEmptyTitle}</h2>
+            <p className="mt-2 text-base leading-relaxed text-ink">{adminEmptyMessage}</p>
+          </div>
+        ) : (
+          <p className="mt-6 rounded-3xl bg-paper-raised p-5 text-base text-muted ring-1 ring-line">
+            No requests match these filters.
+          </p>
+        )
       ) : (
         <>
           <ul className="mt-6 space-y-3 md:hidden">
