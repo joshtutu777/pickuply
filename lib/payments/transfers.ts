@@ -14,6 +14,8 @@ import {
   type TransferGateAction,
   type TransferSearch,
 } from "@/lib/payments/transfer-match";
+import { paymentsMode } from "@/lib/payments/payments-mode";
+import { syncPaymentsMode } from "@/lib/payments/mode-sync";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type ReadyTransfer = {
@@ -247,10 +249,16 @@ async function alertNeedsPayoutSetup(entryId: string): Promise<void> {
 
 export async function sendReadyTransfers(only?: { jobId?: string; driverId?: string }): Promise<string | null> {
   const supabase = createServiceClient();
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  const synced = await syncPaymentsMode();
+  if (mode === "live" && !synced.saved) return "Payments mode could not be saved.";
   await refreshHeldTransferCapabilities();
   const refreshed = await supabase.rpc("refresh_ledger_readiness");
   if (refreshed.error) return "The payout list could not be refreshed.";
-  const ready = await supabase.rpc("ready_transfers");
+  const ready =
+    mode === "live"
+      ? await supabase.rpc("ready_transfers", { target_livemode: true })
+      : await supabase.rpc("ready_transfers");
   if (ready.error) return "Transfers could not be listed.";
 
   let limit: string | null = null;

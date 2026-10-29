@@ -1,16 +1,23 @@
 import "server-only";
 
 import Stripe from "stripe";
+import { paymentsMode, stripeEnvForMode } from "@/lib/payments/payments-mode";
 import { stripeModeProblem } from "@/lib/stripe-mode";
 
 let client: Stripe | null = null;
+let cachedKey = "";
 
-/** Test-mode Stripe client. Live keys and mixed test/live keys are refused. */
+/** Stripe client for the current payments mode. A test process never receives the live secret. */
 export function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY ?? "";
-  const problem = stripeModeProblem(key, process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  const selected = stripeEnvForMode(mode, process.env);
+  const problem = stripeModeProblem(selected.secret, selected.publishable, mode);
   if (problem) throw new Error(problem);
-  if (!client) client = new Stripe(key);
+  const key = selected.secret ?? "";
+  if (!client || cachedKey !== key) {
+    client = new Stripe(key);
+    cachedKey = key;
+  }
   return client;
 }
 

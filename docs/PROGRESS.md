@@ -844,3 +844,5 @@ A transfer is looked up by its ledger id as the Stripe transfer group. Stripe Se
 
 `docs/STRIPE_GO_LIVE.md` is a manual checklist for a later live-payments switch. It was not executed. Live keys stay refused by the app. No charge, refund, transfer, payout, or webhook endpoint was created for this note.
 
+Payments stay in test mode unless `PAYMENTS_MODE=live`. Live mode reads `STRIPE_LIVE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_LIVE_PUBLISHABLE_KEY`, and the live webhook secrets. Test mode keeps reading the current test names and does not read the live names. A mixed test and live pair is refused. `/admin/health` shows Payments: TEST or Payments: LIVE. `ready_transfers` selects charges for the current mode. In live mode a real driver needs Stripe payouts and transfers active before accepting a job. Test mode does not add that check. Setting `PAYMENTS_MODE=test` and redeploying returns charges to test keys. Opening `/admin/health` writes that choice back to the database. Migration `0118` is in this pull request and is not applied. This is not deployed. No live charge was created.
+

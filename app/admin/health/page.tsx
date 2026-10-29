@@ -7,6 +7,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
+import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
+import { syncPaymentsMode } from "@/lib/payments/mode-sync";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -30,6 +32,8 @@ export default function AdminHealthPage() {
 
 async function AdminHealth() {
   await requireAdmin("/admin/health");
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  await syncPaymentsMode();
   const lane = await resolveTestLane(false);
   const supabase = await createClient();
   const { data: phoneReady } = await supabase.rpc("admin_phone_protection_ready");
@@ -45,6 +49,9 @@ async function AdminHealth() {
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Health</h1>
+      <p role="status" className="mt-4 rounded-3xl bg-paper-raised p-4 text-2xl font-semibold text-ink ring-1 ring-line">
+        Payments: {mode === "live" ? "LIVE" : "TEST"}
+      </p>
       <p className="mt-3 text-base text-ink">
         Phone protection: {phoneReady === false ? "not configured" : phoneReady === true ? "configured" : "not checked"}
       </p>
@@ -119,8 +126,9 @@ async function AdminHealth() {
 }
 
 async function webhookHealth(): Promise<{ name: string; healthy: boolean; detail: string }[]> {
-  const paymentsSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
-  const connectSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? "";
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  const paymentsSecret = process.env[webhookSecretName("payments", mode)] ?? "";
+  const connectSecret = process.env[webhookSecretName("connect", mode)] ?? "";
   let latest: { event_type: string; account_id: string | null; received_at: string }[] = [];
   try {
     const { data, error } = await createServiceClient()
