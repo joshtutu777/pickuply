@@ -204,14 +204,15 @@ set status = 'disputed'
 where id = 'c1300000-0000-4000-8000-000000000305';
 
 insert into public.job_private (
-  job_id, pickup_address, dropoff_address, customer_name, customer_phone
+  job_id, pickup_address, dropoff_address, customer_name, customer_phone, customer_email
 )
 select
   jobs.id,
   '1 Synthetic Lane',
   case when jobs.dropoff_area is null then null else '2 Synthetic Lane' end,
   profiles.full_name,
-  profiles.phone
+  profiles.phone,
+  coalesce(nullif(btrim(profiles.email), ''), 'synthetic@example.com')
 from public.jobs
 join public.profiles on profiles.id = jobs.customer_id
 where jobs.id in (select id from fixture_jobs);

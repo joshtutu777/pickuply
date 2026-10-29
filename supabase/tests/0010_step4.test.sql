@@ -136,12 +136,13 @@ insert into public.jobs (
     'fixed', 6000, null, null, null, null, null, null, null
   );
 
-insert into public.job_private (job_id, pickup_address, customer_name, customer_phone)
+insert into public.job_private (job_id, pickup_address, customer_name, customer_phone, customer_email)
 values (
   'caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
   '10 Hidden Street',
   'Casey Customer',
-  '+15555550100'
+  '+15555550100',
+  'casey@example.com'
 );
 
 insert into storage.objects (bucket_id, name, owner_id) values

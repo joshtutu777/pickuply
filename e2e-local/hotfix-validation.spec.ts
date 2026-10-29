@@ -50,13 +50,14 @@ test("item loaded advances once, and the customer is not asked to confirm yet", 
       7500, 7755, 6375, 1125, 255,
       '${driver.id}', 'authorized', true
     );
-    insert into public.job_private (job_id, pickup_address, dropoff_address, customer_name, customer_phone)
+    insert into public.job_private (job_id, pickup_address, dropoff_address, customer_name, customer_phone, customer_email)
     values (
       '${jobId}',
       '${longStreet}, Austell, GA 30106',
       '99 Hidden Dropoff Avenue, Smyrna, GA 30080',
       'Load Customer',
-      '+14045550191'
+      '+14045550191',
+      'load.customer@example.com'
     );
   `);
 
@@ -607,6 +608,8 @@ async function submitQuote(page: Page, description: string) {
   if (await name.isVisible().catch(() => false)) {
     await name.fill("New Customer");
     await page.getByLabel("Phone number").fill("4045550194");
+    const email = page.getByLabel("Email address");
+    if (await email.isVisible().catch(() => false)) await email.fill("new.customer@example.com");
   }
   await page.getByRole("checkbox", { name: /I agree to the terms/ }).check();
   await page.getByRole("button", { name: "Send request" }).click();
