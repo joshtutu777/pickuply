@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { liveDriverCanAccept, payoutRequirementNote, sameModeConnectAccount } from "./connect-eligibility";
-import { modeAlignmentLabel, paymentsModesMatch } from "./mode-alignment";
+import { readFileSync } from "node:fs";
+import { modeAlignmentLabel, paymentsModeMayChangeDatabase, paymentsModesMatch } from "./mode-alignment";
 import { stripeObjectMatchesMode } from "./object-mode";
 import { paymentsMode, transferLivemode, webhookSecretName } from "./payments-mode";
 import { reconcilePaymentAction } from "./reconcile";
@@ -84,6 +85,20 @@ test("webhook secrets stay on their own mode", () => {
   assert.equal(webhookSecretName("payments", "live") === webhookSecretName("payments", "test"), false);
 });
 
+test("only an admin activation may change the database payment mode", () => {
+  for (const source of ["checkout", "driver-accept", "transfer", "capture", "refund", "webhook", "reconcile", "health-view"]) {
+    assert.equal(paymentsModeMayChangeDatabase(source), false, source);
+  }
+  assert.equal(paymentsModeMayChangeDatabase("admin-activation"), true);
+  const reader = readFileSync(new URL("./mode-sync.ts", import.meta.url), "utf8");
+  const activation = readFileSync(new URL("../../app/admin/health/actions.ts", import.meta.url), "utf8");
+  assert.equal(reader.includes(".update("), false);
+  assert.equal(reader.includes("activate_payments_mode"), false);
+  assert.match(activation, /activate_payments_mode/);
+  assert.match(activation, /paymentsMode\(process\.env\.PAYMENTS_MODE\)/);
+  assert.equal(activation.includes("formData"), false);
+});
+
 test("a payment-mode mismatch is visible and blocks until both sides agree", () => {
   assert.equal(paymentsModesMatch("test", "test"), true);
   assert.equal(paymentsModesMatch("live", "live"), true);
@@ -150,20 +165,19 @@ test("transfer reconciliation does not send a live charge while the switch is te
   );
 });
 
-test("emergency rollback keeps a live hold identifiable and does not capture it in test mode", () => {
+test("emergency rollback keeps a live hold identifiable and does not capture or authorize it in test mode", () => {
   assert.equal(paymentsMode("test"), "test");
   assert.equal(stripeObjectMatchesMode("test", true), false);
   assert.equal(transferLivemode("test"), false);
-  assert.equal(paymentsModesMatch("test", "test"), true);
-  assert.equal(
-    reconcilePaymentAction({
-      paymentsMode: "live",
-      livemode: true,
-      intentStatus: "requires_capture",
-      jobStatus: "assigned",
-      paymentStatus: "awaiting_payment",
-      ...open,
-    }),
-    "authorize",
-  );
+  assert.equal(paymentsModesMatch("test", "live"), false);
+  assert.equal(paymentsModeMayChangeDatabase("reconcile"), false);
+  const hold = {
+    livemode: true,
+    intentStatus: "requires_capture",
+    jobStatus: "assigned",
+    paymentStatus: "awaiting_payment",
+    ...open,
+  } as const;
+  assert.equal(reconcilePaymentAction({ paymentsMode: "test", ...hold }), "report_mismatch");
+  assert.equal(reconcilePaymentAction({ paymentsMode: "live", ...hold }), "authorize");
 });

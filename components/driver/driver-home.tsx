@@ -167,7 +167,7 @@ function OfferActions({
     try {
     const prepared = await prepareDriverPayments();
     if (!prepared.saved) {
-      const text = "Payout setup could not be checked. Try again.";
+      const text = "Payments are paused. Try again in a few minutes.";
       onRejected(text);
       setMessage({ text, alert: true });
       return;

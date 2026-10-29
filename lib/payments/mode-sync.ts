@@ -13,49 +13,35 @@ export type AlignedPaymentsMode = {
 };
 
 /**
- * Copies PAYMENTS_MODE into platform_settings when the row still has the previous value.
- * A failed write blocks new payment work. The browser cannot set this value.
+ * Reads the environment switch and the database row. It does not change the database.
+ * Checkout, driver acceptance, transfers, and Health all use this read.
  */
-export async function alignPaymentsMode(): Promise<AlignedPaymentsMode> {
+export async function readPaymentsMode(): Promise<AlignedPaymentsMode> {
   const mode = paymentsMode(process.env.PAYMENTS_MODE);
-  const supabase = createServiceClient();
   try {
-    const current = await supabase.from("platform_settings").select("payments_mode").eq("id", 1).maybeSingle();
+    const current = await createServiceClient().from("platform_settings").select("payments_mode").eq("id", 1).maybeSingle();
     if (current.error) return blocked(mode, null);
     const database = current.data?.payments_mode ?? null;
     if (paymentsModesMatch(mode, database)) {
       return { mode, database: database as StoredPaymentsMode, matches: true, saved: true };
     }
-    const updated = await supabase
-      .from("platform_settings")
-      .update({ payments_mode: mode })
-      .eq("id", 1)
-      .eq("payments_mode", database)
-      .select("payments_mode")
-      .maybeSingle();
-    if (updated.error || !paymentsModesMatch(mode, updated.data?.payments_mode)) {
-      const again = await supabase.from("platform_settings").select("payments_mode").eq("id", 1).maybeSingle();
-      if (!again.error && paymentsModesMatch(mode, again.data?.payments_mode)) {
-        return { mode, database: mode, matches: true, saved: true };
-      }
-      await alertPaymentsIssue(
-        `payments-mode-mismatch:${mode}:${database ?? "missing"}`,
-        "Payment mode mismatch",
-        "The payment switch and the database do not match. New payments and transfers are paused. The Stripe object was not changed.",
-      );
-      return blocked(mode, again.data?.payments_mode ?? database);
-    }
-    await supabase.from("audit_log").insert({
-      actor_id: null,
-      action: "payments_mode_aligned",
-      target_type: "platform_settings",
-      target_id: null,
-      data: { from: database, to: mode },
-    });
-    return { mode, database: mode, matches: true, saved: true };
+    return blocked(mode, database);
   } catch {
     return blocked(mode, null);
   }
+}
+
+/** Fail closed. A mismatch alerts an admin and does not change Stripe or the database. */
+export async function confirmPaymentsMode(): Promise<AlignedPaymentsMode> {
+  const current = await readPaymentsMode();
+  if (!current.matches) {
+    await alertPaymentsIssue(
+      `payments-mode-mismatch:${current.mode}:${current.database}`,
+      "Payment mode mismatch",
+      "The payment switch and the database do not match. New payments and transfers are paused. An admin sets the database from Health. The Stripe object was not changed.",
+    );
+  }
+  return current;
 }
 
 function blocked(mode: PaymentsMode, database: string | null | undefined): AlignedPaymentsMode {
@@ -63,8 +49,13 @@ function blocked(mode: PaymentsMode, database: string | null | undefined): Align
   return { mode, database: label.database, matches: false, saved: false };
 }
 
-/** @deprecated Use alignPaymentsMode. Kept so older imports still compile during review. */
+/** @deprecated Use confirmPaymentsMode. This no longer writes the database. */
+export async function alignPaymentsMode(): Promise<AlignedPaymentsMode> {
+  return confirmPaymentsMode();
+}
+
+/** @deprecated Use confirmPaymentsMode. This no longer writes the database. */
 export async function syncPaymentsMode(): Promise<{ mode: PaymentsMode; saved: boolean }> {
-  const aligned = await alignPaymentsMode();
-  return { mode: aligned.mode, saved: aligned.saved };
+  const current = await confirmPaymentsMode();
+  return { mode: current.mode, saved: current.saved };
 }

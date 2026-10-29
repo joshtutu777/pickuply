@@ -12,6 +12,11 @@ export function paymentsModesMatch(environment: PaymentsMode, database: string |
   return storedPaymentsMode(database) === environment;
 }
 
+/** Checkout, acceptance, and transfers must not write the database. Only the admin Health button may. */
+export function paymentsModeMayChangeDatabase(source: string): boolean {
+  return source === "admin-activation";
+}
+
 export function modeAlignmentLabel(environment: PaymentsMode, database: string | null | undefined): {
   environment: PaymentsMode;
   database: StoredPaymentsMode | "missing";

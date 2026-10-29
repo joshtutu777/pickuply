@@ -7,8 +7,9 @@ import { requireAdmin } from "@/lib/auth/session";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
+import { activatePaymentsMode } from "@/app/admin/health/actions";
 import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
-import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { readPaymentsMode } from "@/lib/payments/mode-sync";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -22,17 +23,18 @@ type CronRow = {
   error_message: string | null;
 };
 
-export default function AdminHealthPage() {
+export default function AdminHealthPage({ searchParams }: PageProps<"/admin/health">) {
   return (
     <Suspense fallback={<LoadingMain />}>
-      <AdminHealth />
+      <AdminHealth searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function AdminHealth() {
+async function AdminHealth({ searchParams }: { searchParams: PageProps<"/admin/health">["searchParams"] }) {
   await requireAdmin("/admin/health");
-  const aligned = await alignPaymentsMode();
+  const query = await searchParams;
+  const aligned = await readPaymentsMode();
   const mode = aligned.mode;
   const lane = await resolveTestLane(false);
   const supabase = await createClient();
@@ -57,6 +59,27 @@ async function AdminHealth() {
         <p className={`mt-2 text-base font-semibold ${aligned.matches ? "" : "text-danger"}`}>
           {aligned.matches ? "Payment modes match." : "Payment modes do not match. New payments are paused."}
         </p>
+        {query.saved === "payments-mode" ? (
+          <p className="mt-3 text-base text-ink">The database now matches the environment.</p>
+        ) : null}
+        {typeof query.error === "string" ? (
+          <p role="alert" className="mt-3 text-base text-danger">
+            {query.error}
+          </p>
+        ) : null}
+        {aligned.matches ? null : (
+          <form action={activatePaymentsMode} className="mt-4">
+            <button
+              type="submit"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 text-base font-semibold text-white"
+            >
+              Set the database to {mode === "live" ? "LIVE" : "TEST"}
+            </button>
+            <p className="mt-3 text-base text-ink">
+              Checkout, accepting a job, and transfers do not change this. Only this button does.
+            </p>
+          </form>
+        )}
       </section>
       <p className="mt-3 text-base text-ink">
         Phone protection: {phoneReady === false ? "not configured" : phoneReady === true ? "configured" : "not checked"}

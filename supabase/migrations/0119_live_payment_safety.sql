@@ -1,6 +1,7 @@
 -- A driver can keep a test Connect account and a separate live one.
 -- A test account id is never reused as a live account.
 -- Live tips are recorded only while platform_settings.payments_mode is live.
+-- The 8-argument upsert stays so the currently deployed app can still save a test payout account.
 -- Do not apply this file until the owner approves it.
 
 alter table public.driver_connect_accounts
@@ -8,8 +9,6 @@ alter table public.driver_connect_accounts
 
 alter table public.driver_connect_accounts drop constraint driver_connect_accounts_pkey;
 alter table public.driver_connect_accounts add primary key (driver_id, livemode);
-
-drop function if exists public.upsert_connect_account(uuid, text, boolean, boolean, boolean, text[], text, boolean);
 
 create or replace function public.upsert_connect_account(
   target_driver uuid,
@@ -67,6 +66,42 @@ $$;
 revoke all on function public.upsert_connect_account(uuid, text, boolean, boolean, boolean, text[], text, boolean, boolean)
   from public, anon, authenticated;
 grant execute on function public.upsert_connect_account(uuid, text, boolean, boolean, boolean, text[], text, boolean, boolean)
+  to service_role;
+
+-- The deployed app calls this 8-argument form. It stores a test account and does not replace a live one.
+create or replace function public.upsert_connect_account(
+  target_driver uuid,
+  account_id text,
+  charges_enabled boolean,
+  payouts_enabled boolean,
+  details_submitted boolean,
+  requirements_due text[],
+  disabled_reason text,
+  transfers_active boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.upsert_connect_account(
+    target_driver,
+    account_id,
+    charges_enabled,
+    payouts_enabled,
+    details_submitted,
+    requirements_due,
+    disabled_reason,
+    transfers_active,
+    false
+  );
+end;
+$$;
+
+revoke all on function public.upsert_connect_account(uuid, text, boolean, boolean, boolean, text[], text, boolean)
+  from public, anon, authenticated;
+grant execute on function public.upsert_connect_account(uuid, text, boolean, boolean, boolean, text[], text, boolean)
   to service_role;
 
 create or replace function public.assert_driver_can_take_job(target_job uuid, action text)
@@ -412,3 +447,45 @@ begin
   return 'paid';
 end;
 $$;
+
+create or replace function public.activate_payments_mode(next_mode text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  previous text;
+begin
+  if not public.is_admin() then
+    raise exception 'admin required';
+  end if;
+  if next_mode is distinct from 'test' and next_mode is distinct from 'live' then
+    raise exception 'payment mode must be test or live';
+  end if;
+  select payments_mode into previous
+  from public.platform_settings
+  where id = 1
+  for update;
+  if previous is null then
+    raise exception 'payment mode could not be saved';
+  end if;
+  if previous is distinct from next_mode then
+    update public.platform_settings
+    set payments_mode = next_mode
+    where id = 1;
+    insert into public.audit_log (actor_id, action, target_type, target_id, data)
+    values (
+      auth.uid(),
+      'payments_mode_activated',
+      'platform_settings',
+      null,
+      jsonb_build_object('from', previous, 'to', next_mode)
+    );
+  end if;
+  return next_mode;
+end;
+$$;
+
+revoke all on function public.activate_payments_mode(text) from public, anon, authenticated;
+grant execute on function public.activate_payments_mode(text) to authenticated;

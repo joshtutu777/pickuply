@@ -113,7 +113,7 @@ Do not put the live secret in `NEXT_PUBLIC_*`. Do not put a live key in `STRIPE_
 - [ ] Open `/admin/health` and confirm the environment and the database both say TEST and that they match.
 - [ ] Set `PAYMENTS_MODE=live` in Vercel Production.
 - [ ] Redeploy production.
-- [ ] The next checkout, driver accept, or transfer job writes the database mode. You do not have to open Health for that write. Open `/admin/health` anyway and confirm the environment and the database both say LIVE and that they match before any live charge.
+- [ ] Open `/admin/health`. It shows the environment and the database separately. Checkout, accepting a job, and transfers do not change the database. Press "Set the database to LIVE". Confirm both say LIVE and that they match before any live charge.
 - [ ] A real driver sets up payouts after the switch. The setup creates a new live Connect account. A stored test account is not reused.
 - [ ] A real driver without live payouts and transfers active cannot accept a paid job. A test driver still can. Test mode does not add this check.
 
@@ -175,8 +175,8 @@ Admin alerts for a failed lookup, a missing payout setup, and a transfer that ne
 
 - [ ] In Vercel, set `PAYMENTS_MODE=test`. Leave the test keys in `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Leave the live keys in their own names.
 - [ ] Redeploy production. New charges and webhooks use the test keys as soon as the new deployment is serving.
-- [ ] The next checkout, driver accept, or transfer job writes the database back to test. Open `/admin/health` and confirm the environment and the database both say TEST and that they match.
-- [ ] A live charge stays marked live. Test mode does not capture, refund, or transfer it. It can be reconciled again after the switch returns to live.
+- [ ] Open `/admin/health` and press "Set the database to TEST". Confirm both say TEST and that they match. Until that button is pressed, new payments stay paused. Checkout does not change the database for you.
+- [ ] A live charge stays marked live. Test mode does not capture, refund, or transfer it. The catch-up leaves it unchanged and it can be reconciled again after the switch returns to live.
 - [ ] In Stripe, pause live charges if a charge could still be created outside the app.
 - [ ] Leave the live webhook endpoints disabled, not deleted, until the owner decides.
 - [ ] Do not refund or reverse anything that already succeeded unless the owner asks for that charge by id.
