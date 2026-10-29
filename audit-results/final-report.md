@@ -124,8 +124,33 @@ Transfers and payouts stay not verified. No eligible test account has payouts en
 | Driver onboarding in the browser | PASS, earlier this evening | License photo, admin approval, and driver home were recorded in the browser continuation below. Not repeated in this pass because that driver is already active. |
 | Admin to customer message | PASS | Thread `6d863c93-37cf-4583-a540-f00ce6d65ce1`. The customer saw an unread support note, replied "Customer reply received.", and that row is stored for customer `1adff874-cf13-4f4f-aebb-4ea71bae60de`. Admin then saw the reply. After opening, the inbox said Read. |
 | Admin to driver message | PASS | Thread `ed7e2776-6406-417a-a6b1-4a1d634ef0e8`. The driver saw the unread note and the stored reply is "Driver reply received." The customer account did not see that thread. |
-| Support tickets | NOT VERIFIED | Both contact forms returned a sent page. The admin support reply form was not completed before the 7-minute test limit. |
+| Support tickets | PASS | Local ticket `PLY-72739156` (`1f8d4c8d-608e-482a-ad56-7a6f0d718779`) was filed by the driver. Admin reply "Admin reply on the driver ticket." is stored as kind `admin`. An internal note is stored as kind `internal`. Signed in as the driver, `/contact/tickets/1f8d4c8d-608e-482a-ad56-7a6f0d718779` shows the Pickuply reply and does not show the internal note. |
 | WebKit | Unavailable | Chromium only. |
+
+## Launch decision — October 28, follow-up
+
+These labels are for the current test build. They are not approval to turn on live payments, merge, or deploy.
+
+| Lane | Decision | Why |
+| --- | --- | --- |
+| Driver applications | CONDITIONAL GO | Chromium submitted a license photo, an admin approved it, and the driver home showed an active driver who could go Online. There are no background checks in v1, and the page does not claim them. A missing insurance upload does not block Online after approval. An expired uploaded policy does. Driver Terms v2, including the new insurance duties, is not published. Existing drivers are still on v1 until migration `0112` ships with the app. |
+| Paid bookings | NO-GO | A local API-confirmed test capture exists, and one browser Checkout hold is `requires_capture`. On pickuplyapp.com the Stripe TEST webhook deliveries stay pending, so a hosted payment is not recorded on the job. Checkout on a phone with card 4242 is still untested. |
+| Full deliveries | NO-GO | The browser job reached `arrived` and the proof photo did not save, so that job was not captured. The separate captured job was an API test, not a full browser delivery. Hosted payment state would also stay behind until a Stripe-signed event is stored. |
+| Driver payouts | NO-GO | `acct_1UVglpD5IFdeuy8H` has `payouts_enabled` false. No transfer id and no payout id. The Connect webhook and `STRIPE_CONNECT_WEBHOOK_SECRET` are missing. A transfer would not be a bank deposit. |
+
+## Why the $52.50 hold did not reconcile
+
+PaymentIntent `pi_3UVhKKD5IFQdbLky0Rzjx6FZ` reached `requires_capture` in Stripe TEST for hosted test job `086c4d7b-57ef-411a-84e4-81bae0ede760`. Event `evt_3UVhKKD5IFQdbLky0fnwysp9` (`payment_intent.amount_capturable_updated`) stayed at `pending_webhooks` 1 and was never inserted into `stripe_events`, so `apply_authorization` never ran. The job stayed `assigned` and `awaiting_payment`. The PaymentIntent was then canceled. Cancel event `evt_3UVhKKD5IFQdbLky0Ojedv05` also stayed pending.
+
+`note_authorization_canceled` always inserts `payment_attempts.outcome = canceled`. It sets `payment_status` to `canceled` only when the job is already `authorized` and the stored PaymentIntent matches. This job was still `awaiting_payment`, so the function left that status and did not release the assignment. A later successful cancel webhook would do the same. The job was then marked `cancelled` under the replica role so it would not stay assigned or text admins. It remains `is_test`, `cancelled`, and `awaiting_payment`.
+
+A safe reconciler, not built and not deployed, would run on the server in test mode only until live payments are approved. It would retrieve the PaymentIntent and then call the same database functions the webhook uses:
+
+- Stripe `requires_capture` and the job still `assigned` / `awaiting_payment`: call `apply_authorization`.
+- Stripe `canceled` and the job was never authorized: record the attempt and release the assignment the way an unpaid timeout does. Do not mark it `canceled` as if a hold had been stored, and do not notify admins for an `is_test` job.
+- Stripe `canceled` and the job is already `authorized`: call `note_authorization_canceled`.
+
+The job should be idempotent on the PaymentIntent id, claim the Stripe event id when one exists, and never create or capture a charge.
 
 ## Legal document gaps (not software)
 

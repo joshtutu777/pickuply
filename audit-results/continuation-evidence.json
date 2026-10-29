@@ -12,6 +12,11 @@
       "id": "ADMIN-MSG-DRIVER",
       "status": "PASS",
       "detail": "thread ed7e2776-6406-417a-a6b1-4a1d634ef0e8; driver saw unread and replied; customer cannot see that thread"
+    },
+    {
+      "id": "ADMIN-TICKET-DRIVER",
+      "status": "PASS",
+      "detail": "ticket 1f8d4c8d-608e-482a-ad56-7a6f0d718779 PLY-72739156; driver saw Admin reply on the driver ticket; internal note was not shown"
     }
   ],
   "customerId": "1adff874-cf13-4f4f-aebb-4ea71bae60de",

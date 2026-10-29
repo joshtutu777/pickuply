@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import Stripe from "stripe";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -90,7 +90,17 @@ test.beforeAll(() => {
 
 test.afterAll(() => {
   mkdirSync("audit-results", { recursive: true });
-  writeFileSync("audit-results/continuation-evidence.json", JSON.stringify(evidence, null, 2));
+  const path = "audit-results/continuation-evidence.json";
+  let prior: { results?: { id: string; status: string; detail: string }[] } = {};
+  try {
+    prior = JSON.parse(readFileSync(path, "utf8")) as typeof prior;
+  } catch {
+    prior = {};
+  }
+  const byId = new Map<string, { id: string; status: string; detail: string }>();
+  for (const row of prior.results ?? []) byId.set(row.id, row);
+  for (const row of evidence.results as { id: string; status: string; detail: string }[]) byId.set(row.id, row);
+  writeFileSync(path, JSON.stringify({ ...prior, ...evidence, results: [...byId.values()] }, null, 2));
 });
 
 test("driver application, license photo, admin approval, and driver status", async ({ page }) => {
@@ -603,6 +613,56 @@ async function saveProof(page: Page, stage: "pickup" | "dropoff") {
   await expect(status.first()).toBeVisible();
   await expect(status.first()).toContainText("Proof saved");
 }
+
+test("admin support replies are visible to the driver and the customer", async ({ page }) => {
+  await signIn(page, driver, "/contact");
+  await page.getByLabel("First name").fill("Riley");
+  await page.getByLabel("Email").fill("riley-audit@pickuply.test");
+  await page.getByLabel("Topic").selectOption("driver-account");
+  await page.getByLabel("Message").fill("Audit driver ticket about payout setup.");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Message sent")).toBeVisible();
+
+  await signIn(page, customer, "/contact");
+  await page.getByLabel("First name").fill("Robin");
+  await page.getByLabel("Email").fill("robin-audit@pickuply.test");
+  await page.getByLabel("Topic").selectOption("payments");
+  await page.getByLabel("Message").fill("Audit customer ticket about a test charge.");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Message sent")).toBeVisible();
+
+  const driverTicket = localSql(
+    "select id from public.support_tickets where email = 'riley-audit@pickuply.test' order by created_at desc limit 1",
+  ).trim();
+  const customerTicket = localSql(
+    "select id from public.support_tickets where email = 'robin-audit@pickuply.test' order by created_at desc limit 1",
+  ).trim();
+  expect(driverTicket).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(customerTicket).toMatch(/^[0-9a-f-]{36}$/i);
+
+  await signIn(page, admin, `/admin/support/${driverTicket}`);
+  await page.locator("textarea[name='message']").fill("Admin reply on the driver ticket.");
+  await page.getByRole("button", { name: "Reply to customer" }).click();
+  await expect(page.getByText("Admin reply on the driver ticket.")).toBeVisible();
+
+  await signIn(page, driver, `/contact/tickets/${driverTicket}`);
+  await expect(page.getByText("Admin reply on the driver ticket.")).toBeVisible();
+  await expect(page.getByText("Internal note")).toHaveCount(0);
+  note("ADMIN-TICKET-DRIVER", "PASS", `driver saw the reply on ticket ${driverTicket}`);
+
+  await signIn(page, admin, `/admin/support/${customerTicket}`);
+  await page.locator("textarea[name='message']").fill("Admin reply on the customer ticket.");
+  await page.getByRole("button", { name: "Reply to customer" }).click();
+  await expect(page.getByText("Admin reply on the customer ticket.")).toBeVisible();
+  await page.locator("textarea[name='message']").fill("Internal note stays with admin.");
+  await page.getByRole("button", { name: "Add internal note" }).click();
+  await expect(page.getByText("Internal note stays with admin.")).toBeVisible();
+
+  await signIn(page, customer, `/contact/tickets/${customerTicket}`);
+  await expect(page.getByText("Admin reply on the customer ticket.")).toBeVisible();
+  await expect(page.getByText("Internal note stays with admin.")).toHaveCount(0);
+  note("ADMIN-TICKET-CUSTOMER", "PASS", `customer saw the reply and not the internal note on ticket ${customerTicket}`);
+});
 
 async function accessToken(page: Page) {
   const cookies = await page.context().cookies();
