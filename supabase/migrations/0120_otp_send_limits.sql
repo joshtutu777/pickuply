@@ -1,5 +1,5 @@
--- Replaces the fixed hourly phone and network quotas with a cooldown,
--- a daily cap per number, and distinct-number abuse checks.
+-- Adds cooldown, daily, and distinct-number checks for the new app.
+-- Does not change consume_rate_limit, so the currently deployed sign-in flow keeps working.
 -- Stores hashes only. A refused request does not add a row.
 -- Do not apply this file until the owner approves it.
 

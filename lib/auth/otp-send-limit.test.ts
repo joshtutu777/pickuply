@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  otpLimitCoverage,
   otpSendMessages,
   otpSendPolicy,
   otpVerifyBlocked,
@@ -77,6 +78,14 @@ test("five wrong codes block another try until the window passes", () => {
   assert.equal(otpVerifyBlocked(failures, now + 5), true);
   assert.equal(otpVerifyBlocked(failures, now + otpSendPolicy.verifyWindowMs + 5), false);
   assert.equal(otpSendMessages.verify.includes("555"), false);
+});
+
+test("a direct Auth request is outside the custom text and wrong-code limits", () => {
+  assert.equal(otpLimitCoverage.appSendChecksCustomPolicy, true);
+  assert.equal(otpLimitCoverage.directAuthSendChecksCustomPolicy, false);
+  assert.equal(otpLimitCoverage.sendSmsHookRequiredForEveryText, true);
+  assert.equal(otpLimitCoverage.appVerifyChecksFiveWrongCodes, true);
+  assert.equal(otpLimitCoverage.directAuthVerifyChecksFiveWrongCodes, false);
 });
 
 test("the old hourly phone and network quotas are gone", () => {

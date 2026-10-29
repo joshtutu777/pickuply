@@ -4,7 +4,11 @@ import { prepareSignInVerify, noteSignInVerifyFailure } from "@/app/login/otp-li
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { createClient } from "@/lib/supabase/client";
 
-/** Checks the server limit, then verifies with the browser session the request form already uses. */
+/**
+ * Checks the app's five-code limit, then verifies with the browser session.
+ * A direct Supabase Auth verify request does not call this function.
+ * Supabase limits those requests by IP. It does not stop the code after five wrong tries.
+ */
 export async function verifyPhoneCode(phone: string, token: string): Promise<string | null> {
   if (!/^\d{6}$/.test(token)) return "Enter the 6-digit code.";
   const blocked = await prepareSignInVerify(phone);

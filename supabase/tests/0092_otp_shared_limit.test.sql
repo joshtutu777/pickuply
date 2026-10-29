@@ -1,8 +1,9 @@
--- Several people on one network can request codes. A script cannot.
+-- Replaces the old hourly 5-per-phone and 10-per-network assertions.
+-- consume_rate_limit stays, because the deployed app still calls it until this pull request is deployed.
 
 begin;
 
-select plan(7);
+select plan(8);
 
 select lives_ok(
   $$
@@ -64,6 +65,13 @@ select lives_ok(
     $body$;
   $$,
   'the same number can request another code after 30 seconds'
+);
+
+select has_function(
+  'public',
+  'consume_rate_limit',
+  array['text', 'text', 'integer', 'integer', 'text'],
+  'the deployed sign-in limit function is still there'
 );
 
 set local role anon;

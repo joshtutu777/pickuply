@@ -1,3 +1,20 @@
+/**
+ * App screens call these limits before asking Supabase to text a code.
+ * A direct request to Supabase Auth does not. Supabase still applies its own
+ * project SMS cap, per-number resend window, and per-IP request cap.
+ * Those hosted caps are not this policy. A Send SMS hook is required before
+ * every text, including a direct Auth request, uses this policy.
+ * Supabase does not enforce five wrong codes on POST /auth/v1/verify.
+ * That counter runs only when the person uses the Pickuply form.
+ */
+export const otpLimitCoverage = {
+  appSendChecksCustomPolicy: true,
+  directAuthSendChecksCustomPolicy: false,
+  sendSmsHookRequiredForEveryText: true,
+  appVerifyChecksFiveWrongCodes: true,
+  directAuthVerifyChecksFiveWrongCodes: false,
+} as const;
+
 export const otpSendPolicy = {
   cooldownMs: 30_000,
   phoneDailyMax: 20,
