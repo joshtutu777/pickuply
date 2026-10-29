@@ -8,6 +8,7 @@ import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export const metadata: Metadata = { title: { absolute: "Health · Pickuply Admin" } };
 
@@ -38,6 +39,7 @@ async function AdminHealth() {
       : await supabase.from("cron_job_runs").select("job_name, started_at, finished_at, ok, error_message");
   const byName = new Map(((runs.data ?? []) as CronRow[]).map((row) => [row.job_name, row]));
   const issues = lane === "test" ? null : await loadIssueSummary();
+  const webhooks = await webhookHealth();
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -70,6 +72,16 @@ async function AdminHealth() {
           </a>
         </p>
       ) : null}
+      <h2 className="mt-8 text-xl font-semibold text-ink">Stripe webhooks</h2>
+      <ul className="mt-3 space-y-3">
+        {webhooks.map((hook) => (
+          <li key={hook.name} className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+            <p className="text-lg font-semibold text-ink">{hook.name}</p>
+            <p className="mt-1 text-base text-ink">{hook.healthy ? "Healthy" : "Not healthy"}</p>
+            <p className="mt-1 text-base text-muted">{hook.detail}</p>
+          </li>
+        ))}
+      </ul>
       <h2 className="mt-8 text-xl font-semibold text-ink">Scheduled jobs</h2>
       {lane === "test" ? (
         <p className="mt-3 text-base text-ink">Scheduler status is hidden from a test admin.</p>
@@ -104,4 +116,39 @@ async function AdminHealth() {
       )}
     </main>
   );
+}
+
+async function webhookHealth(): Promise<{ name: string; healthy: boolean; detail: string }[]> {
+  const paymentsSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  const connectSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? "";
+  let latest: { event_type: string; account_id: string | null; received_at: string }[] = [];
+  try {
+    const { data, error } = await createServiceClient()
+      .from("stripe_events")
+      .select("event_type, account_id, received_at")
+      .order("received_at", { ascending: false })
+      .limit(40);
+    if (error) throw error;
+    latest = data ?? [];
+  } catch {
+    latest = [];
+  }
+  const paymentEvent = latest.find((row) => row.account_id == null);
+  const connectEvent = latest.find((row) => row.account_id != null);
+  return [
+    {
+      name: "Payments",
+      healthy: paymentsSecret.startsWith("whsec_") && Boolean(paymentEvent),
+      detail: paymentEvent
+        ? `Last event ${paymentEvent.event_type} at ${new Date(paymentEvent.received_at).toLocaleString()}`
+        : "No payment event is stored.",
+    },
+    {
+      name: "Connect",
+      healthy: connectSecret.startsWith("whsec_") && Boolean(connectEvent),
+      detail: connectEvent
+        ? `Last event ${connectEvent.event_type} at ${new Date(connectEvent.received_at).toLocaleString()}`
+        : "No Connect event is stored.",
+    },
+  ];
 }

@@ -1,3 +1,4 @@
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 import { formatCents } from "@/lib/money";
 
 export function serviceFeeLabel(bps: number | null | undefined): string {
@@ -30,8 +31,7 @@ export function ServiceFeeNote({
       <details>
         <summary className="cursor-pointer text-sm text-muted">About the service fee</summary>
         <p className="text-sm text-muted">
-          Supports secure payments, customer support, and our damage policy. A damage report can be reviewed up to
-          $250. This is not insurance.
+          Supports secure payments and customer support. {damagePolicyCopy}
         </p>
       </details>
     </div>
