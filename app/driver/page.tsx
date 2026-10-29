@@ -70,6 +70,7 @@ async function DriverContent({
   const saved = singleQuery(params.saved);
 
   const supabase = await createClient();
+  const { data: profile } = await supabase.from("profiles").select("is_test").eq("id", session.userId).maybeSingle();
   const { data: application } = await supabase
     .from("drivers")
     .select(
@@ -177,7 +178,9 @@ async function DriverContent({
         <RestrictionNotice surface="driver" />
         <BetaNotice from="/driver" />
         {approved && !application?.insurance_url ? (
-          <p className="mt-3 text-base text-ink">Add your insurance card.</p>
+          <p className="mt-3 text-base text-ink">
+            {profile?.is_test ? "Add your insurance card." : "Upload your insurance to go Online."}
+          </p>
         ) : null}
         {saved ? (
           <p role="status" className="mt-3 text-base font-semibold text-ink">
