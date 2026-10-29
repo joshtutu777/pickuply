@@ -5,8 +5,9 @@ import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 /**
  * Prepared for review. Not published.
  * Georgia counsel still needs to review: independent-contractor status, injury and
- * death disclaimers, required insurance types and limits, disposal liability, and
- * whether the 48-hour review window is only administrative.
+ * death disclaimers, which insurance lines apply, the minimum limits, disposal
+ * liability, and whether the 48-hour review window is only administrative.
+ * This draft does not invent a policy limit or a required line of coverage.
  */
 export const driverTermsEffective = "October 28, 2026";
 
@@ -33,8 +34,9 @@ export const driverTermsSections: LegalSection[] = [
     id: "insurance",
     heading: "Insurance you must have",
     paragraphs: [
-      "Before you go Online or accept a paid job, you must carry the insurance Georgia law requires for your vehicle and for paid hauling, delivery, or junk removal. Where that law, or a requirement Pickuply states separately, calls for commercial auto, for-hire, cargo, or liability coverage, you must have that coverage. A personal auto policy often excludes paid delivery and hauling. You have to confirm your coverage with your own insurer.",
-      "Pickuply does not sell you a policy, does not promise that a document you upload is enough, and does not pay your deductible. Uploading a document is not a statement that you are insured, licensed, or qualified. If you do not have the required coverage, do not go Online and do not accept a job.",
+      "You must keep, at your own expense, the insurance that applies to your vehicle and to the paid work you accept. That includes the coverage Georgia law requires. Where that law, your insurer, or a written Pickuply requirement says the work needs commercial, for-hire, or other business-use coverage, a personal auto policy is not a substitute. You have to confirm with your own insurer that the policy covers paid delivery, hauling, or junk removal.",
+      "You must give Pickuply proof of insurance when you apply, when Pickuply asks, and before the proof already on file expires. If a policy is canceled, non-renewed, or lapses, you must tell Pickuply before you go Online again and before you accept another job. Do not go Online and do not accept a job while the required coverage is missing.",
+      "If you do not keep the required coverage, or you do not provide proof when asked, Pickuply may refuse to let you go Online, refuse new jobs, or suspend your access. That is a platform rule. It is not a statement of the insurance types or dollar limits Georgia law requires. Pickuply does not sell you a policy, does not promise that an uploaded document is enough, and does not pay your deductible. An upload is not a statement that you are insured, licensed, or qualified.",
     ],
   },
   {
