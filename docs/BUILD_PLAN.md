@@ -12,7 +12,7 @@ The October 2026 work in `docs/PROGRESS.md` uses a later step numbering than the
 - [ ] Supabase project `pickuply` → save Project URL, anon key, service role key
 - [ ] Stripe (Test mode) → save publishable key, secret key
 - [ ] Vercel → sign in with GitHub
-- [ ] Twilio → start A2P 10DLC texting registration now (approval takes time)
+- [x] Twilio → A2P 10DLC campaign is approved for transactional and marketing texts
 - [ ] Google Cloud → Maps API key (later, step 14)
 
 ---
