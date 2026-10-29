@@ -1,3 +1,4 @@
+import { damagePolicyCopy } from "@/lib/legal/damage-policy";
 import { formatCents } from "@/lib/money";
 
 export function serviceFeeLabel(bps: number | null | undefined): string {
@@ -30,9 +31,7 @@ export function ServiceFeeNote({
       <details>
         <summary className="cursor-pointer text-sm text-muted">About the service fee</summary>
         <p className="text-sm text-muted">
-          Supports secure payments and customer support. Report damage within 48 hours of delivery and include photos.
-          Pickuply may review the report and, at its discretion, provide a goodwill payment of up to $250. That
-          review is not insurance, not a guarantee, and not a promise that any amount will be paid.
+          Supports secure payments and customer support. {damagePolicyCopy}
         </p>
       </details>
     </div>
