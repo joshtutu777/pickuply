@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { AdvanceButton } from "@/components/driver/advance-button";
 import { ProofForm } from "@/components/driver/proof-form";
 import { saveDriverProof } from "@/lib/driver/save-proof";
-import { proofMediaKind } from "@/lib/jobs/proof-file";
+import { proofInputFile, proofMediaKind } from "@/lib/jobs/proof-file";
 import { missingProofWarning, proofAfterSave, proofStageForStep } from "@/lib/jobs/proof-warning";
 
 export function DriverActions({
@@ -63,7 +63,9 @@ export function DriverActions({
 
   async function saveChosen(): Promise<string | null> {
     if (saveLock.current) return "Saving proof…";
-    if (!chosen) return "Choose a photo or a short video.";
+    const input = document.getElementById("proof-file");
+    const picked = proofInputFile(chosen, input instanceof HTMLInputElement ? input : null);
+    if (!(picked instanceof File)) return "Choose a photo or a short video.";
     const stage = proofStageForStep(snapshot);
     if (!stage) return null;
     saveLock.current = true;
@@ -75,7 +77,7 @@ export function DriverActions({
       await saveDriverProof({
         jobId,
         stage,
-        file: chosen,
+        file: picked,
         note,
         shareLocation: share,
         locationEnabled,
@@ -105,7 +107,7 @@ export function DriverActions({
         label={label}
         blockedMessage={blockedMessage}
         fileChosen={chosen != null && proofMediaKind(chosen) != null}
-        prepare={chosen ? saveChosen : undefined}
+        prepare={blockedMessage ? saveChosen : undefined}
       />
       <ProofForm
         key={formKey}

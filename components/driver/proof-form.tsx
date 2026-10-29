@@ -80,7 +80,6 @@ export function ProofForm({
         id={`${idPrefix}proof-file`}
         name="file"
         accept="image/*,video/*"
-        capture="environment"
         required
         label="Add a photo or video"
         kinds="JPG, PNG, or a video up to 30 seconds"
