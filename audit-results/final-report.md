@@ -99,6 +99,22 @@ This booking is an **API-confirmed test payment**. The Checkout page was not ope
 
 Riley has one completed test job. After payout setup, the new-driver rule keeps this earnings row waiting 48 hours. That wait was not removed.
 
+## Follow-up on October 28
+
+`acct_1UVglpD5IFdeuy8H` is not onboarded. Stripe still reports `payouts_enabled` false, `charges_enabled` false, `details_submitted` false, and `disabled_reason` `requirements.past_due`. The past-due items are business category, product description, support phone, website, business type, bank account, date of birth, email, first name, last name, statement descriptor, and Stripe's own terms. No transfer and no payout were created. A transfer is not a bank deposit, and this account cannot receive one yet.
+
+The payout-setup error "Valid types for this account are account_onboarding" is a code bug for an account that already submitted details. The fix retries with the type Stripe names. It is in pull request 37 and is not deployed, so the live site still shows the error.
+
+Webhook events `evt_3UVglbD5IFQdbLky12Nl1xVo` and `evt_3UVglbD5IFQdbLky1GTqkFxv` still have `pending_webhooks` 1. Stripe's API does not return the attempt status code or response body. A bad signature from this app is HTTP 400 with body `{"ok":false}`. A signed test event using the provided test webhook secret got HTTP 200 and body `{"ok":true,"ignored":true}` from `https://pickuplyapp.com/api/stripe/webhook`, so the app's `STRIPE_WEBHOOK_SECRET` matches that secret. Stripe's own deliveries are still pending, so the secret on the Stripe endpoint may not be the one the app has. That endpoint secret cannot be read back.
+
+A hosted test job `086c4d7b-57ef-411a-84e4-81bae0ede760` was inserted as assigned, `is_test`, and awaiting payment, without opening it to drivers. PaymentIntent `pi_3UVhKKD5IFQdbLky0Rzjx6FZ` is a test-mode manual hold for 5,250 cents, status `requires_capture`. Its event `evt_3UVhKKD5IFQdbLky0fnwysp9` also has `pending_webhooks` 1 and is not in hosted `stripe_events`. The job is still `awaiting_payment`. The hold was left in place so a later successful retry can record it. Hosted SMS is on. The job insert skipped notification triggers. The customer and driver are test profiles, so an authorization alert would stay in the app.
+
+`STRIPE_CONNECT_WEBHOOK_SECRET` is still absent. The platform endpoint does not subscribe to transfer, account, or payout events.
+
+Driver onboarding in the browser, admin conversations, and the Playwright rerun were not run in this pass. They are not marked passed.
+
+Driver Terms v2 is prepared in pull request 37 and is not published. Migration `0112` is not applied to the hosted database.
+
 ## Legal document gaps (not software)
 
 Nothing in this section was published. The drafts are for a lawyer to review.
