@@ -1,7 +1,7 @@
 -- Adds cooldown, daily, and distinct-number checks for the new app.
 -- Does not change consume_rate_limit, so the currently deployed sign-in flow keeps working.
 -- Stores hashes only. A refused request does not add a row.
--- Do not apply this file until the owner approves it.
+-- The owner approved applying this before the app that calls these functions is deployed.
 
 create table public.otp_send_log (
   id bigint generated always as identity primary key,
@@ -54,7 +54,7 @@ begin
   from public.otp_send_log
   where otp_send_log.phone_key = reserve_otp_send.phone_key
     and created_at > now() - interval '24 hours';
-  if phone_count >= 20 then
+  if phone_count >= 10 then
     raise exception 'Too many codes for this number today. Try again tomorrow.';
   end if;
 

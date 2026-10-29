@@ -17,7 +17,7 @@ export const customerTopics: HelpTopic[] = [
       },
       {
         q: "What do I pay?",
-        a: "You pay the driver's offer plus a service fee. The default is 5% of that offer, and the total is shown before you accept. Pickuply's 15% commission comes out of the offer. It is not added again, and it is not taken from the service fee. Stripe's card processing cost is Pickuply's expense.",
+        a: "You pay the driver's offer plus a service fee. The default is 5% of that offer, and the total is shown before you accept. Pickuply's 15% commission comes out of the offer. It is not added again, and it is not taken from the service fee. Pickuply covers all card processing costs — you only pay the offer plus the service fee shown before you book.",
       },
     ],
   },

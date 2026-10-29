@@ -17,7 +17,7 @@ export const otpLimitCoverage = {
 
 export const otpSendPolicy = {
   cooldownMs: 30_000,
-  phoneDailyMax: 20,
+  phoneDailyMax: 10,
   phoneDailyMs: 24 * 60 * 60 * 1000,
   burstDistinctPhones: 15,
   burstMs: 10 * 60 * 1000,
