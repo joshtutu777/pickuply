@@ -403,7 +403,7 @@ async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await driver.getByRole("button", { name: "Delivered" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^delivered$/);
   await customer.goto(`/jobs/${jobId}`);
-  await expect(customer.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
+  await expect(customer.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
 }
 
 async function saveProof(page: Page, stage: "pickup" | "dropoff") {

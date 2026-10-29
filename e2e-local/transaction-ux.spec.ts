@@ -73,7 +73,7 @@ test("compact transaction screens keep the next step in view", async ({ page }) 
       await expect(review).toBeVisible();
       const statusBox = await status.boundingBox();
       const reviewBox = await review.boundingBox();
-      const confirm = page.getByRole("button", { name: "Confirm", exact: true });
+      const confirm = page.getByRole("button", { name: "Confirm delivery" });
       const confirmBox = await confirm.boundingBox();
       expect(statusBox && reviewBox && reviewBox.y > statusBox.y && reviewBox.y - statusBox.y < 180).toBe(true);
       expect(confirmBox && confirmBox.y + confirmBox.height < 740).toBe(true);

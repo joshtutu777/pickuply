@@ -239,7 +239,7 @@ A regular pickup and delivery:
 6. **Arrived at drop-off**
 7. Drop-off photo required
 8. **Delivered**
-9. The customer sees “Does everything look good?” and chooses **Confirm** or **Report an Issue**
+9. The customer sees “Does everything look good?” and chooses **Confirm delivery** or **Report a problem**, side by side
 10. Confirm runs the existing capture. A dispute blocks capture. The 24-hour auto-complete clock starts when the job is marked delivered
 
 Junk removal does not use a customer drop-off:
@@ -248,7 +248,7 @@ Junk removal does not use a customer drop-off:
 2. **Arrived at the removal location**
 3. Completion photo of the area after the junk is removed
 4. **Junk removed**
-5. The same customer confirmation, capture, and dispute rules. The 24-hour clock starts when the junk is marked removed
+5. The same customer confirmation, capture, and dispute rules. The buttons are **Confirm removal** and **Report a problem**, side by side. The 24-hour clock starts when the junk is marked removed
 
 A junk job that already requires a disposal receipt still needs that receipt before Junk removed. It does not need a drop-off address, a drop-off arrival, or a second drop-off photo.
 

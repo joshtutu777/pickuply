@@ -103,7 +103,7 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
 
     await customerPage.goto(`/jobs/${deliveryId}`);
     await expect(customerPage.getByRole("heading", { name: "Does everything look good?" })).toHaveCount(0);
-    await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
+    await expect(customerPage.getByRole("button", { name: "Confirm delivery" })).toHaveCount(0);
 
     await driverPage.getByRole("button", { name: "Proceed to drop-off" }).click();
     await expect.poll(() => localSql(`select status from public.jobs where id = '${deliveryId}'`).trim()).toBe("in_transit");
@@ -120,7 +120,7 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
     expect(localSql(`select count(*) from public.job_photos where job_id = '${deliveryId}' and stage = 'dropoff' and report_id is null`).trim()).toBe("1");
     await customerPage.goto(`/jobs/${deliveryId}`);
     await expect(customerPage.getByRole("heading", { name: "Does everything look good?" })).toBeVisible();
-    await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
+    await expect(customerPage.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
 
     await driverPage.goto(`/driver/jobs/${junkId}`);
     await expect(driverPage.getByRole("button", { name: "Junk removed" })).toBeVisible();
@@ -138,8 +138,8 @@ test("a driver continues after item loaded, and junk removal stops at the pickup
 
     await customerPage.goto(`/jobs/${junkId}`);
     await expect(customerPage.getByRole("heading", { name: "Does everything look good?" })).toBeVisible();
-    await expect(customerPage.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
-    await expect(customerPage.getByRole("button", { name: "Report an Issue" })).toBeVisible();
+    await expect(customerPage.getByRole("button", { name: "Confirm removal" })).toBeVisible();
+    await expect(customerPage.getByRole("button", { name: "Report a problem" })).toBeVisible();
   } finally {
     await driverContext.close().catch(() => undefined);
     await customerContext.close().catch(() => undefined);
