@@ -22,7 +22,7 @@ function decide(input: {
   });
 }
 
-test("a live PaymentIntent is left alone", () => {
+test("a live PaymentIntent is reported and left unchanged while the switch is test", () => {
   assert.equal(
     decide({
       livemode: true,
@@ -30,7 +30,7 @@ test("a live PaymentIntent is left alone", () => {
       jobStatus: "assigned",
       paymentStatus: "awaiting_payment",
     }),
-    "skip",
+    "report_mismatch",
   );
 });
 

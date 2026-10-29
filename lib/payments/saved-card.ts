@@ -88,7 +88,7 @@ export function savedTipCharge(input: {
   };
 }
 
-export type TipChargeDecision = "paid" | "authenticate" | "fallback" | "live" | "uncertain";
+export type TipChargeDecision = "paid" | "authenticate" | "fallback" | "mismatch" | "uncertain";
 
 const cardFailureCodes = new Set([
   "card_declined",
@@ -100,14 +100,17 @@ const cardFailureCodes = new Set([
   "card_velocity_exceeded",
 ]);
 
-/** A succeeded test charge is recorded once. Card failure opens Checkout. Anything unclear stops. */
+/** A succeeded charge is recorded once when it matches the payment mode. Card failure opens Checkout. A mode mismatch stops without a refund. */
 export function decideTipCharge(input: {
+  paymentsMode?: "test" | "live";
   livemode?: boolean;
   status?: string | null;
   errorCode?: string | null;
   errorType?: string | null;
 }): TipChargeDecision {
-  if (input.livemode) return "live";
+  const mode = input.paymentsMode ?? "test";
+  const livemode = Boolean(input.livemode);
+  if ((mode === "live") !== livemode) return "mismatch";
   if (input.status === "succeeded") return "paid";
   if (input.errorCode === "authentication_required" || input.status === "requires_action") return "authenticate";
   if (

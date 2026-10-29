@@ -1,5 +1,7 @@
 import "server-only";
 
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { acceptOrRelease } from "@/lib/payments/platform-events";
 import { reconcilePaymentAction } from "@/lib/payments/reconcile";
 import { getStripe } from "@/lib/stripe";
@@ -19,6 +21,15 @@ type OpenJob = {
  * It does not create or capture a charge. Running it again for the same intent does not add a second attempt.
  */
 export async function reconcileOpenPayments(): Promise<{ checked: number; applied: number }> {
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    await alertPaymentsIssue(
+      "reconcile-mode",
+      "Payment catch-up paused",
+      "Open payments were not changed because the payment switch and the database do not match.",
+    );
+    return { checked: 0, applied: 0 };
+  }
   const stripe = getStripe();
   const supabase = createServiceClient();
   const jobs = await supabase
@@ -61,6 +72,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
     const current = fresh.data as OpenJob;
     const now = new Date().toISOString();
     const action = reconcilePaymentAction({
+      paymentsMode: aligned.mode,
       livemode: intent.livemode,
       intentStatus: intent.status,
       jobStatus: current.status,
@@ -68,6 +80,15 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
       paymentDueAt: current.payment_due_at,
       now,
     });
+    if (action === "report_mismatch") {
+      await alertPaymentsIssue(
+        `reconcile-object:${intent.id}`,
+        "Payment catch-up mode mismatch",
+        "An open payment did not match the payment switch. It was left unchanged and can still be reconciled later.",
+      );
+      await recordReconcile(supabase, current, intent.id, intent.status, action);
+      continue;
+    }
     if (action === "skip") continue;
     if (action === "skip_closed") {
       await recordReconcile(supabase, current, intent.id, intent.status, action);

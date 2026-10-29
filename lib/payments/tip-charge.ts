@@ -8,6 +8,9 @@ import {
   tipFallbackAllowed,
   tipIdempotencyKey,
 } from "@/lib/payments/saved-card";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -26,12 +29,14 @@ export async function stripeFeeCents(intent: Stripe.PaymentIntent): Promise<numb
 export async function confirmTipFromIntent(intent: Stripe.PaymentIntent): Promise<void> {
   const tipId = intent.metadata?.tip_id;
   if (!tipId || intent.status !== "succeeded") return;
-  if (intent.livemode) {
-    await getStripe().refunds.create(
-      { payment_intent: intent.id },
-      { idempotencyKey: `tip-live-refund:${intent.id}` },
-    ).catch(() => undefined);
-    throw new Error("Live payments are not enabled.");
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  if (!stripeObjectMatchesMode(mode, intent.livemode)) {
+    await alertPaymentsIssue(
+      `tip-mode:${intent.id}`,
+      "Tip payment mode mismatch",
+      "A tip payment did not match the payment switch. It was left unchanged.",
+    );
+    return;
   }
   // A signed webhook lists the charge id. The fee is on the balance transaction, so retrieve it when the event did not expand it.
   const knownFee = await stripeFeeCents(intent);
@@ -47,7 +52,7 @@ export async function confirmTipFromIntent(intent: Stripe.PaymentIntent): Promis
     payment_intent: expanded.id,
     charge_id: chargeId,
     fee_cents: fee,
-    live: false,
+    live: expanded.livemode,
   });
   if (confirmed.error) throw new Error(confirmed.error.message);
   const jobId = expanded.metadata?.job_id;
@@ -89,25 +94,19 @@ export async function chargeSavedTip(input: {
   } catch (error) {
     const failure = readTipFailure(error);
     const decision = decideTipCharge({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
       livemode: failure.paymentIntent?.livemode,
       status: failure.paymentIntent?.status,
       errorCode: failure.code,
       errorType: failure.type,
     });
-    if (decision === "live") {
-      if (failure.paymentIntent?.status === "succeeded") {
-        await stripe.refunds.create(
-          { payment_intent: failure.paymentIntent.id },
-          { idempotencyKey: `tip-live-refund:${failure.paymentIntent.id}` },
-        ).catch(() => undefined);
-      } else if (failure.paymentIntent?.id) {
-        await stripe.paymentIntents.cancel(
-          failure.paymentIntent.id,
-          {},
-          { idempotencyKey: `tip-cancel:${failure.paymentIntent.id}` },
-        ).catch(() => undefined);
-      }
-      throw new Error("Live payments are not enabled.");
+    if (decision === "mismatch") {
+      await alertPaymentsIssue(
+        `tip-charge-mode:${failure.paymentIntent?.id ?? input.tipId}`,
+        "Tip payment mode mismatch",
+        "A tip payment did not match the payment switch. It was left unchanged.",
+      );
+      throw new Error("The tip could not be charged.");
     }
     if (decision === "paid" && failure.paymentIntent) {
       await recordPaidTip(failure.paymentIntent);
@@ -122,13 +121,18 @@ export async function chargeSavedTip(input: {
     if (!tipFallbackAllowed(released)) throw new Error("The tip could not be charged.");
     return decision;
   }
-  const decision = decideTipCharge({ livemode: intent.livemode, status: intent.status });
-  if (decision === "live") {
-    await stripe.refunds.create(
-      { payment_intent: intent.id },
-      { idempotencyKey: `tip-live-refund:${intent.id}` },
-    ).catch(() => undefined);
-    throw new Error("Live payments are not enabled.");
+  const decision = decideTipCharge({
+    paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+    livemode: intent.livemode,
+    status: intent.status,
+  });
+  if (decision === "mismatch") {
+    await alertPaymentsIssue(
+      `tip-charge-mode:${intent.id}`,
+      "Tip payment mode mismatch",
+      "A tip payment did not match the payment switch. It was left unchanged.",
+    );
+    throw new Error("The tip could not be charged.");
   }
   if (decision === "paid") {
     await recordPaidTip(intent);
@@ -217,7 +221,7 @@ export async function loadBookingCard(jobId: string, userId: string): Promise<Bo
   } catch {
     return null;
   }
-  if (intent.livemode || intent.metadata?.job_id !== jobId) return null;
+  if (!stripeObjectMatchesMode(paymentsMode(process.env.PAYMENTS_MODE), intent.livemode) || intent.metadata?.job_id !== jobId) return null;
   const methodId = typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id ?? null;
   const customerId = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
   if (!methodId || !customerId) return null;
@@ -244,7 +248,7 @@ export async function loadBookingCard(jobId: string, userId: string): Promise<Bo
 }
 
 export async function rememberBookingCard(intent: Stripe.PaymentIntent): Promise<void> {
-  if (intent.livemode || intent.metadata?.tip_id || intent.status !== "requires_capture") return;
+  if (!stripeObjectMatchesMode(paymentsMode(process.env.PAYMENTS_MODE), intent.livemode) || intent.metadata?.tip_id || intent.status !== "requires_capture") return;
   const jobId = intent.metadata?.job_id;
   const methodId = typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id ?? null;
   const stripeCustomerId = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
@@ -265,7 +269,7 @@ export async function rememberSavedCard(input: {
 }): Promise<void> {
   if (!input.stripeCustomerId || !input.paymentMethodId) return;
   const method = await getStripe().paymentMethods.retrieve(input.paymentMethodId);
-  if (method.livemode) return;
+  if (!stripeObjectMatchesMode(paymentsMode(process.env.PAYMENTS_MODE), method.livemode)) return;
   const card = method.card;
   await createServiceClient().rpc("save_payment_method", {
     target_customer: input.customerId,

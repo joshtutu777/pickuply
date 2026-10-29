@@ -7,6 +7,8 @@ import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { sentTransferLine } from "@/lib/payments/earnings";
 import { expressDashboardUrl } from "@/lib/payments/express-link";
+import { connectLivemode, payoutRequirementNote } from "@/lib/payments/connect-eligibility";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { payoutSetupLabel, payoutsReady, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
 import { formatCents } from "@/lib/money";
@@ -34,11 +36,13 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     );
   }
   const query = await searchParams;
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
   const supabase = await createClient();
   const { data } = await supabase
     .from("driver_connect_accounts")
     .select("stripe_account_id, charges_enabled, payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
+    .eq("livemode", connectLivemode(mode))
     .maybeSingle();
 
   if (query.connect === "return" && data?.stripe_account_id) {
@@ -53,6 +57,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     .from("driver_connect_accounts")
     .select("stripe_account_id, charges_enabled, payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
+    .eq("livemode", connectLivemode(mode))
     .maybeSingle();
   const missing = requirementLabels(fresh?.requirements_due ?? []);
   const ready = payoutsReady(
@@ -114,13 +119,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       </section>
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">{payoutSetupLabel(fresh)}</h2>
-        {ready ? (
-          <p className="mt-2 text-base text-ink">Stripe can send your earnings to your Stripe account. Bank deposits follow Stripe's payout schedule and may take a few additional business days.</p>
-        ) : (
-          <p className="mt-2 text-base text-ink">
-            You can still take jobs. Earnings stay held until Stripe can pay you, unless an admin records an outside payment.
-          </p>
-        )}
+        <p className="mt-2 text-base text-ink">{payoutRequirementNote(mode, ready)}</p>
         {fresh?.disabled_reason ? (
           <p className="mt-2 text-base text-danger">Stripe paused this payout account. Open setup to see what they need.</p>
         ) : null}

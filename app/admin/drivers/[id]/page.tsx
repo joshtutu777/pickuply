@@ -7,6 +7,8 @@ import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { formatUsPhone } from "@/lib/phone";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,6 +66,7 @@ async function DriverDetail({
       .from("driver_connect_accounts")
       .select("payouts_enabled, transfers_active, details_submitted, requirements_due, disabled_reason")
       .eq("driver_id", id)
+      .eq("livemode", connectLivemode(paymentsMode(process.env.PAYMENTS_MODE)))
       .maybeSingle(),
     supabase
       .from("driver_feed_filters")

@@ -7,6 +7,9 @@ import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } 
 import { bookingCheckoutCustomer } from "@/lib/payments/saved-card";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -33,6 +36,10 @@ function checkoutError(message: string | undefined): string {
 export async function startCheckout(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("Payments are paused. Try again in a few minutes.")}`);
+  }
   const origin = requestOrigin(await headers());
   const supabase = await createClient();
   let checkoutSync;
@@ -116,9 +123,13 @@ export async function startCheckout(formData: FormData) {
     sessionId = session.id;
     sessionUrl = session.url;
     checkoutLive = session.livemode;
-    if (checkoutLive) {
-      await getStripe().checkout.sessions.expire(session.id);
-      throw new Error("Live payments are not enabled.");
+    if (!stripeObjectMatchesMode(aligned.mode, checkoutLive)) {
+      await alertPaymentsIssue(
+        `checkout-mode:${session.id}`,
+        "Checkout mode mismatch",
+        "A card checkout did not match the payment switch. The Stripe session was left unchanged.",
+      );
+      throw new Error("Payments are paused. Try again in a few minutes.");
     }
   } catch {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);

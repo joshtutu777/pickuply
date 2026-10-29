@@ -14,8 +14,9 @@ import {
   type TransferGateAction,
   type TransferSearch,
 } from "@/lib/payments/transfer-match";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { paymentsMode } from "@/lib/payments/payments-mode";
-import { syncPaymentsMode } from "@/lib/payments/mode-sync";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type ReadyTransfer = {
@@ -90,8 +91,9 @@ async function refreshHeldTransferCapabilities(): Promise<void> {
   if (driverIds.length === 0) return;
   const accounts = await supabase
     .from("driver_connect_accounts")
-    .select("driver_id, stripe_account_id")
-    .in("driver_id", driverIds);
+    .select("driver_id, stripe_account_id, livemode")
+    .in("driver_id", driverIds)
+    .eq("livemode", connectLivemode(paymentsMode(process.env.PAYMENTS_MODE)));
   for (const account of accounts.data ?? []) {
     try {
       let status = await readTransfersStatus(account.stripe_account_id);
@@ -106,7 +108,8 @@ async function refreshHeldTransferCapabilities(): Promise<void> {
       await supabase
         .from("driver_connect_accounts")
         .update({ transfers_active: transfersCapabilityActive(status), synced_at: new Date().toISOString() })
-        .eq("driver_id", account.driver_id);
+        .eq("driver_id", account.driver_id)
+        .eq("livemode", account.livemode);
     } catch {
       // The next transfer run reads Stripe again.
     }
@@ -249,9 +252,9 @@ async function alertNeedsPayoutSetup(entryId: string): Promise<void> {
 
 export async function sendReadyTransfers(only?: { jobId?: string; driverId?: string }): Promise<string | null> {
   const supabase = createServiceClient();
-  const mode = paymentsMode(process.env.PAYMENTS_MODE);
-  const synced = await syncPaymentsMode();
-  if (mode === "live" && !synced.saved) return "Payments mode could not be saved.";
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) return "Payments mode could not be confirmed.";
+  const mode = aligned.mode;
   await refreshHeldTransferCapabilities();
   const refreshed = await supabase.rpc("refresh_ledger_readiness");
   if (refreshed.error) return "The payout list could not be refreshed.";
@@ -353,7 +356,11 @@ export async function sendReadyTransfers(only?: { jobId?: string; driverId?: str
       }
     } catch (error) {
       if (missingTransfersCapability(error)) {
-        await supabase.from("driver_connect_accounts").update({ transfers_active: false }).eq("driver_id", row.driver_id);
+        await supabase
+          .from("driver_connect_accounts")
+          .update({ transfers_active: false })
+          .eq("driver_id", row.driver_id)
+          .eq("stripe_account_id", row.stripe_account_id);
         await supabase.rpc("note_transfer_needs_setup", { target_entry: row.entry_id });
         try {
           await alertNeedsPayoutSetup(row.entry_id);

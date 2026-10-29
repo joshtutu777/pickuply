@@ -3,6 +3,9 @@ import "server-only";
 import type Stripe from "stripe";
 import { sendEmail } from "@/lib/email";
 import { buildReceiptText } from "@/lib/payments/receipt";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +38,15 @@ async function chargeIdFromIntent(intent: Stripe.PaymentIntent): Promise<string 
 }
 
 export async function captureReadyPayment(jobId: string): Promise<void> {
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    await alertPaymentsIssue(
+      `capture-mode:${jobId}`,
+      "Capture paused",
+      "A capture was skipped because the payment switch and the database do not match. The card was left unchanged.",
+    );
+    return;
+  }
   const supabase = createServiceClient();
   const context = await supabase.rpc("capture_context", { target_job: jobId });
   if (context.error) throw new Error("The payment could not be checked.");
@@ -47,6 +59,14 @@ export async function captureReadyPayment(jobId: string): Promise<void> {
 
   const stripe = getStripe();
   const existing = await stripe.paymentIntents.retrieve(row.payment_intent_id);
+  if (!stripeObjectMatchesMode(aligned.mode, existing.livemode)) {
+    await alertPaymentsIssue(
+      `capture-object:${existing.id}`,
+      "Capture mode mismatch",
+      "A card capture did not match the payment switch. The payment was left unchanged.",
+    );
+    return;
+  }
   const intent =
     existing.status === "requires_capture"
       ? await stripe.paymentIntents.capture(

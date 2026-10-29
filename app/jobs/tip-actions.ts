@@ -4,6 +4,9 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requestOrigin } from "@/lib/payments/connect";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { chargeSavedTip, loadBookingCard, tipIdempotencyKey } from "@/lib/payments/tip-charge";
 import { tipAmountError } from "@/lib/payments/tips";
 import { checkoutExcludedPaymentMethods } from "@/lib/payments/checkout-lines";
@@ -36,6 +39,10 @@ async function openTip(jobId: string, amountCents: number) {
 export async function submitTip(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("Payments are paused. Try again in a few minutes.")}`);
+  }
   const choice = String(formData.get("choice") ?? "");
   const custom = Math.round(Number(formData.get("custom") || 0) * 100);
   const amount = choice === "custom" ? custom : choice === "none" || choice === "" ? null : Number(choice);
@@ -100,9 +107,13 @@ export async function submitTip(formData: FormData) {
       },
       { idempotencyKey: `tip-checkout:${tipIdempotencyKey(jobId, tip.tip_id)}` },
     );
-    if (session.livemode) {
-      await getStripe().checkout.sessions.expire(session.id);
-      throw new Error("Live payments are not enabled.");
+    if (!stripeObjectMatchesMode(aligned.mode, session.livemode)) {
+      await alertPaymentsIssue(
+        `tip-checkout-mode:${session.id}`,
+        "Tip checkout mode mismatch",
+        "A tip checkout did not match the payment switch. The Stripe session was left unchanged.",
+      );
+      throw new Error("The tip checkout could not be started.");
     }
     if (!session.url) throw new Error("missing url");
     redirect(session.url);
