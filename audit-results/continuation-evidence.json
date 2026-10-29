@@ -1,0 +1,13 @@
+{
+  "ranAt": "2026-10-29T00:25:35.906Z",
+  "browser": "chromium",
+  "webkit": "unavailable",
+  "results": [],
+  "jobId": "ad2c7907-ba4c-4704-bb56-56d9ebb2876b",
+  "authorization": {
+    "paymentIntentId": "pi_3UVh6vD5IFQdbLky1weIezpw",
+    "amount": 15750,
+    "status": "requires_capture",
+    "livemode": false
+  }
+}

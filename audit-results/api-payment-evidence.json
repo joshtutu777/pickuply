@@ -1,0 +1,72 @@
+{
+  "label": "API-confirmed test payment",
+  "checkoutUi": "NEEDS JOSH",
+  "connectWebhookSecret": "NEEDS JOSH",
+  "card": "4000000000000077",
+  "paymentMethod": "pm_card_bypassPending",
+  "jobId": "d98a71a7-58bc-4101-b66c-e34739ca1d11",
+  "customerId": "1adff874-cf13-4f4f-aebb-4ea71bae60de",
+  "driverId": "5f3125f8-5249-4c67-a881-6ff176b44277",
+  "webhookEndpoints": [
+    {
+      "id": "we_1UUPtZD5IFQdbLkyQz2rWJv2",
+      "url": "https://pickuplyapp.com/api/stripe/webhook",
+      "status": "enabled",
+      "events": [
+        "checkout.session.completed",
+        "checkout.session.expired",
+        "payment_intent.amount_capturable_updated",
+        "payment_intent.payment_failed",
+        "payment_intent.canceled",
+        "payment_intent.succeeded",
+        "charge.captured",
+        "charge.dispute.created",
+        "charge.dispute.updated",
+        "charge.dispute.closed",
+        "refund.created",
+        "refund.updated",
+        "charge.refunded"
+      ]
+    }
+  ],
+  "paymentIntent": {
+    "id": "pi_3UVglbD5IFQdbLky1i7abWq4",
+    "status": "succeeded",
+    "amount": 5250,
+    "captureMethod": "manual",
+    "livemode": false
+  },
+  "authorization": "accepted",
+  "chargeId": "ch_3UVglbD5IFQdbLky1HPF7JQS",
+  "capture": {
+    "status": "succeeded",
+    "amountReceived": 5250,
+    "fee": 182,
+    "availableOn": "2026-10-29T00:00:30.000Z",
+    "livemode": false
+  },
+  "job": "completed|captured|5250|4250|750|250|true",
+  "ledger": "held_until_onboarding|4250||Finish payout setup before a transfer can be sent",
+  "paymentRow": "pi_3UVglbD5IFQdbLky1i7abWq4|ch_3UVglbD5IFQdbLky1HPF7JQS|1",
+  "stripeEvent": {
+    "id": "evt_3UVglbD5IFQdbLky12Nl1xVo",
+    "type": "payment_intent.amount_capturable_updated",
+    "livemode": false
+  },
+  "captureEvent": {
+    "id": "evt_3UVglbD5IFQdbLky1GTqkFxv",
+    "type": "payment_intent.succeeded"
+  },
+  "hostedEventLookup": {
+    "status": 201,
+    "body": "[]"
+  },
+  "connect": {
+    "accountId": "acct_1UVglpD5IFdeuy8H",
+    "chargesEnabled": false,
+    "payoutsEnabled": false,
+    "detailsSubmitted": false,
+    "requirementsDue": [],
+    "onboardingUrl": "created, not stored"
+  }
+}

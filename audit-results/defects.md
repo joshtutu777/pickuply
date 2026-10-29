@@ -13,4 +13,10 @@ No confirmed P0 or P1 product defect came out of the tests that actually ran.
 - There is no separate support-administrator role. Roles are customer, driver, and admin.
 - Support tickets in this audit did not include a file attachment.
 
-No application code was changed. No pull request for a product fix is required from these results.
+## Observed in the October 28 browser continuation
+
+- The proof file control on the driver job page did not show a selected file after the test attached a PNG, and no `job_photos` row was written. The application did not show an error message. This is not filed as a product defect until a person can repeat it outside the automated file input. The authorized job was left uncaptured because of it.
+- Driver home, after approval, still says "Finish these steps. Once we approve you, you can go Online" while the database status is already `active`. Insurance and training remain on the checklist. The Online switch worked without an insurance card. Help text that says insurance is required before Online does not match this screen.
+- The dev server restarted or exited when its heap reached the Node limit. `experimental.devMemoryThresholdRestart` was set to false so a near-limit restart does not drop the local server mid-test. Production is unchanged by that setting.
+
+No live charge, transfer, or bank payout was created.

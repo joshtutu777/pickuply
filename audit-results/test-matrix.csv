@@ -195,3 +195,16 @@ SEC-ADMIN-IMPERSONATION,PASS,not-executed,audit catalog,A customer cannot review
 SEC-MESSAGES,PASS,not-executed,audit catalog,"Phone numbers are rejected in job chat, and a finished job chat is closed."
 SEC-PUSH,BLOCKED,not-executed,audit catalog,Push keys are not in production. Delivery of a phone push was not tested.
 SEC-SMS,BLOCKED,not-executed,audit catalog,No marketing or job SMS was sent.
+BROWSER-ONBOARD-SUBMIT,PASS,local-chromium,e2e-local/audit-continuation.spec.ts,"Profile and license photos submitted. pending_review and driver-terms-v1."
+BROWSER-ONBOARD-APPROVE,PASS,local-chromium,e2e-local/audit-continuation.spec.ts,"Admin approved anyway. Driver page shows active."
+BROWSER-ONBOARD-STATUS,PASS,local-chromium,e2e-local/audit-continuation.spec.ts,"Driver home online. Insurance card prompt shown and does not block Online."
+BROWSER-CHECKOUT-AUTH,PASS,local-chromium-stripe-test,job ad2c7907-ba4c-4704-bb56-56d9ebb2876b,"pi_3UVh6vD5IFQdbLky1weIezpw requires_capture 15750 cents livemode false. Job arrived and authorized."
+BROWSER-CAPTURE,NOT VERIFIED,local-chromium,job ad2c7907-ba4c-4704-bb56-56d9ebb2876b,"Proof photo was not stored. Capture was not run."
+API-CAPTURE,PASS,local-database-stripe-test,job d98a71a7-58bc-4101-b66c-e34739ca1d11,"pi_3UVglbD5IFQdbLky1i7abWq4 succeeded 5250 cents. Ledger held_until_onboarding 4250. No transfer."
+CONNECT-ACCOUNT,PASS,local-chromium-stripe-test,acct_1UVglpD5IFdeuy8H,"Account created. payouts_enabled false. details_submitted false."
+CONNECT-TRANSFER,NOT VERIFIED,local-stripe-test,ledger held_until_onboarding,"No tr_ transfer. A transfer is not a bank deposit."
+CONNECT-PAYOUT,NOT VERIFIED,local-stripe-test,not executed,"No payout object. Test-mode payout would not be a bank deposit."
+ADMIN-MESSAGES,NOT VERIFIED,local-chromium,admin thread created,"Customer unread state and reply were not completed."
+ADMIN-PAGES,NOT VERIFIED,local-chromium,partial,"Dashboard drivers customers and payments loaded. Server heap limit stopped the rest."
+PLAYWRIGHT-WEBKIT,NOT VERIFIED,unavailable,browser not installed,"WebKit was not installed. This is not a product failure."
+PLAYWRIGHT-MARKETPLACE,NOT VERIFIED,local-chromium,not rerun,"The older audit-marketplace file was not rerun to completion."
