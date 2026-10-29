@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UploadPicker } from "@/components/upload-picker";
 import { contactWarning, containsContact } from "@/lib/messages/contact";
+import { offPlatformWarning, redirectsPayment } from "@/lib/messages/payment-redirect";
 import { messageClock, messageDay } from "@/lib/messages/preview";
 import { compressImage } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
@@ -68,6 +69,7 @@ export function MessagePanel({
   const stickRef = useRef(true);
   const keyRef = useRef(newKey());
   const warning = containsContact(text);
+  const paymentWarning = redirectsPayment(text);
   const nowIso = useSyncExternalStore(emptySubscribe, messageClockSnapshot, () => "");
   const closed = Boolean(closesAt && nowIso.length > 0 && closesAt <= nowIso);
   const lastMine = [...messages].reverse().find((message) => message.mine);
@@ -100,6 +102,10 @@ export function MessagePanel({
   async function addFile(file: File) {
     if (containsContact(file.name)) {
       setError(contactWarning);
+      return;
+    }
+    if (redirectsPayment(file.name)) {
+      setError(offPlatformWarning);
       return;
     }
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -180,6 +186,11 @@ export function MessagePanel({
       if (payload?.error === "contact") {
         setFailedKey(null);
         setError(contactWarning);
+        return;
+      }
+      if (payload?.error === "payment") {
+        setFailedKey(null);
+        setError(offPlatformWarning);
         return;
       }
       setFailedKey(clientKey);
@@ -319,6 +330,10 @@ export function MessagePanel({
           {warning ? (
             <p role="alert" className="text-base text-danger">
               {contactWarning}
+            </p>
+          ) : paymentWarning ? (
+            <p role="alert" className="text-base text-danger">
+              {offPlatformWarning}
             </p>
           ) : null}
           <UploadPicker
