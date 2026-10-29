@@ -320,7 +320,7 @@ export async function sendReadyTransfers(only?: { jobId?: string; driverId?: str
       continue;
     }
     if (step !== "create") {
-      if (step === "reconcile" || located.located === "unknown") {
+      if (step === "reconcile") {
         await supabase.rpc("note_transfer_unknown", { target_entry: row.entry_id });
       }
       continue;
