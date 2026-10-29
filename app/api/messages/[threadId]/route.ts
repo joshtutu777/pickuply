@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
+import { flagOffPlatformAttempt } from "@/lib/messages/flag-off-platform";
+import { redirectsPayment } from "@/lib/messages/payment-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 type ChatMessage = {
@@ -59,6 +61,18 @@ export async function POST(
     return NextResponse.json({ ok: false }, { status: 400 });
   }
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  if (redirectsPayment(body)) {
+    try {
+      await flagOffPlatformAttempt(user.id, threadId);
+    } catch {
+      // The message is still rejected when the alert cannot be stored.
+    }
+    return NextResponse.json({ ok: false, error: "payment" }, { status: 400 });
+  }
   const { error } = await supabase.rpc("post_message_once", {
     target_thread: threadId,
     message_body: body,
@@ -68,6 +82,14 @@ export async function POST(
     const message = error.message ?? "";
     if (message.includes("contact details")) {
       return NextResponse.json({ ok: false, error: "contact" }, { status: 400 });
+    }
+    if (message.includes("Payments must go through Pickuply")) {
+      try {
+        await flagOffPlatformAttempt(user.id, threadId);
+      } catch {
+        // The message is still rejected when the alert cannot be stored.
+      }
+      return NextResponse.json({ ok: false, error: "payment" }, { status: 400 });
     }
     if (message.includes("conversation is closed")) {
       return NextResponse.json({ ok: false, error: "closed" }, { status: 400 });

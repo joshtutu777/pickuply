@@ -844,3 +844,5 @@ A transfer is looked up by its ledger id as the Stripe transfer group. Stripe Se
 
 `docs/STRIPE_GO_LIVE.md` is a manual checklist for a later live-payments switch. It was not executed. Live keys stay refused by the app. No charge, refund, transfer, payout, or webhook endpoint was created for this note.
 
+Chat blocks a message that asks to pay with Venmo, Cash App, Zelle, PayPal, cash, or a direct payment. The warning is "Payments must go through Pickuply so you're protected." A second attempt by the same person writes an in-app admin alert with the text and push timestamps already set, so it does not send a text. Ordinary messages about an address, a price, a quantity, or furniture stay allowed. Migration `0117` is in this pull request and is not applied to the hosted database. This is not deployed.
+
