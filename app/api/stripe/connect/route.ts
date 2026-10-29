@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { recordPayoutEvent, recordTransferEvent } from "@/lib/payments/connect-events";
 import { saveConnectAccount } from "@/lib/payments/connect";
+import { connectWebhookAction } from "@/lib/payments/connect-plan";
 import { connectWebhookEvents, isListedEvent } from "@/lib/payments/event-types";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -16,11 +17,12 @@ export async function POST(request: Request) {
   if (claimed.duplicate) return NextResponse.json({ ok: true, duplicate: true });
 
   try {
-    if (event.type === "account.updated") {
+    const action = connectWebhookAction(event.type);
+    if (action === "account") {
       await handleAccount(event.data.object as Stripe.Account);
-    } else if (event.type.startsWith("transfer.")) {
+    } else if (action === "transfer") {
       await recordTransferEvent(event);
-    } else if (event.type === "payout.paid" || event.type === "payout.failed") {
+    } else if (action === "payout") {
       await recordPayoutEvent(event);
     }
   } catch {
