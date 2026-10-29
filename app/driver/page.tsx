@@ -17,6 +17,7 @@ import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { driverTermsVersion } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
@@ -135,7 +136,8 @@ async function DriverContent({
 
   if (session.role === "driver" || application) {
     let earnings: ReturnType<typeof ledgerBuckets> | null = null;
-    const [{ data: ledger }, { data: feeRow }, { data: myOffers }] = await Promise.all([
+    const mode = paymentsMode(process.env.PAYMENTS_MODE);
+    const [{ data: ledger }, { data: feeRow }, { data: myOffers }, { data: connect }, { data: alertPrefs }, { count: pushDevices }] = await Promise.all([
       approved
         ? supabase.from("ledger_entries").select("status, amount_cents").eq("driver_id", session.userId)
         : Promise.resolve({ data: null }),
@@ -147,6 +149,14 @@ async function DriverContent({
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("driver_connect_accounts")
+        .select("payouts_enabled, transfers_active")
+        .eq("driver_id", session.userId)
+        .eq("livemode", connectLivemode(mode))
+        .maybeSingle(),
+      supabase.from("notification_preferences").select("push_enabled").eq("profile_id", session.userId).maybeSingle(),
+      supabase.from("push_subscriptions").select("endpoint", { count: "exact", head: true }).eq("profile_id", session.userId),
     ]);
     if (ledger) earnings = ledgerBuckets(ledger);
     const fees = feeRow
@@ -172,6 +182,9 @@ async function DriverContent({
           fees={fees}
           arrivalLeadMinutes={feeRow?.offer_arrival_lead_minutes ?? 30}
           setup={!approved ? checklist : null}
+          isTest={profile?.is_test === true}
+          payoutReady={Boolean(connect?.payouts_enabled && connect?.transfers_active)}
+          notificationsOn={alertPrefs?.push_enabled !== false && (pushDevices ?? 0) > 0}
         />
         <p className="mt-6 text-sm font-semibold tracking-wide text-brand uppercase">Driver</p>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Driver home</h1>
@@ -215,7 +228,7 @@ async function DriverContent({
           <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
             <h2 className="font-display text-2xl font-semibold text-ink">Set up payouts to get paid</h2>
             <p className="mt-2 text-base text-ink">
-              {paymentsMode(process.env.PAYMENTS_MODE) === "live"
+              {mode === "live"
                 ? "Set up payouts before you accept paid jobs. Stripe has to enable payouts and transfers on a live account. This does not block going Online."
                 : "Earnings stay held until payouts are set up. This does not block going Online."}
             </p>

@@ -10,6 +10,7 @@ import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { recordFunnel } from "@/lib/funnel";
 import { ArrivalTimeFields } from "@/components/driver/arrival-time";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { GeorgiaEmpty, MatchedEmpty } from "@/components/driver/feed-empty";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { compareNewest, mergeFeedCards } from "@/lib/driver/feed-order";
@@ -412,6 +413,9 @@ export function DriverHome({
   fees,
   arrivalLeadMinutes = defaultOfferArrivalLeadMinutes,
   setup = null,
+  isTest = false,
+  payoutReady = false,
+  notificationsOn = true,
 }: {
   isOnline: boolean;
   userId: string;
@@ -426,6 +430,9 @@ export function DriverHome({
   fees: FeeSettings;
   arrivalLeadMinutes?: number;
   setup?: ReactNode;
+  isTest?: boolean;
+  payoutReady?: boolean;
+  notificationsOn?: boolean;
 }) {
   const [online, setOnline] = useState(isOnline);
   const [offlineAlertsOn, setOfflineAlertsOn] = useState(offlineAlerts);
@@ -633,9 +640,18 @@ export function DriverHome({
     const supabase = createClient();
     const channel = supabase
       .channel(`driver-feed-${userId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "job_feed_signals" }, () => {
-        refreshIfIdle();
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "job_feed_signals",
+          filter: `is_test=eq.${isTest ? "true" : "false"}`,
+        },
+        () => {
+          refreshIfIdle();
+        },
+      )
       .subscribe();
     return () => {
       window.clearTimeout(start);
@@ -644,7 +660,7 @@ export function DriverHome({
       window.removeEventListener("online", refreshIfIdle);
       void supabase.removeChannel(channel);
     };
-  }, [loadFeed, showFeed, userId]);
+  }, [isTest, loadFeed, showFeed, userId]);
 
   useEffect(() => {
     const node = sentinel.current;
@@ -794,7 +810,7 @@ export function DriverHome({
           ? "You can browse while Offline. Claiming or offering requires Online."
           : "Browse only until Pickuply approves you. You cannot take a job yet."}
       </p>
-      <div className="mt-4">
+      <div id="areas-i-cover" className="mt-4">
         <p className="text-base text-ink">
           Showing jobs in: {summary || "your areas"}{" "}
           <button type="button" onClick={() => setEditingAreas((open) => !open)} className="font-semibold text-brand">
@@ -854,10 +870,17 @@ export function DriverHome({
       {mapView ? <div className="mt-4"><FeedMap jobs={visibleJobs} /></div> : null}
       <section aria-label="Matched for You" className="mt-6">
         <h2 className="font-display text-2xl font-semibold text-ink">Matched for You ({matched.length})</h2>
-        {updatedAt && matched.length === 0 ? (
-          <p className="mt-3 text-base text-muted">No jobs in your areas right now — see all Georgia requests below.</p>
+        {!updatedAt && !feedError && matched.length === 0 ? <p className="mt-3 text-base text-muted">Loading jobs…</p> : null}
+        {updatedAt && !feedError && matched.length === 0 ? (
+          <MatchedEmpty
+            payoutReady={payoutReady}
+            notificationsOn={notificationsOn}
+            onAreas={() => {
+              setEditingAreas(true);
+              document.getElementById("areas-i-cover")?.scrollIntoView({ block: "start" });
+            }}
+          />
         ) : null}
-        {!updatedAt && matched.length === 0 ? <p className="mt-3 text-base text-muted">Loading jobs…</p> : null}
         {matched.length > 0 ? (
           <ul className="mt-3 space-y-4">
             {matched.map((job) => {
@@ -929,7 +952,8 @@ export function DriverHome({
             Only jobs my vehicle fits
           </label>
         </div>
-        {updatedAt && georgia.length === 0 && georgiaOpenTotal > 0 ? (
+        {updatedAt && !feedError && georgiaOpenTotal === 0 ? <GeorgiaEmpty /> : null}
+        {updatedAt && !feedError && georgia.length === 0 && georgiaOpenTotal > 0 ? (
           <p className="mt-4 text-base text-muted">No requests match these filters.</p>
         ) : null}
         {georgia.length > 0 ? (
