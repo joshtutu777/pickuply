@@ -96,7 +96,8 @@ test("authentication or a declined card falls back, and a live card is refused",
   assert.equal(decideTipCharge({ errorCode: "authentication_required", status: "requires_action" }), "authenticate");
   assert.equal(decideTipCharge({ errorCode: "card_declined", errorType: "card_error" }), "fallback");
   assert.equal(decideTipCharge({ errorType: "api_connection_error" }), "uncertain");
-  assert.equal(decideTipCharge({ livemode: true, status: "succeeded" }), "live");
+  assert.equal(decideTipCharge({ livemode: true, status: "succeeded" }), "mismatch");
+  assert.equal(decideTipCharge({ paymentsMode: "live", livemode: true, status: "succeeded" }), "paid");
   assert.equal(stripeModeProblem("sk_live_123", "pk_live_123"), "Live payments are not enabled.");
   assert.equal(stripeModeProblem("sk_test_123", "pk_test_123"), null);
   assert.equal(tipFallbackAllowed("canceled"), true);

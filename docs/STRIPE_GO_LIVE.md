@@ -2,20 +2,18 @@
 
 This is a manual checklist for a later, explicitly approved switch from Stripe test mode to live mode. Do not follow it during the invitation-only audit. Nothing in this file turns live payments on.
 
-The app today refuses a live secret and a live publishable key. `getStripe()` in `lib/stripe.ts` throws unless `STRIPE_SECRET_KEY` starts with `sk_test_` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` starts with `pk_test_`. Checkout also rejects a session Stripe marks as live. There is no setting that overrides that.
-
-Vercel already has unused names `STRIPE_LIVE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_LIVE_PUBLISHABLE_KEY`. The running site does not read those names. Leave them unused until the code change in step 8 is approved and deployed.
+`PAYMENTS_MODE=live` is the only switch that reads the live keys. Anything else, including an unset value, stays in test mode. A live object is not expired, refunded, or canceled just because the switch does not match it. That case alerts an admin and leaves the Stripe object unchanged.
 
 ## Before any live charge
 
 - [ ] Owner approval for this checklist, in writing, for one named test customer and one named pilot driver.
 - [ ] A fresh database backup in `C:\Users\Josh\PickuplyBackups\`.
 - [ ] Pull request #46 is merged and deployed, or the owner accepts the older rule: after three failed transfer lookups the sender may still create a transfer if the first attempt is under 23 hours old.
-- [ ] Apply migration `0118` from the payments-mode pull request before setting `PAYMENTS_MODE=live`. It changes `ready_transfers(target_livemode)` so a live charge is selected only while that argument is true. The default stays false. The function applied in `0114` only returns rows whose payment is not live.
+- [ ] Migration `0118` is already applied. Apply migration `0119` before setting `PAYMENTS_MODE=live`. It stores test and live Connect accounts separately and records a live tip only while the database payment mode is live.
 
 ## 1. Stripe account activation
 
-- [ ] In the Stripe Dashboard, finish business verification for the platform account `acct_1UTOfaD5IFQdbLky`.
+- [ ] In the Stripe Dashboard, live mode, the Pickuply account `acct_1PzisiDPx366znbS` already has charges and transfers active. The test account `acct_1UTOfaD5IFQdbLky` stays the test platform.
 - [ ] Confirm payouts to Pickuply's own bank are enabled before any live charge. A transfer to a driver is not a deposit into that bank.
 - [ ] Stay in test mode until step 8 is deployed.
 
@@ -28,12 +26,13 @@ Vercel already has unused names `STRIPE_LIVE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE
 
 ## 3. Live platform webhook
 
-Create one live endpoint. Do not delete the test endpoint.
+The live platform endpoint already exists. Keep it. Do not create a second one, and do not change it because it is pinned to API version `2024-06-20`.
 
+- Endpoint: `we_1UVKIdDPx366znbS7ecaOvjX`
 - URL: `https://pickuplyapp.com/api/stripe/webhook`
 - Listen to events on the platform account.
-- Leave the API version unpinned, matching the current test endpoint `we_1UUPtZD5IFQdbLkyQz2rWJv2` (`api_version` is empty).
-- Events, copied from that test endpoint:
+- API version: `2024-06-20`. The handlers read fields that version still includes.
+- Events:
   - `checkout.session.completed`
   - `checkout.session.expired`
   - `payment_intent.amount_capturable_updated`
@@ -53,11 +52,13 @@ Create one live endpoint. Do not delete the test endpoint.
 
 ## 4. Live Connect webhook
 
-Create a second live endpoint. Listen to events on connected accounts.
+The live Connect endpoint already exists. Keep it.
 
+- Endpoint: `we_1UViRODPx366znbS5n9Hqcv3`
 - URL: `https://pickuplyapp.com/api/stripe/connect`
-- Leave the API version unpinned, matching test endpoint `we_1UVkA5D5IFQdbLkycoWqA8pA`.
-- Events, copied from that test endpoint:
+- Listen to events on connected accounts.
+- API version: `2024-06-20`.
+- Events:
   - `account.updated`
   - `payout.paid`
   - `payout.failed`
@@ -66,7 +67,16 @@ Transfer events stay on the platform endpoint. Stripe delivers those on the plat
 
 ## 5. Signing secrets
 
-Each new endpoint has its own signing secret. The test secrets must stay in place until the code is actually in live mode, and they must be saved so rollback can restore them.
+The two live endpoints already have signing secrets. Confirm the saved Vercel values match those endpoints without pasting a secret into git or chat.
+
+1. In the Stripe Dashboard, switch to live mode.
+2. Open Developers, then Webhooks.
+3. Open `https://pickuplyapp.com/api/stripe/webhook`. Reveal its signing secret. In Vercel, project `pickuply`, Production, open `STRIPE_LIVE_WEBHOOK_SECRET` and confirm it is the same value. Close both pages.
+4. Open `https://pickuplyapp.com/api/stripe/connect`. Confirm `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET` the same way.
+5. Confirm `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` are the test secrets, and that they are different from the live names.
+6. Do not send a signed test event to pickuplyapp.com until `PAYMENTS_MODE=live`. While the switch is unset, the app checks the test secret, so a live signature cannot succeed.
+
+The test secrets must stay in place.
 
 | Variable | What it is | Where |
 | --- | --- | --- |
@@ -97,14 +107,15 @@ Do not put the live secret in `NEXT_PUBLIC_*`. Do not put a live key in `STRIPE_
 
 ## 8. Enabling live mode
 
-- [ ] The payments-mode pull request is deployed.
-- [ ] Migration `0118` is applied.
+- [ ] This pull request is merged and deployed, and migration `0119` is applied.
 - [ ] Confirm `STRIPE_SECRET_KEY` is still `sk_test_` and `STRIPE_LIVE_SECRET_KEY` is `sk_live_`.
-- [ ] Confirm the live webhook secrets are in `STRIPE_LIVE_WEBHOOK_SECRET` and `STRIPE_LIVE_CONNECT_WEBHOOK_SECRET`.
+- [ ] Confirm the live webhook secrets with the steps in section 5.
+- [ ] Open `/admin/health` and confirm the environment and the database both say TEST and that they match.
 - [ ] Set `PAYMENTS_MODE=live` in Vercel Production.
 - [ ] Redeploy production.
-- [ ] Open `/admin/health` and confirm it says Payments: LIVE. That visit writes the database switch the driver check reads.
-- [ ] A real driver without Stripe payouts and transfers active cannot accept a job. A test driver still can. Test mode does not add this check.
+- [ ] The next checkout, driver accept, or transfer job writes the database mode. You do not have to open Health for that write. Open `/admin/health` anyway and confirm the environment and the database both say LIVE and that they match before any live charge.
+- [ ] A real driver sets up payouts after the switch. The setup creates a new live Connect account. A stored test account is not reused.
+- [ ] A real driver without live payouts and transfers active cannot accept a paid job. A test driver still can. Test mode does not add this check.
 
 ## 9. Test data
 
@@ -164,7 +175,8 @@ Admin alerts for a failed lookup, a missing payout setup, and a transfer that ne
 
 - [ ] In Vercel, set `PAYMENTS_MODE=test`. Leave the test keys in `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Leave the live keys in their own names.
 - [ ] Redeploy production. New charges and webhooks use the test keys as soon as the new deployment is serving.
-- [ ] Open `/admin/health` and confirm it says Payments: TEST. That visit writes the database switch back to test, so a real driver is no longer blocked by the live payout rule.
+- [ ] The next checkout, driver accept, or transfer job writes the database back to test. Open `/admin/health` and confirm the environment and the database both say TEST and that they match.
+- [ ] A live charge stays marked live. Test mode does not capture, refund, or transfer it. It can be reconciled again after the switch returns to live.
 - [ ] In Stripe, pause live charges if a charge could still be created outside the app.
 - [ ] Leave the live webhook endpoints disabled, not deleted, until the owner decides.
 - [ ] Do not refund or reverse anything that already succeeded unless the owner asks for that charge by id.

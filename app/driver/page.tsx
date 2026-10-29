@@ -17,6 +17,7 @@ import { applicationStatusCopy } from "@/lib/driver/application-status";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { driverTermsVersion } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -213,7 +214,11 @@ async function DriverContent({
         {approved && session.role === "driver" ? (
           <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
             <h2 className="font-display text-2xl font-semibold text-ink">Set up payouts to get paid</h2>
-            <p className="mt-2 text-base text-ink">Earnings stay held until payouts are set up. This does not block going Online.</p>
+            <p className="mt-2 text-base text-ink">
+              {paymentsMode(process.env.PAYMENTS_MODE) === "live"
+                ? "Set up payouts before you accept paid jobs. Stripe has to enable payouts and transfers on a live account. This does not block going Online."
+                : "Earnings stay held until payouts are set up. This does not block going Online."}
+            </p>
             <Link href="/driver/earnings" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
               Set up payouts
             </Link>

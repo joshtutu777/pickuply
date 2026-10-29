@@ -6,6 +6,9 @@ import { requestDriverTransfers } from "@/lib/payments/connect-capability";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { accountMatch, connectWebhookAction, unknownDriverNote } from "@/lib/payments/connect-plan";
 import { connectWebhookEvents, isListedEvent } from "@/lib/payments/event-types";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -17,6 +20,20 @@ export async function POST(request: Request) {
   const claimed = await claimStripeEvent(event);
   if (claimed instanceof NextResponse) return claimed;
   if (claimed.duplicate) return NextResponse.json({ ok: true, duplicate: true });
+
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    await releaseStripeEvent(event.id);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+  if (!stripeObjectMatchesMode(aligned.mode, event.livemode)) {
+    await alertPaymentsIssue(
+      `connect-event-mode:${event.id}`,
+      "Connect event mode mismatch",
+      "A Connect webhook did not match the payment switch. The Stripe account was left unchanged.",
+    );
+    return NextResponse.json({ ok: true, ignored: true });
+  }
 
   try {
     const action = connectWebhookAction(event.type);

@@ -5,6 +5,9 @@ import { captureReadyPayment } from "@/lib/payments/capture";
 import { confirmTipFromIntent, rememberBookingCard } from "@/lib/payments/tip-charge";
 import { recordTransferEvent } from "@/lib/payments/connect-events";
 import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { getStripe } from "@/lib/stripe";
 import { stripeRefundAction } from "@/lib/stripe-mode";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -58,6 +61,16 @@ export async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<str
 }
 
 export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<void> {
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) throw new Error("Payments mode could not be confirmed.");
+  if (!stripeObjectMatchesMode(aligned.mode, event.livemode)) {
+    await alertPaymentsIssue(
+      `platform-event-mode:${event.id}`,
+      "Payment event mode mismatch",
+      "A payment webhook did not match the payment switch. The Stripe object was left unchanged.",
+    );
+    return;
+  }
   const stripe = getStripe();
   const supabase = createServiceClient();
 
@@ -176,31 +189,30 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
   }
 
   if (event.type === "charge.refunded") {
-    await syncChargeRefunds(event.data.object as Stripe.Charge, event.livemode);
+    await syncChargeRefunds(event.data.object as Stripe.Charge);
     return;
   }
 
   if (event.type === "refund.created" || event.type === "refund.updated") {
-    await syncRefund(event.data.object as Stripe.Refund, event.livemode);
+    await syncRefund(event.data.object as Stripe.Refund);
   }
 }
 
-async function syncChargeRefunds(charge: Stripe.Charge, livemode: boolean): Promise<void> {
+async function syncChargeRefunds(charge: Stripe.Charge): Promise<void> {
   let refunds = charge.refunds?.data ?? [];
   if (!charge.refunds || charge.refunds.has_more) {
     const listed = await getStripe().refunds.list({ charge: charge.id, limit: 100 });
     refunds = listed.data;
   }
-  for (const refund of refunds) await syncRefund(refund, livemode);
+  for (const refund of refunds) await syncRefund(refund);
 }
 
-async function syncRefund(refund: Stripe.Refund, livemode: boolean): Promise<void> {
+async function syncRefund(refund: Stripe.Refund): Promise<void> {
   const action = stripeRefundAction({
     metadataRefundId: refund.metadata?.refund_id ?? null,
     status: refund.status,
   });
   if (action === "pending") return;
-  if (livemode) throw new Error("Live payments are not enabled.");
   const supabase = createServiceClient();
   if (refund.metadata?.tip_refund_id) {
     const tipRefundId = refund.metadata.tip_refund_id;

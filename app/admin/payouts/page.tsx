@@ -8,6 +8,8 @@ import { inTestLane, includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatCents } from "@/lib/money";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { createClient } from "@/lib/supabase/server";
 
 export default function PayoutsPage({ searchParams }: PageProps<"/admin/payouts">) {
@@ -35,7 +37,10 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
       .eq("status", "recovery_due")
       .limit(25),
     supabase.from("drivers").select("profile_id, status").in("status", ["approved_new", "active", "paused"]),
-    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled, transfers_active"),
+    supabase
+      .from("driver_connect_accounts")
+      .select("driver_id, payouts_enabled, transfers_active")
+      .eq("livemode", connectLivemode(paymentsMode(process.env.PAYMENTS_MODE))),
   ]);
   const readyAccounts = new Set(
     (accounts ?? []).filter((account) => account.payouts_enabled && account.transfers_active).map((account) => account.driver_id),

@@ -7,17 +7,19 @@ export type CheckoutIntentChoice = {
   livemode: boolean;
 };
 
-/** Pick one real card hold. A browser return is not an input and cannot choose a payment. */
+/** Pick one card hold for the current payment mode. A browser return is not an input and cannot choose a payment. */
 export function chooseAuthorization(input: {
   priceCents: number;
   driverId: string;
+  acceptLivemode?: boolean;
   intents: CheckoutIntentChoice[];
 }): { acceptId: string | null; cancelIds: string[] } {
+  const acceptLivemode = input.acceptLivemode ?? false;
   const matches = input.intents
     .filter(
       (intent) =>
         intent.status === "requires_capture" &&
-        intent.livemode === false &&
+        intent.livemode === acceptLivemode &&
         intent.amount === input.priceCents &&
         intent.driverId === input.driverId &&
         /^pi_[A-Za-z0-9]+$/.test(intent.id),

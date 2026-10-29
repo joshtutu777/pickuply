@@ -8,7 +8,7 @@ import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
 import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
-import { syncPaymentsMode } from "@/lib/payments/mode-sync";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -32,8 +32,8 @@ export default function AdminHealthPage() {
 
 async function AdminHealth() {
   await requireAdmin("/admin/health");
-  const mode = paymentsMode(process.env.PAYMENTS_MODE);
-  await syncPaymentsMode();
+  const aligned = await alignPaymentsMode();
+  const mode = aligned.mode;
   const lane = await resolveTestLane(false);
   const supabase = await createClient();
   const { data: phoneReady } = await supabase.rpc("admin_phone_protection_ready");
@@ -49,9 +49,15 @@ async function AdminHealth() {
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Health</h1>
-      <p role="status" className="mt-4 rounded-3xl bg-paper-raised p-4 text-2xl font-semibold text-ink ring-1 ring-line">
-        Payments: {mode === "live" ? "LIVE" : "TEST"}
-      </p>
+      <section role="status" className="mt-4 rounded-3xl bg-paper-raised p-4 text-ink ring-1 ring-line">
+        <p className="text-2xl font-semibold">Payments environment: {mode === "live" ? "LIVE" : "TEST"}</p>
+        <p className="mt-2 text-2xl font-semibold">
+          Payments database: {aligned.database === "live" ? "LIVE" : aligned.database === "test" ? "TEST" : "missing"}
+        </p>
+        <p className={`mt-2 text-base font-semibold ${aligned.matches ? "" : "text-danger"}`}>
+          {aligned.matches ? "Payment modes match." : "Payment modes do not match. New payments are paused."}
+        </p>
+      </section>
       <p className="mt-3 text-base text-ink">
         Phone protection: {phoneReady === false ? "not configured" : phoneReady === true ? "configured" : "not checked"}
       </p>

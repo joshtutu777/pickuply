@@ -4,6 +4,9 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { recordFunnelServer } from "@/lib/funnel-server";
@@ -143,8 +146,23 @@ export async function refundTip(formData: FormData) {
   const amount = Math.round(Number(formData.get("amount") || 0) * 100);
   const reason = String(formData.get("reason") ?? "");
   const supabase = await createClient();
-  const tip = await supabase.from("job_tips").select("id").eq("job_id", jobId).not("paid_at", "is", null).maybeSingle();
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("Payments are paused. Try again in a few minutes.")}`);
+  }
+  const tip = await supabase.from("job_tips").select("id, stripe_charge_id").eq("job_id", jobId).not("paid_at", "is", null).maybeSingle();
   if (!tip.data?.id) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("This job has no tip to refund.")}`);
+  if (tip.data.stripe_charge_id) {
+    const charge = await getStripe().charges.retrieve(tip.data.stripe_charge_id);
+    if (!stripeObjectMatchesMode(aligned.mode, charge.livemode)) {
+      await alertPaymentsIssue(
+        `tip-refund-mode:${charge.id}`,
+        "Tip refund mode mismatch",
+        "A tip refund did not match the payment switch. The card was left unchanged.",
+      );
+      redirect(`/admin/requests/${jobId}?error=${encodeURIComponent("This tip does not match the current payment mode.")}`);
+    }
+  }
   const started = await supabase.rpc("begin_tip_refund", {
     target_tip: tip.data.id,
     amount_cents: amount,
@@ -163,7 +181,13 @@ export async function refundTip(formData: FormData) {
       },
       { idempotencyKey: `tip-refund:${row.refund_id}` },
     );
-    if ((refund as { livemode?: boolean }).livemode) throw new Error("Live payments are not enabled.");
+    if (!stripeObjectMatchesMode(aligned.mode, refund.livemode)) {
+      await alertPaymentsIssue(
+        `tip-refund-result:${refund.id}`,
+        "Tip refund mode mismatch",
+        "Stripe returned a tip refund in a different mode. It is recorded so the ledger matches Stripe.",
+      );
+    }
     if (refund.status === "succeeded") {
       const applied = await createServiceClient().rpc("apply_tip_refund", {
         target_refund: row.refund_id,

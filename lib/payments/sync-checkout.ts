@@ -2,6 +2,9 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { chooseAuthorization, type CheckoutIntentChoice } from "@/lib/payments/checkout-choice";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { acceptOrRelease } from "@/lib/payments/platform-events";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -124,9 +127,19 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
     }
   }
 
+  const mode = paymentsMode(process.env.PAYMENTS_MODE);
+  const mismatched = [...intents.values()].filter((intent) => !stripeObjectMatchesMode(mode, intent.livemode));
+  if (mismatched.length > 0) {
+    await alertPaymentsIssue(
+      `checkout-sync-mode:${jobId}`,
+      "Checkout mode mismatch",
+      "A stored card checkout did not match the payment switch. It was left unchanged.",
+    );
+  }
   const choice = chooseAuthorization({
     priceCents: job.price_cents,
     driverId: job.assigned_driver_id,
+    acceptLivemode: mode === "live",
     intents: [...intents.values()],
   });
   if (!choice.acceptId && retrieveFailed) throw new Error("The card checkout could not be checked.");
@@ -141,6 +154,7 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
       await acceptOrRelease(extra);
     }
     for (const session of openSessions) {
+      if (!stripeObjectMatchesMode(mode, session.livemode)) continue;
       await stripe.checkout.sessions.expire(session.id).catch(() => undefined);
     }
     return { state: "authorized", resumeUrl: null };
@@ -162,10 +176,12 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
         typeof session.url === "string" &&
         session.amount_total === job.price_cents &&
         session.metadata?.driver_id === job.assigned_driver_id &&
+        stripeObjectMatchesMode(mode, session.livemode) &&
         sessionSavesCard(session),
     )
     .sort((left, right) => right.created - left.created)[0];
   for (const session of openSessions) {
+    if (!stripeObjectMatchesMode(mode, session.livemode)) continue;
     if (session.id !== reusable?.id) await stripe.checkout.sessions.expire(session.id).catch(() => undefined);
   }
   return { state: "waiting", resumeUrl: reusable?.url ?? null };

@@ -166,7 +166,7 @@ function OfferActions({
     const proposal = scheduleArgs(job.schedule, pickupDate, pickupTime, windowId);
     try {
     const prepared = await prepareDriverPayments();
-    if (prepared.mode === "live" && !prepared.saved) {
+    if (!prepared.saved) {
       const text = "Payout setup could not be checked. Try again.";
       onRejected(text);
       setMessage({ text, alert: true });

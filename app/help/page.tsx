@@ -6,7 +6,9 @@ import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { ReportForm } from "@/components/request/report-form";
 import { customerTopics, driverTopics, type HelpTopic } from "@/lib/help/topics";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
 import { expressDashboardUrl } from "@/lib/payments/express-link";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Help" };
@@ -31,7 +33,12 @@ async function HelpContent({ searchParams }: { searchParams: PageProps<"/help">[
   const driver = session.role === "driver";
   const topics = filterTopics(driver ? driverTopics : customerTopics, query);
   const connect = driver
-    ? await supabase.from("driver_connect_accounts").select("stripe_account_id").eq("driver_id", session.userId).maybeSingle()
+    ? await supabase
+        .from("driver_connect_accounts")
+        .select("stripe_account_id")
+        .eq("driver_id", session.userId)
+        .eq("livemode", connectLivemode(paymentsMode(process.env.PAYMENTS_MODE)))
+        .maybeSingle()
     : { data: null };
   const dashboardUrl = driver ? await expressDashboardUrl(connect.data?.stripe_account_id) : null;
   const { data: jobs } = await supabase
