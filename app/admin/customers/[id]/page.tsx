@@ -7,6 +7,7 @@ import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatUsPhone } from "@/lib/phone";
+import { formatSignupDate } from "@/lib/time/when";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: { absolute: "Customer · Pickuply Admin" } };
@@ -59,6 +60,7 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
       <dl className="mt-4 grid gap-2 text-base text-ink">
         <div><dt className="font-semibold">Phone</dt><dd>{profile.phone ? formatUsPhone(profile.phone) ?? profile.phone : "No phone"}</dd></div>
         <div><dt className="font-semibold">Email</dt><dd className="break-all">{profile.email?.trim() || "No email"}</dd></div>
+        <div><dt className="font-semibold">Signed up</dt><dd>{formatSignupDate(profile.created_at)}</dd></div>
         <div><dt className="font-semibold">Role</dt><dd>{profile.role}</dd></div>
         <div><dt className="font-semibold">Account</dt><dd>{profile.deleted_at ? "Deleted" : profile.reclaim_hold_at ? "Frozen for phone review" : "Open"}</dd></div>
       </dl>

@@ -5,7 +5,7 @@ import { AdminMessageList } from "@/components/admin/admin-messages";
 import { BadgeChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
 import { IncludeTestData } from "@/components/admin/include-test-data";
-import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
+import { countCustomerAccounts, expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import {
@@ -36,7 +36,7 @@ async function Overview({
   await requireAdmin("/admin");
   const params = await searchParams;
   const lane = await resolveTestLane(includeTestParam(params.includeTest));
-  const data = await loadAdminDashboard(lane);
+  const [data, customerAccounts] = await Promise.all([loadAdminDashboard(lane), countCustomerAccounts(lane)]);
   if (data.error) {
     return (
       <main className="px-4 py-8">
@@ -107,6 +107,12 @@ async function Overview({
       count: data.counts.pendingDrivers,
       label: "Pending driver applications",
       detail: "Waiting for your review",
+    },
+    {
+      href: lane === "all" ? "/admin/customers?includeTest=1" : "/admin/customers",
+      count: customerAccounts ?? "—",
+      label: "Customer accounts",
+      detail: customerAccounts == null ? "Count unavailable" : "Signed up, not deleted",
     },
   ];
 

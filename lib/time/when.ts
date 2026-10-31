@@ -16,6 +16,18 @@ export function formatUsWhen(iso: string, timeZone = georgia): string {
   return `${pick("weekday")}, ${pick("month")} ${pick("day")} · ${pick("hour")}:${pick("minute")} ${pick("dayPeriod")}`;
 }
 
+/** Signup day in the Georgia zone, including the year. */
+export function formatSignupDate(iso: string, timeZone = georgia): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
 /** A calendar day such as 2026-10-27, without shifting it into the previous evening. */
 export function formatUsDay(value: string, timeZone = georgia): string {
   if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return value;

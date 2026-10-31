@@ -261,6 +261,20 @@ function buildActivity(
   return rows.sort((left, right) => right.at.localeCompare(left.at) || left.id.localeCompare(right.id)).slice(0, 25);
 }
 
+/** Active customer profiles in the current test lane. Deleted accounts are left out. */
+export async function countCustomerAccounts(lane: TestLane): Promise<number | null> {
+  const supabase = await createClient();
+  let request = supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "customer")
+    .is("deleted_at", null);
+  if (lane !== "all") request = request.eq("is_test", lane === "test");
+  const { count, error } = await request;
+  if (error || count == null) return null;
+  return count;
+}
+
 export function expiringDrivers(drivers: AdminDriver[], now: number): AdminDriver[] {
   return drivers.filter(
     (driver) =>

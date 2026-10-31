@@ -7,6 +7,7 @@ import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatUsPhone } from "@/lib/phone";
+import { formatSignupDate } from "@/lib/time/when";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: { absolute: "Customers · Pickuply Admin" } };
@@ -32,14 +33,16 @@ async function Customers({ searchParams }: CustomersPageProps) {
   const supabase = await createClient();
   let request = supabase
     .from("profiles")
-    .select("id, full_name, phone, email, role, deleted_at, reclaim_hold_at, is_test")
-    .order("full_name", { ascending: true })
-    .limit(80);
+    .select("id, full_name, phone, email, role, deleted_at, reclaim_hold_at, is_test, created_at", { count: "exact" })
+    .eq("role", "customer")
+    .order("created_at", { ascending: false })
+    .limit(200);
   if (lane !== "all") request = request.eq("is_test", lane === "test");
   if (q) request = request.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
   if (filter === "review") request = request.not("reclaim_hold_at", "is", null);
   if (filter === "deleted") request = request.not("deleted_at", "is", null);
-  const { data, error } = await request;
+  else request = request.is("deleted_at", null);
+  const { data, error, count } = await request;
   const rows = data ?? [];
   const ids = rows.map((row) => row.id);
   const { data: suspensions } = ids.length
@@ -56,10 +59,14 @@ async function Customers({ searchParams }: CustomersPageProps) {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Customers</h1>
+      <p className="mt-3 text-base text-muted">
+        {filter === "deleted" ? "Deleted customer accounts." : "Customer accounts that have not been deleted, newest sign-up first."}
+      </p>
       {lane === "test" ? null : (
         <IncludeTestData include={lane === "all"} path="/admin/customers" search={lane === "all" ? "includeTest=1" : ""} />
       )}
       <form className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]" action="/admin/customers">
+        {lane === "all" ? <input type="hidden" name="includeTest" value="1" /> : null}
         <label className="font-semibold text-ink">
           Search
           <input name="q" defaultValue={q} className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4" />
@@ -80,6 +87,9 @@ async function Customers({ searchParams }: CustomersPageProps) {
       </form>
       {error ? <p role="alert" className="mt-4 text-base text-danger">The customer list could not be loaded.</p> : null}
       {shown.length === 0 ? <p className="mt-6 text-base text-muted">No matching customers.</p> : null}
+      {count != null && count > rows.length ? (
+        <p className="mt-4 text-base text-muted">Showing the newest {rows.length} of {count} customer accounts.</p>
+      ) : null}
       <ul className="mt-4 grid gap-2">
         {shown.map((row) => (
           <li key={row.id}>
@@ -88,6 +98,7 @@ async function Customers({ searchParams }: CustomersPageProps) {
                 <span className="block font-semibold text-ink">{row.full_name ?? "Unnamed"}</span>
                 <span className="block text-sm text-muted">{row.phone ? formatUsPhone(row.phone) ?? row.phone : "No phone"}</span>
                 <span className="block text-sm text-muted">{row.email?.trim() || "No email"}</span>
+                <span className="block text-sm text-muted">Signed up {formatSignupDate(row.created_at)}</span>
               </span>
               <span className="text-sm text-muted">
                 {row.deleted_at ? "Deleted" : row.reclaim_hold_at ? "Phone review" : suspended.has(row.id) ? "Suspended" : pending.has(row.id) ? "Deletion pending" : row.role}
