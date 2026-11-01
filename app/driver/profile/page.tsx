@@ -10,7 +10,6 @@ import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { DeviceAlertPreferences } from "@/components/profile/device-alert-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
-import { resolvedNames } from "@/lib/auth/name";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,11 +43,6 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
       .select("push_enabled, email_enabled, promotional_sms")
       .maybeSingle(),
   ]);
-  const names = resolvedNames({
-    firstName: profile?.first_name,
-    lastName: profile?.last_name,
-    fullName: profile?.full_name,
-  });
   const centroid = driver?.home_zip
     ? (await supabase.from("ga_zip_centroids").select("lat, lng, city, zip").eq("zip", driver.home_zip).maybeSingle()).data
     : null;
@@ -60,7 +54,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Driver profile"}
       </h1>
-      <ProfileNameForm firstName={names.firstName ?? ""} lastName={names.lastName ?? ""} />
+      <ProfileNameForm firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
       {driver ? (
         <p className="mt-3 text-base text-ink">
           {driver.is_online ? "Online" : "Offline"} · {driver.status.replaceAll("_", " ")}

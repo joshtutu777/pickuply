@@ -1,4 +1,4 @@
-import { resolvedNames } from "./name";
+import { displayFullName } from "./name";
 import { safeReturnPath } from "./safe-return-path";
 
 export const ACCESS_DENIED_MESSAGE = "You don't have access to that page.";
@@ -35,18 +35,16 @@ export function accessStateFromProfile(input: {
   if (!input.signedIn) return { status: "anonymous" };
   if (!input.role || !isRole(input.role)) return { status: "missing-profile" };
   const split = "firstName" in input || "lastName" in input;
-  if (!split) {
-    const fullName = input.fullName?.trim() ?? "";
-    if (!fullName) return { status: "needs-name", role: input.role };
-    return { status: "ready", role: input.role, fullName };
-  }
-  const names = resolvedNames({
-    firstName: input.firstName,
-    lastName: input.lastName,
-    fullName: input.fullName,
-  });
-  if (!names.complete || !names.fullName) return { status: "needs-name", role: input.role };
-  return { status: "ready", role: input.role, fullName: names.fullName };
+  const fullName = split
+    ? displayFullName({
+        firstName: input.firstName,
+        lastName: input.lastName,
+        fullName: input.fullName,
+      })
+    : (input.fullName?.trim() ?? "");
+  // A stored name is enough. New accounts with no name still stop for first and last.
+  if (!fullName) return { status: "needs-name", role: input.role };
+  return { status: "ready", role: input.role, fullName };
 }
 
 /** A return path we are willing to send someone to after sign-in. Auth screens are not destinations. */

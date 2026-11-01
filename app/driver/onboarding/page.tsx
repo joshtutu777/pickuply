@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { QuickApplyForm } from "@/components/driver/quick-apply-form";
 import { LoadingMain } from "@/components/loading-main";
-import { resolvedNames } from "@/lib/auth/name";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,11 +35,6 @@ async function OnboardingContent({
   ]);
 
   if (driver || session.role === "driver") redirect("/driver");
-  const names = resolvedNames({
-    firstName: session.firstName,
-    lastName: session.lastName,
-    fullName: session.nameOnFile,
-  });
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -51,8 +45,8 @@ async function OnboardingContent({
       </h1>
       <QuickApplyForm
         userId={session.userId}
-        defaultFirstName={names.firstName ?? ""}
-        defaultLastName={names.lastName ?? ""}
+        defaultFirstName={session.firstName ?? ""}
+        defaultLastName={session.lastName ?? ""}
         defaultEmail={profile?.email ?? ""}
       />
     </main>

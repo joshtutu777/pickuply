@@ -8,7 +8,6 @@ import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { DeviceAlertPreferences } from "@/components/profile/device-alert-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
-import { resolvedNames } from "@/lib/auth/name";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,11 +33,6 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
     supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
     supabase.from("notification_preferences").select("push_enabled, email_enabled, promotional_sms").maybeSingle(),
   ]);
-  const names = resolvedNames({
-    firstName: profile?.first_name,
-    lastName: profile?.last_name,
-    fullName: profile?.full_name,
-  });
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
       <BackLink href="/account" label="Account" />
@@ -46,7 +40,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Your profile"}
       </h1>
-      <ProfileNameForm firstName={names.firstName ?? ""} lastName={names.lastName ?? ""} />
+      <ProfileNameForm firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
       <section className="mt-6">
         <h2 className="text-lg font-semibold text-ink">Saved addresses</h2>
         {(places ?? []).length === 0 ? <p className="mt-2 text-base text-muted">No saved addresses yet.</p> : null}

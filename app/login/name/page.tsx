@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { NameForm } from "@/app/login/name/name-form";
 import { LoadingMain } from "@/components/loading-main";
 import { authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
-import { reliableNameParts } from "@/lib/auth/name";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
 
@@ -34,7 +33,6 @@ async function NameContent({
   const located = authLocation("/login/name", next, intent);
   const signedInSearch = located.startsWith("/login/name?") ? located.slice("/login/name".length) : "";
   const session = await requireSignedIn("/login/name", signedInSearch);
-  const prefill = reliableNameParts(session.nameOnFile);
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -48,7 +46,7 @@ async function NameContent({
       <NameForm
         next={next ?? ""}
         intent={intent ?? ""}
-        defaultFirst={session.firstName ?? prefill.firstName ?? ""}
+        defaultFirst={session.firstName ?? ""}
         defaultLast={session.lastName ?? ""}
         savedName={session.nameOnFile ?? ""}
       />
