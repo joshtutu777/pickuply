@@ -5,6 +5,7 @@ import { reopenDriver, requestDocuments, reviewDriver } from "@/app/admin/driver
 import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
+import { displayFullName } from "@/lib/auth/name";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { formatUsPhone } from "@/lib/phone";
 import { connectLivemode } from "@/lib/payments/connect-eligibility";
@@ -54,7 +55,7 @@ async function DriverDetail({
   const { data: driver } = await supabase.from("drivers").select("*").eq("profile_id", id).maybeSingle();
   if (!driver) notFound();
   const [{ data: profile }, { data: vehicle }, { data: payout }, { data: coverage }] = await Promise.all([
-    supabase.from("profiles").select("full_name, phone, role, photo_url").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("full_name, first_name, last_name, phone, role, photo_url").eq("id", id).maybeSingle(),
     supabase
       .from("vehicles")
       .select("type, make, model, year, plate, cargo_length_in, photo_url, approved")
@@ -93,7 +94,7 @@ async function DriverDetail({
       <BackLink href="/admin/drivers" label="Drivers" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
-        {profile?.full_name || "Applicant"}
+        {displayFullName({ firstName: profile?.first_name, lastName: profile?.last_name, fullName: profile?.full_name }) || "Applicant"}
       </h1>
       <p className="mt-2 text-base text-muted">
         {driver.status.replaceAll("_", " ")} · role {profile?.role}

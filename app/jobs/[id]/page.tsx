@@ -124,6 +124,12 @@ async function JobEntry({
     job.driver_pay_cents != null &&
     job.platform_fee_cents != null &&
     job.service_fee_cents != null;
+  const bookingEmail = payReady && session
+    ? await createClient().then((supabase) =>
+        supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle(),
+      )
+    : null;
+  const needsBookingEmail = payReady && !bookingEmail?.data?.email?.trim();
   return (
     <>
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
@@ -253,6 +259,7 @@ async function JobEntry({
             }
             windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
             returning={query.paid === "return"}
+            needsEmail={needsBookingEmail}
           />
         ) : null}
       </JobStatus>

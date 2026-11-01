@@ -26,6 +26,7 @@ export function TextField({
   required = false,
   min,
   max,
+  maxLength,
 }: {
   label: string;
   name: string;
@@ -40,6 +41,7 @@ export function TextField({
   required?: boolean;
   min?: string;
   max?: string;
+  maxLength?: number;
 }) {
   const errorId = `${name}-error`;
   const hintId = hint ? `${name}-hint` : undefined;
@@ -64,6 +66,7 @@ export function TextField({
         required={required}
         min={min}
         max={max}
+        maxLength={maxLength}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}

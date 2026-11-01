@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
+import { bookingEmailError } from "@/lib/validation/email";
 import { bookingCheckoutCustomer } from "@/lib/payments/saved-card";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
@@ -86,7 +87,26 @@ export async function startCheckout(formData: FormData) {
         .maybeSingle()
     : null;
   const cardSetup = bookingCheckoutCustomer(consent?.data?.stripe_customer_id ?? null);
-  const customerEmail = cardSetup.customer ? null : checkoutCustomerEmail(profile?.data?.email);
+  let profileEmail = checkoutCustomerEmail(profile?.data?.email);
+  if (!profileEmail) {
+    const entered = String(formData.get("bookingEmail") ?? "");
+    const emailProblem = bookingEmailError(entered);
+    if (emailProblem) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent(emailProblem)}`);
+    }
+    const saved = await supabase.rpc("save_profile_email", { next_email: entered.trim() });
+    if (saved.error) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("Enter a valid email before confirming this booking.")}`);
+    }
+    const refreshed = user.data.user
+      ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
+      : null;
+    profileEmail = checkoutCustomerEmail(refreshed?.data?.email);
+    if (!profileEmail) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("Enter your email before confirming this booking.")}`);
+    }
+  }
+  const customerEmail = cardSetup.customer ? null : profileEmail;
   let sessionId = "";
   let sessionUrl: string | null = null;
   let checkoutLive = false;

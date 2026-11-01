@@ -4,6 +4,7 @@ import { cache } from "react";
 import { inTestLane, type TestLane } from "@/lib/admin/test-lane";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { requireAdmin } from "@/lib/auth/session";
+import { displayFullName } from "@/lib/auth/name";
 import { createClient } from "@/lib/supabase/server";
 import {
   activityHref,
@@ -37,7 +38,14 @@ export type AdminDashboard = {
 
 export type AdminDashboardResult = AdminDashboard | { error: true };
 
-type ProfileRow = { id: string; full_name: string | null; role: string | null; is_test?: boolean };
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+  is_test?: boolean;
+};
 
 export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: TestLane = "real"): Promise<AdminDashboardResult> {
   await requireAdmin("/admin");
@@ -126,7 +134,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
     if (profileIds.size > 0) {
       const profileResult = await supabase
         .from("profiles")
-        .select("id, full_name, role, is_test")
+        .select("id, full_name, first_name, last_name, role, is_test")
         .in("id", [...profileIds]);
       if (profileResult.error) return { error: true };
       for (const profile of profileResult.data ?? []) profiles.set(profile.id, profile);
@@ -187,7 +195,11 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
       licenseExpires: driver.license_expires,
       insuranceExpires: driver.insurance_expires,
       createdAt: driver.created_at,
-      name: profiles.get(driver.profile_id)?.full_name ?? null,
+      name: displayFullName({
+        firstName: profiles.get(driver.profile_id)?.first_name,
+        lastName: profiles.get(driver.profile_id)?.last_name,
+        fullName: profiles.get(driver.profile_id)?.full_name,
+      }),
       needsChanges: changedDrivers.has(driver.profile_id),
       coverage: coverageByDriver.get(driver.profile_id) || null,
     }));
@@ -242,7 +254,14 @@ function buildActivity(
       return {
         id: `event-${event.id}`,
         at: event.created_at,
-        actor: actorLabel(profile?.role ?? null, profile?.full_name ?? null),
+        actor: actorLabel(
+          profile?.role ?? null,
+          displayFullName({
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            fullName: profile?.full_name,
+          }) ?? profile?.full_name ?? null,
+        ),
         label: jobEventLabel(event.type, event.data),
         href: activityHref("job", event.job_id),
       };
@@ -252,7 +271,14 @@ function buildActivity(
       return {
         id: `audit-${entry.id}`,
         at: entry.created_at,
-        actor: actorLabel(profile?.role ?? null, profile?.full_name ?? null),
+        actor: actorLabel(
+          profile?.role ?? null,
+          displayFullName({
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            fullName: profile?.full_name,
+          }) ?? profile?.full_name ?? null,
+        ),
         label: auditLabel(entry.action, entry.data),
         href: activityHref(entry.target_type, entry.target_id),
       };

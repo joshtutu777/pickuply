@@ -17,7 +17,15 @@ export function profileEmailError(value: string): string | null {
   return null;
 }
 
-/** A new customer signup and a pickup request need an email. Profile edit can still be left blank. */
+/** A paid booking needs an email. Signup and profile edit can still be left blank. */
+export function bookingEmailError(value: string): string | null {
+  const email = normalizeEmail(value);
+  if (!email) return "Enter your email before confirming this booking.";
+  if (emailShapeError(email)) return "Enter a valid email.";
+  return null;
+}
+
+/** A pickup request needs an email. Signup and profile edit can still be left blank. */
 export function customerEmailError(value: string): string | null {
   const email = normalizeEmail(value);
   if (!email) return "Enter your email.";

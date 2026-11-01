@@ -70,7 +70,9 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       }
       await signIn(driver, driverPerson);
       if (!driver.url().includes("/driver/onboarding")) await driver.goto("/driver/onboarding");
-      await driver.getByLabel("Your name").fill(driverPerson.name);
+      const driverNames = driverPerson.name.trim().split(/\s+/);
+      await driver.getByLabel("First name").fill(driverNames[0] ?? "");
+      await driver.getByLabel("Last name").fill(driverNames.slice(1).join(" "));
       await driver.getByLabel("Email address").fill("walk.driver@pickuply.test");
       await driver.getByLabel("Street").fill("10 Test Street");
       await driver.getByLabel("City", { exact: true }).fill("Austell");
@@ -635,12 +637,13 @@ async function signIn(page: Page, person: { phone: string; code: string; name: s
     timeout: 30_000,
   });
   if (!page.url().includes("/login/name")) return;
-  const firstName = person.name.split(" ")[0] ?? person.name;
+  const nameParts = person.name.trim().split(/\s+/);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (await page.getByText("An unexpected response was received from the server.").isVisible().catch(() => false)) {
       await page.reload();
     }
-    await page.getByLabel("First name").fill(firstName);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     try {

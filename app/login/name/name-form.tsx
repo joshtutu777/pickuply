@@ -15,63 +15,77 @@ const primaryButton =
 export function NameForm({
   next,
   intent,
-  requireEmail,
+  defaultFirst,
+  defaultLast,
+  savedName,
 }: {
   next: string;
   intent: string;
-  requireEmail: boolean;
+  defaultFirst: string;
+  defaultLast: string;
+  savedName: string;
 }) {
   const [state, action, pending] = useActionState(saveFullName, initialState);
+  const saved = savedName.trim();
+  const showSaved = saved.length > 0 && saved !== defaultFirst.trim();
   return (
     <form action={action} className="mt-8 flex flex-col gap-4">
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="intent" value={intent} />
-      <label className="block" htmlFor="fullName">
+      {showSaved ? (
+        <p className="text-base text-ink">
+          Saved name: {saved}. Enter your first and last name to finish. This stays as it is until you save.
+        </p>
+      ) : null}
+      <label className="block" htmlFor="firstName">
         <span className="text-base font-semibold text-ink">First name</span>
         <input
-          id="fullName"
-          name="fullName"
+          id="firstName"
+          name="firstName"
           type="text"
           required
           minLength={1}
-          maxLength={80}
+          maxLength={40}
           autoComplete="given-name"
+          autoCapitalize="words"
+          defaultValue={defaultFirst}
           aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? "fullName-error" : undefined}
+          aria-describedby={state.error ? "name-error" : undefined}
           className={inputClass}
         />
       </label>
-      {requireEmail ? (
-        <label className="block" htmlFor="email">
-          <span className="text-base font-semibold text-ink">Email address *</span>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            maxLength={200}
-            className={inputClass}
-          />
-        </label>
-      ) : null}
+      <label className="block" htmlFor="lastName">
+        <span className="text-base font-semibold text-ink">Last name</span>
+        <input
+          id="lastName"
+          name="lastName"
+          type="text"
+          required
+          minLength={1}
+          maxLength={40}
+          autoComplete="family-name"
+          autoCapitalize="words"
+          defaultValue={defaultLast}
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? "name-error" : undefined}
+          className={inputClass}
+        />
+      </label>
       <label className="flex min-h-12 items-start gap-3 text-base text-ink">
         <input className="mt-1 size-5" type="checkbox" name="consent" value="yes" required />
-        <span>
-          I agree to the{" "}
-          <Link href="/terms" className="font-semibold text-brand" onClick={(event) => event.stopPropagation()}>
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="font-semibold text-brand" onClick={(event) => event.stopPropagation()}>
-            Privacy Policy
-          </Link>
-          .
-        </span>
+        <span>I agree to the Terms and Privacy Policy.</span>
       </label>
+      <p className="text-sm text-muted">
+        <Link href="/terms" className="font-semibold text-brand">
+          Terms
+        </Link>
+        {" · "}
+        <Link href="/privacy" className="font-semibold text-brand">
+          Privacy
+        </Link>
+      </p>
       {state.error ? (
-        <p id="fullName-error" role="alert" className="text-sm font-medium text-danger">
+        <p id="name-error" role="alert" className="text-sm font-medium text-danger">
           {state.error}
         </p>
       ) : null}

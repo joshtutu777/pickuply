@@ -17,6 +17,7 @@ export function PayPanel({
   minutesLeft,
   windowOpen,
   returning,
+  needsEmail = false,
 }: {
   jobId: string;
   driverPayCents: number;
@@ -28,6 +29,7 @@ export function PayPanel({
   minutesLeft: number;
   windowOpen: boolean;
   returning: boolean;
+  needsEmail?: boolean;
 }) {
   const offerCents = driverPayCents + platformFeeCents;
   const additionalCents = totalCents - offerCents - serviceFeeCents;
@@ -56,6 +58,22 @@ export function PayPanel({
             </p>
             <form action={startCheckout}>
               <input type="hidden" name="jobId" value={jobId} />
+              {needsEmail ? (
+                <label className="mb-3 block text-base text-ink" htmlFor="bookingEmail">
+                  Email address
+                  <input
+                    id="bookingEmail"
+                    name="bookingEmail"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    required
+                    maxLength={200}
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base"
+                  />
+                  <span className="mt-1 block text-sm text-muted">Required before this booking can be confirmed.</span>
+                </label>
+              ) : null}
               <p className="mb-3 text-base text-ink">{cardSaveDisclosure}</p>
               <PendingButton
                 idle="Confirm booking"

@@ -224,7 +224,8 @@ async function signInOnPage(page: Page, phone: string, otp: string) {
     { timeout: 20_000 },
   );
   if (new URL(page.url()).pathname === "/login/name") {
-    await page.getByLabel("First name").fill("Test Customer");
+    await page.getByLabel("First name").fill("Test");
+    await page.getByLabel("Last name").fill("Customer");
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname !== "/login/name" && !url.pathname.startsWith("/auth"));

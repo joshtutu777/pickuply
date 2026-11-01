@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     if (!error && data.user) {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, first_name, last_name")
         .eq("id", data.user.id)
         .maybeSingle();
       if (profileError || !profile) {
@@ -64,7 +64,9 @@ export async function updateSession(request: NextRequest) {
       } else {
         const role = typeof profile.role === "string" && isRole(profile.role) ? profile.role : null;
         const fullName = typeof profile.full_name === "string" ? profile.full_name : null;
-        state = accessStateFromProfile({ signedIn: true, role, fullName });
+        const firstName = typeof profile.first_name === "string" ? profile.first_name : null;
+        const lastName = typeof profile.last_name === "string" ? profile.last_name : null;
+        state = accessStateFromProfile({ signedIn: true, role, fullName, firstName, lastName });
       }
     }
   } catch {

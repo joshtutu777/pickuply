@@ -7,6 +7,7 @@ import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatUsPhone } from "@/lib/phone";
+import { displayFullName } from "@/lib/auth/name";
 import { formatSignupDate } from "@/lib/time/when";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +34,7 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, email, role, deleted_at, reclaim_hold_at, created_at")
+    .select("id, full_name, first_name, last_name, phone, email, role, deleted_at, reclaim_hold_at, created_at")
     .eq("id", customerId)
     .maybeSingle();
   if (!profile) notFound();
@@ -50,7 +51,7 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <BackLink href="/admin/customers" label="Customers" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
-      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{profile.full_name ?? "Unnamed"}</h1>
+      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{displayFullName({ firstName: profile.first_name, lastName: profile.last_name, fullName: profile.full_name }) ?? "Unnamed"}</h1>
       {query.saved === "deleted" ? <p className="mt-4 text-base text-ink">Account deleted. That phone can sign up again.</p> : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">

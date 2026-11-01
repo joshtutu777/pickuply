@@ -5,6 +5,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { IncludeTestData } from "@/components/admin/include-test-data";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
+import { displayFullName } from "@/lib/auth/name";
 import { requireAdmin } from "@/lib/auth/session";
 import { formatUsPhone } from "@/lib/phone";
 import { formatSignupDate } from "@/lib/time/when";
@@ -33,12 +34,12 @@ async function Customers({ searchParams }: CustomersPageProps) {
   const supabase = await createClient();
   let request = supabase
     .from("profiles")
-    .select("id, full_name, phone, email, role, deleted_at, reclaim_hold_at, is_test, created_at", { count: "exact" })
+    .select("id, full_name, first_name, last_name, phone, email, role, deleted_at, reclaim_hold_at, is_test, created_at", { count: "exact" })
     .eq("role", "customer")
     .order("created_at", { ascending: false })
     .limit(200);
   if (lane !== "all") request = request.eq("is_test", lane === "test");
-  if (q) request = request.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
+  if (q) request = request.or(`full_name.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
   if (filter === "review") request = request.not("reclaim_hold_at", "is", null);
   if (filter === "deleted") request = request.not("deleted_at", "is", null);
   else request = request.is("deleted_at", null);
@@ -95,7 +96,7 @@ async function Customers({ searchParams }: CustomersPageProps) {
           <li key={row.id}>
             <Link href={`/admin/customers/${row.id}`} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-paper-raised px-4 ring-1 ring-line">
               <span>
-                <span className="block font-semibold text-ink">{row.full_name ?? "Unnamed"}</span>
+                <span className="block font-semibold text-ink">{displayFullName({ firstName: row.first_name, lastName: row.last_name, fullName: row.full_name }) ?? "Unnamed"}</span>
                 <span className="block text-sm text-muted">{row.phone ? formatUsPhone(row.phone) ?? row.phone : "No phone"}</span>
                 <span className="block text-sm text-muted">{row.email?.trim() || "No email"}</span>
                 <span className="block text-sm text-muted">Signed up {formatSignupDate(row.created_at)}</span>

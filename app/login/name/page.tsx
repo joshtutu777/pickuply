@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { NameForm } from "@/app/login/name/name-form";
 import { LoadingMain } from "@/components/loading-main";
 import { authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
+import { reliableNameParts } from "@/lib/auth/name";
 import { singleQuery } from "@/lib/auth/query";
 import { requireSignedIn } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Your name",
@@ -34,10 +34,7 @@ async function NameContent({
   const located = authLocation("/login/name", next, intent);
   const signedInSearch = located.startsWith("/login/name?") ? located.slice("/login/name".length) : "";
   const session = await requireSignedIn("/login/name", signedInSearch);
-  const supabase = await createClient();
-  const profile = await supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle();
-  const savedEmail = typeof profile.data?.email === "string" ? profile.data.email.trim() : "";
-  const requireEmail = intent !== "driver" && savedEmail.length === 0;
+  const prefill = reliableNameParts(session.nameOnFile);
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -46,11 +43,15 @@ async function NameContent({
         Your name
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        {requireEmail
-          ? "Enter your first name and email. We'll ask again the next time you sign in until they are saved."
-          : "Enter your first name. We'll ask again the next time you sign in until it is saved."}
+        Enter your first and last name. We&apos;ll ask again the next time you sign in until both are saved.
       </p>
-      <NameForm next={next ?? ""} intent={intent ?? ""} requireEmail={requireEmail} />
+      <NameForm
+        next={next ?? ""}
+        intent={intent ?? ""}
+        defaultFirst={session.firstName ?? prefill.firstName ?? ""}
+        defaultLast={session.lastName ?? ""}
+        savedName={session.nameOnFile ?? ""}
+      />
     </main>
   );
 }

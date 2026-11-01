@@ -4,17 +4,32 @@ import { redirect } from "next/navigation";
 import { writeMode } from "@/lib/auth/mode-cookie";
 import { getOptionalSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { customerEmailError, normalizeEmail, profileEmailError } from "@/lib/validation/email";
+import { validateNamePart } from "@/lib/auth/name";
+import { profileEmailError } from "@/lib/validation/email";
+
+const NAME_ERROR = "Enter your first and last name using letters, spaces, apostrophes, periods, or hyphens.";
+
+/** Saves both name parts. A blank value is rejected and does not clear a saved name. */
+export async function saveProfileNames(first: string, last: string): Promise<{ error: string | null }> {
+  const session = await getOptionalSession();
+  if (!session) return { error: "Sign in again before saving your name." };
+  const given = validateNamePart(first);
+  const family = validateNamePart(last);
+  if (!given || !family) return { error: NAME_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("save_profile_names", { next_first: given, next_last: family });
+  if (error) return { error: "We couldn't save your name. Try again." };
+  return { error: null };
+}
 
 /** Saves the signed-in person's profile email. A blank value leaves the saved address in place. */
 export async function saveProfileEmail(email: string): Promise<{ error: string | null }> {
   const session = await getOptionalSession();
   if (!session) return { error: "Sign in again before saving an email." };
-  const normalized = normalizeEmail(email);
-  const problem = normalized ? customerEmailError(normalized) : profileEmailError(email);
+  const problem = profileEmailError(email);
   if (problem) return { error: problem };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_profile_email", { next_email: normalized });
+  const { error } = await supabase.rpc("save_profile_email", { next_email: email.trim() });
   if (error) {
     if (error.message.includes("email is not valid")) return { error: "Enter a valid email, or leave it blank." };
     return { error: "We couldn't save that email." };

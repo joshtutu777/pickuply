@@ -11,7 +11,7 @@ import { UploadPicker } from "@/components/upload-picker";
 import { saveDriverPlace } from "@/lib/maps/save-places";
 import { manualAddressError } from "@/lib/maps/address";
 import { defaultCoverage, type CoverageDraft } from "@/lib/driver/coverage";
-import { validateFullName } from "@/lib/auth/name";
+import { validateNamePart } from "@/lib/auth/name";
 import { driverApplyEmailError } from "@/lib/validation/email";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
@@ -44,15 +44,18 @@ async function uploadDoc(userId: string, name: "profile" | "license", file: File
 
 export function QuickApplyForm({
   userId,
-  defaultName = "",
+  defaultFirstName = "",
+  defaultLastName = "",
   defaultEmail = "",
 }: {
   userId: string;
-  defaultName?: string;
+  defaultFirstName?: string;
+  defaultLastName?: string;
   defaultEmail?: string;
 }) {
   const router = useRouter();
-  const [fullName, setFullName] = useState(defaultName);
+  const [firstName, setFirstName] = useState(defaultFirstName);
+  const [lastName, setLastName] = useState(defaultLastName);
   const [email, setEmail] = useState(defaultEmail);
   const [home, setHome] = useState<PlaceValue>(emptyPlace);
   const [coverage, setCoverage] = useState<CoverageDraft>(defaultCoverage);
@@ -74,8 +77,10 @@ export function QuickApplyForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!validateFullName(fullName)) {
-      setError("Enter your full name.");
+    const given = validateNamePart(firstName);
+    const family = validateNamePart(lastName);
+    if (!given || !family) {
+      setError("Enter your first and last name using letters, spaces, apostrophes, periods, or hyphens.");
       return;
     }
     const emailProblem = driverApplyEmailError(email);
@@ -114,7 +119,9 @@ export function QuickApplyForm({
       setProgress("Saving application");
       const { error: saveError } = await createClient().rpc("submit_quick_application", {
         payload: {
-          full_name: fullName.trim(),
+          first_name: given,
+          last_name: family,
+          full_name: `${given} ${family}`,
           email: email.trim(),
           home_city: home.city.trim(),
           home_zip: home.zip.trim(),
@@ -148,7 +155,8 @@ export function QuickApplyForm({
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
-      <TextField name="fullName" label="Your name" value={fullName} onChange={setFullName} autoComplete="name" />
+      <TextField name="firstName" label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" required maxLength={40} />
+      <TextField name="lastName" label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" required maxLength={40} />
       <TextField
         name="driverEmail"
         label="Email address"

@@ -177,7 +177,9 @@ async function signedIn(
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill(person.name);
+    const nameParts = person.name.trim().split(/\s+/);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"));
@@ -187,7 +189,13 @@ async function signedIn(
 
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
-  await page.locator("#fullName").fill(name);
+  const nameParts = name.trim().split(/\s+/);
+  await page.getByLabel("First name").fill(nameParts[0] ?? "");
+  await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
+  const email = page.getByLabel("Email address");
+  if ((await email.inputValue()) === "") {
+    await email.fill(`${(nameParts[0] ?? "driver").toLowerCase()}.${(nameParts[1] ?? "driver").toLowerCase()}@pickuply.test`);
+  }
   await page.getByLabel("Street").fill("10 Test Street");
   await page.getByLabel("City").fill("Austell");
   await page.getByLabel("ZIP").fill("30106");

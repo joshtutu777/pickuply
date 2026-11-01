@@ -172,9 +172,9 @@ async function signInFromLogin(page: Page, person: { phone: string; code: string
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill(person.name);
-    const email = page.getByLabel("Email address");
-    if (await email.isVisible().catch(() => false)) await email.fill(`${person.phone}@example.com`);
+    const nameParts = person.name.trim().split(/\s+/);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login") && !url.pathname.startsWith("/auth"));
@@ -184,9 +184,9 @@ async function signInFromLogin(page: Page, person: { phone: string; code: string
 async function openAccount(page: Page, name: string) {
   await page.goto("/account");
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill(name);
-    const email = page.getByLabel("Email address");
-    if (await email.isVisible().catch(() => false)) await email.fill("customer@example.com");
+    const nameParts = name.trim().split(/\s+/);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => url.pathname === "/account");
@@ -268,7 +268,13 @@ async function fillRequest(
 
 async function submitApplication(page: Page, name: string) {
   const form = page.locator("form", { has: page.getByRole("button", { name: "Submit application" }) });
-  await form.locator("#fullName").fill(name);
+  const nameParts = name.trim().split(/\s+/);
+  await form.getByLabel("First name").fill(nameParts[0] ?? "");
+  await form.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
+  const email = form.getByLabel("Email address");
+  if ((await email.inputValue()) === "") {
+    await email.fill(`${(nameParts[0] ?? "driver").toLowerCase()}.${(nameParts[1] ?? "driver").toLowerCase()}@pickuply.test`);
+  }
   await form.getByLabel("Street").fill("10 Test Street");
   await form.getByLabel("City").fill("Austell");
   await form.getByLabel("ZIP").fill("30106");
