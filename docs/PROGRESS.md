@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Driver documents and pickup timing on the site (2026-11-02)
+
+The production database already had migration `0127`. This site update matches it. Approved drivers see missing or expired license and insurance as review notes, and those notes do not turn off Online. Driver Terms stay on version `driver-terms-v2`. When a pickup time has passed, the customer can choose As soon as possible or Anytime before choosing a driver again. Paid bookings are still not cleared for missing or expired documents.
+
 ## Step 1 — Initial project setup (2026-10-21)
 
 ### What was already in the workspace

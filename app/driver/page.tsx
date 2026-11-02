@@ -14,6 +14,7 @@ import { requireSignedIn } from "@/lib/auth/session";
 import { defaultFeeSettings } from "@/lib/fees";
 import { formatCents } from "@/lib/money";
 import { applicationStatusCopy } from "@/lib/driver/application-status";
+import { documentReviewNotes } from "@/lib/driver/online-gaps";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
@@ -31,6 +32,33 @@ export default function DriverPage({ searchParams }: PageProps<"/driver">) {
     <Suspense fallback={<LoadingMain />}>
       <DriverContent searchParams={searchParams} />
     </Suspense>
+  );
+}
+
+function DocumentReview({
+  licenseUrl,
+  licenseExpires,
+  insuranceUrl,
+  insuranceExpires,
+}: {
+  licenseUrl: string | null;
+  licenseExpires: string | null;
+  insuranceUrl: string | null;
+  insuranceExpires: string | null;
+}) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  const notes = documentReviewNotes({ licenseUrl, licenseExpires, insuranceUrl, insuranceExpires, today });
+  if (notes.length === 0) return null;
+  return (
+    <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line" aria-label="Documents for review">
+      <h2 className="font-display text-2xl font-semibold text-ink">Documents for Pickuply to review</h2>
+      <p className="mt-2 text-base text-ink">These do not turn off the Online switch. An admin still needs to review them before paid hauling is verified.</p>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-base text-ink">
+        {notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -191,10 +219,13 @@ async function DriverContent({
         <InstallPrompt audience="driver" />
         <RestrictionNotice surface="driver" />
         <BetaNotice from="/driver" />
-        {approved && !application?.insurance_url ? (
-          <p className="mt-3 text-base text-ink">
-            {profile?.is_test ? "Add your insurance card." : "Upload your insurance to go Online."}
-          </p>
+        {approved ? (
+          <DocumentReview
+            licenseUrl={application?.license_url ?? null}
+            licenseExpires={application?.license_expires ?? null}
+            insuranceUrl={application?.insurance_url ?? null}
+            insuranceExpires={application?.insurance_expires ?? null}
+          />
         ) : null}
         {saved ? (
           <p role="status" className="mt-3 text-base font-semibold text-ink">

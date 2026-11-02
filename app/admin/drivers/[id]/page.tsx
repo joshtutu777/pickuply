@@ -7,6 +7,7 @@ import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { displayFullName } from "@/lib/auth/name";
 import { coverageSummary } from "@/lib/driver/coverage";
+import { documentReviewNotes } from "@/lib/driver/online-gaps";
 import { formatUsPhone } from "@/lib/phone";
 import { connectLivemode } from "@/lib/payments/connect-eligibility";
 import { paymentsMode } from "@/lib/payments/payments-mode";
@@ -188,11 +189,18 @@ async function DriverDetail({
         </label>
         {!driver.insurance_url || !driver.license_url || !vehicle ? (
           <p className="text-base text-ink">
-            Approving with a missing document lets this driver go Online and accept paid jobs. Paid hauling without verified insurance can leave the driver uninsured for hire.
+            Approving with a missing document lets this driver go Online and accept paid jobs. A missing or expired license or insurance card stays on this page for review. Paid hauling without verified insurance can leave the driver uninsured for hire.
           </p>
         ) : null}
-        {driver.insurance_url ? null : <p className="text-base font-semibold text-danger">No insurance on file.</p>}
-        {driver.license_url ? null : <p className="text-base font-semibold text-danger">No license on file.</p>}
+        {documentReviewNotes({
+          licenseUrl: driver.license_url,
+          licenseExpires: driver.license_expires,
+          insuranceUrl: driver.insurance_url,
+          insuranceExpires: driver.insurance_expires,
+          today: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()),
+        }).map((note) => (
+          <p key={note} className="text-base font-semibold text-danger">{note}</p>
+        ))}
         {vehicle ? null : <p className="text-base font-semibold text-danger">No vehicle on file.</p>}
         {!driver.insurance_url || !driver.license_url || !vehicle ? (
           <label className="flex min-h-12 items-center gap-3 text-base font-semibold text-ink">

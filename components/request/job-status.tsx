@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { updatePickupTiming } from "@/app/jobs/offer-actions";
 import { PendingButton } from "@/components/pending-button";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { ScheduledPickup } from "@/components/jobs/scheduled-pickup";
@@ -163,6 +164,20 @@ export function JobStatus({
         <p role="alert" className="mt-3 text-base text-danger">
           {takenJobMessage(error)}
         </p>
+      ) : null}
+      {canRespond && error?.includes("Update your pickup time") ? (
+        <form action={updatePickupTiming} className="mt-3 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <p className="text-base text-ink">Choose a new pickup timing, then choose the driver again. This does not invent a clock time.</p>
+          <input type="hidden" name="jobId" value={job.id} />
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" name="timing" value="asap" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white">
+              As soon as possible
+            </button>
+            <button type="submit" name="timing" value="anytime" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-5 font-semibold text-white">
+              Anytime
+            </button>
+          </div>
+        </form>
       ) : null}
       {notice?.adminNote ? (
         <p className="mt-3 rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">{notice.adminNote}</p>

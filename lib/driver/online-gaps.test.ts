@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { driverTermsVersion } from "@/lib/constants";
-import { onlineGaps } from "./online-gaps";
+import { documentReviewNotes, onlineGaps } from "./online-gaps";
 
 const ready = {
   status: "active",
@@ -29,15 +29,22 @@ test("an older agreement does not count as the current Driver Terms", () => {
   assert.match(previous[0]?.label ?? "", /Driver Terms/);
 });
 
-test("a real driver needs current insurance, and a test driver does not", () => {
-  const missing = onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null });
-  assert.equal(missing[0]?.label, "Upload your insurance to go Online.");
-  const testDriver = onlineGaps({ ...ready, isTest: true, insuranceUrl: null, insuranceExpires: null });
-  assert.equal(testDriver.find((gap) => gap.href === "/driver/ready/insurance"), undefined);
-  const expired = onlineGaps({ ...ready, insuranceExpires: "2020-01-01" });
-  assert.match(expired[0]?.label ?? "", /insurance expired/);
-  const expiredTest = onlineGaps({ ...ready, isTest: true, insuranceExpires: "2020-01-01" });
-  assert.match(expiredTest[0]?.label ?? "", /insurance expired/);
+test("missing or expired documents stay visible and do not block Online", () => {
+  assert.deepEqual(onlineGaps({ ...ready, licenseExpires: "2020-01-01" }), []);
+  assert.deepEqual(onlineGaps({ ...ready, licenseExpires: null }), []);
+  assert.deepEqual(onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null }), []);
+  assert.deepEqual(onlineGaps({ ...ready, isTest: true, insuranceUrl: null, insuranceExpires: null }), []);
+  assert.deepEqual(onlineGaps({ ...ready, insuranceExpires: "2020-01-01" }), []);
+  assert.deepEqual(
+    documentReviewNotes({
+      licenseUrl: null,
+      licenseExpires: null,
+      insuranceUrl: "card",
+      insuranceExpires: "2020-01-01",
+      today: "2026-10-22",
+    }),
+    ["Driver license photo is missing.", "Insurance date has passed."],
+  );
 });
 
 test("an unready driver is told the application is still in review", () => {

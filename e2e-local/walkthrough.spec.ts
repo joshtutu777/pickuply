@@ -133,8 +133,8 @@ test("three people walk a pickup from signup through delivery", async ({ browser
         ux.push("The approval alert was not listed for this test driver, so the driver opened Driver home directly.");
         await driver.goto("/driver");
       }
-      await expect(driver.getByText("Add your insurance card.")).toBeVisible();
-      ux.push("A missing insurance card is named on Driver home and does not block the Online switch. Expired insurance does.");
+      await expect(driver.getByText("Insurance card is missing.")).toBeVisible();
+      ux.push("A missing insurance card is named on Driver home and does not block the Online switch.");
       await driver.getByRole("switch", { name: "You are Offline" }).click();
       await expect(driver.getByRole("switch", { name: "You are Online" })).toBeVisible();
     }, [[admin, "admin-approved"], [driver, "driver-online"]]);
