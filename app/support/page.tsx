@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { getOptionalSession, requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Support" };
+export const metadata: Metadata = { title: "Support", robots: { index: false, follow: false } };
 
 export default function SupportPage() {
   return (

@@ -11,6 +11,7 @@ import { MobileFrame } from "@/components/mobile/mobile-frame";
 import { FooterSession } from "@/components/footer-session";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { siteUrl } from "@/lib/seo";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -26,6 +27,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Pickuply",
     template: "%s · Pickuply",

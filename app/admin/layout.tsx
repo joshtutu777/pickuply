@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const lane = await resolveTestLane(false);
   const data = await loadAdminDashboard(lane);
   const count = data.error ? 0 : data.counts.needsAction;
-  return { title: { absolute: adminTabTitle(count) } };
+  return { title: { absolute: adminTabTitle(count) }, robots: { index: false, follow: false } };
 }
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {

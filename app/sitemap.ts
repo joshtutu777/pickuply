@@ -1,17 +1,27 @@
 import type { MetadataRoute } from "next";
 import { connection } from "next/server";
-import { publicSiteUrl } from "@/lib/blog/site";
+import { publicIndexPaths, siteUrl } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
+
+const priority: Record<(typeof publicIndexPaths)[number], number> = {
+  "/": 1,
+  "/request": 0.9,
+  "/drive": 0.7,
+  "/contact": 0.5,
+  "/blog": 0.6,
+  "/terms": 0.3,
+  "/privacy": 0.3,
+  "/terms/driver": 0.3,
+};
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
-  const site = publicSiteUrl();
-  const pages: MetadataRoute.Sitemap = [
-    { url: `${site}/`, changeFrequency: "weekly", priority: 1 },
-    { url: `${site}/blog`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${site}/drive`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${site}/help`, changeFrequency: "monthly", priority: 0.4 },
-  ];
+  const site = siteUrl;
+  const pages: MetadataRoute.Sitemap = publicIndexPaths.map((path) => ({
+    url: path === "/" ? `${site}/` : `${site}${path}`,
+    changeFrequency: path === "/" || path === "/blog" ? "weekly" : "monthly",
+    priority: priority[path],
+  }));
   try {
     const supabase = await createClient();
     const { data } = await supabase

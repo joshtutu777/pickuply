@@ -4,15 +4,15 @@ import { Suspense } from "react";
 import { LoadingMain } from "@/components/loading-main";
 import { connection } from "next/server";
 import { blogCategories, blogDateLabel, blogPageNumber, categoryLabel } from "@/lib/blog/content";
-import { publicSiteUrl } from "@/lib/blog/site";
 import { articleImageSrc } from "@/lib/blog/site";
+import { publicMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
   title: "Blog",
-  description: "Pickup and delivery guides from Pickuply.",
-  alternates: { canonical: `${publicSiteUrl()}/blog` },
-};
+  description: "Pickup and delivery guides from Pickuply for Metro Atlanta.",
+  path: "/blog",
+});
 
 const pageSize = 6;
 

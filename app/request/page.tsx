@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { RequestForm } from "@/components/request/request-form";
 import { serviceFromQuery } from "@/lib/constants";
+import { publicMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
   title: "Request a pickup",
-};
+  description: "Request a local pickup, store delivery, free-item pickup, or junk haul with Pickuply in Metro Atlanta.",
+  path: "/request",
+});
 
 export default function RequestPage({ searchParams }: PageProps<"/request">) {
   return (

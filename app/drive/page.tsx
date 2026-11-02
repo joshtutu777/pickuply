@@ -4,11 +4,14 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getOptionalSession } from "@/lib/auth/session";
 import { zones } from "@/lib/constants";
+import { publicMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicMetadata({
   title: "Drive with Pickuply",
-};
+  description: "Use your car, SUV, pickup, or van to pick up furniture and Marketplace finds around Metro Atlanta. Apply to drive with Pickuply.",
+  path: "/drive",
+});
 
 const applyHref = "/login?next=/driver/onboarding&intent=driver";
 

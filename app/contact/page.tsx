@@ -6,12 +6,14 @@ import { ContactForm } from "@/components/support/contact-form";
 import { LoadingMain } from "@/components/loading-main";
 import { getOptionalSession } from "@/lib/auth/session";
 import { supportStatusLabel, supportTopicLabel } from "@/lib/support/ticket";
+import { publicMetadata } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Support",
+export const metadata: Metadata = publicMetadata({
+  title: "Contact",
   description: "Questions about a pickup, delivery, or your account? Send Pickuply a message.",
-};
+  path: "/contact",
+});
 
 export default function ContactPage({ searchParams }: PageProps<"/contact">) {
   return (
