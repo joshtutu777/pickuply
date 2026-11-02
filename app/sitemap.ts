@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
   const site = siteUrl;
   const pages: MetadataRoute.Sitemap = publicIndexPaths.map((path) => ({
-    url: path === "/" ? `${site}/` : `${site}${path}`,
+    url: path === "/" ? site : `${site}${path}`,
     changeFrequency: path === "/" || path === "/blog" ? "weekly" : "monthly",
     priority: priority[path],
   }));
