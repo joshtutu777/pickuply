@@ -198,22 +198,22 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
           </div>
         </section>
 
-        <section id="atlanta" className="mx-auto max-w-[1160px] px-6 pt-12 pb-2 sm:pt-16">
-          <div className="flex max-w-[760px] flex-col gap-4">
-            <h2 className="font-display text-[36px] leading-[1.1] font-semibold sm:text-[44px]">
+        <section id="atlanta" className="mx-auto max-w-[900px] px-6 pt-8 pb-2 text-left sm:pt-10">
+          <div className="flex max-w-[36rem] flex-col gap-3">
+            <h2 className="font-display text-[30px] leading-[1.15] font-semibold text-[#14211B] sm:text-[40px]">
               Local Pickup &amp; Delivery in Metro Atlanta
             </h2>
-            <p className="text-lg leading-relaxed text-[#46544C] sm:text-[19px]">
+            <p className="text-base leading-relaxed text-[#46544C] sm:text-lg">
               Found something on Facebook Marketplace, Home Depot, IKEA, or at a yard sale that won&apos;t fit in your car?
               Pickuply connects you with local neighbors who have trucks and vans to pick up your purchases and bring them right to your door.
             </p>
-            <p className="text-lg leading-relaxed text-[#46544C] sm:text-[19px]">
+            <p className="text-base leading-relaxed text-[#46544C] sm:text-lg">
               From furniture and appliances to store pickups and junk removal, post your request, compare driver offers, and choose the price that works for you.
             </p>
           </div>
         </section>
 
-        <section className="mx-auto flex max-w-[1160px] flex-wrap items-center gap-10 px-6 pt-[88px] pb-6">
+        <section className="mx-auto flex max-w-[1160px] flex-wrap items-center gap-10 px-6 pt-10 pb-6 sm:pt-14">
           <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-3.5">
             <div className="max-w-[460px] self-start rounded-[24px] rounded-bl-[6px] border border-[#E4DED2] bg-[#FFFDF8] px-[26px] py-[22px] font-display text-[28px] leading-[1.25] font-medium">
               “Can someone pick this up today, including loading and unloading?”
