@@ -311,10 +311,10 @@ export function formatScheduledPickup(startIso: string, endIso: string | null): 
 
 export function availabilitySummary(availability: PickupAvailability, windows: PickupWindowDraft[]): string {
   if (availability === "anytime") {
-    return "Available anytime. The driver will propose a pickup time and will not arrive unannounced.";
+    return "Available anytime. A driver will not arrive unannounced.";
   }
   if (availability === "asap") {
-    return "As soon as possible. The driver will propose their earliest realistic arrival. This does not promise an immediate pickup.";
+    return "As soon as possible. This does not promise an immediate pickup.";
   }
   if (windows.length === 0) return "No pickup windows yet.";
   return windows
@@ -325,4 +325,28 @@ export function availabilitySummary(availability: PickupAvailability, windows: P
 export function windowIsOpen(endsAt: string, now = new Date()): boolean {
   const end = new Date(endsAt);
   return !Number.isNaN(end.getTime()) && end.getTime() > now.getTime();
+}
+
+/** A driver may leave the arrival blank. A partial arrival is checked only after they start one. */
+export function optionalArrivalProblem(
+  plan: PickupPlan | null | undefined,
+  input: { date: string; time: string; windowId: string },
+  leadMinutes = defaultOfferArrivalLeadMinutes,
+  now = new Date(),
+): string | null {
+  const date = input.date.trim();
+  const time = input.time.trim();
+  const windowId = input.windowId.trim();
+  if (date === "" && time === "" && windowId === "") return null;
+  if (plan === undefined) return "Loading pickup times.";
+  if (plan === null) return "We couldn't load pickup times. Refresh and try again.";
+  if (!plan.availability) return null;
+  if (plan.availability === "windows") {
+    const chosen = plan.windows.find((window) => window.id === windowId);
+    if (!chosen) return "Select one of the customer's pickup windows.";
+    if (!windowIsOpen(chosen.ends_at, now)) return "That pickup window has passed. Choose another time.";
+    if (time === "") return null;
+    return windowArrivalError(chosen, time, now);
+  }
+  return arrivalError(date, time, now, leadMinutes);
 }

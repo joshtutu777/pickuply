@@ -35,14 +35,14 @@ export function ScheduledPickup({
   if (availability === "anytime") {
     return (
       <p className="mt-3 text-base text-ink">
-        Available anytime. The driver proposes a pickup time and will not arrive unannounced.
+        Available anytime. A driver will not arrive unannounced.
       </p>
     );
   }
   if (availability === "asap") {
     return (
       <p className="mt-3 text-base text-ink">
-        As soon as possible. The driver proposes their earliest realistic arrival. This does not promise an immediate pickup.
+        As soon as possible. This does not promise an immediate pickup.
       </p>
     );
   }

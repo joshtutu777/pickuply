@@ -85,10 +85,10 @@ export function PickupAvailability({
         );
       })}
       {draft.pickupAvailability === "anytime" ? (
-        <p className="text-base text-ink">The driver proposes the pickup time. Available anytime does not mean the driver can arrive unannounced.</p>
+        <p className="text-base text-ink">Available anytime does not mean the driver can arrive unannounced.</p>
       ) : null}
       {draft.pickupAvailability === "asap" ? (
-        <p className="text-base text-ink">The driver proposes their earliest realistic arrival. This does not promise an immediate pickup.</p>
+        <p className="text-base text-ink">This does not promise an immediate pickup.</p>
       ) : null}
       {draft.pickupAvailability === "windows" ? (
         <div className="grid gap-4">

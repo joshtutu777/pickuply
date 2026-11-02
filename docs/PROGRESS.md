@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Optional driver arrival (2026-11-02)
+
+Not deployed. On the production-based copy, Review posted price and Review offer stay available when the driver leaves the arrival blank. A partial arrival is still checked. Posted-price and custom-price offers send no pickup time unless the driver filled one in. A quote claim does not send an arrival, so that claim does not write a clock time onto the request. Choosing an offer still does not replace the customer's timing. Paid bookings stay off.
+
 ## Driver documents and pickup timing on the site (2026-11-02)
 
 The production database already had migration `0127`. This site update matches it. Approved drivers see missing or expired license and insurance as review notes, and those notes do not turn off Online. Driver Terms stay on version `driver-terms-v2`. When a pickup time has passed, the customer can choose As soon as possible or Anytime before choosing a driver again. Paid bookings are still not cleared for missing or expired documents.

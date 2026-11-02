@@ -18,13 +18,12 @@ import { offerNoticeKey, readOfferNotice, writeOfferNotice, type OfferNotice } f
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import {
   addCalendarDays,
-  arrivalError,
   arrivalSummary,
+  optionalArrivalProblem,
   clockValue,
   defaultOfferArrivalLeadMinutes,
   formatScheduledPickup,
   georgiaWallClock,
-  windowArrivalError,
   georgiaDateISO,
   windowIsOpen,
   type PickupPlan,
@@ -149,12 +148,22 @@ function OfferActions({
   const driverQuote = job.pricing_method === "quote" && !claimable;
   const posted = job.pricing_method === "fixed" ? job.offer_cents : null;
 
-  const scheduleProblem = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
+  const scheduleProblem = optionalArrivalProblem(
+    job.schedule,
+    { date: pickupDate, time: pickupTime, windowId },
+    arrivalLeadMinutes,
+  );
 
   async function send(kind: "accept" | "claim" | "offer") {
     if (sending || submitLock.current) return;
     submitLock.current = true;
-    const gap = scheduleGap(job.schedule, pickupDate, pickupTime, windowId, arrivalLeadMinutes);
+    const gap = kind === "claim"
+      ? null
+      : optionalArrivalProblem(
+          job.schedule,
+          { date: pickupDate, time: pickupTime, windowId },
+          arrivalLeadMinutes,
+        );
     if (gap) {
       submitLock.current = false;
       setMessage({ text: gap, alert: true });
@@ -164,7 +173,9 @@ function OfferActions({
     setSending(true);
     setMessage(null);
     const supabase = createClient();
-    const proposal = scheduleArgs(job.schedule, pickupDate, pickupTime, windowId);
+    const proposal = kind === "claim"
+      ? { proposed_date: null, proposed_time: null, window_id: null }
+      : scheduleArgs(job.schedule, pickupDate, pickupTime, windowId);
     try {
     const prepared = await prepareDriverPayments();
     if (!prepared.saved) {
@@ -231,6 +242,7 @@ function OfferActions({
 
   return (
     <div className="mt-3 grid gap-3">
+      {claimable ? null : (
       <PickupProposal
         plan={job.schedule}
         date={pickupDate}
@@ -253,18 +265,19 @@ function OfferActions({
           setReview(null);
         }}
       />
+      )}
       {review ? (
         <div className="grid gap-3 rounded-2xl bg-paper p-3 ring-1 ring-line">
           <p className="font-semibold">Review this offer</p>
           <p>Item: {itemLine(job)}</p>
-          <p>Pickup: {summary || "Choose an arrival time."}</p>
-          {chosenWindow ? <p>Availability: {formatScheduledPickup(chosenWindow.starts_at, chosenWindow.ends_at)}</p> : null}
+          <p>Pickup: {review === "claim" || !summary ? "Customer timing stays. No arrival added." : summary}</p>
+          {review !== "claim" && chosenWindow ? <p>Availability: {formatScheduledPickup(chosenWindow.starts_at, chosenWindow.ends_at)}</p> : null}
           {review === "offer" ? <p>Your offer: {formatCents(offerCents)}</p> : null}
           {review === "accept" && posted != null ? <p>Posted price: {formatCents(posted)}</p> : null}
           {review === "offer" || review === "accept" ? <OfferMath cents={review === "accept" ? posted ?? 0 : offerCents} settings={fees} /> : null}
           <button
             type="button"
-            disabled={!canAct || sending || scheduleProblem != null}
+            disabled={!canAct || sending || (review !== "claim" && scheduleProblem != null)}
             aria-busy={sending}
             onClick={() => void send(review)}
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
@@ -278,7 +291,7 @@ function OfferActions({
       ) : claimable ? (
         <button
           type="button"
-          disabled={!canAct || sending || scheduleProblem != null}
+          disabled={!canAct || sending}
           onClick={() => setReview("claim")}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand font-semibold text-white disabled:opacity-60"
         >
@@ -999,32 +1012,14 @@ function scheduleArgs(plan: PickupPlan | null | undefined, date: string, time: s
       window_id: windowId || null,
     };
   }
-  return { proposed_date: date, proposed_time: time, window_id: null };
-}
-
-function scheduleGap(
-  plan: PickupPlan | null | undefined,
-  date: string,
-  time: string,
-  windowId: string,
-  leadMinutes: number,
-): string | null {
-  if (plan === undefined) return "Loading pickup times.";
-  if (plan === null) return "We couldn't load pickup times. Refresh and try again.";
-  if (!plan.availability) return null;
-  if (plan.availability === "windows") {
-    const chosen = plan.windows.find((window) => window.id === windowId);
-    if (!chosen) return "Select one of the customer's pickup windows.";
-    return windowArrivalError(chosen, time);
-  }
-  return arrivalError(date, time, new Date(), leadMinutes);
+  return { proposed_date: date || null, proposed_time: time || null, window_id: null };
 }
 
 function scheduleLine(job: FeedCard): string {
   const plan = job.schedule;
   if (!plan) return job.time_window ? `${job.preferred_date} · ${job.time_window}` : job.preferred_date;
-  if (plan.availability === "anytime") return "Available anytime. Propose a pickup time.";
-  if (plan.availability === "asap") return "As soon as possible. Propose your earliest arrival.";
+  if (plan.availability === "anytime") return "Available anytime.";
+  if (plan.availability === "asap") return "As soon as possible.";
   if (plan.availability === "windows") {
     const open = plan.windows.filter((window) => windowIsOpen(window.ends_at));
     if (open.length === 0) return "The customer's pickup windows have passed.";
@@ -1084,8 +1079,8 @@ function PickupProposal({
     const selected = open.find((window) => window.id === windowId);
     return (
       <fieldset className="grid gap-3">
-        <legend className="text-base font-semibold text-ink">Choose one pickup window</legend>
-        <p className="text-base text-ink">Then choose the exact arrival time inside that window.</p>
+        <legend className="text-base font-semibold text-ink">Customer pickup windows</legend>
+        <p className="text-base text-ink">You can send the offer without choosing a window. An arrival inside a window is optional and does not replace the customer&apos;s timing.</p>
         {open.length === 0 ? <p className="text-base text-ink">Those pickup windows have passed.</p> : null}
         {open.map((window) => (
           <label key={window.id} className="flex min-h-12 items-center gap-3 rounded-2xl bg-paper px-3 ring-1 ring-line">
@@ -1106,10 +1101,11 @@ function PickupProposal({
   return (
     <div className="grid gap-3">
       <p className="text-base text-ink">
+        The customer&apos;s pickup timing stays as they set it. An arrival is optional.
         {plan.availability === "asap"
-          ? "Enter your earliest realistic pickup date and arrival time. This does not promise an immediate pickup."
-          : "Propose a pickup date and arrival time. Do not arrive unannounced."}{" "}
-        The arrival has to be at least {arrivalLeadMinutes} minutes from now.
+          ? " Adding one does not promise an immediate pickup."
+          : " Do not arrive unannounced."}{" "}
+        A filled-in arrival has to be at least {arrivalLeadMinutes} minutes from now.
       </p>
       <label className="text-base font-semibold text-ink" htmlFor={`${idPrefix}-date`}>
         Pickup date
