@@ -216,7 +216,7 @@ export const maxPhotos = 8;
 export const photoMaxEdgePx = 1600;
 export const photoMaxBytes = 5 * 1024 * 1024;
 /** A phone camera file can be much larger than the picture we store. */
-export const photoSourceMaxBytes = 40 * 1024 * 1024;
+export const photoSourceMaxBytes = 80 * 1024 * 1024;
 export const videoMaxSeconds = 30;
 export const videoMaxBytes = 8 * 1024 * 1024;
 

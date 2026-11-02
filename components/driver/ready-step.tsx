@@ -106,7 +106,7 @@ export function ReadyStep({
         <form action={saveLicense} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.licenseUrl ? <p className="text-base text-ink">Your license photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <UploadPicker id="license-photo" accept="image/jpeg,image/png,image/webp" required label="Add your license photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("license", files?.[0] ?? null)} />
+          <UploadPicker id="license-photo" accept="image/*,.heic,.heif" required label="Add your license photo" kinds="Take a photo or choose one" clearAfter onChange={(files) => void onFile("license", files?.[0] ?? null)} />
           <label className="block font-semibold" htmlFor="license-expires">
             License expiration
             <input id="license-expires" name="expires" type="date" required defaultValue={existing.licenseExpires ?? ""} className={controlClass} />
@@ -118,7 +118,7 @@ export function ReadyStep({
         <form action={saveInsurance} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.insuranceUrl ? <p className="text-base text-ink">Your insurance photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <UploadPicker id="insurance-photo" accept="image/jpeg,image/png,image/webp" required label="Add your insurance photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("insurance", files?.[0] ?? null)} />
+          <UploadPicker id="insurance-photo" accept="image/*,.heic,.heif" required label="Add your insurance photo" kinds="Take a photo or choose one" clearAfter onChange={(files) => void onFile("insurance", files?.[0] ?? null)} />
           <label className="block font-semibold" htmlFor="insurance-expires">
             Insurance expiration
             <input id="insurance-expires" name="expires" type="date" required defaultValue={existing.insuranceExpires ?? ""} className={controlClass} />
@@ -145,7 +145,7 @@ export function ReadyStep({
           <label className="block font-semibold" htmlFor="plate">Plate<input id="plate" name="plate" required defaultValue={existing.plate ?? ""} className={controlClass} /></label>
           <label className="block font-semibold" htmlFor="cargo">Cargo length in inches<input id="cargo" name="cargo" inputMode="numeric" required defaultValue={existing.cargo ?? ""} className={controlClass} /></label>
           {existing.vehiclePhoto ? <p className="text-base text-ink">Your vehicle photo is already on file.</p> : null}
-          <UploadPicker id="vehicle-photo" accept="image/jpeg,image/png,image/webp" required label="Add a vehicle photo" kinds="JPG, PNG, or WEBP" clearAfter onChange={(files) => void onFile("vehicle", files?.[0] ?? null)} />
+          <UploadPicker id="vehicle-photo" accept="image/*,.heic,.heif" required label="Add a vehicle photo" kinds="Take a photo or choose one" clearAfter onChange={(files) => void onFile("vehicle", files?.[0] ?? null)} />
           <Submit pending={pending} label="Save vehicle" />
         </form>
       ) : null}

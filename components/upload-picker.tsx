@@ -13,6 +13,7 @@ export function UploadPicker({
   kinds,
   onChange,
   busy = false,
+  busyLabel = "Uploading...",
   disabled = false,
   success = null,
   error = null,
@@ -28,6 +29,7 @@ export function UploadPicker({
   kinds: string;
   onChange?: (files: FileList | null) => void;
   busy?: boolean;
+  busyLabel?: string;
   disabled?: boolean;
   success?: string | null;
   error?: string | null;
@@ -72,7 +74,7 @@ export function UploadPicker({
       {selected ? <p className="text-base text-ink">Selected: {selected}</p> : null}
       {busy ? (
         <p className="text-base font-semibold text-ink" role="status">
-          Uploading...
+          {busyLabel}
         </p>
       ) : null}
       {success ? (

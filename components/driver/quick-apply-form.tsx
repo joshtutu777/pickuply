@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle, Map, MapPin, Truck, Upload } from "lucide-react";
@@ -29,8 +29,9 @@ const vehicles = [
 const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
 
-async function uploadDoc(userId: string, name: "profile" | "license", file: File): Promise<string> {
-  const prepared = await prepareStoredPhoto(file);
+const phonePhotoAccept = "image/*,.heic,.heif";
+
+async function uploadDoc(userId: string, name: "profile" | "license", file: Blob): Promise<string> {
   const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
   const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
@@ -64,15 +65,44 @@ export function QuickApplyForm({
   const [contactOk, setContactOk] = useState(false);
   const [termsOk, setTermsOk] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
-  const [profileFile, setProfileFile] = useState<File | null>(null);
-  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [profileFile, setProfileFile] = useState<Blob | null>(null);
+  const [licenseFile, setLicenseFile] = useState<Blob | null>(null);
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [licensePreview, setLicensePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [preparing, setPreparing] = useState<"profile" | "license" | null>(null);
+  const profilePick = useRef(0);
+  const licensePick = useRef(0);
   useEffect(() => {
     void recordFunnel({ event: "driver_apply_started", step: "apply" });
   }, []);
+
+  async function choosePhoto(kind: "profile" | "license", file: File | null) {
+    const request = kind === "profile" ? ++profilePick.current : ++licensePick.current;
+    const setFile = kind === "profile" ? setProfileFile : setLicenseFile;
+    const setPreview = kind === "profile" ? setProfilePreview : setLicensePreview;
+    const current = kind === "profile" ? profilePick : licensePick;
+    setFile(null);
+    setPreview((existing) => {
+      if (existing) URL.revokeObjectURL(existing);
+      return null;
+    });
+    if (!file) return;
+    setPreparing(kind);
+    setError(null);
+    try {
+      const prepared = await prepareStoredPhoto(file);
+      if (current.current !== request) return;
+      setFile(prepared);
+      setPreview(URL.createObjectURL(prepared));
+    } catch (caught) {
+      if (current.current !== request) return;
+      setError(caught instanceof Error ? caught.message : "This photo couldn't be prepared. Take a new picture.");
+    } finally {
+      if (current.current === request) setPreparing(null);
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -94,6 +124,10 @@ export function QuickApplyForm({
     }
     if (coverage.cities.length === 0 && coverage.zips.length === 0 && coverage.radius == null) {
       setError("Choose at least one area you cover.");
+      return;
+    }
+    if (preparing) {
+      setError("Wait for the photo to finish preparing.");
       return;
     }
     if (!profileFile || !licenseFile) {
@@ -205,19 +239,14 @@ export function QuickApplyForm({
       </fieldset>
       <UploadPicker
         id="profilePhoto"
-        accept="image/jpeg,image/png,image/webp"
+        accept={phonePhotoAccept}
         required
         label="Add a profile photo"
-        kinds="JPG, PNG, or WEBP"
+        kinds="Take a photo or choose one"
         clearAfter
-        onChange={(files) => {
-          const file = files?.[0] ?? null;
-          setProfileFile(file);
-          setProfilePreview((current) => {
-            if (current) URL.revokeObjectURL(current);
-            return file ? URL.createObjectURL(file) : null;
-          });
-        }}
+        busy={preparing === "profile"}
+        busyLabel="Preparing photo..."
+        onChange={(files) => void choosePhoto("profile", files?.[0] ?? null)}
       />
       {profilePreview ? (
         // Local preview of a file that has not been uploaded yet.
@@ -226,19 +255,14 @@ export function QuickApplyForm({
       ) : null}
       <UploadPicker
         id="licensePhoto"
-        accept="image/jpeg,image/png,image/webp"
+        accept={phonePhotoAccept}
         required
         label="Add your license photo"
-        kinds="JPG, PNG, or WEBP"
+        kinds="Take a photo or choose one"
         clearAfter
-        onChange={(files) => {
-          const file = files?.[0] ?? null;
-          setLicenseFile(file);
-          setLicensePreview((current) => {
-            if (current) URL.revokeObjectURL(current);
-            return file ? URL.createObjectURL(file) : null;
-          });
-        }}
+        busy={preparing === "license"}
+        busyLabel="Preparing photo..."
+        onChange={(files) => void choosePhoto("license", files?.[0] ?? null)}
       />
       {licensePreview ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -278,7 +302,7 @@ export function QuickApplyForm({
           Required photos and terms are ready.
         </p>
       ) : null}
-      <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
+      <button type="submit" disabled={pending || preparing !== null} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60">
         Submit application
       </button>
     </form>
