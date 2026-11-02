@@ -1,4 +1,4 @@
-import { photoMaxEdgePx, videoMaxBytes, videoMaxSeconds } from "./constants";
+import { photoMaxBytes, photoMaxEdgePx, photoSourceMaxBytes, videoMaxBytes, videoMaxSeconds } from "./constants";
 
 /** Re-encodes a photo to JPEG so stored files do not keep GPS or other EXIF data. */
 export async function compressImage(file: File): Promise<Blob> {
@@ -26,6 +26,18 @@ export async function compressImage(file: File): Promise<Blob> {
   });
   if (!blob) throw new Error("This photo couldn't be prepared. Try a JPEG or PNG.");
   return blob;
+}
+
+/** Shrinks a phone photo before upload. The original can be larger than the stored file. */
+export async function prepareStoredPhoto(file: File): Promise<Blob> {
+  if (file.size > photoSourceMaxBytes) {
+    throw new Error("That photo is too large. Take a new picture, or choose a smaller one.");
+  }
+  const prepared = await compressImage(file);
+  if (prepared.size > photoMaxBytes) {
+    throw new Error("That photo is too large. Take a new picture, or choose a smaller one.");
+  }
+  return prepared;
 }
 
 /** Re-encodes a short clip so the stored file does not keep the original location metadata. */

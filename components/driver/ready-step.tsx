@@ -14,7 +14,7 @@ import {
 import { CoverageEditor } from "@/components/driver/coverage-editor";
 import { UploadPicker } from "@/components/upload-picker";
 import { createClient } from "@/lib/supabase/client";
-import { compressImage } from "@/lib/photos";
+import { prepareStoredPhoto } from "@/lib/photos";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 
 const controlClass =
@@ -43,8 +43,7 @@ export type ReadyExisting = {
 };
 
 async function upload(userId: string, name: "insurance" | "vehicle" | "license", file: File): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
-  const prepared = await compressImage(file);
+  const prepared = await prepareStoredPhoto(file);
   const path = `${userId}/${name}.jpg`;
   const { error } = await createClient().storage.from("driver-docs").upload(path, prepared, {
     upsert: true,

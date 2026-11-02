@@ -15,7 +15,7 @@ import { validateNamePart } from "@/lib/auth/name";
 import { driverApplyEmailError } from "@/lib/validation/email";
 import { recordFunnel } from "@/lib/funnel";
 import { createClient } from "@/lib/supabase/client";
-import { compressImage } from "@/lib/photos";
+import { prepareStoredPhoto } from "@/lib/photos";
 
 const vehicles = [
   { id: "pickup", label: "Pickup" },
@@ -30,8 +30,7 @@ const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
 
 async function uploadDoc(userId: string, name: "profile" | "license", file: File): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
-  const prepared = await compressImage(file);
+  const prepared = await prepareStoredPhoto(file);
   const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
   const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
