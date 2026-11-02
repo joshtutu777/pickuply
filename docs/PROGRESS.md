@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Pricing description (2026-11-02)
+
+The implemented calculation was already the intended model, so the cents were not changed. A customer pays the accepted offer plus a 5% service fee. Pickuply keeps 15% of the offer and the driver receives 85%. Stripe's processing cost is absorbed and recorded separately. Tips go entirely to the driver. A $50 offer totals $52.50, pays the driver $42.50, and leaves $10.00 before Stripe's cost. Older notes that describe a 2.9% plus 30¢ customer charge are history, not the current price.
+
 ## Optional driver arrival (2026-11-02)
 
 Not deployed. On the production-based copy, Review posted price and Review offer stay available when the driver leaves the arrival blank. A partial arrival is still checked. Posted-price and custom-price offers send no pickup time unless the driver filled one in. A quote claim does not send an arrival, so that claim does not write a clock time onto the request. Choosing an offer still does not replace the customer's timing. Paid bookings stay off.

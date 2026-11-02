@@ -213,10 +213,10 @@ The application still refuses every Stripe secret that does not start with `sk_t
 - Impact: a refund made in the Dashboard does not change Pickuply balances.
 - Fix: not applied. Changing balances from an unmatched refund needs its own reviewed function.
 
-### Card processing on every card
+### Service fee and Stripe's processing cost
 
-- Severity: blocker for live payments.
-- See section G. No pricing change was made.
+- Severity: review before live payments. No pricing calculation was changed in this pass.
+- The customer pays the accepted offer plus a 5% service fee. Stripe's processing cost is absorbed by Pickuply and recorded separately. See section G.
 
 ## F. Stripe Connect
 
@@ -224,19 +224,13 @@ Onboarding, transfers, and bank payouts are **not** verified end to end.
 
 The code can create an Express account, save it against the driver, and open an onboarding link. Transfers require `payouts_enabled`. Earnings stay on the ledger with a hold reason until setup is finished. A bank payout is a separate `driver_bank_payouts` row. No test driver completed Stripe onboarding in this run, and no transfer was created.
 
-## G. Card-fee compliance
+## G. Service fee and Stripe's processing cost
 
-Pickuply does not add a second platform or service fee. The customer pays the accepted offer plus a card-processing amount. The default is 2.9% plus 30 cents, labeled "Card processing fee", and it is shown before the customer pays. Commission is 15% of the offer and comes out of the driver earnings. The processing amount is added for every card. Checkout is card-only. The code does not know debit versus credit before the amount is sent to Stripe.
+The implemented charge is the accepted offer plus a 5% service fee. Commission is 15% of the offer and comes out of the driver earnings. Stripe's processing cost is absorbed by Pickuply and recorded from the balance transaction when Stripe provides it. It is not added to the customer total. A $50 offer totals $52.50, pays the driver $42.50, and leaves Pickuply $10.00 before that processing cost. Tips are separate and go 100% to the driver. Checkout is card-only. The code does not know debit versus credit before the amount is sent to Stripe.
 
-Visa's U.S. merchant surcharge Q&A says a U.S. merchant who surcharges must limit it to credit cards, must not surcharge debit or prepaid, must cap it at the merchant discount rate or 3% (whichever is lower), must disclose it, and must notify the acquirer. Source: [Visa U.S. Merchant Surcharge Q&A](https://usa.visa.com/content/dam/VCOM/global/support-legal/documents/merchant-surcharging-qa-for-web.pdf). Visa's public rules page says U.S. credit-card surcharging has to follow that Q&A. Calling the amount a processing fee does not answer whether the networks treat it as a surcharge.
+An older description called the customer add-on a card-processing fee of 2.9% plus 30 cents. That is not the current calculation. Visa's U.S. merchant surcharge Q&A still matters if a card-brand reviewer treats the 5% service fee as a surcharge. Source: [Visa U.S. Merchant Surcharge Q&A](https://usa.visa.com/content/dam/VCOM/global/support-legal/documents/merchant-surcharging-qa-for-web.pdf). That question is a review before live payments. It is not a reason to change the 5% calculation in this pass.
 
-This implementation cannot reliably skip debit and prepaid cards. That is a live-payment blocker. It is an engineering conclusion, not a legal opinion.
-
-Options for a later decision, not implemented:
-
-1. Remove the customer-facing processing amount and pay Stripe's fee from the commission.
-2. Keep a credit-card surcharge only after the card funding type is known, with the network cap, disclosure, and acquirer notice. Debit and prepaid would pay the offer only.
-3. Ask Stripe and counsel whether the current label and checkout setup is a surcharge before any live charge.
+This implementation cannot reliably skip debit and prepaid cards. That remains a live-payment review item. It is an engineering note, not a legal opinion.
 
 Georgia was not in Visa's February 15, 2024 list of jurisdictions that prohibit surcharging. That list can change. A lawyer needs to confirm Georgia and federal rules. Visa says it does not give legal advice.
 
