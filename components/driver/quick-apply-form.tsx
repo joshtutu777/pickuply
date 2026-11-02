@@ -34,7 +34,7 @@ const phonePhotoAccept = "image/*,.heic,.heif";
 async function uploadDoc(userId: string, name: "profile" | "license", file: Blob): Promise<string> {
   const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
     upsert: true,
     contentType: "image/jpeg",
   });
