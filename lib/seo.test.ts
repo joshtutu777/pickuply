@@ -4,11 +4,12 @@ import { privatePathPrefixes, publicIndexPaths, siteStructuredData, siteUrl } fr
 
 test("public pages stay separate from private app screens", () => {
   for (const path of publicIndexPaths) {
-    assert.equal(path.startsWith("/"), true);
+    const page = path as string;
+    assert.equal(page.startsWith("/"), true);
     assert.equal(
-      privatePathPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)),
+      privatePathPrefixes.some((prefix) => page === prefix || page.startsWith(`${prefix}/`)),
       false,
-      path,
+      page,
     );
   }
   const paths: readonly string[] = publicIndexPaths;
