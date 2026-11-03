@@ -105,6 +105,8 @@ Do not put the live secret in `NEXT_PUBLIC_*`. Do not put a live key in `STRIPE_
 
 `getStripe()` reads the test pair while `PAYMENTS_MODE` is missing or `test`. It reads the live pair only when `PAYMENTS_MODE=live`. A live key in the test names throws "Live payments are not enabled." A test key while the switch is live throws "Live payments are not configured." A test key paired with a live key throws "Live and test Stripe keys cannot be mixed."
 
+`PAID_BOOKINGS_ENABLED` is a separate server-only switch. Only the exact value `true` allows a new live customer charge. Missing, blank, or any other value stays closed. While it is closed, booking checkout and tip checkout stop before Stripe is called and the customer sees "Paid bookings are temporarily unavailable." A test profile does not skip that check. Test mode can still create a test charge. Refunds, cancellations, reconciliation, and settlement of a payment that already exists stay available. This switch does not change `PAYMENTS_MODE` or which Stripe key is read.
+
 ## 8. Enabling live mode
 
 - [ ] This pull request is merged and deployed, and migration `0119` is applied.

@@ -8,6 +8,7 @@ import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
 import { activatePaymentsMode } from "@/app/admin/health/actions";
+import { paidBookingsEnabled } from "@/lib/payments/paid-bookings";
 import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
 import { readPaymentsMode } from "@/lib/payments/mode-sync";
 import { createClient } from "@/lib/supabase/server";
@@ -53,6 +54,9 @@ async function AdminHealth({ searchParams }: { searchParams: PageProps<"/admin/h
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">Health</h1>
       <section role="status" className="mt-4 rounded-3xl bg-paper-raised p-4 text-ink ring-1 ring-line">
         <p className="text-2xl font-semibold">Payments environment: {mode === "live" ? "LIVE" : "TEST"}</p>
+        <p className="mt-1 text-base text-ink">
+          New live charges: {paidBookingsEnabled(process.env.PAID_BOOKINGS_ENABLED) ? "on" : "off"}
+        </p>
         <p className="mt-2 text-2xl font-semibold">
           Payments database: {aligned.database === "live" ? "LIVE" : aligned.database === "test" ? "TEST" : "missing"}
         </p>

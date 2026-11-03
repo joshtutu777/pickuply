@@ -2,6 +2,7 @@ import { startCheckout } from "@/app/jobs/pay/actions";
 import { PendingButton } from "@/components/pending-button";
 import { ServiceFeeNote } from "@/components/payments/service-fee-note";
 import { formatCents } from "@/lib/money";
+import { PAID_BOOKINGS_UNAVAILABLE } from "@/lib/payments/paid-bookings";
 import { cardSaveDisclosure } from "@/lib/payments/saved-card";
 
 const confirmed = new Set(["authorized", "paid", "captured"]);
@@ -18,6 +19,7 @@ export function PayPanel({
   windowOpen,
   returning,
   needsEmail = false,
+  bookingsPaused = false,
 }: {
   jobId: string;
   driverPayCents: number;
@@ -30,6 +32,7 @@ export function PayPanel({
   windowOpen: boolean;
   returning: boolean;
   needsEmail?: boolean;
+  bookingsPaused?: boolean;
 }) {
   const offerCents = driverPayCents + platformFeeCents;
   const additionalCents = totalCents - offerCents - serviceFeeCents;
@@ -52,6 +55,11 @@ export function PayPanel({
             <p>{minutesLeft} minutes left to pay.</p>
             {paymentStatus === "failed" ? <p>The card was declined. You can try again.</p> : null}
             {returning ? <p>Stripe is confirming the card. This page updates when the hold is approved.</p> : null}
+            {bookingsPaused ? (
+              <p role="status" className="text-base font-semibold text-ink">{PAID_BOOKINGS_UNAVAILABLE}</p>
+            ) : null}
+            {bookingsPaused ? null : (
+            <>
             <p>
               Confirm your booking. Your card will be authorized now and charged after delivery is completed under
               Pickuply&apos;s payment policy.
@@ -82,6 +90,8 @@ export function PayPanel({
               />
               <p className="mt-2 text-base text-muted">You won&apos;t be charged until your item is delivered</p>
             </form>
+            </>
+            )}
           </>
         ) : (
           <p>The payment window has closed.</p>

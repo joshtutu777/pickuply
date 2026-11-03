@@ -894,7 +894,15 @@ Decision: no-go for live paid bookings. Pat's payout setup is still open, the tr
 
 ## Payment deadline mode fix (2026-11-03)
 
-The hosted payment-deadline failure came from reading a canceled test PaymentIntent with the live Stripe key. The deadline job and payment catch-up now use the test or live mode saved on that payment. A saved test payment is read with `STRIPE_TEST_SECRET_KEY`. A saved live payment is read with a live secret, never a test secret. A Stripe error no longer releases the driver. A missing or mismatched saved mode is left unchanged. New checkout, capture, refunds, and transfers still follow `PAYMENTS_MODE`. The unit tests passed and the production build completed. The hosted database password was not rotated. `PAYMENTS_MODE` was not changed.
+The hosted payment-deadline failure came from reading a canceled test PaymentIntent with the live Stripe key. The deadline job and payment catch-up now use the test or live mode saved on that payment. A saved test payment is read with `STRIPE_TEST_SECRET_KEY`. A saved live payment is read with a live secret, never a test secret. A Stripe error no longer releases the driver. A missing or mismatched saved mode is left unchanged. New checkout, capture, refunds, and transfers still follow `PAYMENTS_MODE`. The unit tests passed and the production build completed. Production deployment `dpl_4jGXFzKmCMfAYfY78xeGReN61fge` is commit `19ab151`. The payment-deadline job then succeeded. The hosted database password was not rotated. `PAYMENTS_MODE` was not changed.
 
 The two Pickuply test webhook destinations that point at pickuplyapp.com were disabled on 2026-11-03. They were not deleted. The live destinations were not changed. Turn the same two test endpoints back on from the Stripe test dashboard when a test window is planned. While the payment switch is live, those test deliveries are still rejected.
+
+## Payout validation (2026-11-03)
+
+Pat finished test Express onboarding. Payouts and transfers are active, with nothing left due. The $5 tip transferred once as `tr_3UXihlD5IFQdbLky1kteHPdP` and a second send was recorded instead of created. The $42.50 stays pending until 2026-11-10. Stripe shows both captured test charges and the expected fees, $1.82 and $0.45. The $42.50 stays pending until November 10. The hosted payment switch is live and matches the server switch, and no real driver has a live payout account ready. `PAYMENTS_MODE` was not changed. No live charge was created.
+
+## Paid booking gate (2026-11-03)
+
+`PAID_BOOKINGS_ENABLED` is a server-only switch. Only the exact value `true` allows a new live customer charge. Missing, blank, or any other value stays closed. Booking checkout and both tip charge paths stop before Stripe is called, including a second request and a test customer or test driver. The customer sees "Paid bookings are temporarily unavailable." Test mode can still create a test charge. Refunds, cancellations, reconciliation, and settlement of a payment that already exists are unchanged. The switch does not change prices or which Stripe key is read. `PAYMENTS_MODE` stays `live`. Paid bookings stay off.
 

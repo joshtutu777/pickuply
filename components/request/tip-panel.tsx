@@ -1,4 +1,5 @@
 import { submitTip } from "@/app/jobs/tip-actions";
+import { PAID_BOOKINGS_UNAVAILABLE, liveCustomerChargesPaused } from "@/lib/payments/paid-bookings";
 import { formatCents } from "@/lib/money";
 import { tipOneTapQuestion } from "@/lib/payments/saved-card";
 import { loadBookingCard } from "@/lib/payments/tip-charge";
@@ -86,11 +87,12 @@ export async function TipGate({
   // The request time decides whether the screen offers a tip. The database still rejects a late tip.
   // eslint-disable-next-line react-hooks/purity
   if (status !== "completed" || !tipWindowOpen(completedAt, Date.now())) return null;
+  const bookingsPaused = liveCustomerChargesPaused();
   const supabase = await createClient();
   const user = await supabase.auth.getUser();
   const [{ data: tips }, card] = await Promise.all([
     supabase.from("job_tips").select("status, amount_cents, paid_at").eq("job_id", jobId),
-    user.data.user ? loadBookingCard(jobId, user.data.user.id) : Promise.resolve(null),
+    bookingsPaused || !user.data.user ? Promise.resolve(null) : loadBookingCard(jobId, user.data.user.id),
   ]);
   const paid = (tips ?? []).find((tip) => tip.paid_at);
   if (paid) {
@@ -100,6 +102,14 @@ export async function TipGate({
         {tipReceiptLines(bookingTotalCents ?? 0, paid.amount_cents).map((line) => (
           <p key={line}>{line}</p>
         ))}
+      </section>
+    );
+  }
+  if (bookingsPaused) {
+    return (
+      <section className="mx-auto mt-6 w-full max-w-xl px-4">
+        <h2 className="text-lg font-semibold text-ink">Add a tip</h2>
+        <p role="status" className="mt-2 text-base font-semibold text-ink">{PAID_BOOKINGS_UNAVAILABLE}</p>
       </section>
     );
   }

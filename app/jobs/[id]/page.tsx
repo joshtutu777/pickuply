@@ -20,6 +20,7 @@ import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
 import { getJobDetail } from "@/lib/data/job-queries";
+import { liveCustomerChargesPaused } from "@/lib/payments/paid-bookings";
 import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { measureTrip } from "@/lib/maps/route";
 import { getQuoteNotice } from "@/lib/data/quote";
@@ -260,6 +261,7 @@ async function JobEntry({
             windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
             returning={query.paid === "return"}
             needsEmail={needsBookingEmail}
+            bookingsPaused={liveCustomerChargesPaused()}
           />
         ) : null}
       </JobStatus>

@@ -11,6 +11,8 @@ import { requestOrigin } from "@/lib/payments/connect";
 import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { PAID_BOOKINGS_UNAVAILABLE, liveCustomerChargesPaused, placeCustomerCharge } from "@/lib/payments/paid-bookings";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -37,6 +39,9 @@ function checkoutError(message: string | undefined): string {
 export async function startCheckout(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
+  if (liveCustomerChargesPaused()) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
   const aligned = await alignPaymentsMode();
   if (!aligned.matches) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("Payments are paused. Try again in a few minutes.")}`);
@@ -72,7 +77,7 @@ export async function startCheckout(formData: FormData) {
   const expiresAt = checkoutExpiresAt(new Date(row.due_at).getTime(), new Date().getTime());
   const user = await supabase.auth.getUser();
   const profile = user.data.user
-    ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
+    ? await supabase.from("profiles").select("email, is_test").eq("id", user.data.user.id).maybeSingle()
     : null;
   const consented = await supabase.rpc("record_card_consent");
   if (consented.error) {
@@ -107,11 +112,22 @@ export async function startCheckout(formData: FormData) {
     }
   }
   const customerEmail = cardSetup.customer ? null : profileEmail;
+  const driverProfile = await createServiceClient()
+    .from("profiles")
+    .select("is_test")
+    .eq("id", row.driver_id)
+    .maybeSingle();
   let sessionId = "";
   let sessionUrl: string | null = null;
   let checkoutLive = false;
   try {
-    const session = await getStripe().checkout.sessions.create(
+    const session = await placeCustomerCharge({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+      paidBookings: process.env.PAID_BOOKINGS_ENABLED,
+      kind: "booking",
+      isTestCustomer: profile?.data?.is_test === true,
+      isTestDriver: driverProfile.data?.is_test === true,
+      create: () => getStripe().checkout.sessions.create(
       {
         mode: "payment",
         // Card only. Stripe rejects a static method list and rejects allowed plus excluded together.
@@ -139,7 +155,8 @@ export async function startCheckout(formData: FormData) {
         cancel_url: `${origin}/jobs/${jobId}?paid=cancel`,
       },
       { idempotencyKey: `checkout:${jobId}:${row.attempt}` },
-    );
+    ),
+    });
     sessionId = session.id;
     sessionUrl = session.url;
     checkoutLive = session.livemode;
@@ -151,8 +168,12 @@ export async function startCheckout(formData: FormData) {
       );
       throw new Error("Payments are paused. Try again in a few minutes.");
     }
-  } catch {
-    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    const message = error instanceof Error && error.message === PAID_BOOKINGS_UNAVAILABLE
+      ? PAID_BOOKINGS_UNAVAILABLE
+      : "The card checkout could not be started.";
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(message)}`);
   }
 
   const service = createServiceClient();

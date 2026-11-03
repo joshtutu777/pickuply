@@ -7,11 +7,14 @@ import { requestOrigin } from "@/lib/payments/connect";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { PAID_BOOKINGS_UNAVAILABLE, liveCustomerChargesPaused, placeCustomerCharge } from "@/lib/payments/paid-bookings";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { chargeSavedTip, loadBookingCard, tipIdempotencyKey } from "@/lib/payments/tip-charge";
 import { tipAmountError } from "@/lib/payments/tips";
 import { checkoutExcludedPaymentMethods } from "@/lib/payments/checkout-lines";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 function tipError(message: string | undefined): string {
   const text = message ?? "";
@@ -49,6 +52,9 @@ export async function submitTip(formData: FormData) {
   if (amount == null) redirect(`/jobs/${jobId}`);
   const invalid = tipAmountError(amount);
   if (invalid) redirect(`/jobs/${jobId}?error=${encodeURIComponent(invalid)}`);
+  if (liveCustomerChargesPaused()) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
   const confirmed = String(formData.get("confirmed") ?? "");
   if (confirmed !== "yes") redirect(`/jobs/${jobId}?tip=${amount}`);
 
@@ -56,6 +62,17 @@ export async function submitTip(formData: FormData) {
   const supabase = await createClient();
   const tipRow = await supabase.from("job_tips").select("driver_id").eq("id", tip.tip_id).maybeSingle();
   const user = await supabase.auth.getUser();
+  const service = createServiceClient();
+  const [customerFlag, driverFlag] = await Promise.all([
+    user.data.user
+      ? service.from("profiles").select("is_test").eq("id", user.data.user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    tipRow.data?.driver_id
+      ? service.from("profiles").select("is_test").eq("id", tipRow.data.driver_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const isTestCustomer = customerFlag.data?.is_test === true;
+  const isTestDriver = driverFlag.data?.is_test === true;
   const card = user.data.user ? await loadBookingCard(jobId, user.data.user.id) : null;
   if (card) {
     try {
@@ -66,12 +83,15 @@ export async function submitTip(formData: FormData) {
         paymentMethodId: card.paymentMethodId,
         jobId,
         driverId: tipRow.data?.driver_id ?? "",
+        isTestCustomer,
+        isTestDriver,
       });
       if (result === "paid") redirect(`/jobs/${jobId}?tip=paid`);
     } catch (error) {
       if (error && typeof error === "object" && "digest" in error) throw error;
       const message = error instanceof Error &&
         (error.message.includes("Live payments are not enabled.") ||
+          error.message === PAID_BOOKINGS_UNAVAILABLE ||
           error.message === "The tip was charged and could not be recorded." ||
           error.message === "The tip could not be charged.")
         ? error.message
@@ -83,7 +103,13 @@ export async function submitTip(formData: FormData) {
   const origin = requestOrigin(await headers());
   const job = await supabase.from("jobs").select("assigned_driver_id").eq("id", jobId).maybeSingle();
   try {
-    const session = await getStripe().checkout.sessions.create(
+    const session = await placeCustomerCharge({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+      paidBookings: process.env.PAID_BOOKINGS_ENABLED,
+      kind: "tip",
+      isTestCustomer,
+      isTestDriver,
+      create: () => getStripe().checkout.sessions.create(
       {
         mode: "payment",
         excluded_payment_method_types: [...checkoutExcludedPaymentMethods],
@@ -106,7 +132,8 @@ export async function submitTip(formData: FormData) {
         cancel_url: `${origin}/jobs/${jobId}?tip=cancel`,
       },
       { idempotencyKey: `tip-checkout:${tipIdempotencyKey(jobId, tip.tip_id)}` },
-    );
+    ),
+    });
     if (!stripeObjectMatchesMode(aligned.mode, session.livemode)) {
       await alertPaymentsIssue(
         `tip-checkout-mode:${session.id}`,
@@ -119,7 +146,10 @@ export async function submitTip(formData: FormData) {
     redirect(session.url);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
-    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The tip checkout could not be started.")}`);
+    const message = error instanceof Error && error.message === PAID_BOOKINGS_UNAVAILABLE
+      ? PAID_BOOKINGS_UNAVAILABLE
+      : "The tip checkout could not be started.";
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(message)}`);
   }
 }
 

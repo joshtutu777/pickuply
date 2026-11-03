@@ -10,6 +10,7 @@ import {
 } from "@/lib/payments/saved-card";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { PAID_BOOKINGS_UNAVAILABLE, placeCustomerCharge } from "@/lib/payments/paid-bookings";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
@@ -72,13 +73,20 @@ export async function chargeSavedTip(input: {
   paymentMethodId: string;
   jobId: string;
   driverId: string;
+  isTestCustomer?: boolean;
+  isTestDriver?: boolean;
 }): Promise<"paid" | "authenticate" | "fallback"> {
   if (!input.customerId.startsWith("cus_") || !input.paymentMethodId.startsWith("pm_")) return "fallback";
-  const stripe = getStripe();
   const charge = savedTipCharge(input);
   let intent: Stripe.PaymentIntent;
   try {
-    intent = await stripe.paymentIntents.create(
+    intent = await placeCustomerCharge({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+      paidBookings: process.env.PAID_BOOKINGS_ENABLED,
+      kind: "tip",
+      isTestCustomer: input.isTestCustomer,
+      isTestDriver: input.isTestDriver,
+      create: () => getStripe().paymentIntents.create(
       {
         amount: charge.amount,
         currency: charge.currency,
@@ -90,8 +98,10 @@ export async function chargeSavedTip(input: {
         expand: ["latest_charge.balance_transaction"],
       },
       { idempotencyKey: charge.idempotencyKey },
-    );
+    ),
+    });
   } catch (error) {
+    if (error instanceof Error && error.message === PAID_BOOKINGS_UNAVAILABLE) throw error;
     const failure = readTipFailure(error);
     const decision = decideTipCharge({
       paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
