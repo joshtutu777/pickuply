@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { chooseOffer } from "@/app/jobs/offer-actions";
 import { PendingButton } from "@/components/pending-button";
 import { ServiceFeeNote } from "@/components/payments/service-fee-note";
@@ -29,6 +30,7 @@ export type OfferSummary = {
 
 export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSummary[] }) {
   const listRef = useRef<HTMLElement>(null);
+  const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
     const list = listRef.current;
@@ -102,12 +104,18 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
             {offer.outside_range ? <p>Outside your range</p> : null}
             {offer.reason ? <p>Reason: {offer.reason}</p> : null}
             <p>Expires {new Date(offer.expires_at).toLocaleString()}</p>
-            <form action={chooseOffer} className="mt-3">
+            <form
+              action={chooseOffer}
+              className="mt-3"
+              onSubmit={() => setChoosing(true)}
+            >
               <input type="hidden" name="jobId" value={jobId} />
               <input type="hidden" name="offerId" value={offer.offer_id} />
+              <AssignmentWatch jobId={jobId} onStillOpen={() => setChoosing(false)} />
               <PendingButton
                 idle={`Choose ${offer.driver_first_name || "this driver"}`}
                 pendingLabel="Submitting..."
+                blocked={choosing}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60"
               />
             </form>
@@ -116,6 +124,54 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
       })}
     </section>
   );
+}
+
+/** If the saved assignment comes back before the form response, open that result and leave the spinner. */
+function AssignmentWatch({ jobId, onStillOpen }: { jobId: string; onStillOpen: () => void }) {
+  const { pending } = useFormStatus();
+  const started = useRef(false);
+  const stillOpen = useRef(onStillOpen);
+  stillOpen.current = onStillOpen;
+
+  useEffect(() => {
+    if (!pending) {
+      if (!started.current) return;
+      started.current = false;
+      let stopped = false;
+      void createClient()
+        .from("jobs")
+        .select("status")
+        .eq("id", jobId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (stopped) return;
+          if (data?.status === "assigned") {
+            window.location.replace(`/jobs/${jobId}?chosen=1`);
+            return;
+          }
+          stillOpen.current();
+        });
+      return () => {
+        stopped = true;
+      };
+    }
+    started.current = true;
+    let stopped = false;
+    const look = async () => {
+      const { data } = await createClient().from("jobs").select("status").eq("id", jobId).maybeSingle();
+      if (stopped || data?.status !== "assigned") return;
+      stopped = true;
+      window.location.replace(`/jobs/${jobId}?chosen=1`);
+    };
+    void look();
+    const timer = window.setInterval(() => void look(), 1500);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [jobId, pending]);
+
+  return null;
 }
 
 function driverReputation(offer: OfferSummary): string {

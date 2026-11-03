@@ -140,6 +140,11 @@ export function JobStatus({
         <p className="text-sm text-ink">Service fee {formatCents(job.service_fee_cents)}</p>
       ) : null}
       {driver ? <p className="text-base text-ink">Driver: {driver.firstName}</p> : null}
+      {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
+        <p role="status" className="mt-2 text-base font-semibold text-ink">
+          {driver ? `${driver.firstName} is your driver.` : "Your driver is assigned."} Pay next to confirm this booking. Nothing is charged yet.
+        </p>
+      ) : null}
       {message}
       {stage && job.status !== "completed" ? <p className="mt-1 text-base font-semibold text-ink">{stage}</p> : null}
       {job.status === "assigned" && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (

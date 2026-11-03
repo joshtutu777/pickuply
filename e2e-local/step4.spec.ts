@@ -14,6 +14,7 @@ const png = Buffer.from(
 );
 
 test("local marketplace assignment does not charge or reveal the address", async ({ browser }) => {
+  test.setTimeout(900_000);
   resetLocalPeople();
   const stripeUrls: string[] = [];
   const customer = await signedIn(browser, people.customer, stripeUrls);
@@ -28,8 +29,9 @@ test("local marketplace assignment does not charge or reveal the address", async
   async function approveDriver(name: RegExp) {
     await admin.page.goto("/admin/drivers");
     await admin.page.getByRole("link", { name }).click();
-    const approveAnyway = admin.page.getByRole("checkbox", { name: "Approve anyway" });
-    if (await approveAnyway.isVisible()) await approveAnyway.check();
+    await expect(admin.page.getByRole("button", { name: "Approve driver" })).toBeVisible();
+    const approveAnyway = admin.page.locator("input[name=approveAnyway]");
+    if (await approveAnyway.count()) await approveAnyway.check();
     await admin.page.getByRole("button", { name: "Approve driver" }).click();
     await admin.page.waitForURL(/saved=1/);
   }
@@ -62,15 +64,75 @@ test("local marketplace assignment does not charge or reveal the address", async
   await goOnline(driver2.page);
 
   await driver2.page.goto("/driver");
-  await expect(driver2.page.getByText("Austell 30168")).toBeVisible();
+  await expect(driver2.page.getByText("Austell 30168").first()).toBeVisible();
   await driver.page.goto("/driver");
-  const fixedCard = driver.page.locator("li").filter({ hasText: "Austell 30168" });
-  await fixedCard.getByRole("button", { name: "Accept posted price" }).click();
+  const fixedCard = driver.page.locator("li").filter({ hasText: "Austell 30168" }).first();
+  await fixedCard.getByRole("button", { name: "Review posted price" }).click();
+  await fixedCard.getByRole("button", { name: "Confirm & Accept" }).click();
   await expect(fixedCard.getByText("Offer submitted successfully.")).toBeVisible();
 
+  const fixedSchedule = scheduleSnapshot(fixedId);
   await customer.page.goto(`/jobs/${fixedId}`);
-  await customer.page.getByRole("button", { name: "Choose this driver" }).click();
-  await expect(customer.page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
+  await dismissCookies(customer.page);
+  await expect(customer.page.getByText("Service fee $7.50")).toBeVisible();
+  await expect(customer.page.getByText("Total $157.50")).toBeVisible();
+  await customer.page.getByRole("button", { name: /Choose (Pat|this driver)/ }).click();
+  await expectAssigned(customer.page);
+  expect(scheduleSnapshot(fixedId)).toBe(fixedSchedule);
+  expect(assignmentRow(fixedId)).toMatchObject({
+    status: "assigned",
+    payment: "awaiting_payment",
+    chosen: 1,
+    payments: 0,
+    events: 1,
+    arrival: "none",
+  });
+
+  const customId = await createRequest(customer.context, {
+    description: "TEST custom desk",
+    pricing_method: "fixed",
+    offer_cents: "15000",
+    pickup_area: "Austell custom",
+    dropoff_area: "Austell",
+    pickup_address: "110 Custom Street, Austell, GA 30168",
+    dropoff_address: "210 Custom Street, Austell, GA 30168",
+  });
+  await publish(admin.page, customId, "fixed");
+  await offerWithoutArrival(driver.page, "Austell custom", "custom");
+  const customSchedule = scheduleSnapshot(customId);
+  await customer.page.goto(`/jobs/${customId}`);
+  await dismissCookies(customer.page);
+  await expect(customer.page.getByText("Service fee $4")).toBeVisible();
+  await expect(customer.page.getByText("Total $84")).toBeVisible();
+  await customer.page.getByRole("button", { name: /Choose (Pat|this driver)/ }).click();
+  await expectAssigned(customer.page);
+  expect(scheduleSnapshot(customId)).toBe(customSchedule);
+  expect(assignmentRow(customId).chosen).toBe(1);
+  expect(assignmentRow(customId).payments).toBe(0);
+
+  for (const timing of ["asap", "anytime", "windows", "specific"] as const) {
+    const timedId = await createRequest(customer.context, {
+      description: `TEST ${timing} desk`,
+      pricing_method: "fixed",
+      offer_cents: "5000",
+      pickup_area: `Austell ${timing}`,
+      dropoff_area: "Austell",
+      pickup_address: `120 ${timing} Street, Austell, GA 30168`,
+      dropoff_address: `220 ${timing} Street, Austell, GA 30168`,
+    });
+    await publish(admin.page, timedId, "fixed");
+    setTiming(timedId, timing);
+    const before = scheduleSnapshot(timedId);
+    await offerWithoutArrival(driver.page, `Austell ${timing}`, "posted");
+    await customer.page.goto(`/jobs/${timedId}`);
+    await dismissCookies(customer.page);
+    await expect(customer.page.getByText("Service fee $2.50")).toBeVisible();
+    await expect(customer.page.getByText("Total $52.50")).toBeVisible();
+    await customer.page.getByRole("button", { name: /Choose (Pat|this driver)/ }).click();
+    await expectAssigned(customer.page);
+    expect(scheduleSnapshot(timedId)).toBe(before);
+    expect(assignmentRow(timedId)).toMatchObject({ chosen: 1, payments: 0, events: 1, arrival: "none" });
+  }
 
   await driver.page.goto(`/driver/jobs/${fixedId}`);
   await expect(driver.page.getByText("100 Market Street, Austell, GA 30168")).toBeVisible();
@@ -189,6 +251,8 @@ async function signedIn(
 
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
+  const cookies = page.getByRole("button", { name: "Reject optional cookies" });
+  if (await cookies.isVisible()) await cookies.click();
   const nameParts = name.trim().split(/\s+/);
   await page.getByLabel("First name").fill(nameParts[0] ?? "");
   await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
@@ -197,8 +261,8 @@ async function onboard(page: Page, name: string) {
     await email.fill(`${(nameParts[0] ?? "driver").toLowerCase()}.${(nameParts[1] ?? "driver").toLowerCase()}@pickuply.test`);
   }
   await page.getByLabel("Street").fill("10 Test Street");
-  await page.getByLabel("City").fill("Austell");
-  await page.getByLabel("ZIP").fill("30106");
+  await page.getByRole("textbox", { name: "City" }).fill("Austell");
+  await page.getByRole("textbox", { name: "ZIP", exact: true }).fill("30106");
   await page.locator("#vehicleType").selectOption("pickup");
   await page.getByRole("radio", { name: "Light load" }).check();
   await page.locator("#licenseExpires").fill("2027-12-31");
@@ -346,6 +410,103 @@ async function publish(page: Page, jobId: string, kind: "fixed" | "quote") {
   await expect(page).not.toHaveURL(/error=/);
 }
 
+async function dismissCookies(page: Page) {
+  const cookies = page.getByRole("button", { name: "Reject optional cookies" });
+  if (await cookies.isVisible().catch(() => false)) await cookies.click();
+}
+
+async function expectAssigned(page: Page) {
+  await dismissCookies(page);
+  await expect(page.getByRole("heading", { name: "Driver assigned" })).toBeVisible();
+  await expect(page.getByText("Pat is your driver.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm booking" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Choose / })).toHaveCount(0);
+}
+
+async function offerWithoutArrival(page: Page, area: string, mode: "posted" | "custom") {
+  await page.goto("/driver");
+  const card = page.locator("li").filter({ hasText: area }).first();
+  await expect(card).toBeVisible();
+  if (mode === "custom") {
+    await card.getByLabel("Offer Amount ($)").fill("80");
+    await card.getByRole("button", { name: "Review offer" }).click();
+  } else {
+    await card.getByRole("button", { name: "Review posted price" }).click();
+  }
+  await card.getByRole("button", { name: mode === "custom" ? "Confirm & Submit Offer" : "Confirm & Accept" }).click();
+  await expect(card.getByText("Offer submitted successfully.")).toBeVisible();
+}
+
+function setTiming(jobId: string, kind: "asap" | "anytime" | "windows" | "specific") {
+  if (kind === "asap" || kind === "anytime") {
+    localSql(`
+      begin;
+      select set_config('pickuply.schedule_write', 'yes', true);
+      update public.jobs
+      set pickup_availability = '${kind}', pickup_timezone = 'America/New_York'
+      where id = '${jobId}';
+      commit;
+    `);
+    return;
+  }
+  if (kind === "windows") {
+    localSql(`
+      begin;
+      select set_config('pickuply.schedule_write', 'yes', true);
+      update public.jobs
+      set pickup_availability = 'windows', pickup_timezone = 'America/New_York'
+      where id = '${jobId}';
+      insert into public.job_pickup_windows (job_id, starts_at, ends_at, position)
+      values ('${jobId}', now() + interval '2 days', now() + interval '2 days 3 hours', 1);
+      commit;
+    `);
+    return;
+  }
+  localSql(`
+    begin;
+    select set_config('pickuply.schedule_write', 'yes', true);
+    update public.jobs
+    set scheduled_pickup_start = now() + interval '3 days',
+        scheduled_pickup_end = now() + interval '3 days 2 hours'
+    where id = '${jobId}';
+    commit;
+  `);
+}
+
+function scheduleSnapshot(jobId: string) {
+  return localSql(`
+    select coalesce(j.pickup_availability, '') || '|' ||
+      coalesce(j.scheduled_pickup_start::text, '') || '|' ||
+      coalesce(j.scheduled_pickup_end::text, '') || '|' ||
+      (select count(*)::text from public.job_pickup_windows w where w.job_id = j.id)
+    from public.jobs j where j.id = '${jobId}'
+  `).trim();
+}
+
+function assignmentRow(jobId: string) {
+  const line = localSql(`
+    select j.status || '|' || coalesce(j.payment_status, '') || '|' ||
+      (select count(*) from public.job_offers o where o.job_id = j.id and o.status = 'chosen') || '|' ||
+      (select count(*) from public.job_payments p where p.job_id = j.id) || '|' ||
+      (select count(*) from public.job_events e where e.job_id = j.id and e.type = 'offer_chosen') || '|' ||
+      case when exists (
+        select 1 from public.job_offers o
+        where o.job_id = j.id and o.status = 'chosen'
+          and o.proposed_pickup_start is null and o.proposed_pickup_end is null
+      ) then 'none' else 'set' end
+    from public.jobs j where j.id = '${jobId}'
+  `).trim();
+  const [status, payment, chosen, payments, events, arrival] = line.split("|");
+  return {
+    status,
+    payment,
+    chosen: Number(chosen),
+    payments: Number(payments),
+    events: Number(events),
+    arrival,
+  };
+}
+
 async function goOnline(page: Page) {
   await page.goto("/driver");
   await page.getByRole("switch", { name: "You are Offline" }).click();
@@ -408,6 +569,17 @@ function resetLocalPeople() {
     delete from public.audit_log
     where actor_id in (select id from auth.users where phone in ${phones})
       or target_id in (select id from auth.users where phone in ${phones});
+    update public.support_tickets
+    set assigned_admin_id = null
+    where assigned_admin_id in (select id from auth.users where phone in ${phones});
+    delete from public.support_ticket_messages
+    where author_id in (select id from auth.users where phone in ${phones})
+      or ticket_id in (
+        select id from public.support_tickets
+        where profile_id in (select id from auth.users where phone in ${phones})
+      );
+    delete from public.support_tickets
+    where profile_id in (select id from auth.users where phone in ${phones});
     delete from public.profiles
     where id in (select id from auth.users where phone in ${phones});
     delete from auth.users where phone in ${phones};

@@ -1,5 +1,11 @@
 # Pickuply progress
 
+## Customer assignment screen (2026-11-02)
+
+Not deployed. Choosing an offer saved the driver, but the customer page stayed on "Open for drivers" and the button stayed on "Submitting...". The page was waiting on a Stripe payment search before it could show the assigned driver. A new assignment has no checkout yet, so that search is skipped. If the form response is slow, the page checks the saved job and opens the assigned result. A second click follows that saved assignment and does not create another assignment or a payment row.
+
+The local browser test passed the assignment checks for a posted $150 offer, an $80 custom offer, and posted $50 offers with ASAP, Anytime, a pickup window, and a specific time. Each showed the driver and the pay button, kept one assignment, created no payment row, and left the customer's timing unchanged. The same test file then ran out of time on the older admin quote page, so that tail was not finished in this run.
+
 ## Pricing description (2026-11-02)
 
 The implemented calculation was already the intended model, so the cents were not changed. A customer pays the accepted offer plus a 5% service fee. Pickuply keeps 15% of the offer and the driver receives 85%. Stripe's processing cost is absorbed and recorded separately. Tips go entirely to the driver. A $50 offer totals $52.50, pays the driver $42.50, and leaves $10.00 before Stripe's cost. Older notes that describe a 2.9% plus 30¢ customer charge are history, not the current price.

@@ -8,12 +8,14 @@ export function PendingButton({
   className,
   name,
   value,
+  blocked = false,
 }: {
   idle: string;
   pendingLabel: string;
   className: string;
   name?: string;
   value?: string;
+  blocked?: boolean;
 }) {
   const status = useFormStatus();
   const submitted = status.data?.get(name ?? "")?.toString();
@@ -23,7 +25,7 @@ export function PendingButton({
       type="submit"
       name={name}
       value={value}
-      disabled={status.pending}
+      disabled={status.pending || blocked}
       aria-busy={mine}
       className={className}
     >

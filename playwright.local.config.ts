@@ -70,6 +70,15 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: testEnv.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: testEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: serviceRole || testEnv.SUPABASE_SERVICE_ROLE_KEY,
+      // Local offer tests must not call the sandbox whose webhooks point at pickuplyapp.com.
+      STRIPE_SECRET_KEY: "",
+      STRIPE_LIVE_SECRET_KEY: "",
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "",
+      NEXT_PUBLIC_STRIPE_LIVE_PUBLISHABLE_KEY: "",
+      STRIPE_WEBHOOK_SECRET: "",
+      STRIPE_CONNECT_WEBHOOK_SECRET: "",
+      STRIPE_LIVE_WEBHOOK_SECRET: "",
+      STRIPE_LIVE_CONNECT_WEBHOOK_SECRET: "",
     },
   },
   projects: [

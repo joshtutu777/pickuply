@@ -78,7 +78,7 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
       .eq("job_id", jobId)
       .order("created_at", { ascending: false })
       .limit(10),
-    service.from("job_payments").select("checkout_session_id").eq("job_id", jobId).maybeSingle(),
+    service.from("job_payments").select("checkout_session_id, payment_intent_id").eq("job_id", jobId).maybeSingle(),
   ]);
   if (attempts.error || payment.error) throw new Error("The card checkout could not be checked.");
 
@@ -89,6 +89,10 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
       ),
     ),
   ];
+  const storedIntent =
+    typeof payment.data?.payment_intent_id === "string" && payment.data.payment_intent_id.startsWith("pi_");
+  // A new assignment has no checkout yet. Do not call Stripe before the customer can see the driver.
+  if (sessionIds.length === 0 && !storedIntent) return { state: "waiting", resumeUrl: null };
   const stripe = getStripe();
   const intents = new Map<string, CheckoutIntentChoice>();
   const openSessions: Stripe.Checkout.Session[] = [];
@@ -113,10 +117,13 @@ export async function syncCustomerCheckout(jobId: string): Promise<CheckoutSync>
 
   if (intents.size === 0) {
     try {
-      const searched = await stripe.paymentIntents.search({
-        query: `metadata['job_id']:'${jobId}'`,
-        limit: 10,
-      });
+      const searched = await stripe.paymentIntents.search(
+        {
+          query: `metadata['job_id']:'${jobId}'`,
+          limit: 10,
+        },
+        { timeout: 8000 },
+      );
       for (const found of searched.data) {
         if (found.metadata?.job_id !== jobId) continue;
         const choice = asIntent(found, found.created);
