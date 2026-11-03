@@ -1,10 +1,10 @@
 import "server-only";
 
+import type Stripe from "stripe";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
-import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { acceptOrRelease } from "@/lib/payments/platform-events";
 import { reconcilePaymentAction } from "@/lib/payments/reconcile";
-import { getStripe } from "@/lib/stripe";
+import { getStripeForRecordedMode } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type OpenJob = {
@@ -16,21 +16,11 @@ type OpenJob = {
 };
 
 /**
- * Catches a test-mode PaymentIntent the webhook did not apply.
- * It retrieves the intent and calls the same database functions as the webhook.
+ * Catches a PaymentIntent the webhook did not apply.
+ * Each intent is read with the test or live key saved on that payment.
  * It does not create or capture a charge. Running it again for the same intent does not add a second attempt.
  */
 export async function reconcileOpenPayments(): Promise<{ checked: number; applied: number }> {
-  const aligned = await alignPaymentsMode();
-  if (!aligned.matches) {
-    await alertPaymentsIssue(
-      "reconcile-mode",
-      "Payment catch-up paused",
-      "Open payments were not changed because the payment switch and the database do not match.",
-    );
-    return { checked: 0, applied: 0 };
-  }
-  const stripe = getStripe();
   const supabase = createServiceClient();
   const jobs = await supabase
     .from("jobs")
@@ -44,25 +34,45 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
 
   const payments = await supabase
     .from("job_payments")
-    .select("job_id, payment_intent_id")
+    .select("job_id, payment_intent_id, stripe_livemode")
     .in("job_id", rows.map((row) => row.id))
     .not("payment_intent_id", "is", null);
   if (payments.error) throw new Error("Stored payment intents could not be listed.");
-  const intentByJob = new Map(
-    (payments.data ?? []).map((row) => [row.job_id as string, row.payment_intent_id as string]),
+  const paymentByJob = new Map(
+    (payments.data ?? []).map((row) => [
+      row.job_id as string,
+      {
+        paymentIntentId: row.payment_intent_id as string,
+        recordedLivemode: typeof row.stripe_livemode === "boolean" ? row.stripe_livemode : null,
+      },
+    ]),
   );
 
-  const eventByIntent = await eventIdsByIntent(stripe, [
-    "payment_intent.amount_capturable_updated",
-    "payment_intent.canceled",
-  ]);
+  const eventsByMode = new Map<boolean, Map<string, string>>();
   let applied = 0;
+  let failed = 0;
   const seen = new Set<string>();
   for (const job of rows) {
-    const intentId = intentByJob.get(job.id);
-    if (!intentId || seen.has(intentId)) continue;
+    const stored = paymentByJob.get(job.id);
+    const intentId = stored?.paymentIntentId;
+    if (!intentId || !stored || seen.has(intentId)) continue;
     seen.add(intentId);
-    const intent = await stripe.paymentIntents.retrieve(intentId);
+    if (stored.recordedLivemode == null) {
+      await alertPaymentsIssue(
+        `reconcile-mode:${intentId}`,
+        "Payment catch-up has no saved mode",
+        "An open payment has no saved test or live mode. It was left unchanged.",
+      );
+      await recordReconcile(supabase, job, intentId, "unknown", "missing_mode");
+      continue;
+    }
+    let intent: Stripe.PaymentIntent;
+    try {
+      intent = await getStripeForRecordedMode(stored.recordedLivemode).paymentIntents.retrieve(intentId);
+    } catch {
+      failed += 1;
+      continue;
+    }
     const fresh = await supabase
       .from("jobs")
       .select("id, status, payment_status, payment_due_at, is_test")
@@ -72,7 +82,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
     const current = fresh.data as OpenJob;
     const now = new Date().toISOString();
     const action = reconcilePaymentAction({
-      paymentsMode: aligned.mode,
+      recordedLivemode: stored.recordedLivemode,
       livemode: intent.livemode,
       intentStatus: intent.status,
       jobStatus: current.status,
@@ -84,7 +94,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
       await alertPaymentsIssue(
         `reconcile-object:${intent.id}`,
         "Payment catch-up mode mismatch",
-        "An open payment did not match the payment switch. It was left unchanged and can still be reconciled later.",
+        "An open payment did not match its saved test or live mode. It was left unchanged.",
       );
       await recordReconcile(supabase, current, intent.id, intent.status, action);
       continue;
@@ -94,6 +104,7 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
       await recordReconcile(supabase, current, intent.id, intent.status, action);
       continue;
     }
+    const eventByIntent = await eventsForMode(eventsByMode, stored.recordedLivemode);
     const eventId = eventByIntent.get(intent.id) ?? null;
     let claimedNow = false;
     if (eventId) {
@@ -139,7 +150,28 @@ export async function reconcileOpenPayments(): Promise<{ checked: number; applie
     await recordReconcile(supabase, current, intent.id, intent.status, action);
     applied += 1;
   }
+  if (failed > 0) throw new Error("A stored payment could not be read from Stripe.");
   return { checked: seen.size, applied };
+}
+
+async function eventsForMode(
+  cache: Map<boolean, Map<string, string>>,
+  livemode: boolean,
+): Promise<Map<string, string>> {
+  const saved = cache.get(livemode);
+  if (saved) return saved;
+  try {
+    const map = await eventIdsByIntent(getStripeForRecordedMode(livemode), [
+      "payment_intent.amount_capturable_updated",
+      "payment_intent.canceled",
+    ]);
+    cache.set(livemode, map);
+    return map;
+  } catch {
+    const empty = new Map<string, string>();
+    cache.set(livemode, empty);
+    return empty;
+  }
 }
 
 async function recordReconcile(
@@ -175,7 +207,7 @@ async function recordReconcile(
 }
 
 async function eventIdsByIntent(
-  stripe: ReturnType<typeof getStripe>,
+  stripe: Stripe,
   types: string[],
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();

@@ -176,7 +176,7 @@ Admin alerts for a failed lookup, a missing payout setup, and a transfer that ne
 - [ ] In Vercel, set `PAYMENTS_MODE=test`. Leave the test keys in `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Leave the live keys in their own names.
 - [ ] Redeploy production. New charges and webhooks use the test keys as soon as the new deployment is serving.
 - [ ] Open `/admin/health` and press "Set the database to TEST". Confirm both say TEST and that they match. Until that button is pressed, new payments stay paused. Checkout does not change the database for you.
-- [ ] A live charge stays marked live. Test mode does not capture, refund, or transfer it. The catch-up leaves it unchanged and it can be reconciled again after the switch returns to live.
+- [ ] A live charge stays marked live. Test mode does not capture, refund, or transfer it. Catch-up reads that charge with the live key saved on the payment, and it still does not capture it.
 - [ ] In Stripe, pause live charges if a charge could still be created outside the app.
 - [ ] Leave the live webhook endpoints disabled, not deleted, until the owner decides.
 - [ ] Do not refund or reverse anything that already succeeded unless the owner asks for that charge by id.
@@ -187,3 +187,12 @@ Admin alerts for a failed lookup, a missing payout setup, and a transfer that ne
 - [ ] Confirm `getStripe()` is accepting only `sk_test_` again.
 - [ ] Send one test-mode webhook from the Stripe test endpoint and confirm HTTP 200.
 - [ ] Do not restore the database over live rows that were created after the backup. A database restore is a separate decision and needs its own approval.
+
+## 18. Paused test destinations
+
+On 2026-11-03 the two Pickuply test destinations that point at pickuplyapp.com were disabled. They were not deleted, and their addresses and event lists were left as they were. The live destinations were not changed.
+
+- Payments: `we_1UUPtZD5IFQdbLkyQz2rWJv2` at `https://pickuplyapp.com/api/stripe/webhook`
+- Connect: `we_1UVkA5D5IFQdbLkycoWqA8pA` at `https://pickuplyapp.com/api/stripe/connect`
+
+To use them again, open the Stripe test dashboard, enable those two endpoints, and leave the URL and events alone. Do not enable them by editing a live endpoint. While `PAYMENTS_MODE` is live, the app still checks the live signing secret, so a test delivery is rejected and is not written onto a live payment.

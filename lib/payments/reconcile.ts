@@ -1,9 +1,6 @@
-import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
-import type { PaymentsMode } from "@/lib/payments/payments-mode";
-
 /**
  * Decides how a missed webhook should be caught up. A mode mismatch is reported and left unchanged.
- * The caller retrieves the PaymentIntent. It does not create or capture a charge.
+ * The caller retrieves the PaymentIntent with the mode saved on that payment. It does not create or capture a charge.
  */
 export type ReconcileAction =
   | "skip"
@@ -29,7 +26,7 @@ export function bookingClosedForReconcile(input: {
 }
 
 export function reconcilePaymentAction(input: {
-  paymentsMode?: PaymentsMode;
+  recordedLivemode: boolean | null;
   livemode: boolean;
   intentStatus: string;
   jobStatus: string;
@@ -37,7 +34,7 @@ export function reconcilePaymentAction(input: {
   paymentDueAt: string | null;
   now: string;
 }): ReconcileAction {
-  if (!stripeObjectMatchesMode(input.paymentsMode ?? "test", input.livemode)) return "report_mismatch";
+  if (input.recordedLivemode == null || input.recordedLivemode !== input.livemode) return "report_mismatch";
   if (input.intentStatus === "requires_capture" && bookingClosedForReconcile(input)) return "skip_closed";
   const openJob = ["assigned", "en_route", "arrived", "item_check", "in_transit", "delivered"].includes(input.jobStatus);
   if (!openJob) return "skip";

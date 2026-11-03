@@ -8,7 +8,7 @@ import { isListedEvent, platformPaymentEvents } from "@/lib/payments/event-types
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, getStripeForRecordedMode } from "@/lib/stripe";
 import { stripeRefundAction } from "@/lib/stripe-mode";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -22,7 +22,7 @@ async function chargeDetails(intent: Stripe.PaymentIntent): Promise<{ id: string
   const latest = intent.latest_charge;
   const id = typeof latest === "string" ? latest : latest?.id ?? null;
   if (!id) return { id: null, captureBefore: null };
-  const charge = typeof latest === "object" && latest ? latest : await getStripe().charges.retrieve(id);
+  const charge = typeof latest === "object" && latest ? latest : await getStripeForRecordedMode(intent.livemode).charges.retrieve(id);
   const card = charge.payment_method_details?.card as ChargeCard | null | undefined;
   const unix = card?.capture_before ?? null;
   return { id, captureBefore: unix ? new Date(unix * 1000).toISOString() : null };
@@ -51,9 +51,9 @@ export async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<str
   }
   if (outcome === "released_late" || outcome === "duplicate") {
     try {
-      await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
+      await getStripeForRecordedMode(intent.livemode).paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
     } catch {
-      const current = await getStripe().paymentIntents.retrieve(intent.id);
+      const current = await getStripeForRecordedMode(intent.livemode).paymentIntents.retrieve(intent.id);
       if (current.status !== "canceled") throw new Error("The card hold could not be released.");
     }
   }

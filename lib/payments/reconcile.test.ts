@@ -9,6 +9,7 @@ const open = {
 
 function decide(input: {
   livemode: boolean;
+  recordedLivemode?: boolean | null;
   intentStatus: string;
   jobStatus: string;
   paymentStatus: string;
@@ -16,13 +17,14 @@ function decide(input: {
   now?: string;
 }): ReconcileAction {
   return reconcilePaymentAction({
+    recordedLivemode: input.recordedLivemode ?? false,
     paymentDueAt: open.paymentDueAt,
     now: open.now,
     ...input,
   });
 }
 
-test("a live PaymentIntent is reported and left unchanged while the switch is test", () => {
+test("a live PaymentIntent is reported when the stored payment is test", () => {
   assert.equal(
     decide({
       livemode: true,
@@ -108,6 +110,32 @@ test("a canceled hold that was stored is noted, and one that was never stored is
       paymentStatus: "awaiting_payment",
     }),
     "record_unpaid_cancel",
+  );
+});
+
+test("a live PaymentIntent stored as live is authorized without the global switch", () => {
+  assert.equal(
+    decide({
+      recordedLivemode: true,
+      livemode: true,
+      intentStatus: "requires_capture",
+      jobStatus: "assigned",
+      paymentStatus: "awaiting_payment",
+    }),
+    "authorize",
+  );
+});
+
+test("a stored payment with no saved mode is left unchanged", () => {
+  assert.equal(
+    decide({
+      recordedLivemode: null,
+      livemode: false,
+      intentStatus: "canceled",
+      jobStatus: "assigned",
+      paymentStatus: "awaiting_payment",
+    }),
+    "report_mismatch",
   );
 });
 

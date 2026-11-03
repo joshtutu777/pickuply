@@ -874,3 +874,27 @@ Sign-in codes no longer stop at 5 per number per hour or 10 per network per hour
 
 The installed app and Add to Home Screen icon is the forest-green Pickuply mark with a white P. The same image is the browser icon. A phone that already saved the old green square keeps it until the app is added again.
 
+## Local $50 payment test (2026-11-03)
+
+The local payout save accepts the nine fields the app sends, including transfers and livemode. A trial save was rolled back. Windows had reserved ports 54302–54401, so the old local API port 54321 could not be published and sign-in failed. Local Supabase now uses 55121 for the API and 55122 for the database. The live payment switch and the live webhook addresses were not changed.
+
+The existing test request `d6076e19-6bb0-45d7-b42c-3f55ecf1ca58` was completed in Stripe test mode. Pat Driver submitted the application with the 1x1 test photo, and an admin used the existing Approve anyway checkbox because insurance was not uploaded. Real-driver Online rules were not changed. Casey chose Pat, confirmed the booking, and paid with the test card. The job captured $52.50 (`pi_3UXifDD5IFQdbLky0nYSnEyO`, `ch_3UXifDD5IFQdbLky0ULwFF18`). The $5 tip succeeded (`pi_3UXihlD5IFQdbLky1UFO0GUb`, `ch_3UXihlD5IFQdbLky1RNknJdC`). Both ledger rows are `held_until_onboarding` because Stripe still owns Pat's payout requirements and the Express form is behind a captcha. No transfer was created. The two Pickuply test webhook destinations were disabled only while the local listener received these events, then enabled again. Live endpoints were unchanged.
+
+A follow-up on the same job did not finish Pat's Express onboarding. Stripe's hosted test form is open, and an hCaptcha challenge blocks the test-phone step. Identity, bank details, and terms were not submitted through the API. Both ledger rows remain `held_until_onboarding`. Stripe's balance transactions show a $1.82 fee on the $52.50 charge and a $0.45 fee on the $5 tip, so platform net after both driver transfers is $7.73. The $42.50 also waits on ledger `available_on` of 2026-11-10, which is later than the 48-hour new-driver mark. Production paid bookings were not enabled.
+
+## Hosted payout checks (2026-11-03)
+
+The hosted database already has the nine-argument payout save, including transfers and livemode. A trial call for a person who is not a driver was rejected and left no row. Migration history records `0118` and `0119` and does not record `0128`. `PAYMENTS_MODE` was not changed. The hosted database switch is already `live`.
+
+The hosted scheduler is active. Transfers, notifications, auto-complete, and the daily retention job have recent successful runs. The payment-deadline job is the failed row: Stripe reported no such payment intent for a test-mode intent the test key can still read. The transfer list returns no rows in either mode. No base earning younger than 48 hours for a driver with fewer than five completed jobs is ready or transferred. One ready test row is outside that send list.
+
+Test-mode authorization, capture, and Connect account events were sent again only to the two Pickuply test destinations. Each still has a delivery waiting, so the hosted handlers did not accept them. Live endpoints were not used. A full booking on pickuplyapp.com with the test card was not run: the database switch is live, and hosted sign-in uses Twilio rather than the local fixed codes. No text was sent.
+
+Decision: no-go for live paid bookings. Pat's payout setup is still open, the transfers for this test have not been sent, and the hosted payment switch is already live.
+
+## Payment deadline mode fix (2026-11-03)
+
+The hosted payment-deadline failure came from reading a canceled test PaymentIntent with the live Stripe key. The deadline job and payment catch-up now use the test or live mode saved on that payment. A saved test payment is read with `STRIPE_TEST_SECRET_KEY`. A saved live payment is read with a live secret, never a test secret. A Stripe error no longer releases the driver. A missing or mismatched saved mode is left unchanged. New checkout, capture, refunds, and transfers still follow `PAYMENTS_MODE`. The unit tests passed and the production build completed. The hosted database password was not rotated. `PAYMENTS_MODE` was not changed.
+
+The two Pickuply test webhook destinations that point at pickuplyapp.com were disabled on 2026-11-03. They were not deleted. The live destinations were not changed. Turn the same two test endpoints back on from the Stripe test dashboard when a test window is planned. While the payment switch is live, those test deliveries are still rejected.
+

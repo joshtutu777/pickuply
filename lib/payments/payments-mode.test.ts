@@ -4,6 +4,7 @@ import { stripeModeProblem } from "../stripe-mode";
 import {
   driverNeedsLivePayouts,
   paymentsMode,
+  recordedPaymentSecret,
   stripeEnvForMode,
   transferLivemode,
   webhookSecretName,
@@ -11,6 +12,7 @@ import {
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test_current",
+  STRIPE_TEST_SECRET_KEY: "sk_test_historical",
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_current",
   STRIPE_WEBHOOK_SECRET: "whsec_test_payments",
   STRIPE_CONNECT_WEBHOOK_SECRET: "whsec_test_connect",
@@ -34,6 +36,21 @@ test("the switch defaults to test and ignores saved live keys", () => {
   assert.equal(driverNeedsLivePayouts("test", false), false);
   assert.equal(webhookSecretName("payments", "test"), "STRIPE_WEBHOOK_SECRET");
   assert.equal(webhookSecretName("connect", "test"), "STRIPE_CONNECT_WEBHOOK_SECRET");
+});
+
+test("an old test payment reads the test secret and an old live payment reads a live secret", () => {
+  const historical = recordedPaymentSecret(false, env);
+  assert.equal(historical.name, "STRIPE_TEST_SECRET_KEY");
+  assert.equal(historical.value, "sk_test_historical");
+  const liveNamed = recordedPaymentSecret(true, { ...env, STRIPE_SECRET_KEY: "sk_live_current" });
+  assert.equal(liveNamed.name, "STRIPE_SECRET_KEY");
+  assert.equal(liveNamed.value, "sk_live_current");
+  const liveDedicated = recordedPaymentSecret(true, env);
+  assert.equal(liveDedicated.name, "STRIPE_LIVE_SECRET_KEY");
+  assert.equal(liveDedicated.value, "sk_live_saved");
+  assert.equal(liveDedicated.value.startsWith("sk_test_"), false);
+  assert.throws(() => recordedPaymentSecret(false, { ...env, STRIPE_TEST_SECRET_KEY: "sk_live_saved" }), /test mode is not configured/);
+  assert.throws(() => recordedPaymentSecret(true, { STRIPE_SECRET_KEY: "sk_test_current", STRIPE_TEST_SECRET_KEY: "sk_test_historical" }), /Live payments are not configured/);
 });
 
 test("live mode reads only the live names and refuses a mixed or test pair", () => {

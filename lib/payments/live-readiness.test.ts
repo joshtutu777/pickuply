@@ -161,7 +161,7 @@ test("transfer reconciliation does not send a live charge while the switch is te
   assert.equal(stripeObjectMatchesMode("test", true), false);
   assert.equal(
     reconcilePaymentAction({
-      paymentsMode: "test",
+      recordedLivemode: false,
       livemode: true,
       intentStatus: "requires_capture",
       jobStatus: "assigned",
@@ -172,7 +172,7 @@ test("transfer reconciliation does not send a live charge while the switch is te
   );
 });
 
-test("emergency rollback keeps a live hold identifiable and does not capture or authorize it in test mode", () => {
+test("emergency rollback leaves new live work off, and an existing hold follows its saved mode", () => {
   assert.equal(paymentsMode("test"), "test");
   assert.equal(stripeObjectMatchesMode("test", true), false);
   assert.equal(transferLivemode("test"), false);
@@ -185,6 +185,6 @@ test("emergency rollback keeps a live hold identifiable and does not capture or 
     paymentStatus: "awaiting_payment",
     ...open,
   } as const;
-  assert.equal(reconcilePaymentAction({ paymentsMode: "test", ...hold }), "report_mismatch");
-  assert.equal(reconcilePaymentAction({ paymentsMode: "live", ...hold }), "authorize");
+  assert.equal(reconcilePaymentAction({ recordedLivemode: false, ...hold }), "report_mismatch");
+  assert.equal(reconcilePaymentAction({ recordedLivemode: true, ...hold }), "authorize");
 });
