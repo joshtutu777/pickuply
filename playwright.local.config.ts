@@ -57,12 +57,12 @@ export default defineConfig({
   expect: { timeout: 45_000 },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
-    trace: "retain-on-failure",
+    trace: "off",
   },
   webServer: {
     command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120_000,
     env: {
       ...process.env,
@@ -117,8 +117,13 @@ export default defineConfig({
     },
     {
       name: "local-quote",
-      use: { ...devices["iPhone 13"] },
+      use: { ...devices["Desktop Chrome"] },
       testMatch: /quote-workflow\.spec\.ts/,
+    },
+    {
+      name: "local-dispute",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /dispute-local\.spec\.ts/,
     },
     {
       name: "local-ready",

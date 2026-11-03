@@ -147,6 +147,12 @@ where customer_id in (
   select id from public.profiles
   where phone in ('15555550177', '+15555550177', '15555550188', '+15555550188')
 );
+delete from public.rate_limit_events
+where scope = 'request'
+  and actor_key in (
+    select id::text from public.profiles
+    where phone in ('15555550177', '+15555550177', '15555550188', '+15555550188')
+  );
 alter table public.job_photos enable trigger job_photos_lock;
 update public.profiles set full_name = 'Robin Returning'
 where phone in ('15555550177', '+15555550177');
@@ -270,5 +276,5 @@ select
   || '|' ||
   (select count(*)::text from public.jobs where id in ('${robinJunkId}', '${novaRequestId}') and status = 'open');
 `);
-if (seeded !== "requested|2") throw new Error(`Expected a requested quote and 2 open jobs, found ${seeded}.`);
+if (seeded !== "open|2") throw new Error(`Expected an open quote and 2 open jobs, found ${seeded}.`);
 console.log("Seeded 3 local requests.");

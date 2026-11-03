@@ -151,8 +151,12 @@ test("local marketplace assignment does not charge or reveal the address", async
   await driver2.page.goto("/driver");
   await expect(driver2.page.getByText("Lithia Springs 30122")).toBeVisible();
   await driver.page.goto("/driver");
-  const quoteCard = driver.page.locator("li").filter({ hasText: "Lithia Springs 30122" });
-  await quoteCard.getByRole("button", { name: "Claim this job" }).click();
+  const quoteCard = driver.page
+    .getByRole("region", { name: "Matched for You" })
+    .locator("li")
+    .filter({ hasText: "Lithia Springs 30122" });
+  await quoteCard.getByRole("button", { name: "Review claim" }).click();
+  await quoteCard.getByRole("button", { name: "Confirm & Claim" }).click();
   await expect(driver.page.locator(`a[href="/driver/jobs/${quoteId}"]`)).toContainText("assigned");
 
   await driver2.page.goto("/driver");
@@ -403,7 +407,7 @@ async function publish(page: Page, jobId: string, kind: "fixed" | "quote") {
   await page.locator("#serviceLevel").selectOption("light");
   await page.locator("#requiredVehicle").selectOption("pickup");
   await page.locator("#driverPay").fill("60");
-  await page.locator("#preferredDate").fill("2026-10-30");
+  await page.locator("#preferredDate").fill("2026-11-05");
   await page.locator("#timeWindow").selectOption("morning");
   await page.getByRole("button", { name: "Send quote" }).click();
   await page.waitForURL(/saved=1|error=/);
