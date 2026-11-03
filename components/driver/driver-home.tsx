@@ -14,6 +14,7 @@ import { GeorgiaEmpty, MatchedEmpty } from "@/components/driver/feed-empty";
 import { FeedMap } from "@/components/maps/feed-map";
 import { coverageSummary, type CoverageDraft } from "@/lib/driver/coverage";
 import { compareNewest, mergeFeedCards } from "@/lib/driver/feed-order";
+import { createFeedLoadController, feedLoadError } from "@/lib/driver/feed-load";
 import { offerNoticeKey, readOfferNotice, writeOfferNotice, type OfferNotice } from "@/lib/jobs/offer-notice";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import {
@@ -489,23 +490,13 @@ export function DriverHome({
   const [vehicleFitOnly, setVehicleFitOnly] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const generation = useRef(0);
-  const inFlight = useRef(false);
-  const pending = useRef(false);
+  const loads = useRef(createFeedLoadController());
   const editing = useRef(false);
   const drafts = useRef(new Map<string, OfferDraft>());
   const loadRef = useRef<() => Promise<void>>(async () => {});
   const pullStart = useRef(0);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const summary = coverageSummary({ cities: areas.cities, zips: areas.zips, radiusMiles: areas.radius });
-
-  const finishFlight = useCallback(() => {
-    inFlight.current = false;
-    if (pending.current) {
-      pending.current = false;
-      void loadRef.current();
-    }
-  }, []);
 
   const enrich = useCallback(async (token: number, rows: FeedJob[]) => {
     if (rows.length === 0) return;
@@ -544,7 +535,7 @@ export function DriverHome({
       if (!signed.data?.signedUrl) continue;
       photos.set(photo.job_id, [...(photos.get(photo.job_id) ?? []), signed.data.signedUrl]);
     }
-    if (token !== generation.current) return;
+    if (!loads.current.isCurrent(token)) return;
     const apply = (current: FeedCard[]) =>
       current.map((job) => ({
         ...job,
@@ -556,83 +547,88 @@ export function DriverHome({
   }, []);
 
   const loadFeed = useCallback(async () => {
-    const token = ++generation.current;
-    if (inFlight.current) {
-      pending.current = true;
-      return;
-    }
-    inFlight.current = true;
-    setRefreshing(true);
-    const supabase = createClient();
-    const countArgs = {
-      p_service: serviceFilter || null,
-      p_max_miles: maxMiles ? Number(maxMiles) : null,
-      p_date: dateFilter,
-      p_vehicle_fit: vehicleFitOnly,
-    };
-    const [matchedResult, pageResult, filteredCount, openCount] = await Promise.all([
-      supabase.rpc("driver_matched_feed"),
-      supabase.rpc("driver_georgia_page", { ...countArgs, p_sort: sortKey, p_limit: 21, p_offset: 0 }),
-      supabase.rpc("driver_georgia_count", countArgs),
-      supabase.rpc("driver_georgia_count"),
-    ]);
-    if (token !== generation.current) {
-      finishFlight();
-      return;
-    }
-    if (matchedResult.error || pageResult.error || filteredCount.error || openCount.error) {
-      setFeedError("We couldn't load jobs.");
-      setRefreshing(false);
-      finishFlight();
-      return;
-    }
-    const matchedRows = (matchedResult.data ?? []) as FeedJob[];
-    const pageRows = ((pageResult.data ?? []) as FeedJob[]).slice(0, 20);
-    setMatched((current) => mergeFeedCards(current, matchedRows.map(toCard)).sort(compareNewest));
-    setGeorgia((current) => mergeFeedCards(current, pageRows.map(toCard)));
-    setGeorgiaHasMore(((pageResult.data ?? []) as FeedJob[]).length > 20);
-    setGeorgiaTotal(countFrom(filteredCount.data));
-    setGeorgiaOpenTotal(countFrom(openCount.data));
-    setUpdatedAt(new Date());
-    setFeedError(null);
-    setRefreshing(false);
-    finishFlight();
-    void enrich(token, [...matchedRows, ...pageRows]);
-  }, [dateFilter, enrich, finishFlight, maxMiles, serviceFilter, sortKey, vehicleFitOnly]);
+    // A refresh that arrives while a load is running must not retire that load.
+    // Retiring it threw away a finished response and left the screen on "Loading jobs…".
+    await loads.current.run({
+      work: async () => {
+        setRefreshing(true);
+        try {
+          const supabase = createClient();
+          const countArgs = {
+            p_service: serviceFilter || null,
+            p_max_miles: maxMiles ? Number(maxMiles) : null,
+            p_date: dateFilter,
+            p_vehicle_fit: vehicleFitOnly,
+          };
+          const [matchedResult, pageResult, filteredCount, openCount] = await Promise.all([
+            supabase.rpc("driver_matched_feed"),
+            supabase.rpc("driver_georgia_page", { ...countArgs, p_sort: sortKey, p_limit: 21, p_offset: 0 }),
+            supabase.rpc("driver_georgia_count", countArgs),
+            supabase.rpc("driver_georgia_count"),
+          ]);
+          if (matchedResult.error || pageResult.error || filteredCount.error || openCount.error) {
+            throw new Error(feedLoadError);
+          }
+          const matchedRows = (matchedResult.data ?? []) as FeedJob[];
+          const pageRows = ((pageResult.data ?? []) as FeedJob[]).slice(0, 20);
+          return {
+            matchedRows,
+            pageRows,
+            hasMore: ((pageResult.data ?? []) as FeedJob[]).length > 20,
+            filtered: countFrom(filteredCount.data),
+            open: countFrom(openCount.data),
+          };
+        } finally {
+          setRefreshing(false);
+        }
+      },
+      apply: (result, token) => {
+        setMatched((current) => mergeFeedCards(current, result.matchedRows.map(toCard)).sort(compareNewest));
+        setGeorgia((current) => mergeFeedCards(current, result.pageRows.map(toCard)));
+        setGeorgiaHasMore(result.hasMore);
+        setGeorgiaTotal(result.filtered);
+        setGeorgiaOpenTotal(result.open);
+        setUpdatedAt(new Date());
+        setFeedError(null);
+        void enrich(token, [...result.matchedRows, ...result.pageRows]);
+      },
+      fail: (message) => setFeedError(message),
+    });
+  }, [dateFilter, enrich, maxMiles, serviceFilter, sortKey, vehicleFitOnly]);
 
   const loadMore = useCallback(async () => {
-    if (inFlight.current || !georgiaHasMore) return;
-    inFlight.current = true;
-    const token = generation.current;
-    const supabase = createClient();
-    const pageResult = await supabase.rpc("driver_georgia_page", {
-      p_limit: 21,
-      p_offset: georgia.length,
-      p_sort: sortKey,
-      p_service: serviceFilter || null,
-      p_max_miles: maxMiles ? Number(maxMiles) : null,
-      p_date: dateFilter,
-      p_vehicle_fit: vehicleFitOnly,
+    if (!georgiaHasMore) return;
+    await loads.current.run({
+      queueIfBusy: false,
+      work: async () => {
+        const supabase = createClient();
+        const pageResult = await supabase.rpc("driver_georgia_page", {
+          p_limit: 21,
+          p_offset: georgia.length,
+          p_sort: sortKey,
+          p_service: serviceFilter || null,
+          p_max_miles: maxMiles ? Number(maxMiles) : null,
+          p_date: dateFilter,
+          p_vehicle_fit: vehicleFitOnly,
+        });
+        if (pageResult.error) throw new Error(feedLoadError);
+        return (pageResult.data ?? []) as FeedJob[];
+      },
+      apply: (pageRows, token) => {
+        const next = pageRows.slice(0, 20);
+        setGeorgia((current) => [...current, ...next.map(toCard)]);
+        setGeorgiaHasMore(pageRows.length > 20);
+        void enrich(token, next);
+      },
+      fail: (message) => setFeedError(message),
     });
-    if (token !== generation.current) {
-      finishFlight();
-      return;
-    }
-    if (pageResult.error) {
-      setFeedError("We couldn't load jobs.");
-      finishFlight();
-      return;
-    }
-    const pageRows = (pageResult.data ?? []) as FeedJob[];
-    const next = pageRows.slice(0, 20);
-    setGeorgia((current) => [...current, ...next.map(toCard)]);
-    setGeorgiaHasMore(pageRows.length > 20);
-    finishFlight();
-    void enrich(token, next);
-  }, [dateFilter, enrich, finishFlight, georgia.length, georgiaHasMore, maxMiles, serviceFilter, sortKey, vehicleFitOnly]);
+  }, [dateFilter, enrich, georgia.length, georgiaHasMore, maxMiles, serviceFilter, sortKey, vehicleFitOnly]);
 
   useEffect(() => {
     loadRef.current = loadFeed;
+    loads.current.bind(() => {
+      void loadRef.current();
+    });
   }, [loadFeed]);
 
   useEffect(() => {
@@ -642,7 +638,7 @@ export function DriverHome({
     }, 0);
     const refreshIfIdle = () => {
       if (editing.current) {
-        pending.current = true;
+        loads.current.queue();
         return;
       }
       if (document.visibilityState === "visible") void loadFeed();
@@ -667,6 +663,7 @@ export function DriverHome({
       )
       .subscribe();
     return () => {
+      loads.current.retire();
       window.clearTimeout(start);
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshIfIdle);
@@ -804,10 +801,7 @@ export function DriverHome({
           const active = document.activeElement;
           if (active instanceof Node && root.contains(active)) return;
           editing.current = false;
-          if (pending.current) {
-            pending.current = false;
-            void loadFeed();
-          }
+          if (loads.current.consumeQueue()) void loadFeed();
         }, 0);
       }}
       onTouchStart={(event) => {
