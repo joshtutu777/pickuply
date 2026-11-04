@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { liveDriverCanAccept, payoutRequirementNote, sameModeConnectAccount } from "./connect-eligibility";
+import { liveDriverCanAccept, payoutRequirementNote, sameModeConnectAccount, showDriverPayoutWarning } from "./connect-eligibility";
 import { readFileSync } from "node:fs";
 import { modeAlignmentLabel, paymentsModeMayChangeDatabase, paymentsModesMatch } from "./mode-alignment";
 import { readStripeLivemode, stripeObjectMatchesMode } from "./object-mode";
@@ -151,8 +151,52 @@ test("a real driver needs a live Connect account with payouts and transfers", ()
     }),
     true,
   );
-  assert.match(payoutRequirementNote("live", false), /live account/);
+  assert.match(payoutRequirementNote("live", false), /Stripe has to enable payouts and transfers/);
+  assert.match(payoutRequirementNote("live", false, false), /does not have a Stripe payout account/);
+  assert.doesNotMatch(payoutRequirementNote("live", false, false), /Stripe has to enable/);
   assert.match(payoutRequirementNote("test", false), /You can still take jobs/);
+  assert.equal(showDriverPayoutWarning(null), true);
+  assert.equal(showDriverPayoutWarning({ payouts_enabled: true, transfers_active: false }), true);
+  assert.equal(showDriverPayoutWarning({ payouts_enabled: false, transfers_active: true }), true);
+  assert.equal(showDriverPayoutWarning({ payouts_enabled: true, transfers_active: true }), false);
+  const driverHome = readFileSync(new URL("../../app/driver/page.tsx", import.meta.url), "utf8");
+  assert.match(driverHome, /showDriverPayoutWarning\(connect\)/);
+  assert.equal(driverHome.includes("Stripe has to enable payouts"), false);
+});
+
+test("payout setup saves the current-mode account before Stripe onboarding and resumes it", () => {
+  const actions = readFileSync(new URL("../../app/driver/connect/actions.ts", import.meta.url), "utf8");
+  const refresh = readFileSync(new URL("../../app/driver/earnings/refresh/route.ts", import.meta.url), "utf8");
+  const connect = readFileSync(new URL("./connect.ts", import.meta.url), "utf8");
+  const earnings = readFileSync(new URL("../../app/driver/earnings/page.tsx", import.meta.url), "utf8");
+  const stripe = readFileSync(new URL("../stripe.ts", import.meta.url), "utf8");
+  const mode = readFileSync(new URL("./payments-mode.ts", import.meta.url), "utf8");
+
+  for (const source of [actions.slice(actions.indexOf("export async function startPayoutSetup")), refresh]) {
+    const ensureAt = source.indexOf("ensureExpressAccount");
+    const linkAt = source.indexOf("onboardingLink");
+    const redirectAt = source.indexOf("redirect");
+    assert.ok(ensureAt >= 0 && linkAt > ensureAt && redirectAt > linkAt);
+  }
+
+  const setup = connect.slice(connect.indexOf("export async function ensureExpressAccount"));
+  const createAt = setup.indexOf("v2.core.accounts.create");
+  const existingReturn = setup.indexOf("return existingId");
+  const existingSave = setup.lastIndexOf("saveConnectAccount", existingReturn);
+  const saveAfterCreate = setup.indexOf("await saveConnectAccount(driverId, account)", createAt);
+  const returnCreated = setup.indexOf("return account.id", saveAfterCreate);
+  assert.ok(existingSave >= 0 && existingSave < existingReturn && existingReturn < createAt);
+  assert.ok(saveAfterCreate > createAt && returnCreated > saveAfterCreate);
+  assert.match(setup, /idempotencyKey: `connect-account:\$\{driverId\}`/);
+  assert.match(setup, /getStripe\(\)/);
+  assert.match(actions, /connectLivemode\(paymentsMode\(process\.env\.PAYMENTS_MODE\)\)/);
+  assert.match(stripe, /paymentsMode\(process\.env\.PAYMENTS_MODE\)/);
+  assert.match(mode, /secret: env\.STRIPE_LIVE_SECRET_KEY/);
+
+  const refreshAt = earnings.indexOf("refreshConnectAccount");
+  const freshAt = earnings.indexOf("const { data: fresh }");
+  assert.match(earnings, /query\.connect === "return" && data\?\.stripe_account_id/);
+  assert.ok(refreshAt >= 0 && freshAt > refreshAt);
 });
 
 test("transfer reconciliation does not send a live charge while the switch is test", () => {

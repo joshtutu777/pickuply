@@ -24,9 +24,20 @@ export function liveDriverCanAccept(input: {
   return input.payoutsEnabled && input.transfersActive && input.accountLivemode;
 }
 
-export function payoutRequirementNote(mode: PaymentsMode, ready: boolean): string {
+/** Home should not tell a driver that Stripe still has to activate an account Stripe already enabled. */
+export function showDriverPayoutWarning(account: {
+  payouts_enabled: boolean;
+  transfers_active: boolean;
+} | null): boolean {
+  return !(account?.payouts_enabled === true && account.transfers_active === true);
+}
+
+export function payoutRequirementNote(mode: PaymentsMode, ready: boolean, hasAccount = true): string {
   if (mode === "live" && ready) {
     return "Stripe can send your earnings to your live Stripe account. Bank deposits follow Stripe's payout schedule and may take a few additional business days.";
+  }
+  if (mode === "live" && !hasAccount) {
+    return "Pickuply does not have a Stripe payout account for you yet. Use Set up payouts in the app. Stripe can show another account as activated, and that account is not used until it is connected here.";
   }
   if (mode === "live") {
     return "Set up payouts before you accept paid jobs. Stripe has to enable payouts and transfers on a live account. A test payout account cannot be used for live jobs.";

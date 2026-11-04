@@ -908,5 +908,9 @@ Pat finished test Express onboarding. Payouts and transfers are active, with not
 
 ## Live pilot allowlist (2026-11-03)
 
-One live booking can be approved while paid bookings stay off. `LIVE_PILOT_ENABLED` must be the exact value `true`, and `LIVE_PILOT_CUSTOMER_ID` and `LIVE_PILOT_JOB_ID` must each be one id. The signed-in customer must own that real job, and the assigned driver must be a real approved driver with a live Connect account that can receive payouts and transfers. Tips and every other booking stay closed. The pilot is not turned on, and this is not deployed.
+One live booking can be approved while paid bookings stay off. `LIVE_PILOT_ENABLED` must be the exact value `true`, and `LIVE_PILOT_CUSTOMER_ID` and `LIVE_PILOT_JOB_ID` must each be one id. The signed-in customer must own that real job, and the assigned driver must be a real approved driver with a live Connect account that can receive payouts and transfers. Tips and every other booking stay closed. The pilot is not turned on. Production deployment `dpl_HxMGuVXjaSMbfKcZcyPgkHqjacWc` is commit `0237ec7`. `LIVE_PILOT_ENABLED` and `PAID_BOOKINGS_ENABLED` are both `false`. No pilot customer or job is configured. `PAYMENTS_MODE` stays `live`.
+
+## Driver payout warning (2026-11-03)
+
+Andy is an active real driver with no Stripe Connect account saved, and the live Stripe platform has no connected account for him. Driver home was telling every approved driver that Stripe still had to activate payouts, without reading the saved payout flags. The warning stays hidden when Stripe has already enabled payouts and transfers. A driver with no connected account is told to set one up in the app. Payment gates, keys, pricing, and webhooks were not changed.
 

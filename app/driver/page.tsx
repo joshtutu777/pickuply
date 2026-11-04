@@ -18,7 +18,8 @@ import { documentReviewNotes } from "@/lib/driver/online-gaps";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
-import { connectLivemode } from "@/lib/payments/connect-eligibility";
+import { connectLivemode, payoutRequirementNote, showDriverPayoutWarning } from "@/lib/payments/connect-eligibility";
+import { requirementLabels } from "@/lib/payments/requirements";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { driverTermsVersion } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
@@ -179,7 +180,7 @@ async function DriverContent({
         .limit(10),
       supabase
         .from("driver_connect_accounts")
-        .select("payouts_enabled, transfers_active")
+        .select("payouts_enabled, transfers_active, requirements_due")
         .eq("driver_id", session.userId)
         .eq("livemode", connectLivemode(mode))
         .maybeSingle(),
@@ -194,6 +195,7 @@ async function DriverContent({
           serviceFeeBps: feeRow.service_fee_bps,
         }
       : defaultFeeSettings;
+    const payoutItems = requirementLabels(connect?.requirements_due ?? []);
     return (
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
         <DriverHome
@@ -255,14 +257,19 @@ async function DriverContent({
         ) : (
           <p className="mt-3 text-base text-muted">Payout setup opens after you are approved.</p>
         )}
-        {approved && session.role === "driver" ? (
+        {approved && session.role === "driver" && showDriverPayoutWarning(connect) ? (
           <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-            <h2 className="font-display text-2xl font-semibold text-ink">Set up payouts to get paid</h2>
-            <p className="mt-2 text-base text-ink">
-              {mode === "live"
-                ? "Set up payouts before you accept paid jobs. Stripe has to enable payouts and transfers on a live account. This does not block going Online."
-                : "Earnings stay held until payouts are set up. This does not block going Online."}
-            </p>
+            <h2 className="font-display text-2xl font-semibold text-ink">
+              {connect ? "Finish payout setup" : "Set up payouts to get paid"}
+            </h2>
+            <p className="mt-2 text-base text-ink">{payoutRequirementNote(mode, false, Boolean(connect))}</p>
+            {payoutItems.length > 0 ? (
+              <ul className="mt-3 list-disc pl-5 text-base text-ink">
+                {payoutItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : null}
             <Link href="/driver/earnings" className="mt-3 inline-flex min-h-12 items-center font-semibold text-brand">
               Set up payouts
             </Link>

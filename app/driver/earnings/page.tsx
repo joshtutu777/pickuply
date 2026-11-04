@@ -119,7 +119,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
       </section>
       <section className="mt-6 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
         <h2 className="text-lg font-semibold text-ink">{payoutSetupLabel(fresh)}</h2>
-        <p className="mt-2 text-base text-ink">{payoutRequirementNote(mode, ready)}</p>
+        <p className="mt-2 text-base text-ink">{payoutRequirementNote(mode, ready, Boolean(fresh))}</p>
         {fresh?.disabled_reason ? (
           <p className="mt-2 text-base text-danger">Stripe paused this payout account. Open setup to see what they need.</p>
         ) : null}
