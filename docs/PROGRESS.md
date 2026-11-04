@@ -904,5 +904,9 @@ Pat finished test Express onboarding. Payouts and transfers are active, with not
 
 ## Paid booking gate (2026-11-03)
 
-`PAID_BOOKINGS_ENABLED` is a server-only switch. Only the exact value `true` allows a new live customer charge. Missing, blank, or any other value stays closed. Booking checkout and both tip charge paths stop before Stripe is called, including a second request and a test customer or test driver. The customer sees "Paid bookings are temporarily unavailable." Test mode can still create a test charge. Refunds, cancellations, reconciliation, and settlement of a payment that already exists are unchanged. The switch does not change prices or which Stripe key is read. `PAYMENTS_MODE` stays `live`. Paid bookings stay off.
+`PAID_BOOKINGS_ENABLED` is a server-only switch. Only the exact value `true` allows a new live customer charge. Missing, blank, or any other value stays closed. Booking checkout and both tip charge paths stop before Stripe is called, including a second request and a test customer or test driver. The customer sees "Paid bookings are temporarily unavailable." Test mode can still create a test charge. Refunds, cancellations, reconciliation, and settlement of a payment that already exists are unchanged. The switch does not change prices or which Stripe key is read. Production is commit `e85c1c1`, deployment `dpl_Dm3ky2zinN5xNrAGm2zM4iS28iBi`. `PAID_BOOKINGS_ENABLED` is `false`. `PAYMENTS_MODE` stays `live`. Paid bookings stay off.
+
+## Live pilot allowlist (2026-11-03)
+
+One live booking can be approved while paid bookings stay off. `LIVE_PILOT_ENABLED` must be the exact value `true`, and `LIVE_PILOT_CUSTOMER_ID` and `LIVE_PILOT_JOB_ID` must each be one id. The signed-in customer must own that real job, and the assigned driver must be a real approved driver with a live Connect account that can receive payouts and transfers. Tips and every other booking stay closed. The pilot is not turned on, and this is not deployed.
 

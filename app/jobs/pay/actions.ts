@@ -12,6 +12,7 @@ import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
 import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { PAID_BOOKINGS_UNAVAILABLE, liveCustomerChargesPaused, placeCustomerCharge } from "@/lib/payments/paid-bookings";
+import { loadPilotCheckout } from "@/lib/payments/pilot-access";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { getStripe } from "@/lib/stripe";
@@ -39,7 +40,9 @@ function checkoutError(message: string | undefined): string {
 export async function startCheckout(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
-  if (liveCustomerChargesPaused()) {
+  const gateClosed = liveCustomerChargesPaused();
+  const pilotAction = gateClosed ? await loadPilotCheckout(jobId) : "create";
+  if (gateClosed && pilotAction === "block") {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
   }
   const aligned = await alignPaymentsMode();
@@ -56,6 +59,9 @@ export async function startCheckout(formData: FormData) {
   }
   if (checkoutSync.state === "authorized") redirect(`/jobs/${jobId}`);
   if (checkoutSync.resumeUrl) redirect(checkoutSync.resumeUrl);
+  if (gateClosed && pilotAction === "resume") {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
   const prepared = await supabase.rpc("prepare_checkout", { target_job: jobId });
   if (prepared.error || !prepared.data) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(checkoutError(prepared.error?.message))}`);
@@ -125,6 +131,7 @@ export async function startCheckout(formData: FormData) {
       paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
       paidBookings: process.env.PAID_BOOKINGS_ENABLED,
       kind: "booking",
+      pilotAllowed: gateClosed && pilotAction === "create",
       isTestCustomer: profile?.data?.is_test === true,
       isTestDriver: driverProfile.data?.is_test === true,
       create: () => getStripe().checkout.sessions.create(

@@ -8,6 +8,7 @@ import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { issueCountLabel } from "@/lib/observability/issues";
 import { loadIssueSummary } from "@/lib/observability/issue-count";
 import { activatePaymentsMode } from "@/app/admin/health/actions";
+import { livePilotLabel } from "@/lib/payments/live-pilot";
 import { paidBookingsEnabled } from "@/lib/payments/paid-bookings";
 import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
 import { readPaymentsMode } from "@/lib/payments/mode-sync";
@@ -56,6 +57,13 @@ async function AdminHealth({ searchParams }: { searchParams: PageProps<"/admin/h
         <p className="text-2xl font-semibold">Payments environment: {mode === "live" ? "LIVE" : "TEST"}</p>
         <p className="mt-1 text-base text-ink">
           New live charges: {paidBookingsEnabled(process.env.PAID_BOOKINGS_ENABLED) ? "on" : "off"}
+        </p>
+        <p className="mt-1 text-base text-ink">
+          Live pilot: {livePilotLabel({
+            LIVE_PILOT_ENABLED: process.env.LIVE_PILOT_ENABLED,
+            LIVE_PILOT_CUSTOMER_ID: process.env.LIVE_PILOT_CUSTOMER_ID,
+            LIVE_PILOT_JOB_ID: process.env.LIVE_PILOT_JOB_ID,
+          })}
         </p>
         <p className="mt-2 text-2xl font-semibold">
           Payments database: {aligned.database === "live" ? "LIVE" : aligned.database === "test" ? "TEST" : "missing"}

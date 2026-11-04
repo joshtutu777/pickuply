@@ -20,13 +20,15 @@ export function newLiveChargeDecision(input: {
   kind: CustomerChargeKind;
   isTestCustomer?: boolean;
   isTestDriver?: boolean;
+  pilotAllowed?: boolean;
 }): "allow" | "block" {
   if (input.kind !== "booking" && input.kind !== "tip") return "block";
   if (input.paymentsMode !== "live") return "allow";
+  if (paidBookingsEnabled(input.paidBookings)) return "allow";
   const testProfile = input.isTestCustomer === true || input.isTestDriver === true;
-  const enabled = paidBookingsEnabled(input.paidBookings);
-  if (testProfile) return enabled ? "allow" : "block";
-  return enabled ? "allow" : "block";
+  if (testProfile) return "block";
+  if (input.kind === "booking" && input.pilotAllowed === true) return "allow";
+  return "block";
 }
 
 /** True when this server would refuse a new live customer charge. */
@@ -53,6 +55,7 @@ export async function placeCustomerCharge<T>(input: {
   kind: CustomerChargeKind;
   isTestCustomer?: boolean;
   isTestDriver?: boolean;
+  pilotAllowed?: boolean;
   validationError?: string | null;
   create: () => Promise<T>;
 }): Promise<T> {
@@ -63,6 +66,7 @@ export async function placeCustomerCharge<T>(input: {
       kind: input.kind,
       isTestCustomer: input.isTestCustomer,
       isTestDriver: input.isTestDriver,
+      pilotAllowed: input.kind === "booking" ? input.pilotAllowed : false,
     }) === "block"
   ) {
     throw new Error(PAID_BOOKINGS_UNAVAILABLE);

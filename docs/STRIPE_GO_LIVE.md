@@ -107,6 +107,8 @@ Do not put the live secret in `NEXT_PUBLIC_*`. Do not put a live key in `STRIPE_
 
 `PAID_BOOKINGS_ENABLED` is a separate server-only switch. Only the exact value `true` allows a new live customer charge. Missing, blank, or any other value stays closed. While it is closed, booking checkout and tip checkout stop before Stripe is called and the customer sees "Paid bookings are temporarily unavailable." A test profile does not skip that check. Test mode can still create a test charge. Refunds, cancellations, reconciliation, and settlement of a payment that already exists stay available. This switch does not change `PAYMENTS_MODE` or which Stripe key is read.
 
+`LIVE_PILOT_ENABLED`, `LIVE_PILOT_CUSTOMER_ID`, and `LIVE_PILOT_JOB_ID` can open one live booking while paid bookings stay off. The switch must be the exact value `true`, and each id must be one real id. Empty, `*`, `all`, or a list of ids stays closed. The signed-in customer must own that job. The job and both people must be real, the driver must be approved, and the driver must have a live Connect account with payouts, transfers, and details submitted. The job must be assigned and waiting for payment. A stored checkout is resumed instead of created again. The pilot does not open tips or any other booking. Set `LIVE_PILOT_ENABLED` back to `false`, or remove either id, to close it. That does not change a payment that is already authorized.
+
 ## 8. Enabling live mode
 
 - [ ] This pull request is merged and deployed, and migration `0119` is applied.
