@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { refreshPayoutSetup, startPayoutSetup } from "@/app/driver/connect/actions";
+import { refreshPayoutSetup } from "@/app/driver/connect/actions";
+import { PayoutSetupButton } from "@/components/driver/payout-setup-button";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
@@ -130,11 +131,15 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
             ))}
           </ul>
         ) : null}
-        <form action={startPayoutSetup} className="mt-4">
-          <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white">
-            {fresh ? "Update payout details" : "Set up payouts"}
-          </button>
-        </form>
+        {typeof query.error === "string" ? (
+          <p role="alert" className="mt-3 text-base text-danger">
+            {query.error}
+          </p>
+        ) : null}
+        <PayoutSetupButton
+          label={fresh ? "Update payout details" : "Set up payouts"}
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        />
         {fresh ? (
           <form action={refreshPayoutSetup} className="mt-2">
             <button type="submit" className="inline-flex min-h-12 items-center font-semibold text-brand">
@@ -142,7 +147,6 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
             </button>
           </form>
         ) : null}
-        {typeof query.error === "string" ? <p className="mt-3 text-base text-danger">{query.error}</p> : null}
         {query.saved === "1" ? <p className="mt-3 text-base text-ink">Payout status updated.</p> : null}
       </section>
       <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">

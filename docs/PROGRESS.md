@@ -912,5 +912,13 @@ One live booking can be approved while paid bookings stay off. `LIVE_PILOT_ENABL
 
 ## Driver payout warning (2026-11-03)
 
-Andy is an active real driver with no Stripe Connect account saved, and the live Stripe platform has no connected account for him. Driver home was telling every approved driver that Stripe still had to activate payouts, without reading the saved payout flags. The warning stays hidden when Stripe has already enabled payouts and transfers. A driver with no connected account is told to set one up in the app. Payment gates, keys, pricing, and webhooks were not changed.
+Andy is an active real driver with no Stripe Connect account saved, and the live Stripe platform has no connected account for him. Driver home was telling every approved driver that Stripe still had to activate payouts, without reading the saved payout flags. The warning stays hidden when Stripe has already enabled payouts and transfers. A driver with no connected account is told to set one up in the app. Payment gates, keys, pricing, and webhooks were not changed. Production deployment `dpl_MzkNaT7C9xp9hLFoxwFzgzwSSZmU` is commit `a0aaa95`.
+
+## Payout setup button (2026-11-03)
+
+Bryan is an active real driver with no saved payout account, and the live Stripe platform still has no connected accounts. Set up payouts had no loading state, and a failed setup returned to the same Earnings page. The button now says Opening Stripe while it works, shows the error on the page, and leaves Pickuply only for a Stripe-hosted onboarding link. A saved account is still reused. Payment gates were not changed. This is included in the payout setup diagnostics release.
+
+## Live payout onboarding diagnosis (2026-11-03)
+
+Production request logs show an iPhone posting to `/driver/earnings` several times around 2026-11-03 23:41 UTC. Each post returned HTTP 200 on deployment `dpl_Dm3ky2zinN5xNrAGm2zM4iS28iBi`, with the cache bypassed. No runtime log recorded a Stripe or database exception, because the action caught the error and did not write it down. The live platform still has no connected account, so account creation did not finish and the database save never ran. The hosted save function is present. Return and refresh addresses are `https://pickuplyapp.com/driver/earnings?connect=return` and `https://pickuplyapp.com/driver/earnings/refresh`. Live mode reads `STRIPE_LIVE_SECRET_KEY`. The exact Stripe error code is still unknown, and no live account was created to find it. A failed setup now writes one server log with the stage, Stripe error type, and Stripe error code, with secrets and contact details removed. The driver still sees a short message. This is included in the payout setup diagnostics release. No live Connect account was created for that release.
 

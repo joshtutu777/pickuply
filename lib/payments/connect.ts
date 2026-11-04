@@ -7,6 +7,7 @@ import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { readStripeLivemode, stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { readTransfersActive, requestDriverTransfers } from "@/lib/payments/connect-capability";
+import { reportPayoutSetupFailure } from "@/lib/payments/payout-setup-result";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -73,8 +74,20 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
     } catch {
       // The setup link can still open if Stripe already has this capability.
     }
-    const account = await getStripe().accounts.retrieve(existingId);
-    const saved = await saveConnectAccount(driverId, account);
+    let account: Stripe.Account;
+    try {
+      account = await getStripe().accounts.retrieve(existingId);
+    } catch (error) {
+      reportPayoutSetupFailure("stripe_account_create", error);
+      throw error;
+    }
+    let saved: { payoutsEnabled: boolean; transfersActive: boolean };
+    try {
+      saved = await saveConnectAccount(driverId, account);
+    } catch (error) {
+      reportPayoutSetupFailure("account_save", error);
+      throw error;
+    }
     if (saved.payoutsEnabled && saved.transfersActive) {
       try {
         await sendReadyTransfers({ driverId });
@@ -87,27 +100,44 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
   const stripe = getStripe();
   // This test platform uses Accounts v2 with Managed Risk. Stripe must collect losses.
   // The customer's card is charged on the platform. The driver account receives transfers.
-  const created = await stripe.v2.core.accounts.create(
-    {
-      ...(email ? { contact_email: email } : {}),
-      dashboard: "express",
-      identity: { country: "US" },
-      configuration: {
-        merchant: { capabilities: { card_payments: { requested: true } } },
-        recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
-      },
-      defaults: {
-        responsibilities: {
-          fees_collector: "stripe",
-          losses_collector: "stripe",
+  let created: { id: string };
+  try {
+    created = await stripe.v2.core.accounts.create(
+      {
+        ...(email ? { contact_email: email } : {}),
+        dashboard: "express",
+        identity: { country: "US" },
+        configuration: {
+          merchant: { capabilities: { card_payments: { requested: true } } },
+          recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
         },
+        defaults: {
+          responsibilities: {
+            fees_collector: "stripe",
+            losses_collector: "stripe",
+          },
+        },
+        metadata: { driver_id: driverId },
       },
-      metadata: { driver_id: driverId },
-    },
-    { apiVersion: previewVersion, idempotencyKey: `connect-account:${driverId}` },
-  );
-  const account = await stripe.accounts.retrieve(created.id);
-  await saveConnectAccount(driverId, account);
+      { apiVersion: previewVersion, idempotencyKey: `connect-account:${driverId}` },
+    );
+  } catch (error) {
+    reportPayoutSetupFailure("stripe_account_create", error);
+    throw error;
+  }
+  let account: Stripe.Account;
+  try {
+    account = await stripe.accounts.retrieve(created.id);
+  } catch (error) {
+    reportPayoutSetupFailure("stripe_account_create", error);
+    throw error;
+  }
+  try {
+    await saveConnectAccount(driverId, account);
+  } catch (error) {
+    reportPayoutSetupFailure("account_save", error);
+    throw error;
+  }
   return account.id;
 }
 
@@ -162,8 +192,16 @@ export async function onboardingLink(accountId: string, origin: string, detailsS
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     const fallback = fallbackAccountLinkKind(preferred, message);
-    if (!fallback) throw error;
-    return createAccountLink(accountId, origin, fallback);
+    if (!fallback) {
+      reportPayoutSetupFailure("stripe_account_link", error);
+      throw error;
+    }
+    try {
+      return await createAccountLink(accountId, origin, fallback);
+    } catch (fallbackError) {
+      reportPayoutSetupFailure("stripe_account_link", fallbackError);
+      throw fallbackError;
+    }
   }
 }
 

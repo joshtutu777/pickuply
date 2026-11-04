@@ -5,6 +5,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectLivemode } from "@/lib/payments/connect-eligibility";
 import { ensureExpressAccount, onboardingLink, refreshConnectAccount, requestOrigin } from "@/lib/payments/connect";
+import {
+  isNextRedirect,
+  payoutSetupErrorMessage,
+  reportPayoutSetupFailure,
+  stripeOnboardingUrl,
+} from "@/lib/payments/payout-setup-result";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -23,18 +29,25 @@ async function driverAccount() {
   return { userId: session.userId, accountId: data?.stripe_account_id ?? null, detailsSubmitted: Boolean(data?.details_submitted) };
 }
 
-export async function startPayoutSetup() {
-  const driver = await driverAccount();
-  const origin = requestOrigin(await headers());
-  let url: string;
+export async function beginPayoutSetup(): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   try {
+    const driver = await driverAccount();
+    const origin = requestOrigin(await headers());
     const accountId = await ensureExpressAccount(driver.userId, driver.accountId);
-    url = await onboardingLink(accountId, origin, driver.detailsSubmitted);
+    const url = stripeOnboardingUrl(await onboardingLink(accountId, origin, driver.detailsSubmitted));
+    if (!url) return { ok: false, error: "Stripe did not open payout setup. Try again in a moment." };
+    return { ok: true, url };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Payout setup could not be started.";
-    redirect(`/driver/earnings?error=${encodeURIComponent(message)}`);
+    if (isNextRedirect(error)) throw error;
+    reportPayoutSetupFailure("driver_lookup", error);
+    return { ok: false, error: payoutSetupErrorMessage(error) };
   }
-  redirect(url);
+}
+
+export async function startPayoutSetup() {
+  const result = await beginPayoutSetup();
+  if (!result.ok) redirect(`/driver/earnings?error=${encodeURIComponent(result.error)}`);
+  redirect(result.url);
 }
 
 export async function refreshPayoutSetup() {

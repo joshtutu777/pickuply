@@ -172,12 +172,20 @@ test("payout setup saves the current-mode account before Stripe onboarding and r
   const stripe = readFileSync(new URL("../stripe.ts", import.meta.url), "utf8");
   const mode = readFileSync(new URL("./payments-mode.ts", import.meta.url), "utf8");
 
-  for (const source of [actions.slice(actions.indexOf("export async function startPayoutSetup")), refresh]) {
-    const ensureAt = source.indexOf("ensureExpressAccount");
-    const linkAt = source.indexOf("onboardingLink");
-    const redirectAt = source.indexOf("redirect");
-    assert.ok(ensureAt >= 0 && linkAt > ensureAt && redirectAt > linkAt);
-  }
+  const begin = actions.slice(
+    actions.indexOf("export async function beginPayoutSetup"),
+    actions.indexOf("export async function startPayoutSetup"),
+  );
+  const ensureAt = begin.indexOf("ensureExpressAccount");
+  const linkAt = begin.indexOf("onboardingLink");
+  assert.ok(ensureAt >= 0 && linkAt > ensureAt);
+  assert.match(begin, /isNextRedirect\(error\)\) throw error/);
+  const start = actions.slice(actions.indexOf("export async function startPayoutSetup"));
+  assert.ok(start.indexOf("beginPayoutSetup") >= 0 && start.indexOf("redirect") > start.indexOf("beginPayoutSetup"));
+  const refreshEnsure = refresh.indexOf("ensureExpressAccount");
+  const refreshLink = refresh.indexOf("onboardingLink");
+  const refreshRedirect = refresh.indexOf("redirect");
+  assert.ok(refreshEnsure >= 0 && refreshLink > refreshEnsure && refreshRedirect > refreshLink);
 
   const setup = connect.slice(connect.indexOf("export async function ensureExpressAccount"));
   const createAt = setup.indexOf("v2.core.accounts.create");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { startPayoutSetup } from "@/app/driver/connect/actions";
+import { PayoutSetupButton } from "@/components/driver/payout-setup-button";
 import { ModeSwitch } from "@/components/profile/mode-switch";
 import { SignOutButton } from "@/components/sign-out-button";
 import { formatUsPhone } from "@/lib/phone";
@@ -82,11 +82,7 @@ export function ProfileMenu({
         ) : null}
         {surface === "driver" ? (
           <li>
-            <form action={startPayoutSetup}>
-              <button type="submit" className={row}>
-                Update payout details
-              </button>
-            </form>
+            <PayoutSetupButton label="Update payout details" className={row} formClassName="" />
           </li>
         ) : null}
         {betaMode() ? (
