@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { refreshPayoutSetup } from "@/app/driver/connect/actions";
+import { PayoutEmailHelp } from "@/components/driver/payout-email-help";
 import { PayoutSetupButton } from "@/components/driver/payout-setup-button";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
@@ -132,9 +133,10 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
           </ul>
         ) : null}
         {typeof query.error === "string" ? (
-          <p role="alert" className="mt-3 text-base text-danger">
-            {query.error}
-          </p>
+          <div role="alert" className="mt-3 text-base text-danger">
+            <p>{query.error}</p>
+            <PayoutEmailHelp message={query.error} />
+          </div>
         ) : null}
         <PayoutSetupButton
           label={fresh ? "Update payout details" : "Set up payouts"}

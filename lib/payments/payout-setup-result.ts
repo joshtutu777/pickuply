@@ -1,3 +1,5 @@
+import { PAYOUT_EMAIL_REQUIRED } from "@/lib/payments/payout-contact-email";
+
 export type PayoutSetupStage = "driver_lookup" | "stripe_account_create" | "account_save" | "stripe_account_link";
 
 const reportedFailures = new WeakSet<object>();
@@ -16,6 +18,7 @@ export function payoutSetupErrorMessage(error: unknown): string {
     return "Stripe did not open payout setup. Try again in a moment.";
   }
   if (/belongs to someone else/i.test(clean)) return "This payout account belongs to someone else.";
+  if (clean === PAYOUT_EMAIL_REQUIRED) return PAYOUT_EMAIL_REQUIRED;
   return "Payout setup could not be started. Try again in a moment.";
 }
 

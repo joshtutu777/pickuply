@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { beginPayoutSetup } from "@/app/driver/connect/actions";
+import { PayoutEmailHelp } from "@/components/driver/payout-email-help";
 import { isNextRedirect, stripeOnboardingUrl } from "@/lib/payments/payout-setup-result";
 
 export function PayoutSetupButton({
@@ -48,9 +49,10 @@ export function PayoutSetupButton({
         {pending ? "Opening Stripe..." : label}
       </button>
       {error ? (
-        <p role="alert" className="mt-3 text-base text-danger">
-          {error}
-        </p>
+        <div role="alert" className="mt-3 text-base text-danger">
+          <p>{error}</p>
+          <PayoutEmailHelp message={error} />
+        </div>
       ) : null}
     </form>
   );

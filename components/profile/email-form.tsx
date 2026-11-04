@@ -37,7 +37,7 @@ export function ProfileEmailForm({ email }: { email: string | null }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 space-y-3">
+    <form id="email" onSubmit={onSubmit} className="mt-6 scroll-mt-24 space-y-3">
       <TextField
         label="Email address"
         name="profileEmail"

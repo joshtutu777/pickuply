@@ -7,6 +7,7 @@ import { alignPaymentsMode } from "@/lib/payments/mode-sync";
 import { readStripeLivemode, stripeObjectMatchesMode } from "@/lib/payments/object-mode";
 import { paymentsMode } from "@/lib/payments/payments-mode";
 import { readTransfersActive, requestDriverTransfers } from "@/lib/payments/connect-capability";
+import { PAYOUT_EMAIL_REQUIRED, payoutContactEmail } from "@/lib/payments/payout-contact-email";
 import { reportPayoutSetupFailure } from "@/lib/payments/payout-setup-result";
 import { sendReadyTransfers } from "@/lib/payments/transfers";
 import { getStripe } from "@/lib/stripe";
@@ -58,10 +59,17 @@ export async function saveConnectAccount(
 const previewVersion = "2026-09-30.preview";
 
 async function contactEmail(driverId: string): Promise<string | null> {
-  const { data, error } = await createServiceClient().auth.admin.getUserById(driverId);
-  if (error) return null;
-  const email = data.user?.email?.trim();
-  return email || null;
+  const supabase = createServiceClient();
+  const [{ data, error }, profile] = await Promise.all([
+    supabase.auth.admin.getUserById(driverId),
+    supabase.from("profiles").select("email").eq("id", driverId).maybeSingle(),
+  ]);
+  const user = error ? null : data.user;
+  return payoutContactEmail({
+    authEmail: user?.email,
+    authEmailConfirmed: Boolean(user?.email_confirmed_at),
+    profileEmail: profile.data?.email,
+  });
 }
 
 export async function ensureExpressAccount(driverId: string, existingId: string | null): Promise<string> {
@@ -97,6 +105,7 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
     }
     return existingId;
   }
+  if (!email) throw new Error(PAYOUT_EMAIL_REQUIRED);
   const stripe = getStripe();
   // This test platform uses Accounts v2 with Managed Risk. Stripe must collect losses.
   // The customer's card is charged on the platform. The driver account receives transfers.
@@ -104,7 +113,7 @@ export async function ensureExpressAccount(driverId: string, existingId: string 
   try {
     created = await stripe.v2.core.accounts.create(
       {
-        ...(email ? { contact_email: email } : {}),
+        contact_email: email,
         dashboard: "express",
         identity: { country: "US" },
         configuration: {

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { connectLivemode } from "@/lib/payments/connect-eligibility";
 import { ensureExpressAccount, onboardingLink, refreshConnectAccount, requestOrigin } from "@/lib/payments/connect";
+import { PAYOUT_EMAIL_REQUIRED } from "@/lib/payments/payout-contact-email";
 import {
   isNextRedirect,
   payoutSetupErrorMessage,
@@ -39,7 +40,9 @@ export async function beginPayoutSetup(): Promise<{ ok: true; url: string } | { 
     return { ok: true, url };
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    reportPayoutSetupFailure("driver_lookup", error);
+    if (!(error instanceof Error && error.message === PAYOUT_EMAIL_REQUIRED)) {
+      reportPayoutSetupFailure("driver_lookup", error);
+    }
     return { ok: false, error: payoutSetupErrorMessage(error) };
   }
 }

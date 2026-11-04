@@ -20,6 +20,10 @@ test("payout setup errors stay short and leave out secrets", () => {
   );
   assert.equal(payoutSetupErrorMessage("nope"), "Payout setup could not be started. Try again in a moment.");
   assert.equal(
+    payoutSetupErrorMessage(new Error("Add your email address to your driver profile before setting up payouts.")),
+    "Add your email address to your driver profile before setting up payouts.",
+  );
+  assert.equal(
     payoutSetupErrorMessage(new Error("If dashboard is express, fees_collector must be application.")),
     "Payout setup could not be started. Try again in a moment.",
   );
