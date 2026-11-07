@@ -46,6 +46,41 @@ test("role homes", () => {
   assert.equal(ACCESS_DENIED_MESSAGE, "You don't have access to that page.");
 });
 
+test("a stored name lets an existing account continue", () => {
+  assert.deepEqual(
+    accessStateFromProfile({ signedIn: true, role: "customer", fullName: "Casey", firstName: "Casey", lastName: null }),
+    { status: "ready", role: "customer", fullName: "Casey" },
+  );
+  assert.deepEqual(
+    accessStateFromProfile({
+      signedIn: true,
+      role: "driver",
+      fullName: "Mary Ann Smith",
+      firstName: "Mary",
+      lastName: null,
+    }),
+    { status: "ready", role: "driver", fullName: "Mary Ann Smith" },
+  );
+  assert.deepEqual(
+    accessStateFromProfile({ signedIn: true, role: "driver", fullName: "Ada Lovelace", firstName: null, lastName: null }),
+    { status: "ready", role: "driver", fullName: "Ada Lovelace" },
+  );
+  assert.deepEqual(
+    accessStateFromProfile({
+      signedIn: true,
+      role: "customer",
+      fullName: null,
+      firstName: "Casey",
+      lastName: "Customer",
+    }),
+    { status: "ready", role: "customer", fullName: "Casey Customer" },
+  );
+  assert.equal(
+    accessStateFromProfile({ signedIn: true, role: "customer", fullName: null, firstName: null, lastName: null }).status,
+    "needs-name",
+  );
+});
+
 test("blank names need the name step", () => {
   assert.deepEqual(accessStateFromProfile({ signedIn: true, role: "customer", fullName: "  " }), {
     status: "needs-name",

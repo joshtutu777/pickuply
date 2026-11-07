@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookieSettingsLink } from "@/components/analytics/cookie-settings-link";
 import { TrackedLink } from "@/components/analytics/tracked-link";
 import { BetaBadge } from "@/components/beta-badge";
 import { InstallButton } from "@/components/pwa/install-button";
@@ -40,7 +41,7 @@ const services = [
   },
 ] as const;
 
-export function LandingPage({ blog = null }: { blog?: ReactNode }) {
+export function LandingPage({ blog = null, account }: { blog?: ReactNode; account: ReactNode }) {
   return (
     <div className="bg-[#F4F1EB] text-[#14211B]">
       <header className="border-b border-[#E4DED2] bg-[#FFFDF8]">
@@ -61,7 +62,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
               What we pick up
             </Link>
             <Link href="/contact" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
-              Support
+              Contact
             </Link>
             <Link href="/blog" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               Blog
@@ -69,12 +70,7 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <Link href="/drive" className="px-2 py-2 text-[13px] font-medium text-[#14211B] sm:px-3 sm:py-2.5 sm:text-base">
               Drive with us
             </Link>
-            <Link
-              href="/login"
-              className="rounded-full border-[1.5px] border-[#CFC7B8] bg-[#FFFDF8] px-3 py-2 text-[13px] font-semibold text-[#14211B] sm:px-[18px] sm:py-2.5 sm:text-base"
-            >
-              Sign in
-            </Link>
+            {account}
           </nav>
         </div>
       </header>
@@ -184,7 +180,22 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
           </div>
         </section>
 
-        <section className="mx-auto flex max-w-[1160px] flex-wrap items-center gap-10 px-6 pt-[88px] pb-6">
+        <section id="atlanta" className="mx-auto max-w-[900px] px-6 pt-8 pb-2 text-left sm:pt-10">
+          <div className="flex max-w-[36rem] flex-col gap-3">
+            <h2 className="font-display text-[30px] leading-[1.15] font-semibold text-[#14211B] sm:text-[40px]">
+              Local Pickup &amp; Delivery in Metro Atlanta
+            </h2>
+            <p className="text-base leading-relaxed text-[#46544C] sm:text-lg">
+              Found something on Facebook Marketplace, Home Depot, IKEA, or at a yard sale that won&apos;t fit in your car?
+              Pickuply connects you with local neighbors who have trucks and vans to pick up your purchases and bring them right to your door.
+            </p>
+            <p className="text-base leading-relaxed text-[#46544C] sm:text-lg">
+              From furniture and appliances to store pickups and junk removal, post your request, compare driver offers, and choose the price that works for you.
+            </p>
+          </div>
+        </section>
+
+        <section className="mx-auto flex max-w-[1160px] flex-wrap items-center gap-10 px-6 pt-10 pb-6 sm:pt-14">
           <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-3.5">
             <div className="max-w-[460px] self-start rounded-[24px] rounded-bl-[6px] border border-[#E4DED2] bg-[#FFFDF8] px-[26px] py-[22px] font-display text-[28px] leading-[1.25] font-medium">
               “Can someone pick this up today, including loading and unloading?”
@@ -304,9 +315,9 @@ export function LandingPage({ blog = null }: { blog?: ReactNode }) {
             <Link href="/terms" className="py-2 font-medium text-[#14211B]">Terms</Link>
             <Link href="/privacy" className="py-2 font-medium text-[#14211B]">Privacy</Link>
             <Link href="/blog" className="py-2 font-medium text-[#14211B]">Blog</Link>
-            <Link href="/contact" className="py-2 font-medium text-[#14211B]">Support</Link>
+            <Link href="/contact" className="py-2 font-medium text-[#14211B]">Contact</Link>
             <Link href="/help" className="py-2 font-medium text-[#14211B]">Help</Link>
-            <a href="mailto:info@pickuplyapp.com" className="py-2 font-medium text-[#14211B]">Contact</a>
+            <CookieSettingsLink className="inline-flex min-h-12 items-center py-2 font-medium text-[#14211B]" />
           </nav>
         </div>
       </footer>

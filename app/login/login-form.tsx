@@ -27,6 +27,31 @@ function authConfigured(): boolean {
   );
 }
 
+function continuePath(next: string, driver: boolean): string {
+  const params = new URLSearchParams();
+  if (next) params.set("next", next);
+  if (driver) params.set("intent", "driver");
+  const query = params.toString();
+  return query ? `/auth/continue?${query}` : "/auth/continue";
+}
+
+/** A live session must not start another code. A deleted account is signed out. */
+async function openExistingSession(): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return false;
+    const profile = await supabase.from("profiles").select("deleted_at").eq("id", data.user.id).maybeSingle();
+    if (profile.data?.deleted_at) {
+      await supabase.auth.signOut();
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function LoginForm({
   next,
   intent,
@@ -57,6 +82,17 @@ export function LoginForm({
   }, [step]);
 
   useEffect(() => {
+    const destination = continuePath(safeNext, driver);
+    let cancel = false;
+    void openExistingSession().then((opened) => {
+      if (!cancel && opened) window.location.replace(destination);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [safeNext, driver]);
+
+  useEffect(() => {
     if (!cooling) return;
     const timer = window.setTimeout(() => setCooling(false), RESEND_MS);
     return () => window.clearTimeout(timer);
@@ -78,6 +114,11 @@ export function LoginForm({
     setPending(true);
     setError("");
     try {
+      const destination = continuePath(safeNext, driver);
+      if (await openExistingSession()) {
+        window.location.replace(destination);
+        return;
+      }
       const limited = await allowOtpSend(normalized);
       if (limited) {
         setError(limited);
@@ -112,6 +153,11 @@ export function LoginForm({
     setPending(true);
     setError("");
     try {
+      const destination = continuePath(safeNext, driver);
+      if (await openExistingSession()) {
+        window.location.replace(destination);
+        return;
+      }
       const supabase = createClient();
       const { error: verifyError } = await supabase.auth.verifyOtp({
         phone: sentPhone,
@@ -133,11 +179,6 @@ export function LoginForm({
           );
         }
       }
-      const params = new URLSearchParams();
-      if (safeNext) params.set("next", safeNext);
-      if (driver) params.set("intent", "driver");
-      const query = params.toString();
-      const destination = query ? `/auth/continue?${query}` : "/auth/continue";
       if (smsOptIn) {
         const consentError = await recordOptionalSmsConsent("login");
         if (consentError) {

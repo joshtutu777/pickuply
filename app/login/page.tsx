@@ -5,6 +5,7 @@ import { LoginForm } from "@/app/login/login-form";
 import { LoadingMain } from "@/components/loading-main";
 import { authLocation, decideAccess, safeIntent, safeNextParam } from "@/lib/auth/access";
 import { singleQuery } from "@/lib/auth/query";
+import { signOutAction } from "@/lib/auth/actions";
 import { getOptionalSession, stateFromSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
@@ -40,6 +41,7 @@ async function LoginContent({
   const located = authLocation("/login", next, intent);
   const search = located.startsWith("/login?") ? located.slice("/login".length) : "";
   const session = await getOptionalSession();
+  if (session?.deleted) await signOutAction();
   const decision = decideAccess({
     pathname: "/login",
     search,

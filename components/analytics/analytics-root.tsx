@@ -26,6 +26,11 @@ const gate: Gate = { consent: null, isTest: false, ready: false };
 const seen = new Set<string>();
 let loaded = false;
 let lastPath: string | null = null;
+let requestSettings: (() => void) | null = null;
+
+export function openCookieSettings() {
+  requestSettings?.();
+}
 
 function readConsent(): ConsentChoice | null {
   try {
@@ -148,6 +153,13 @@ export function AnalyticsRoot() {
   }, []);
 
   useEffect(() => {
+    requestSettings = () => setSettingsOpen(true);
+    return () => {
+      requestSettings = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!ready) return;
     loadTagManager();
     const view = nextPageView(lastPath, pathname);
@@ -174,34 +186,27 @@ export function AnalyticsRoot() {
     }
   }
 
-  if (!ready) return null;
-  if (consent && !settingsOpen) {
-    return (
-      <button
-        type="button"
-        className="fixed bottom-3 left-3 z-40 inline-flex min-h-12 items-center rounded-full bg-paper-raised px-4 text-sm font-semibold text-ink ring-1 ring-line"
-        onClick={() => setSettingsOpen(true)}
-      >
-        Cookie settings
-      </button>
-    );
-  }
+  if (!ready || (consent && !settingsOpen)) return null;
   return (
-    <div role="dialog" aria-labelledby="analytics-consent-title" className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl rounded-3xl bg-paper-raised p-4 shadow-lg ring-1 ring-line">
+    <section
+      role="dialog"
+      aria-labelledby="analytics-consent-title"
+      className="relative z-20 mx-auto mt-[max(0.5rem,env(safe-area-inset-top))] mb-2 w-[calc(100%-1.5rem)] max-h-[40vh] max-w-xl overflow-y-auto rounded-2xl bg-paper-raised p-3 ring-1 ring-line"
+    >
       <p id="analytics-consent-title" className="text-base font-semibold text-ink">Optional cookies</p>
       <p className="mt-2 text-base text-muted">
         Allow analytics and advertising cookies, or reject them. Sign-in cookies stay on either way.{" "}
         <Link href="/privacy" className="font-semibold text-brand">Privacy policy</Link>
       </p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <button type="button" className="inline-flex min-h-12 items-center rounded-2xl bg-brand px-4 font-semibold text-white" onClick={() => choose("granted")}>
+      <div className="mt-3 grid gap-2">
+        <button type="button" className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-brand px-4 font-semibold text-white" onClick={() => choose("granted")}>
           Allow optional cookies
         </button>
-        <button type="button" className="inline-flex min-h-12 items-center rounded-2xl px-4 font-semibold text-brand ring-1 ring-line" onClick={() => choose("denied")}>
+        <button type="button" className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl px-4 font-semibold text-brand ring-1 ring-line" onClick={() => choose("denied")}>
           Reject optional cookies
         </button>
       </div>
-    </div>
+    </section>
   );
 }
 

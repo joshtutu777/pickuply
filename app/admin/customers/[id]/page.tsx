@@ -3,10 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { AccountControls } from "@/components/admin/account-controls";
+import { RemoveCustomer } from "@/components/admin/remove-customer";
+import { customerRemovalMessage } from "@/lib/admin/customer-removal";
 import { BackLink } from "@/components/back-link";
 import { LoadingMain } from "@/components/loading-main";
 import { requireAdmin } from "@/lib/auth/session";
-import { formatUsPhone } from "@/lib/phone";
+import { formatUsPhone, maskUsPhone } from "@/lib/phone";
+import { displayFullName } from "@/lib/auth/name";
+import { registrationLabel } from "@/lib/auth/registration";
+import { formatSignupDate } from "@/lib/time/when";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: { absolute: "Customer · Pickuply Admin" } };
@@ -32,7 +37,7 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, role, deleted_at, reclaim_hold_at, created_at")
+    .select("id, full_name, first_name, last_name, phone, role, deleted_at, reclaim_hold_at, created_at, registration_completed_at")
     .eq("id", customerId)
     .maybeSingle();
   if (!profile) notFound();
@@ -49,7 +54,14 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
       <BackLink href="/admin/customers" label="Customers" />
       <p className="text-sm font-semibold tracking-wide text-brand uppercase">Admin</p>
-      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">{profile.full_name ?? "Unnamed"}</h1>
+      <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+        {displayFullName({ firstName: profile.first_name, lastName: profile.last_name, fullName: profile.full_name }) ?? "Unnamed"}
+      </h1>
+      {typeof query.removed === "string" && (query.removed === "1" || query.removed === "already") ? (
+        <p role="status" className="mt-4 text-base text-ink">
+          {customerRemovalMessage(query.removed === "already" ? "already_removed" : "removed")}
+        </p>
+      ) : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}
@@ -57,10 +69,33 @@ async function Customer({ params, searchParams }: CustomerPageProps) {
       ) : null}
       <dl className="mt-4 grid gap-2 text-base text-ink">
         <div><dt className="font-semibold">Phone</dt><dd>{profile.phone ? formatUsPhone(profile.phone) ?? profile.phone : "No phone"}</dd></div>
+        <div><dt className="font-semibold">Phone verified</dt><dd>{formatSignupDate(profile.created_at)}</dd></div>
+        <div>
+          <dt className="font-semibold">Registration</dt>
+          <dd>
+            {registrationLabel({
+              completedAt: profile.registration_completed_at,
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              fullName: profile.full_name,
+            })}
+            {profile.registration_completed_at ? ` · ${formatSignupDate(profile.registration_completed_at)}` : ""}
+          </dd>
+        </div>
         <div><dt className="font-semibold">Role</dt><dd>{profile.role}</dd></div>
         <div><dt className="font-semibold">Account</dt><dd>{profile.deleted_at ? "Deleted" : profile.reclaim_hold_at ? "Frozen for phone review" : "Open"}</dd></div>
       </dl>
       <AccountControls profileId={profile.id} returnTo={`/admin/customers/${profile.id}`} label="Suspension" />
+      {profile.role === "customer" && !profile.deleted_at ? (
+        <RemoveCustomer
+          profileId={profile.id}
+          label={
+            profile.phone
+              ? `${displayFullName({ firstName: profile.first_name, lastName: profile.last_name, fullName: profile.full_name }) ?? "Unnamed customer"}, ${maskUsPhone(profile.phone) ?? "phone on file"}`
+              : displayFullName({ firstName: profile.first_name, lastName: profile.last_name, fullName: profile.full_name }) ?? "Unnamed customer"
+          }
+        />
+      ) : null}
       <section className="mt-8">
         <h2 className="font-display text-2xl font-semibold text-ink">Deletion</h2>
         <p className="mt-2 text-base text-ink">{deletion?.status ? deletion.status : "No deletion request."}</p>

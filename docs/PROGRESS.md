@@ -1,5 +1,58 @@
 # Pickuply progress
 
+## Signed-in homepage and admin customer removal deployed (2026-11-07)
+
+Migration `0129_admin_remove_customer.sql` is recorded as version `0129`. Version `0123` is still not applied. The migration installs the function only. Customer count stayed 42, deleted customers stayed 0, and the profile fingerprint was unchanged.
+
+Production deployment `dpl_AHWevtPRKDPJ5SS1GMjkT7Midx8v` is aliased to https://pickuplyapp.com. It was uploaded from the working tree. Git HEAD is still `490394d`, which does not contain this change. No production customer was deleted.
+
+## Signed-in homepage and admin customer removal (2026-11-07)
+
+This note is the pre-deploy record. The apply is the section above.
+
+The homepage had its own header and always showed Sign in. The session-aware header is hidden on `/`, so a signed-in customer looked signed out and could start a second phone code. That second code is what fails: the app and the phone provider still enforce their send limits, and the earlier code is already used. The homepage now waits for the session before showing Sign in. A finished customer sees their first name, My Account, My Requests, and Sign out. An unfinished customer sees Complete your profile. Drivers and admins keep their own homes. Opening sign-in with a live session goes to the existing account and does not request another code.
+
+Migration `0129_admin_remove_customer.sql` is local only. An admin can remove a customer with no requests, payments, refunds, or disputes. The profile stays as Deleted account, the phone is released for a new registration, and the sign-in is disabled. Customers with requests, payments, or an open dispute are left unchanged. Stripe objects are not deleted. The 14-day self-service deletion is unchanged.
+
+`tsc --noEmit` passed. Homepage, access, and removal message tests passed. `supabase/tests/0129_admin_remove_customer.test.sql` passed, 12 tests, and rolled back.
+
+## Registration completion deployed (2026-11-06)
+
+Migration `0128_registration_completion.sql` is recorded as version `0128` on the hosted database. Version `0123` is still not applied. The name-backfill script was not run.
+
+Before the migration: 42 customers, 86 profiles, 51 jobs. 18 customers already had both name parts, 19 had a partial name, and 5 had no name. After it, those counts and the name and phone-verification fingerprints were unchanged. All 18 complete profiles have `registration_completed_at`, equal to that profile's existing `updated_at`, and none of those stamps were written during the apply. The 24 incomplete profiles stayed incomplete. No name was filled in. Jobs were unchanged. The request function now calls `apply_missing_profile_name`, and both profile triggers were enabled again.
+
+The registration app changes are on https://pickuplyapp.com. `/admin/customers` opens on completed registrations. With test accounts hidden: 11 registered and 20 unfinished. With test accounts included: 18 registered and 24 unfinished, 42 rows. Dates are calendar days, not clock times. A customer detail for an unfinished account shows Phone verified with the day and Registration as "Phone verified" with no completion day. The admin test sign-in code still verifies. An unnamed test customer's local code was rejected, so that login was not retried and no request was submitted.
+
+## Registration completion (2026-11-06)
+
+This note is the pre-deploy record. The apply is the section above.
+
+Confirming a phone creates the customer before a name is saved. That is still true. `profiles.created_at` is the phone-verification time. `profiles.registration_completed_at` is set only when both a first and last name are saved, and it is not moved by a later edit. A one-word request name is stored as the first name and does not invent a last name. A request name is written inside `create_customer_request`, so a name that cannot be stored rolls the request back. A profile that already has a name is left alone.
+
+Migration `0128_registration_completion.sql` is required before the new customer list. It does not run the name backfill. `scripts/sql/backfill-unnamed-customers-from-requests.sql` previews counts and rolls back. Hosted customers on 2026-11-06, read only: 42 customers, none deleted. 18 already have both names (7 test). 19 have a one-word name and no last name (3 test). 5 have no name and no jobs (1 test). None of the nameless customers have a request name to copy. Do not invent last names for the 19.
+
+`/admin/customers` defaults to finished registrations. Registration not finished and All customers are separate filters. Phone verification and registration completion are shown as two dates. For people who already had both names, the completion date stored by the migration is the profile's last update time, not a reconstructed typing time.
+
+`npm run typecheck` passed. `npm run test:unit` passed, 226 tests. `npm run build` passed. `supabase/tests/0128_registration_completion.test.sql` passed, 19 tests. `supabase/tests/0122_separate_names.test.sql` passed. The full local database suite was run against the existing local database and failed older quote, fee, message, and driver checks. Those failures are outside this change. The hosted project was not migrated.
+
+## Production remediation applied (2026-11-02)
+
+Production data and database functions were updated. The website was not deployed.
+
+- The 21 open test-customer requests were marked `is_test = true` again and that change was committed. The five open real-customer requests were left alone. A before-state list is in `scripts/sql/restore-open-test-requests-backup-2026-11-02.sql`.
+- Migration `0127_customer_timing_and_online.sql` is recorded as version `0127`. Version `0123` is still not applied.
+- A database trigger now refuses to turn a test customer's request into a real request.
+- Approved drivers can go Online with Driver Terms v2 even when license or insurance is missing or expired. Pending, missing-terms, and suspended drivers stay blocked. Document warnings stay in the local app for admin review.
+- Offer acceptance was checked on production inside a transaction that rolled back: ASAP, Anytime, an open window, a future specific time, and a legacy request were accepted. A past time and a passed window were refused. Updating the passed window to ASAP then allowed acceptance. No Stripe charge or payout was created.
+- `payments_mode` is still `live`. Paid bookings are not cleared for drivers with missing or expired documents. That review is still waiting.
+
+## Remediation prepared, not applied (2026-11-02)
+
+This note is kept as history. The production apply is the section above. The review copy of the 21-row script still ends in `rollback` so running that file does not change production again.
+
+## Step 1 — Initial project setup (2026-10-21)
+
 ## Step 1 — Initial project setup (2026-10-21)
 
 ### What was already in the workspace
@@ -770,4 +823,20 @@ Optional analytics stay off until a visitor allows cookies. Google Tag Manager G
 
 An offline approved driver sees “You're currently offline. Go online to submit an offer.” at the top of the offer form, with Go Online. Going online keeps the typed amount and does not send the offer. The database still rejects an offer from an offline driver. An unapproved driver does not get that Go Online button. All Georgia Requests counts only eligible open jobs outside the driver's saved areas, so a count of 0 means those jobs are already under Matched for You, or there are no other open requests. The empty text says which. New in-app alerts play one short sound and show a banner. Refresh and a second tab do not play that alert again. Sounds, new-job alerts, messages, and delivery updates are device settings on Profile. Background push still uses the existing opt-in and is not sent for synthetic accounts. This is local only and is not deployed.
 
+Blog and Contact stay on the public header and footer. Signed-in customer and driver menus keep Help and do not list Blog or Contact. Admin keeps Blog and Support Inbox. `/blog`, `/contact`, and `/support` still open directly.
+
+A regular delivery no longer waits for the customer after Item loaded. The driver goes on to the drop-off, adds the drop-off photo, and marks Delivered. The customer then sees “Does everything look good?” and can confirm or report an issue. Junk removal uses one completion photo and Junk removed. It does not ask for a customer drop-off. A disposal receipt is still required when that job already needs one. Confirmation and the 24-hour clock start at that service’s finish, which is the existing `delivered` status. A dispute still blocks capture. Migration `0089` is local only and has not been applied to the hosted database. Existing job rows were not rewritten.
+
 The admin request page now has a Delivery proof section. It shows pickup and drop-off proof for a delivery, the removal completion photo for junk, and a disposal receipt when one is required or already uploaded. Request photos stay in their own section. The photos use the existing private bucket and short-lived signed links. Database permissions were not changed. This is local only and is not deployed.
+
+## Approved drivers and an expired license (2026-11-02)
+
+An approved driver can go Online and submit an offer after the license date has passed. The live Online check still requires Driver Terms version 2 and, for a real driver, an insurance card. It no longer returns “Your license expired…”. Migration `0124` is applied on the local database and on hosted project `uyhithfdmphilleusiom`. The approved driver named john is Online. A missing license photo, missing insurance for a real driver, Driver Terms that are not accepted, an expired insurance card, a pending application, and a paused or removed account still block Online.
+
+Live offers were blocked by “Finish payout setup before accepting jobs” because payments are in live mode and that driver has no Stripe payout account. Migration `0125` removes that block from `assert_driver_can_take_job` on the local database and on the hosted project. Payout setup still holds earnings until it is finished. It does not block an offer. The site was not redeployed. A job that asks for a different vehicle still cannot be offered.
+
+Existing open requests can take an offer without a pickup time. The customer's timing stays on the request. A date or window is checked only when the driver sends one. Open requests that were still marked as test are regular requests now, so approved drivers can see them and offer. Migration `0126` is on the local database and the hosted project. No offer was left behind by the check. The site was not redeployed.
+
+## Admin sign out (2026-11-04)
+
+The admin menu now has Sign out. On a phone it sits on the Menu row. On a wider screen it sits at the top of the admin sidebar. It uses the same sign-out action as the header: the server session and the browser session are cleared, then the person lands on `/`. The header Sign out button is unchanged. This is local only and is not deployed.

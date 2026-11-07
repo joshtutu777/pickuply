@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 const buttonClass =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper-raised px-4 text-base font-semibold text-ink transition-colors hover:border-brand disabled:opacity-60";
 
-export function SignOutButton() {
+export function SignOutButton({ className = "" }: { className?: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,7 +33,7 @@ export function SignOutButton() {
 
   return (
     <>
-      <button type="button" onClick={onClick} disabled={pending} className={buttonClass}>
+      <button type="button" onClick={onClick} disabled={pending} className={`${buttonClass} ${className}`.trim()}>
         Sign out
       </button>
       {error ? (

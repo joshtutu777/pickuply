@@ -10,6 +10,7 @@ import {
   type AccessState,
   type Role,
 } from "@/lib/auth/access";
+import { displayFullName } from "@/lib/auth/name";
 import { createClient } from "@/lib/supabase/server";
 
 const AUTH_TIMEOUT_MS = 4000;
@@ -18,12 +19,20 @@ export type OptionalSession = {
   userId: string;
   role: Role | null;
   fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nameOnFile: string | null;
+  registrationComplete: boolean;
+  deleted: boolean;
 };
 
 export type SignedInSession = {
   userId: string;
   role: Role;
   fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nameOnFile: string | null;
 };
 
 /**
@@ -48,17 +57,51 @@ export async function getOptionalSession(): Promise<OptionalSession | null> {
     try {
       const { data: profile, error: profileError } = await withTimeout(
         Promise.resolve(
-          supabase.from("profiles").select("role, full_name").eq("id", userId).maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("role, full_name, first_name, last_name, registration_completed_at, deleted_at")
+            .eq("id", userId)
+            .maybeSingle(),
         ),
       );
       if (profileError || !profile) {
-        return { userId, role: null, fullName: null };
+        return {
+          userId,
+          role: null,
+          fullName: null,
+          firstName: null,
+          lastName: null,
+          nameOnFile: null,
+          registrationComplete: false,
+          deleted: false,
+        };
       }
       const role = typeof profile.role === "string" && isRole(profile.role) ? profile.role : null;
-      const fullName = typeof profile.full_name === "string" ? profile.full_name : null;
-      return { userId, role, fullName };
+      const nameOnFile = typeof profile.full_name === "string" ? profile.full_name : null;
+      const firstName = typeof profile.first_name === "string" ? profile.first_name : null;
+      const lastName = typeof profile.last_name === "string" ? profile.last_name : null;
+      const fullName = displayFullName({ firstName, lastName, fullName: nameOnFile });
+      return {
+        userId,
+        role,
+        fullName,
+        firstName,
+        lastName,
+        nameOnFile,
+        registrationComplete: profile.registration_completed_at != null,
+        deleted: profile.deleted_at != null,
+      };
     } catch {
-      return { userId, role: null, fullName: null };
+      return {
+        userId,
+        role: null,
+        fullName: null,
+        firstName: null,
+        lastName: null,
+        nameOnFile: null,
+        registrationComplete: false,
+        deleted: false,
+      };
     }
   } catch {
     return null;
@@ -66,13 +109,15 @@ export async function getOptionalSession(): Promise<OptionalSession | null> {
 }
 
 export function stateFromSession(session: OptionalSession | null): AccessState {
-  if (!session) {
+  if (!session || session.deleted) {
     return accessStateFromProfile({ signedIn: false, role: null, fullName: null });
   }
   return accessStateFromProfile({
     signedIn: true,
     role: session.role,
-    fullName: session.fullName,
+    fullName: session.nameOnFile,
+    firstName: session.firstName,
+    lastName: session.lastName,
   });
 }
 
@@ -85,6 +130,9 @@ export async function requireSignedIn(pathname: string, search = ""): Promise<Si
     userId: session.userId,
     role: session.role,
     fullName: session.fullName?.trim() ? session.fullName.trim() : null,
+    firstName: session.firstName,
+    lastName: session.lastName,
+    nameOnFile: session.nameOnFile,
   };
 }
 
