@@ -1,5 +1,17 @@
 # Pickuply progress
 
+## Customer notification request page deployed (2026-11-08)
+
+Production deployment `dpl_D4iJEeHYwUH7DrAS7oDJippS9j9b` is aliased to https://pickuplyapp.com. No migration. No request, offer expiry, driver assignment, or payment row was changed.
+
+Sade's offer alerts point at `/jobs/c9775caf-2d8b-470c-9e62-5bb8ff3b4fff`. That path is correct. A signed-out visit now goes to login and keeps that request as the return path. A signed-in customer still sees the request when every offer is past the two-hour window, with an explanation instead of an empty Offers tab. A failed offer load shows an error and a retry link. Someone else's account is told the request is not available. Push notification clicks open a full `pickuplyapp.com` address. The two-hour window, prices, and booking rules are unchanged.
+
+## Customer notification request page, not deployed (2026-11-08)
+
+This note is the pre-deploy record. The apply is the section above.
+
+Sade's offer alerts point at `/jobs/c9775caf-2d8b-470c-9e62-5bb8ff3b4fff`. That path is correct. A signed-out visit could not read the request, so the page said it was not available. A signed-in visit with no offer still inside 2 hours opened an empty Offers tab. The request stays visible, expired offers are explained, and a signed-out customer is sent to log in and returned to the request. The two-hour window is unchanged. This is not on https://pickuplyapp.com yet.
+
 ## Signed-in homepage and admin customer removal deployed (2026-11-07)
 
 Migration `0129_admin_remove_customer.sql` is recorded as version `0129`. Version `0123` is still not applied. The migration installs the function only. Customer count stayed 42, deleted customers stayed 0, and the profile fingerprint was unchanged.

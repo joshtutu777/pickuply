@@ -368,6 +368,20 @@ export function JobStatus({
   );
 }
 
+export function JobUnavailable({ id }: { id: string }) {
+  return (
+    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
+      <h1 className="font-display text-4xl font-semibold text-ink">We couldn&apos;t load this request</h1>
+      <p className="mt-4 text-lg text-muted">The request is still saved. The page did not load it this time.</p>
+      <p className="mt-6">
+        <Link href={`/jobs/${id}`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+          Try again
+        </Link>
+      </p>
+    </main>
+  );
+}
+
 export function JobMissing() {
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">

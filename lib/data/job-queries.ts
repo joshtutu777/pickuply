@@ -130,9 +130,16 @@ export async function listAllJobs(): Promise<{ jobs: JobSummary[]; error: boolea
   return listOwnJobs();
 }
 
+export type JobRead = { job: JobDetail | null; unavailable: boolean };
+
 export async function getJobDetail(id: string): Promise<JobDetail | null> {
+  const result = await readJobDetail(id);
+  return result.job;
+}
+
+export async function readJobDetail(id: string): Promise<JobRead> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    return null;
+    return { job: null, unavailable: false };
   }
   try {
     const supabase = await createClient();
@@ -143,7 +150,8 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
       )
       .eq("id", id)
       .maybeSingle();
-    if (error || !job) return null;
+    if (error) return { job: null, unavailable: true };
+    if (!job) return { job: null, unavailable: false };
 
     const [privateResult, eventResult, photoResult] = await Promise.all([
       supabase
@@ -176,6 +184,7 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
     }
 
     return {
+      job: {
       ...job,
       has_dump_receipt: hasDumpReceipt,
       private: privateResult.data,
@@ -189,8 +198,10 @@ export async function getJobDetail(id: string): Promise<JobDetail | null> {
         };
       }),
       photos,
+      },
+      unavailable: false,
     };
   } catch {
-    return null;
+    return { job: null, unavailable: true };
   }
 }

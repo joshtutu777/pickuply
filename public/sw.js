@@ -42,6 +42,14 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const href = event.notification.data && event.notification.data.href ? event.notification.data.href : "/account/notifications";
-  event.waitUntil(self.clients.openWindow(href));
+  const raw = event.notification.data && event.notification.data.href ? event.notification.data.href : "/account/notifications";
+  const href = typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/account/notifications";
+  let target = new URL("/account/notifications", self.location.origin).href;
+  try {
+    const url = new URL(href, self.location.origin);
+    if (url.origin === self.location.origin) target = url.href;
+  } catch {
+    target = new URL("/account/notifications", self.location.origin).href;
+  }
+  event.waitUntil(self.clients.openWindow(target));
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { BackLink } from "@/components/back-link";
 import { OfferChoices, type OfferSummary } from "@/components/request/offer-choices";
@@ -8,7 +9,7 @@ import { PayPanel } from "@/components/request/pay-panel";
 import { DropoffReview, ItemDecision } from "@/components/request/item-decision";
 import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { JobReceipt } from "@/components/request/job-receipt";
-import { JobMissing, JobStatus } from "@/components/request/job-status";
+import { JobMissing, JobStatus, JobUnavailable } from "@/components/request/job-status";
 import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
@@ -18,10 +19,11 @@ import { JobSignals } from "@/components/analytics/job-signals";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
 import { getAssignedDriverCard } from "@/lib/data/driver-card";
-import { getJobDetail } from "@/lib/data/job-queries";
+import { readJobDetail } from "@/lib/data/job-queries";
 import { measureTrip } from "@/lib/maps/route";
 import { getQuoteNotice } from "@/lib/data/quote";
 import { formatUsDay } from "@/lib/time/when";
+import { customerRequestEntry, emptyOfferMessage } from "@/lib/jobs/customer-request";
 import { buildJobTracker } from "@/lib/jobs/tracker";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,31 +55,33 @@ async function JobEntry({
   await connection();
   const { id } = await params;
   const query = await searchParams;
-  const job = await getJobDetail(id);
+  const session = await getOptionalSession();
+  const entry = customerRequestEntry(id, session != null);
+  if (entry === "invalid") return <JobMissing />;
+  if (entry === "sign-in") redirect(`/login?next=${encodeURIComponent(`/jobs/${id}`)}`);
+  const loaded = await readJobDetail(id);
+  if (loaded.unavailable) return <JobUnavailable id={id} />;
+  const job = loaded.job;
   if (!job) return <JobMissing />;
-  const [session, notice, driver] = await Promise.all([
-    getOptionalSession(),
+  const [notice, driver] = await Promise.all([
     getQuoteNotice(id),
     job.assigned_driver_id ? getAssignedDriverCard(id) : Promise.resolve(null),
   ]);
   let offers: OfferSummary[] = [];
+  let offerError = false;
   let detailRequest: { items: string[]; note: string } | null = null;
   let livePayment = false;
   let testJob = false;
-  if (session) {
-    try {
-      const supabase = await createClient();
-      const testRow = await supabase.from("jobs").select("is_test").eq("id", id).maybeSingle();
-      testJob = testRow.data?.is_test === true;
-      if (session.role === "customer") {
-        const payment = await supabase.from("job_payments").select("stripe_livemode").eq("job_id", id).maybeSingle();
-        livePayment = payment.data?.stripe_livemode === true;
-      }
-      if (session.role !== "customer") {
-        offers = [];
-      } else {
-      const { data } = await supabase.rpc("offer_summaries", { target_job: id });
-      offers = (data ?? []) as OfferSummary[];
+  try {
+    const supabase = await createClient();
+    const testRow = await supabase.from("jobs").select("is_test").eq("id", id).maybeSingle();
+    testJob = testRow.data?.is_test === true;
+    if (session?.role === "customer") {
+      const payment = await supabase.from("job_payments").select("stripe_livemode").eq("job_id", id).maybeSingle();
+      livePayment = payment.data?.stripe_livemode === true;
+      const { data, error } = await supabase.rpc("offer_summaries", { target_job: id });
+      if (error) offerError = true;
+      else offers = (data ?? []) as OfferSummary[];
       const details = await supabase.rpc("open_detail_request", { target_job: id });
       if (details.data && typeof details.data === "object") {
         const body = details.data as { items?: unknown; note?: unknown };
@@ -86,10 +90,10 @@ async function JobEntry({
           note: typeof body.note === "string" ? body.note : "",
         };
       }
-      }
-    } catch {
-      offers = [];
     }
+  } catch {
+    offerError = true;
+    offers = [];
   }
   const pickup =
     job.private?.pickup_lat != null && job.private.pickup_lng != null
@@ -143,7 +147,18 @@ async function JobEntry({
               {driver ? `${driver.firstName} is booked.` : "A driver is booked."} New offers are closed.
             </p>
           ) : session?.role === "customer" ? (
-            <OfferChoices jobId={id} offers={offers} />
+            offerError ? (
+              <div className="space-y-3">
+                <p role="alert" className="text-base text-danger">We couldn&apos;t load offers.</p>
+                <Link href={`/jobs/${id}`} className="inline-flex min-h-12 items-center font-semibold text-brand">
+                  Try again
+                </Link>
+              </div>
+            ) : offers.length > 0 ? (
+              <OfferChoices jobId={id} offers={offers} />
+            ) : (
+              <p className="text-base text-ink">{emptyOfferMessage(job.status)}</p>
+            )
           ) : (
             <p className="text-base text-muted">No offers to review.</p>
           )
