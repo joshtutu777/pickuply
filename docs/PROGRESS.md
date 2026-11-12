@@ -885,7 +885,7 @@ Live offers were blocked by “Finish payout setup before accepting jobs” beca
 
 ## Payment mode lock (2026-11-12)
 
-Commit `281eb1f` adds migration `0132`. A recorded Stripe mode can be set once and cannot be flipped. The same mode can be sent again. The migration is applied on the hosted project. Payment rows were not rewritten. While general checkout stays closed, the customer sees “Booking opens in the next few days.” The site was not redeployed.
+Commit `281eb1f` adds migration `0132`. A recorded Stripe mode can be set once and cannot be flipped. The same mode can be sent again. The migration is applied on the hosted project. Payment rows were not rewritten. While general checkout stays closed, the customer sees “Online payment is temporarily unavailable. Please try again shortly.” The site was not redeployed.
 
 Existing open requests can take an offer without a pickup time. The customer's timing stays on the request. A date or window is checked only when the driver sends one. Open requests that were still marked as test are regular requests now, so approved drivers can see them and offer. Migration `0126` is on the local database and the hosted project. No offer was left behind by the check. The site was not redeployed.
 
