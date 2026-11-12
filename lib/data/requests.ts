@@ -1,4 +1,3 @@
-import { validateFullName } from "../auth/name";
 import { photoMaxBytes } from "../constants";
 import { loadPhoto } from "../photo-store";
 import { createClient } from "../supabase/client";
@@ -111,6 +110,12 @@ export async function createRequest(
         "This request was already saved. Start over to send a new one. The saved request was not changed.",
       );
     }
+    if (/enter your name using letters/i.test(message)) {
+      throw new RequestSubmitError(
+        "rejected",
+        "Enter your name using letters, spaces, apostrophes, periods, or hyphens.",
+      );
+    }
     if (/failed to fetch|network|timeout/i.test(message)) {
       throw new RequestSubmitError("network", "We couldn't reach Pickuply. Your draft is still here.");
     }
@@ -118,17 +123,6 @@ export async function createRequest(
       "rejected",
       "We couldn't save this request. Your draft is still here.",
     );
-  }
-
-  // The request already asked for a name. Keep it on the profile so account
-  // pages don't send this person back to the name step.
-  const name = validateFullName(draft.customerName);
-  if (name) {
-    const profile = await supabase.from("profiles").select("full_name").eq("id", user.data.user.id).maybeSingle();
-    const current = typeof profile.data?.full_name === "string" ? profile.data.full_name.trim() : "";
-    if (!profile.error && profile.data && !current) {
-      await supabase.from("profiles").update({ full_name: name }).eq("id", user.data.user.id);
-    }
   }
 
   const recorded = await supabase

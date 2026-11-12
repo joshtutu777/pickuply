@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "./checkout-lines";
 
-test("checkout lists the offer and the card processing fee as separate lines", () => {
-  const lines = checkoutLines(5_175, 5_000, 175);
+test("checkout lists the offer and the service fee as separate lines", () => {
+  const lines = checkoutLines(10_500, 10_000, 500);
   assert.deepEqual(
     lines.map((item) => [item.price_data.product_data.name, item.price_data.unit_amount]),
     [
-      ["Pickuply offer", 5_000],
-      ["Card processing fee", 175],
+      ["Pickup service", 10_000],
+      ["Service fee", 500],
     ],
   );
   assert.equal(
     lines.reduce((sum, item) => sum + item.price_data.unit_amount, 0),
-    5_175,
+    10_500,
   );
 });
 

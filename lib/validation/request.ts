@@ -12,6 +12,7 @@ import {
 } from "../constants";
 import { isWithinBookingWindow } from "../dates";
 import { parseDollarsToCents } from "../money";
+import { validateFullName } from "../auth/name";
 import { normalizeUsPhone } from "../phone";
 import type { RequestDraft } from "../types";
 import { profileEmailError } from "./email";
@@ -203,6 +204,8 @@ function validateVerify(draft: RequestDraft, signedIn: boolean): FieldErrors {
   if (!signedIn || draft.customerName.trim() || draft.customerPhone.trim()) {
     if (!requiredText("Enter your name.").safeParse(draft.customerName).success) {
       errors.customerName = "Enter your name.";
+    } else if (!validateFullName(draft.customerName)) {
+      errors.customerName = "Enter your name using letters, spaces, apostrophes, periods, or hyphens.";
     }
     if (!normalizeUsPhone(draft.customerPhone)) {
       errors.customerPhone = "Enter a 10-digit US phone number.";

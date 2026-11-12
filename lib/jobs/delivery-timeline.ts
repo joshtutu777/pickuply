@@ -13,7 +13,7 @@ export const deliveryStageLabels = [
   "Driver assigned",
   "Driver on the way",
   "Arrived at pickup",
-  "Item picked up",
+  "Item loaded",
   "On the way to drop-off",
   "Arrived at drop-off",
   "Delivered",
@@ -33,7 +33,35 @@ export function deliveryStageIndex(status: string, dropoffArrived: boolean): num
   return -1;
 }
 
-export function deliveryStages(status: string, dropoffArrived: boolean): { label: string; state: "done" | "current" | "upcoming" }[] {
+const junkStageLabels = [
+  "Driver assigned",
+  "Driver on the way",
+  "Arrived at removal location",
+  "Junk removed",
+  "Removal complete",
+] as const;
+
+function junkStageIndex(status: string): number {
+  if (status === "completed") return 4;
+  if (status === "delivered") return 3;
+  if (status === "arrived" || status === "item_check" || status === "in_transit") return 2;
+  if (status === "en_route") return 1;
+  if (status === "assigned") return 0;
+  return -1;
+}
+
+export function deliveryStages(
+  status: string,
+  dropoffArrived: boolean,
+  service = "delivery",
+): { label: string; state: "done" | "current" | "upcoming" }[] {
+  if (service === "junk") {
+    const current = junkStageIndex(status);
+    return junkStageLabels.map((label, index) => ({
+      label,
+      state: current < 0 ? "upcoming" : index < current ? "done" : index === current ? "current" : "upcoming",
+    }));
+  }
   const current = deliveryStageIndex(status, dropoffArrived);
   return deliveryStageLabels.map((label, index) => ({
     label,

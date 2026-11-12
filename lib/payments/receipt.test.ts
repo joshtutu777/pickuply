@@ -19,9 +19,10 @@ test("a receipt lists the job, the driver, the fees, and the payment", () => {
   assert.match(text, /Job job-1/);
   assert.match(text, /Driver Sam/);
   assert.match(text, /Offer \$50\.00/);
-  assert.match(text, /Card processing fee \$1\.75/);
+  assert.match(text, /Service fee \$1\.75/);
   assert.match(text, /Total \$51\.75/);
   assert.match(text, /Refunds \$0\.00/);
+  assert.match(text, /saved so you can add an optional tip in one tap/);
   assert.doesNotMatch(text, /Trip fee/);
 });
 

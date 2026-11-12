@@ -1,31 +1,109 @@
-import { photoMaxEdgePx, videoMaxBytes, videoMaxSeconds } from "./constants";
+import { photoMaxBytes, photoMaxEdgePx, photoSourceMaxBytes, videoMaxBytes, videoMaxSeconds } from "./constants";
 
-/** Re-encodes a photo to JPEG so stored files do not keep GPS or other EXIF data. */
-export async function compressImage(file: File): Promise<Blob> {
-  let bitmap: ImageBitmap;
+const prepareFailed = "This photo couldn't be prepared. Take a new picture, or choose a JPEG.";
+
+type Drawable = {
+  image: CanvasImageSource;
+  width: number;
+  height: number;
+  close: () => void;
+};
+
+function loadImageElement(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    if (typeof Image === "undefined" || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+      reject(new Error(prepareFailed));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(prepareFailed));
+    };
+    image.src = url;
+  });
+}
+
+/** Phone photos, including iPhone HEIC, are drawn small instead of decoded at full size first. */
+async function openImage(file: File): Promise<Drawable> {
   try {
-    bitmap = await createImageBitmap(file);
+    const image = await loadImageElement(file);
+    return { image, width: image.naturalWidth, height: image.naturalHeight, close: () => undefined };
   } catch {
-    throw new Error("This photo couldn't be prepared. Try a JPEG or PNG.");
+    // Some browsers cannot show HEIC in an image tag. The bitmap decoder is the second try.
   }
-  const scale = Math.min(1, photoMaxEdgePx / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  try {
+    const bitmap = await createImageBitmap(file);
+    return { image: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
+  } catch {
+    throw new Error(prepareFailed);
+  }
+}
+
+function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+      try {
+        const data = canvas.toDataURL("image/jpeg", quality);
+        const encoded = data.split(",")[1] ?? "";
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+        resolve(new Blob([bytes], { type: "image/jpeg" }));
+      } catch {
+        reject(new Error(prepareFailed));
+      }
+    }, "image/jpeg", quality);
+  });
+}
+
+async function encodeJpeg(source: Drawable, edge: number, quality: number): Promise<Blob> {
+  const longest = Math.max(source.width, source.height);
+  if (!longest) throw new Error(prepareFailed);
+  const scale = Math.min(1, edge / longest);
+  const width = Math.max(1, Math.round(source.width * scale));
+  const height = Math.max(1, Math.round(source.height * scale));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) {
-    bitmap.close();
-    throw new Error("This photo couldn't be prepared. Try a JPEG or PNG.");
+  if (!context) throw new Error(prepareFailed);
+  context.drawImage(source.image, 0, 0, width, height);
+  return canvasToJpeg(canvas, quality);
+}
+
+/** Re-encodes a photo to JPEG so stored files do not keep GPS or other EXIF data. */
+export async function compressImage(file: File): Promise<Blob> {
+  const source = await openImage(file);
+  try {
+    let blob = await encodeJpeg(source, photoMaxEdgePx, 0.8);
+    if (blob.size > photoMaxBytes) blob = await encodeJpeg(source, 1280, 0.6);
+    if (blob.size > photoMaxBytes) blob = await encodeJpeg(source, 1024, 0.5);
+    return blob;
+  } finally {
+    source.close();
   }
-  context.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", 0.8);
-  });
-  if (!blob) throw new Error("This photo couldn't be prepared. Try a JPEG or PNG.");
-  return blob;
+}
+
+/** Shrinks a phone photo before upload. The original can be larger than the picture we store. */
+export async function prepareStoredPhoto(file: File): Promise<Blob> {
+  if (file.size > photoSourceMaxBytes) {
+    throw new Error("That photo is too large. Take a new picture instead.");
+  }
+  const prepared = await compressImage(file);
+  if (prepared.size > photoMaxBytes) {
+    throw new Error("That photo is too large. Take a new picture instead.");
+  }
+  return prepared;
 }
 
 /** Re-encodes a short clip so the stored file does not keep the original location metadata. */

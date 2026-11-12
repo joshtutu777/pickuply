@@ -150,8 +150,8 @@ function OfferActions({
       text: kind === "claim"
         ? "You are assigned. Payment is still due."
         : driverQuote
-          ? `Quote sent. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`
-          : `Offer submitted successfully. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}.`,
+          ? `Quote sent. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}. It stays open until you withdraw it or the request is closed.`
+          : `Offer submitted successfully. Your estimated earnings ${formatCents(submitted?.driverEarningsCents ?? 0)}. It stays open until you withdraw it or the request is closed.`,
       alert: false,
     });
     if (kind === "claim" || kind === "accept") {
@@ -190,6 +190,7 @@ function OfferActions({
         </button>
       ) : (
         <>
+          <p className="text-base text-ink">Your offer stays open until you withdraw it, the customer chooses a driver, or the request is closed.</p>
           {posted != null ? (
             <>
               <OfferMath cents={posted} settings={fees} />

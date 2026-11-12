@@ -32,7 +32,7 @@ async function NameContent({
   const intent = safeIntent(singleQuery(params.intent));
   const located = authLocation("/login/name", next, intent);
   const signedInSearch = located.startsWith("/login/name?") ? located.slice("/login/name".length) : "";
-  await requireSignedIn("/login/name", signedInSearch);
+  const session = await requireSignedIn("/login/name", signedInSearch);
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-5 py-14">
@@ -41,9 +41,15 @@ async function NameContent({
         Your name
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-muted">
-        Enter your first name. We&apos;ll ask again the next time you sign in until it is saved.
+        Enter your first and last name. We&apos;ll ask again the next time you sign in until both are saved.
       </p>
-      <NameForm next={next ?? ""} intent={intent ?? ""} />
+      <NameForm
+        next={next ?? ""}
+        intent={intent ?? ""}
+        defaultFirst={session.firstName ?? ""}
+        defaultLast={session.lastName ?? ""}
+        savedName={session.nameOnFile ?? ""}
+      />
     </main>
   );
 }

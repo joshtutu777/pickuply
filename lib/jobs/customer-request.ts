@@ -8,7 +8,7 @@ export function customerRequestEntry(id: string, signedIn: boolean): "invalid" |
 
 export function emptyOfferMessage(status: string): string {
   if (status === "open" || status === "quoted") {
-    return "No offers are open right now. An offer stays open for 2 hours. Your request is still here, and a driver can send a new one.";
+    return "No offers are open right now. Your request is still here, and a driver can send one.";
   }
   return "No offers are open right now.";
 }

@@ -4,8 +4,19 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
+import { bookingEmailError } from "@/lib/validation/email";
+import { bookingCheckoutCustomer } from "@/lib/payments/saved-card";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
+import { alignPaymentsMode } from "@/lib/payments/mode-sync";
+import { alertPaymentsIssue } from "@/lib/payments/mode-alert";
+import { stripeObjectMatchesMode } from "@/lib/payments/object-mode";
+import { PAID_BOOKINGS_UNAVAILABLE, liveCustomerChargesPaused, placeCustomerCharge } from "@/lib/payments/paid-bookings";
+import { livemodeNoteDecision } from "@/lib/payments/livemode-note";
+import { readSavedLivemode, recordLivemodeIfUnset } from "@/lib/payments/note-recorded-livemode";
+import { loadPilotCheckout } from "@/lib/payments/pilot-access";
+import { paymentsMode } from "@/lib/payments/payments-mode";
+import { syncCustomerCheckout } from "@/lib/payments/sync-checkout";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -31,8 +42,28 @@ function checkoutError(message: string | undefined): string {
 export async function startCheckout(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
+  const gateClosed = liveCustomerChargesPaused();
+  const pilotAction = gateClosed ? await loadPilotCheckout(jobId) : "create";
+  if (gateClosed && pilotAction === "block") {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
+  const aligned = await alignPaymentsMode();
+  if (!aligned.matches) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("Payments are paused. Try again in a few minutes.")}`);
+  }
   const origin = requestOrigin(await headers());
   const supabase = await createClient();
+  let checkoutSync;
+  try {
+    checkoutSync = await syncCustomerCheckout(jobId);
+  } catch {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  }
+  if (checkoutSync.state === "authorized") redirect(`/jobs/${jobId}`);
+  if (checkoutSync.resumeUrl) redirect(checkoutSync.resumeUrl);
+  if (gateClosed && pilotAction === "resume") {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
   const prepared = await supabase.rpc("prepare_checkout", { target_job: jobId });
   if (prepared.error || !prepared.data) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent(checkoutError(prepared.error?.message))}`);
@@ -54,14 +85,68 @@ export async function startCheckout(formData: FormData) {
   const expiresAt = checkoutExpiresAt(new Date(row.due_at).getTime(), new Date().getTime());
   const user = await supabase.auth.getUser();
   const profile = user.data.user
-    ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
+    ? await supabase.from("profiles").select("email, is_test").eq("id", user.data.user.id).maybeSingle()
     : null;
-  const customerEmail = checkoutCustomerEmail(profile?.data?.email);
+  const consented = await supabase.rpc("record_card_consent");
+  if (consented.error) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  }
+  const consent = user.data.user
+    ? await supabase
+        .from("customer_payment_consents")
+        .select("stripe_customer_id")
+        .eq("customer_id", user.data.user.id)
+        .is("revoked_at", null)
+        .maybeSingle()
+    : null;
+  const cardSetup = bookingCheckoutCustomer(consent?.data?.stripe_customer_id ?? null);
+  let profileEmail = checkoutCustomerEmail(profile?.data?.email);
+  if (!profileEmail) {
+    const entered = String(formData.get("bookingEmail") ?? "");
+    const emailProblem = bookingEmailError(entered);
+    if (emailProblem) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent(emailProblem)}`);
+    }
+    const saved = await supabase.rpc("save_profile_email", { next_email: entered.trim() });
+    if (saved.error) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("Enter a valid email before confirming this booking.")}`);
+    }
+    const refreshed = user.data.user
+      ? await supabase.from("profiles").select("email").eq("id", user.data.user.id).maybeSingle()
+      : null;
+    profileEmail = checkoutCustomerEmail(refreshed?.data?.email);
+    if (!profileEmail) {
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("Enter your email before confirming this booking.")}`);
+    }
+  }
+  const customerEmail = cardSetup.customer ? null : profileEmail;
+  const service = createServiceClient();
+  const desiredLive = paymentsMode(process.env.PAYMENTS_MODE) === "live";
+  if (livemodeNoteDecision(await readSavedLivemode(jobId), desiredLive) === "reject") {
+    await alertPaymentsIssue(
+      `livemode-conflict:${jobId}`,
+      "Payment mode conflict",
+      "Checkout was refused because this booking already has the other Stripe mode. The saved mode was left unchanged.",
+    );
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  }
+  const driverProfile = await service
+    .from("profiles")
+    .select("is_test")
+    .eq("id", row.driver_id)
+    .maybeSingle();
   let sessionId = "";
   let sessionUrl: string | null = null;
   let checkoutLive = false;
   try {
-    const session = await getStripe().checkout.sessions.create(
+    const session = await placeCustomerCharge({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+      paidBookings: process.env.PAID_BOOKINGS_ENABLED,
+      kind: "booking",
+      pilotAllowed: gateClosed && pilotAction === "create",
+      isTestCustomer: profile?.data?.is_test === true,
+      isTestDriver: driverProfile.data?.is_test === true,
+      create: () => getStripe().checkout.sessions.create(
       {
         mode: "payment",
         // Card only. Stripe rejects a static method list and rejects allowed plus excluded together.
@@ -71,32 +156,53 @@ export async function startCheckout(formData: FormData) {
         line_items: checkoutLines(row.amount_cents, offerCents, processingCents),
         payment_intent_data: {
           capture_method: "manual",
+          setup_future_usage: cardSetup.setup_future_usage,
           metadata: { job_id: jobId, driver_id: row.driver_id },
         },
-        metadata: { job_id: jobId, driver_id: row.driver_id, attempt: String(row.attempt) },
+        ...(cardSetup.customer
+          ? { customer: cardSetup.customer }
+          : { customer_creation: "always" as const }),
+        metadata: {
+          job_id: jobId,
+          driver_id: row.driver_id,
+          attempt: String(row.attempt),
+          save_card: "yes",
+        },
         ...(customerEmail ? { customer_email: customerEmail } : {}),
         expires_at: expiresAt,
         success_url: `${origin}/jobs/${jobId}?paid=return`,
         cancel_url: `${origin}/jobs/${jobId}?paid=cancel`,
       },
       { idempotencyKey: `checkout:${jobId}:${row.attempt}` },
-    );
+    ),
+    });
     sessionId = session.id;
     sessionUrl = session.url;
     checkoutLive = session.livemode;
-  } catch {
-    redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+    if (!stripeObjectMatchesMode(aligned.mode, checkoutLive)) {
+      await alertPaymentsIssue(
+        `checkout-mode:${session.id}`,
+        "Checkout mode mismatch",
+        "A card checkout did not match the payment switch. The Stripe session was left unchanged.",
+      );
+      throw new Error("Payments are paused. Try again in a few minutes.");
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    const message = error instanceof Error && error.message === PAID_BOOKINGS_UNAVAILABLE
+      ? PAID_BOOKINGS_UNAVAILABLE
+      : "The card checkout could not be started.";
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(message)}`);
   }
 
-  const service = createServiceClient();
   const recorded = await service.rpc("record_checkout_session", {
     target_job: jobId,
     session_id: sessionId,
     attempt: row.attempt,
   });
   if (!recorded.error) {
-    const marked = await service.rpc("note_stripe_livemode", { target_job: jobId, live: checkoutLive });
-    if (marked.error) {
+    const noted = await recordLivemodeIfUnset(jobId, checkoutLive);
+    if (noted === "rejected") {
       try {
         await getStripe().checkout.sessions.expire(sessionId);
       } catch {

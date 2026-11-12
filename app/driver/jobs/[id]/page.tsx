@@ -12,7 +12,6 @@ import { StatusPill } from "@/components/mobile/status-pill";
 import { JobTrackerView } from "@/components/request/job-tracker";
 import { ProofForm } from "@/components/driver/proof-form";
 import { NoShowWait } from "@/components/delivery/no-show-wait";
-import { ReviewCountdown } from "@/components/delivery/review-countdown";
 import { ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
 import { JobStatusWatch } from "@/components/request/job-status-watch";
@@ -52,7 +51,7 @@ async function DriverJob({
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, pickup_review_until, dropoff_arrived_at, no_show_pending, require_disposal_receipt",
+      "id, service, status, created_at, pricing_method, pickup_area, dropoff_area, driver_pay_cents, platform_fee_cents, payment_status, payment_due_at, dump_fee_cents, rejection_reason, trip_fee_cents, test_retired_at, dropoff_arrived_at, no_show_pending, require_disposal_receipt",
     )
     .eq("id", id)
     .maybeSingle();
@@ -98,25 +97,21 @@ async function DriverJob({
     .select("proof_location_enabled")
     .eq("id", 1)
     .maybeSingle();
-  const reviewExpired =
-    job.status === "item_check" &&
-    job.pickup_review_until != null &&
-    new Date(job.pickup_review_until).getTime() <= Date.now();
   const next = nextDriverAction({
     status: job.status,
     paymentStatus: job.payment_status,
     service: job.service,
     dropoffArrived: job.dropoff_arrived_at != null,
-    reviewExpired,
   });
   const disposalReceipt =
     job.service === "junk" && ((job.dump_fee_cents ?? 0) > 0 || job.require_disposal_receipt);
   const retired = job.test_retired_at != null;
   const needsProof = next.nextStatus === "item_check" || next.nextStatus === "delivered";
+  const junk = job.service === "junk";
   const jobAmount = job.driver_pay_cents != null && job.platform_fee_cents != null
     ? job.driver_pay_cents + job.platform_fee_cents
     : null;
-  const proofStage = next.nextStatus === "delivered" ? "dropoff" : "pickup";
+  const proofStage = next.nextStatus === "delivered" && job.status === "in_transit" ? "dropoff" : "pickup";
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-3">
@@ -128,7 +123,13 @@ async function DriverJob({
         <p className="text-sm font-semibold text-muted">{job.service.replaceAll("_", " ")}</p>
       </div>
       <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
-        {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
+        {job.status === "completed"
+          ? junk
+            ? "Removal complete"
+            : "Delivery complete"
+          : job.status === "delivered"
+            ? "Awaiting customer confirmation"
+            : statusLabel(job.status)}
       </h1>
       <p className="mt-1 text-base text-ink">
         {job.pickup_area}
@@ -151,12 +152,16 @@ async function DriverJob({
             <ProofForm jobId={job.id} locationEnabled={Boolean(settings?.proof_location_enabled)} defaultStage={proofStage} />
           ) : null}
           {disposalReceipt && next.nextStatus === "delivered" ? (
-            <p className="text-base text-ink">Add the disposal receipt photo before marking this delivered.</p>
+            <p className="text-base text-ink">
+              {junk
+                ? "Add the disposal receipt photo before marking the junk removed."
+                : "Add the disposal receipt photo before marking this delivered."}
+            </p>
           ) : null}
         </div>
       ) : !retired && job.status === "completed" ? (
         <p className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-brand px-6 text-lg font-semibold text-white">
-          Delivery complete
+          {junk ? "Removal complete" : "Delivery complete"}
         </p>
       ) : !retired && job.status === "delivered" ? (
         <p className="mt-3 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-paper px-6 text-lg font-semibold text-muted ring-1 ring-line">
@@ -170,11 +175,6 @@ async function DriverJob({
         >
           {next.label}
         </button>
-      ) : null}
-      {!retired && job.status === "item_check" && job.pickup_review_until && !reviewExpired ? (
-        <div className="mt-3">
-          <ReviewCountdown until={job.pickup_review_until} />
-        </div>
       ) : null}
       {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
         <NoShowWait jobId={job.id} arrivedAt={job.dropoff_arrived_at} />

@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
+import { accessStateFromProfile, authLocation, safeIntent, safeNextParam } from "@/lib/auth/access";
 import { preferredHome } from "@/lib/auth/mode";
 import { readMode } from "@/lib/auth/mode-cookie";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -17,7 +17,14 @@ export async function GET(request: Request) {
     redirect(authLocation("/login", next, intent));
   }
   if (!session.role) redirect("/login?error=profile");
-  if (!session.fullName?.trim()) {
+  const access = accessStateFromProfile({
+    signedIn: true,
+    role: session.role,
+    fullName: session.nameOnFile,
+    firstName: session.firstName,
+    lastName: session.lastName,
+  });
+  if (access.status === "needs-name") {
     redirect(authLocation("/login/name", next, intent));
   }
   const supabase = await createClient();

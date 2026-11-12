@@ -30,7 +30,7 @@ export function customerListStatus(input: {
   if (input.status === "completed") return "Delivery complete";
   if (input.status === "disputed") return "Paused for a problem report";
   if (input.status === "delivered") return "Awaiting your confirmation";
-  if (input.status === "item_check") return "Pickup review";
+  if (input.status === "item_check") return "Item loaded";
   if (input.status === "in_transit") return "On the way to drop-off";
   if (input.status === "arrived") return "Arrived at pickup";
   if (input.status === "en_route") return "Driver on the way";
@@ -50,7 +50,7 @@ export function customerCardAction(input: {
   activeOffers: number;
 }): string {
   const unpaid = input.paymentStatus === "awaiting_payment" || input.paymentStatus === "failed";
-  if (input.status === "delivered" || input.status === "item_check") return "Review Delivery";
+  if (input.status === "delivered") return "Review Delivery";
   if (input.status === "assigned" && unpaid) return "Confirm booking";
   if (input.status === "completed") return "View receipt";
   if (activeStatuses.has(input.status)) return "Track Delivery";

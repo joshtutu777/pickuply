@@ -5,7 +5,7 @@ const statuses = [
   ["assigned", "Assigned"],
   ["en_route", "On the way"],
   ["arrived", "Arrived"],
-  ["item_check", "Item check"],
+  ["item_check", "Item loaded"],
   ["in_transit", "In transit"],
   ["delivered", "Delivered"],
   ["cancelled", "Cancelled"],

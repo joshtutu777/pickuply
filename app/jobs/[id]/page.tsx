@@ -14,7 +14,6 @@ import { JobMessages } from "@/components/messages/job-messages";
 import { DetailReply } from "@/components/request/detail-reply";
 import { PickupProof, ProofGallery } from "@/components/request/proof-gallery";
 import { ReviewPanel } from "@/components/reviews/review-panel";
-import { ReportForm } from "@/components/request/report-form";
 import { JobSignals } from "@/components/analytics/job-signals";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { getOptionalSession } from "@/lib/auth/session";
@@ -111,6 +110,17 @@ async function JobEntry({
     job.driver_pay_cents != null &&
     job.platform_fee_cents != null &&
     job.service_fee_cents != null;
+  let needsBookingEmail = false;
+  if (payReady && session) {
+    try {
+      const supabase = await createClient();
+      const emailRow = await supabase.from("profiles").select("email").eq("id", session.userId).maybeSingle();
+      const savedEmail = typeof emailRow.data?.email === "string" ? emailRow.data.email.trim() : "";
+      needsBookingEmail = savedEmail.length === 0;
+    } catch {
+      needsBookingEmail = true;
+    }
+  }
   return (
     <>
       <ScrollOnValue value={`${job.status}:${job.payment_status ?? ""}`} />
@@ -168,7 +178,9 @@ async function JobEntry({
             <div id="messages">
               <JobMessages jobId={id} />
             </div>
-            {job.status !== "item_check" && job.status !== "delivered" ? <ProofGallery jobId={id} /> : null}
+            {session?.role === "customer" && (job.status === "item_check" || job.status === "delivered") ? null : (
+              <ProofGallery jobId={id} />
+            )}
             <p className="mt-2">
               <Link href="/help" className="inline-flex min-h-12 items-center font-semibold text-brand">
                 Help
@@ -208,13 +220,14 @@ async function JobEntry({
         }
         review={
           session?.role === "customer" && job.status === "delivered" ? (
-            <DropoffReview jobId={id} confirmed={job.customer_confirmed_at != null} />
-          ) : session?.role === "customer" && job.status === "item_check" ? (
+            <DropoffReview jobId={id} service={job.service} confirmed={job.customer_confirmed_at != null} />
+          ) : session?.role === "customer" && job.status === "item_check" && job.service !== "junk" ? (
             <>
               <PickupProof jobId={id} />
               <ItemDecision jobId={id} reviewUntil={job.pickup_review_until} embedded />
-              <ReportForm jobId={id} />
             </>
+          ) : session?.role === "customer" && job.status === "item_check" ? (
+            <PickupProof jobId={id} alt="Completion photo" />
           ) : null
         }
       >
@@ -233,6 +246,7 @@ async function JobEntry({
             }
             windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
             returning={query.paid === "return"}
+            needsEmail={needsBookingEmail}
           />
         ) : null}
       </JobStatus>

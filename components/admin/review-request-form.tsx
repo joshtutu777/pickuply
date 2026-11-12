@@ -177,7 +177,7 @@ export function ReviewRequestForm({
               <p>Offer {formatCents(shown.subtotal_cents)}</p>
               <p>Pickuply commission {formatCents(shown.platform_fee_cents)}</p>
               <p>Driver earnings {formatCents(shown.driver_earnings_cents)}</p>
-              <p>Card processing fee {formatCents(shown.service_fee_cents)}</p>
+              <p>Service fee {formatCents(shown.service_fee_cents)}</p>
               <p className="font-semibold">Customer total {formatCents(shown.customer_total_cents)}</p>
             </div>
           ) : null}

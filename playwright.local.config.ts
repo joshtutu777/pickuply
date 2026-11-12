@@ -46,6 +46,7 @@ function localServiceRole(): string {
 const serviceRole = localServiceRole();
 
 const port = process.env.PLAYWRIGHT_PORT ?? "3001";
+if (!process.env.CRON_SECRET) process.env.CRON_SECRET = "local-playwright-cron";
 
 export default defineConfig({
   testDir: "./e2e-local",
@@ -150,6 +151,26 @@ export default defineConfig({
       name: "local-analytics",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /analytics\.spec\.ts/,
+    },
+    {
+      name: "local-cookie",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /cookie-mobile\.spec\.ts/,
+    },
+    {
+      name: "local-nav",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /nav-cleanup\.spec\.ts/,
+    },
+    {
+      name: "local-workflow",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /delivery-workflow-ui\.spec\.ts/,
+    },
+    {
+      name: "local-finance",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /financial-validation\.spec\.ts/,
     },
     {
       name: "local-admin-proof",

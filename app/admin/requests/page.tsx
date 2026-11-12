@@ -6,12 +6,15 @@ import { loadAdminDashboard } from "@/lib/admin/load";
 import {
   filterJobs,
   firstName,
+  offerActivityLabel,
+  openJobsDetail,
   parseRequestFilters,
   paymentStatusLabel,
   pricingAmount,
   pricingMethodLabel,
   readableTime,
   serviceLabel,
+  showNoDriverYet,
   type AdminJob,
   type RequestFilters,
 } from "@/lib/admin/ops";
@@ -31,7 +34,7 @@ const statuses = [
   ["assigned", "Driver assigned"],
   ["en_route", "Driver on the way"],
   ["arrived", "Driver arrived"],
-  ["item_check", "Item check"],
+  ["item_check", "Item loaded"],
   ["in_transit", "On the way"],
   ["delivered", "Delivered"],
   ["completed", "Completed"],
@@ -107,6 +110,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
                   <th className="px-3">Pickup city</th>
                   <th className="px-3">Pricing</th>
                   <th className="px-3">Status</th>
+                  <th className="px-3">Offers</th>
                   <th className="px-3">Payment</th>
                   <th className="px-3">Driver</th>
                   <th className="px-3">Action</th>
@@ -132,6 +136,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
                     <td className="px-3 py-3">
                       <StatusChip value={job.status} />
                     </td>
+                    <td className="px-3 py-3">{offerActivityLabel(offerTally(job))}</td>
                     <td className="px-3 py-3">
                       <StatusChip value={job.paymentStatus} kind="payment" />
                     </td>
@@ -168,11 +173,14 @@ function RequestFacts({ job, driverName, now }: { job: AdminJob; driverName: str
         <StatusChip value={job.paymentStatus} kind="payment" />
       </div>
       <p className="text-base text-ink">{driverName ? `Driver ${driverName}` : "Unassigned"}</p>
-      {job.status === "open" && !job.assignedDriverId && now - Date.parse(job.openedAt ?? job.createdAt) >= 20 * 60 * 1000 ? (
-        <p className="text-base font-semibold text-danger">No driver yet</p>
-      ) : null}
+      <p className="text-base text-ink">{offerActivityLabel(offerTally(job))}</p>
+      {showNoDriverYet(job, now) ? <p className="text-base font-semibold text-danger">No driver yet</p> : null}
     </div>
   );
+}
+
+function offerTally(job: AdminJob) {
+  return { open: job.offerCount, expired: job.expiredOfferCount, closed: job.closedOfferCount };
 }
 
 function ReviewLink({ id }: { id: string }) {

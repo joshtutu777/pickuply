@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { onlineGaps } from "./online-gaps";
+import { documentReviewNotes, onlineGaps } from "./online-gaps";
 
 const ready = {
   status: "active",
@@ -10,7 +10,7 @@ const ready = {
   vehicleApproved: true,
   checklistRequired: true,
   agreementSigned: true,
-  termsVersion: "driver-terms-v1",
+  termsVersion: "driver-terms-v2",
   trainingDone: true,
   serviceCount: 1,
   today: "2026-10-22",
@@ -25,11 +25,28 @@ test("an older agreement does not count as the current Driver Terms", () => {
   assert.match(gaps[0]?.label ?? "", /Driver Terms/);
 });
 
-test("a missing insurance upload is not an Online block, and an expired policy is", () => {
-  const missing = onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null });
-  assert.equal(missing.find((gap) => gap.href === "/driver/ready/insurance"), undefined);
-  const expired = onlineGaps({ ...ready, insuranceExpires: "2020-01-01" });
-  assert.match(expired[0]?.label ?? "", /insurance expired/);
+test("an expired license does not block an approved driver", () => {
+  assert.deepEqual(onlineGaps({ ...ready, licenseExpires: "2020-01-01" }), []);
+});
+
+test("a missing or expired license does not block Online", () => {
+  assert.deepEqual(onlineGaps({ ...ready, licenseExpires: null }), []);
+  assert.deepEqual(onlineGaps({ ...ready, licenseExpires: "2020-01-01" }), []);
+});
+
+test("missing or expired insurance does not block Online and stays visible for review", () => {
+  assert.deepEqual(onlineGaps({ ...ready, insuranceUrl: null, insuranceExpires: null }), []);
+  assert.deepEqual(onlineGaps({ ...ready, insuranceExpires: "2020-01-01" }), []);
+  assert.deepEqual(
+    documentReviewNotes({
+      licenseUrl: null,
+      licenseExpires: null,
+      insuranceUrl: "doc",
+      insuranceExpires: "2020-01-01",
+      today: ready.today,
+    }),
+    ["Driver license photo is missing.", "Insurance date has passed."],
+  );
 });
 
 test("an unready driver is told the application is still in review", () => {

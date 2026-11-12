@@ -11,6 +11,16 @@ test("stripe requirement keys become plain labels", () => {
 
 test("payout setup wording follows Stripe's flags", () => {
   assert.equal(payoutSetupLabel(null), "Set up payouts");
-  assert.equal(payoutSetupLabel({ payouts_enabled: false, details_submitted: false }), "Finish payout setup");
-  assert.equal(payoutSetupLabel({ payouts_enabled: true, details_submitted: true }), "Payouts are ready");
+  assert.equal(
+    payoutSetupLabel({ payouts_enabled: false, transfers_active: false, details_submitted: false }),
+    "Finish payout setup",
+  );
+  assert.equal(
+    payoutSetupLabel({ payouts_enabled: true, transfers_active: false, details_submitted: true }),
+    "Finish payout setup",
+  );
+  assert.equal(
+    payoutSetupLabel({ payouts_enabled: true, transfers_active: true, details_submitted: true }),
+    "Payouts are ready",
+  );
 });

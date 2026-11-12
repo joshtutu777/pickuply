@@ -45,7 +45,8 @@ async function OnboardingContent({
       </h1>
       <QuickApplyForm
         userId={session.userId}
-        defaultName={session.fullName ?? ""}
+        defaultFirstName={session.firstName ?? ""}
+        defaultLastName={session.lastName ?? ""}
         defaultEmail={profile?.email ?? ""}
       />
     </main>

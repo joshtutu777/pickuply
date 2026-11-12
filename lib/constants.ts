@@ -111,8 +111,8 @@ export const fees = {
   itemValueCapCents: 100_000,
   platformFeeRate: 0.15,
   platformFeeMinimumCents: 0,
-  serviceFeeBps: 290,
-  serviceFeeFixedCents: 30,
+  serviceFeeBps: 500,
+  serviceFeeFixedCents: 0,
   capture: "manual",
   chargedWhen: "after_delivery",
   driverPayouts: "manual_zelle_or_cash_app",
@@ -178,7 +178,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "Pickuply sends a price. You accept it before drivers see the job. Nothing is charged until a driver is booked.";
+  "Drivers see this request and send a quote. You choose who to book. Nothing is charged until you confirm.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
@@ -215,6 +215,8 @@ export const privacyAreaNote =
 export const maxPhotos = 8;
 export const photoMaxEdgePx = 1600;
 export const photoMaxBytes = 5 * 1024 * 1024;
+/** A phone camera file can be much larger than the picture we store. */
+export const photoSourceMaxBytes = 80 * 1024 * 1024;
 export const videoMaxSeconds = 30;
 export const videoMaxBytes = 8 * 1024 * 1024;
 

@@ -1,5 +1,13 @@
 # Pickuply progress
 
+## Driver offers stay open during the pilot (2026-11-08)
+
+Migration `0131_offer_stays_open.sql` is recorded as version `0131`. It replaces offer functions only. Offer rows stayed 61, and no offer status, expiry, price, or job payment field changed. Production deployment `dpl_4SyhxSh6Nik3WSzcFmtvAPdXeseR` is aliased to https://pickuplyapp.com. Git HEAD is still `61e913d`, which does not contain this change.
+
+A driver offer no longer expires after 2 hours. It stays active until the customer chooses a driver, the driver withdraws it, or the request leaves the open state. Posted-price acceptances and counteroffers use the same rule. Admin quotes still expire after 24 hours. Prices, commissions, Stripe, and the booking lock are unchanged.
+
+On the Marietta to Atlanta request, five accepts from five drivers are selectable. Two older accepts stay expired because those drivers sent a newer accept. Four offers closed by an unpaid booking on other requests stay expired.
+
 ## Customer notification request page deployed (2026-11-08)
 
 Production deployment `dpl_D4iJEeHYwUH7DrAS7oDJippS9j9b` is aliased to https://pickuplyapp.com. No migration. No request, offer expiry, driver assignment, or payment row was changed.
@@ -12,11 +20,39 @@ This note is the pre-deploy record. The apply is the section above.
 
 Sade's offer alerts point at `/jobs/c9775caf-2d8b-470c-9e62-5bb8ff3b4fff`. That path is correct. A signed-out visit could not read the request, so the page said it was not available. A signed-in visit with no offer still inside 2 hours opened an empty Offers tab. The request stays visible, expired offers are explained, and a signed-out customer is sent to log in and returned to the request. The two-hour window is unchanged. This is not on https://pickuplyapp.com yet.
 
+## Admin offer display deployed (2026-11-08)
+
+Production deployment `dpl_J7sx1Tg6pcgrGGKS8ytjztYr7V4V` is aliased to https://pickuplyapp.com. Git HEAD is still `b99e8dd`, which does not contain this change. No migration. Offer prices, the two-hour window, and booking are unchanged.
+
+The admin request list and request page now show submitted offers. An offer counts as open only while the customer can still choose it. Expired and declined offers stay visible. The Marietta to Atlanta request shows the Saturday 7:32 PM and Saturday 10:44 PM acceptances as expired, and the Sunday 6:55 AM acceptance as still open. A fourth posted-price acceptance arrived at 8:28 AM and is shown as open. No driver was assigned and no payment was started.
+
+## Admin offer display, not deployed (2026-11-08)
+
+This note is the pre-deploy record. The apply is the section above.
+
+The admin dashboard counted offer rows, but the request list and request page never showed them. An open request with no assigned driver said "No driver yet" even after drivers accepted the posted price. Posted-price acceptances were not filtered out. The customer offer list already includes them, and it hides an offer after its two-hour expiry.
+
+The list and request page now show submitted offers. An offer the customer can still choose counts whether it accepted the posted price, offered, or countered. Expired and declined offers stay visible and are not counted as open. Cancelled requests show those offers as closed. The admin pages refresh on a new offer, and still refresh every 30 seconds. No migration. Offer prices, expiry, and booking are unchanged. This is not on https://pickuplyapp.com yet.
+
+## Remove from Marketplace deployed (2026-11-07)
+
+Migration `0130_remove_from_marketplace.sql` is recorded as version `0130`. It installs functions only. Jobs stayed 52, offers 48, payments 21, refunds 0, audits 108, profiles 89, and cancelled jobs stayed 4. The job fingerprint was unchanged. No production request was removed.
+
+Production deployment `dpl_9LwPwQWURVGZb8ncUZpsJd2pvL8B` is aliased to https://pickuplyapp.com. Git HEAD is still `b99e8dd`, which does not contain this change. The admin request page shows Remove from Marketplace for an open, unassigned request. The button was not used.
+
+The job row is locked before the check. The request is cancelled only while it is still open and unassigned, and open offers are closed after that. A second try records `already_removed` and does not write a second successful removal. A driver, a payment, a refund, or a dispute blocks it. The existing cancel, refund, and dispute tools are unchanged.
+
+## Remove from Marketplace (2026-11-07)
+
+This note is the pre-deploy record. The apply is the section above.
+
+An admin can take a posted request off the driver list when it has no driver and no money record. The request is marked cancelled, open offers are closed, and the row stays. The job is locked first so a claim or a card authorization cannot land in the middle. A driver, a payment, a refund, or a dispute blocks it. The existing cancel, refund, and dispute tools are unchanged.
+
 ## Signed-in homepage and admin customer removal deployed (2026-11-07)
 
 Migration `0129_admin_remove_customer.sql` is recorded as version `0129`. Version `0123` is still not applied. The migration installs the function only. Customer count stayed 42, deleted customers stayed 0, and the profile fingerprint was unchanged.
 
-Production deployment `dpl_AHWevtPRKDPJ5SS1GMjkT7Midx8v` is aliased to https://pickuplyapp.com. It was uploaded from the working tree. Git HEAD is still `490394d`, which does not contain this change. No production customer was deleted.
+Production deployment `dpl_AHWevtPRKDPJ5SS1GMjkT7Midx8v` is aliased to https://pickuplyapp.com. It was uploaded from the working tree. The homepage and customer-deletion files are committed as `b99e8dd`. No production customer was deleted.
 
 ## Signed-in homepage and admin customer removal (2026-11-07)
 

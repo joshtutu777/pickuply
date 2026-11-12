@@ -36,7 +36,8 @@ async function signIn(page: Page, person: { phone: string; otp: string }) {
     { timeout: 30_000 },
   );
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill("Local Tester");
+    await page.getByLabel("First name").fill("Local");
+    await page.getByLabel("Last name").fill("Tester");
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.startsWith("/login") && !url.pathname.startsWith("/auth"));
@@ -74,9 +75,8 @@ test("quote is accepted, published, and claimed by one eligible driver", async (
   await expect(customer.getByRole("heading", { name: "Quoted" })).toBeVisible();
   await expect(customer.getByRole("button", { name: "Accept quote" })).toBeVisible();
   await expect(
-    customer.getByText("We're preparing your price. Drivers can't see this request until you accept it."),
+    customer.getByText("A Pickuply price is ready, and drivers can still send their own quote. You choose who to book."),
   ).toBeVisible();
-  await expect(customer.getByText("Drivers can send offers. You choose who to book.")).toHaveCount(0);
 
   sql(
     `update public.jobs set quote_expires_at = now() - interval '1 minute' where id = '${quoteJobId}'`,

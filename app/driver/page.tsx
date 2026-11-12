@@ -14,6 +14,7 @@ import { requireSignedIn } from "@/lib/auth/session";
 import { defaultFeeSettings } from "@/lib/fees";
 import { formatCents } from "@/lib/money";
 import { applicationStatusCopy } from "@/lib/driver/application-status";
+import { documentReviewNotes } from "@/lib/driver/online-gaps";
 import { checklistItems, checklistProgress } from "@/lib/driver/checklist";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
@@ -28,6 +29,33 @@ export default function DriverPage({ searchParams }: PageProps<"/driver">) {
     <Suspense fallback={<LoadingMain />}>
       <DriverContent searchParams={searchParams} />
     </Suspense>
+  );
+}
+
+function DocumentReview({
+  licenseUrl,
+  licenseExpires,
+  insuranceUrl,
+  insuranceExpires,
+}: {
+  licenseUrl: string | null;
+  licenseExpires: string | null;
+  insuranceUrl: string | null;
+  insuranceExpires: string | null;
+}) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  const notes = documentReviewNotes({ licenseUrl, licenseExpires, insuranceUrl, insuranceExpires, today });
+  if (notes.length === 0) return null;
+  return (
+    <section className="mt-4 rounded-3xl bg-paper-raised p-4 ring-1 ring-line" aria-label="Documents for review">
+      <h2 className="font-display text-2xl font-semibold text-ink">Documents for Pickuply to review</h2>
+      <p className="mt-2 text-base text-ink">These do not turn off the Online switch. An admin still needs to review them before paid hauling is verified.</p>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-base text-ink">
+        {notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -133,7 +161,7 @@ async function DriverContent({
       approved
         ? supabase.from("ledger_entries").select("status, amount_cents").eq("driver_id", session.userId)
         : Promise.resolve({ data: null }),
-      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents").eq("id", 1).maybeSingle(),
+      supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_fee_bps").eq("id", 1).maybeSingle(),
       supabase
         .from("job_offers")
         .select("id, driver_amount_cents, platform_fee_cents, status")
@@ -147,8 +175,7 @@ async function DriverContent({
       ? {
           platformBps: feeRow.platform_bps,
           platformMinCents: feeRow.platform_min_cents,
-          serviceBps: feeRow.service_bps,
-          serviceFixedCents: feeRow.service_fixed_cents,
+          serviceFeeBps: feeRow.service_fee_bps,
         }
       : defaultFeeSettings;
     return (
@@ -161,7 +188,7 @@ async function DriverContent({
           vehicleType={vehicle?.type ?? null}
           everOnline={Boolean(application?.first_online_at)}
           promptDismissed={(await cookies()).get("pickuply.online-prompt")?.value === "dismissed"}
-          termsAccepted={application?.terms_version === "driver-terms-v1"}
+          termsAccepted={application?.terms_version === "driver-terms-v2"}
           coverage={coverage}
           offlineAlerts={application?.offline_job_alerts !== false}
           fees={fees}
@@ -172,8 +199,13 @@ async function DriverContent({
         <InstallPrompt audience="driver" />
         <RestrictionNotice surface="driver" />
         <BetaNotice from="/driver" />
-        {approved && !application?.insurance_url ? (
-          <p className="mt-3 text-base text-ink">Add your insurance card.</p>
+        {approved ? (
+          <DocumentReview
+            licenseUrl={application?.license_url ?? null}
+            licenseExpires={application?.license_expires ?? null}
+            insuranceUrl={application?.insurance_url ?? null}
+            insuranceExpires={application?.insurance_expires ?? null}
+          />
         ) : null}
         {saved ? (
           <p role="status" className="mt-3 text-base font-semibold text-ink">

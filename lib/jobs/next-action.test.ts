@@ -16,6 +16,10 @@ test("confirm booking only while payment is actually due", () => {
     "Review quote",
   );
   assert.equal(
+    customerNextAction({ status: "requested", paymentStatus: null, pricingMethod: "quote" }).label,
+    "Review quotes",
+  );
+  assert.equal(
     customerNextAction({ status: "open", paymentStatus: null, pricingMethod: "fixed" }).label,
     "Select an offer",
   );

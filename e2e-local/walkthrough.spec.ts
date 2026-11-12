@@ -70,7 +70,9 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       }
       await signIn(driver, driverPerson);
       if (!driver.url().includes("/driver/onboarding")) await driver.goto("/driver/onboarding");
-      await driver.getByLabel("Your name").fill(driverPerson.name);
+      const driverNames = driverPerson.name.trim().split(/\s+/);
+      await driver.getByLabel("First name").fill(driverNames[0] ?? "");
+      await driver.getByLabel("Last name").fill(driverNames.slice(1).join(" "));
       await driver.getByLabel("Email address").fill("walk.driver@pickuply.test");
       await driver.getByLabel("Street").fill("10 Test Street");
       await driver.getByLabel("City", { exact: true }).fill("Austell");
@@ -263,14 +265,11 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await driver.locator("#proof-file").setInputFiles({ name: "item.png", mimeType: "image/png", buffer: png });
       await driver.getByRole("button", { name: "Save proof" }).click();
       await expect(driver.getByText(/Proof saved/)).toBeVisible();
-      await waitForButton(driver, "Item loaded — head to drop-off");
-      await driver.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+      await waitForButton(driver, "Item loaded");
+      await driver.getByRole("button", { name: "Item loaded" }).click();
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("item_check");
-      await expect.poll(async () => {
-        await customer.reload();
-        return customer.getByRole("button", { name: "Looks good" }).isVisible().catch(() => false);
-      }, { timeout: 45_000, intervals: [1_000, 2_000, 3_000] }).toBe(true);
-      await customer.getByRole("button", { name: "Looks good" }).click();
+      await waitForButton(driver, "Proceed to drop-off");
+      await driver.getByRole("button", { name: "Proceed to drop-off" }).click();
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("in_transit");
       await waitForButton(driver, "Arrived at drop-off");
       await driver.getByRole("button", { name: "Arrived at drop-off" }).click();
@@ -283,10 +282,10 @@ test("three people walk a pickup from signup through delivery", async ({ browser
       await expect.poll(() => localSql(`select status from public.jobs where id = '${jobId}'`).trim(), { timeout: 30_000 }).toBe("delivered");
       await expect.poll(async () => {
         await customer.reload();
-        return customer.getByRole("button", { name: "Confirm delivery" }).isVisible().catch(() => false);
+        return customer.getByRole("button", { name: "Confirm", exact: true }).isVisible().catch(() => false);
       }, { timeout: 45_000, intervals: [1_000, 2_000, 3_000] }).toBe(true);
       await expect(customer.getByText("Delivered").first()).toBeVisible();
-      await customer.getByRole("button", { name: "Confirm delivery" }).click();
+      await customer.getByRole("button", { name: "Confirm", exact: true }).click();
       const confirmed = customer.getByText("You confirmed this delivery.");
       const review = customer.getByRole("heading", { name: "Review" });
       await expect(confirmed.or(review)).toBeVisible({ timeout: 30_000 });
@@ -633,12 +632,13 @@ async function signIn(page: Page, person: { phone: string; code: string; name: s
     timeout: 30_000,
   });
   if (!page.url().includes("/login/name")) return;
-  const firstName = person.name.split(" ")[0] ?? person.name;
+  const nameParts = person.name.trim().split(/\s+/);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (await page.getByText("An unexpected response was received from the server.").isVisible().catch(() => false)) {
       await page.reload();
     }
-    await page.getByLabel("First name").fill(firstName);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     try {

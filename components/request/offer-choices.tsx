@@ -69,7 +69,7 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
   return (
     <section ref={listRef} className="space-y-3">
       <h2 className="text-lg font-semibold text-ink">Offers</h2>
-      <p className="text-base text-muted">Choosing one assigns that driver. Nothing is charged yet.</p>
+      <p className="text-base text-muted">Choosing one assigns that driver. Nothing is charged yet. An offer stays open until you choose a driver, the driver withdraws it, or the request is closed.</p>
       {offers.map((offer) => {
         const isNew = !offer.viewed;
         return (
@@ -86,11 +86,10 @@ export function OfferChoices({ jobId, offers }: { jobId: string; offers: OfferSu
             </div>
             <p>{offer.vehicle_label || "Vehicle"}</p>
             <p>Offer {formatCents(offer.driver_earnings_cents + offer.platform_fee_cents)}</p>
-            <p>Card processing fee {formatCents(offer.service_fee_cents)}</p>
+            <p>Service fee {formatCents(offer.service_fee_cents)}</p>
             <p className="font-semibold">Total {formatCents(offer.customer_total_cents)}</p>
             {offer.outside_range ? <p>Outside your range</p> : null}
             {offer.reason ? <p>Reason: {offer.reason}</p> : null}
-            <p>Expires {new Date(offer.expires_at).toLocaleString()}</p>
             <form action={chooseOffer} className="mt-3">
               <input type="hidden" name="jobId" value={jobId} />
               <input type="hidden" name="offerId" value={offer.offer_id} />

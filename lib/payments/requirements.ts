@@ -23,12 +23,19 @@ export function requirementLabels(keys: string[]): string[] {
   return result;
 }
 
+export function payoutsReady(account: {
+  payouts_enabled: boolean;
+  transfers_active: boolean;
+} | null): boolean {
+  return Boolean(account?.payouts_enabled && account.transfers_active);
+}
+
 export function payoutSetupLabel(account: {
   payouts_enabled: boolean;
+  transfers_active: boolean;
   details_submitted: boolean;
 } | null): string {
   if (!account) return "Set up payouts";
-  if (account.payouts_enabled) return "Payouts are ready";
-  if (account.details_submitted) return "Finish payout setup";
+  if (payoutsReady(account)) return "Payouts are ready";
   return "Finish payout setup";
 }

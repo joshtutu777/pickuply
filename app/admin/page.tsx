@@ -5,12 +5,13 @@ import { AdminMessageList } from "@/components/admin/admin-messages";
 import { BadgeChip } from "@/components/admin/status-chip";
 import { LoadingMain } from "@/components/loading-main";
 import { IncludeTestData } from "@/components/admin/include-test-data";
-import { expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
+import { countCustomerAccounts, expiringDrivers, loadAdminDashboard } from "@/lib/admin/load";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import {
   documentExpiresSoon,
   onlineByZone,
+  openJobsDetail,
   readableTime,
   waitedLabel,
 } from "@/lib/admin/ops";
@@ -36,7 +37,7 @@ async function Overview({
   await requireAdmin("/admin");
   const params = await searchParams;
   const lane = await resolveTestLane(includeTestParam(params.includeTest));
-  const data = await loadAdminDashboard(lane);
+  const [data, customerAccounts] = await Promise.all([loadAdminDashboard(lane), countCustomerAccounts(lane)]);
   if (data.error) {
     return (
       <main className="px-4 py-8">
@@ -79,10 +80,7 @@ async function Overview({
       href: "/admin/requests?status=open",
       count: data.counts.open,
       label: "Open jobs awaiting drivers",
-      detail:
-        data.counts.openStale === 1
-          ? "1 has no offers after 20 minutes"
-          : `${data.counts.openStale} have no offers after 20 minutes`,
+      detail: openJobsDetail(data.counts.openWithOffers, data.counts.openStale),
     },
     {
       href: "/admin/requests?stage=active",
@@ -107,6 +105,12 @@ async function Overview({
       count: data.counts.pendingDrivers,
       label: "Pending driver applications",
       detail: "Waiting for your review",
+    },
+    {
+      href: lane === "all" ? "/admin/customers?includeTest=1" : "/admin/customers",
+      count: customerAccounts ?? "—",
+      label: "Customer accounts",
+      detail: customerAccounts == null ? "Count unavailable" : "Signed up, not deleted",
     },
   ];
 

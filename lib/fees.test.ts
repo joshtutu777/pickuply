@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acceptFixedPrice, defaultFeeSettings, offerBreakdown } from "./fees";
+import { acceptFixedPrice, defaultFeeSettings, offerBreakdown, roundHalfUp, serviceFeeCents } from "./fees";
 
 test("$50 offer keeps $7.50 and pays the driver $42.50", () => {
   const price = offerBreakdown(5_000);
@@ -30,12 +30,31 @@ test("an odd-cent offer rounds driver earnings half up and gives the remainder t
   assert.equal(price.driverEarningsCents + price.platformFeeCents, 5_001);
 });
 
-test("the customer pays processing on top and Pickuply does not absorb it", () => {
+test("a $100 offer adds a $5 service fee and keeps the driver at 85 percent", () => {
+  const price = offerBreakdown(10_000);
+  assert.equal(price.serviceFeeCents, 500);
+  assert.equal(price.customerTotalCents, 10_500);
+  assert.equal(price.driverEarningsCents, 8_500);
+  assert.equal(price.platformFeeCents, 1_500);
+});
+
+test("the service fee rounds half up and does not use a card rate", () => {
+  assert.equal(serviceFeeCents(10), 1);
+  assert.equal(roundHalfUp(10 * 500, 10_000), 1);
+  assert.equal(serviceFeeCents(3), 0);
   const price = offerBreakdown(5_000);
-  assert.equal(price.customerTotalCents - price.subtotalCents, price.serviceFeeCents);
-  assert.ok(price.serviceFeeCents > 0);
-  assert.equal(price.driverEarningsCents + price.platformFeeCents, price.subtotalCents);
-  assert.equal(price.customerTotalCents, price.subtotalCents + price.serviceFeeCents);
+  assert.equal(price.serviceFeeCents, 250);
+  assert.equal(price.customerTotalCents, 5_250);
+});
+
+test("five hundred offer amounts match the half-up service fee", () => {
+  for (let cents = 3_500; cents < 4_000; cents += 1) {
+    const price = offerBreakdown(cents);
+    assert.equal(price.serviceFeeCents, roundHalfUp(cents * 500, 10_000));
+    assert.equal(price.customerTotalCents, cents + price.serviceFeeCents);
+    assert.equal(price.driverEarningsCents, roundHalfUp(cents * 8_500, 10_000));
+    assert.equal(price.driverEarningsCents + price.platformFeeCents, cents);
+  }
 });
 
 test("a posted accept uses the same offer split", () => {
@@ -53,7 +72,6 @@ test("one cent cannot pay the driver when the commission rounds the share to zer
   assert.throws(() => offerBreakdown(1, {
     platformBps: 9_999,
     platformMinCents: 0,
-    serviceBps: 290,
-    serviceFixedCents: 30,
+    serviceFeeBps: 500,
   }), /driver earnings would be zero/);
 });

@@ -6,17 +6,16 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 const testEnv = readEnvFile(".env.test.local");
-const localEnv = readEnvFile(".env.local");
 const status = localStatus();
 const cronSecret = process.env.CRON_SECRET || randomBytes(24).toString("hex");
 const listenSecret = readListenSecret();
-const webhookSecret = listenSecret || localEnv.STRIPE_WEBHOOK_SECRET || "";
+const webhookSecret = listenSecret || testEnv.STRIPE_WEBHOOK_SECRET || "";
 
 process.env.CRON_SECRET = cronSecret;
 process.env.NEXT_PUBLIC_SUPABASE_URL = testEnv.NEXT_PUBLIC_SUPABASE_URL;
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = testEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-process.env.STRIPE_SECRET_KEY = localEnv.STRIPE_SECRET_KEY ?? "";
-process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = localEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+process.env.STRIPE_SECRET_KEY = testEnv.STRIPE_SECRET_KEY ?? "";
+process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = testEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 process.env.STRIPE_WEBHOOK_SECRET = webhookSecret;
 process.env.STRIPE_CONNECT_WEBHOOK_SECRET = webhookSecret;
 
@@ -112,6 +111,10 @@ export default defineConfig({
     {
       name: "local-step5",
       testMatch: /step5-payments\.spec\.ts/,
+    },
+    {
+      name: "local-critical",
+      testMatch: /marketplace-critical\.spec\.ts/,
     },
   ],
 });

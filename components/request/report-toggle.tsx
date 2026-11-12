@@ -13,7 +13,7 @@ export function ReportToggle({ jobId }: { jobId: string }) {
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        Report a Problem
+        Report an Issue
       </button>
       {open ? <ReportForm jobId={jobId} embedded /> : null}
     </div>

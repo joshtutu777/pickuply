@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(17);
+select plan(20);
 
 do $$
 declare
@@ -67,13 +67,13 @@ update public.profiles set full_name = 'Test Customer', is_test = true where id 
 update public.profiles set role = 'driver', full_name = 'Test Driver', is_test = true where id = 'c1720000-0000-4000-8000-000000000007';
 
 insert into public.drivers (
-  profile_id, status, home_city, home_zip, license_url, license_expires, terms_version, terms_accepted_at, agreement_signed_at
+  profile_id, status, home_city, home_zip, license_url, license_expires, insurance_url, insurance_expires, terms_version, terms_accepted_at, agreement_signed_at
 ) values
-  ('c1720000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000002/license.jpg', public.georgia_today() - 1, 'driver-terms-v1', now(), now()),
-  ('c1720000-0000-4000-8000-000000000003', 'pending_review', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000003/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now()),
-  ('c1720000-0000-4000-8000-000000000004', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000004/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now()),
-  ('c1720000-0000-4000-8000-000000000005', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000005/license.jpg', public.georgia_today(), null, null, now()),
-  ('c1720000-0000-4000-8000-000000000007', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000007/license.jpg', public.georgia_today(), 'driver-terms-v1', now(), now());
+  ('c1720000-0000-4000-8000-000000000002', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000002/license.jpg', public.georgia_today() - 1, 'c1720000-0000-4000-8000-000000000002/insurance.jpg', public.georgia_today() + 30, 'driver-terms-v2', now(), now()),
+  ('c1720000-0000-4000-8000-000000000003', 'pending_review', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000003/license.jpg', public.georgia_today(), 'c1720000-0000-4000-8000-000000000003/insurance.jpg', public.georgia_today() + 30, 'driver-terms-v2', now(), now()),
+  ('c1720000-0000-4000-8000-000000000004', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000004/license.jpg', public.georgia_today(), 'c1720000-0000-4000-8000-000000000004/insurance.jpg', public.georgia_today() + 30, 'driver-terms-v2', now(), now()),
+  ('c1720000-0000-4000-8000-000000000005', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000005/license.jpg', public.georgia_today(), 'c1720000-0000-4000-8000-000000000005/insurance.jpg', public.georgia_today() + 30, null, null, now()),
+  ('c1720000-0000-4000-8000-000000000007', 'active', 'Austell', '30106', 'c1720000-0000-4000-8000-000000000007/license.jpg', public.georgia_today(), 'c1720000-0000-4000-8000-000000000007/insurance.jpg', public.georgia_today() + 30, 'driver-terms-v2', now(), now());
 
 insert into public.account_suspensions (profile_id, status, kind, reason, created_by)
 values (
@@ -126,10 +126,21 @@ select ok(public.document_is_current(public.georgia_today()), 'a license dated t
 select ok(public.document_is_current(public.georgia_today() + 1), 'a license dated tomorrow is valid');
 
 select pg_temp.as_user('c1720000-0000-4000-8000-000000000002');
-select throws_ok(
+select lives_ok(
   $$select public.set_driver_online(true)$$,
-  'Your license expired on ' || to_char(public.georgia_today() - 1, 'FMMM/FMDD/YYYY') || ' - upload a new photo to go Online.',
-  'a license that expired yesterday blocks Online'
+  'an approved driver with an expired license can go Online'
+);
+select lives_ok(
+  $$select public.submit_offer('c1720000-0000-4000-8000-000000000011', 'accept', null, null)$$,
+  'an approved driver with an expired license can submit an offer'
+);
+select lives_ok(
+  $$select public.withdraw_offer((select id from public.job_offers where job_id = 'c1720000-0000-4000-8000-000000000011' and driver_id = auth.uid() and status = 'active'))$$,
+  'the expired-license offer can be withdrawn'
+);
+select lives_ok(
+  $$select public.set_driver_online(false)$$,
+  'the driver goes Offline after the expired-license check'
 );
 
 select pg_temp.clear_auth();

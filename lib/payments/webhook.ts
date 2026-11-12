@@ -1,24 +1,29 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { stripeWebhookEvent } from "@/lib/stripe";
+import { webhookSecretAgrees, webhookSecretCandidates } from "@/lib/payments/webhook-mode";
+import { constructStripeEvent } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
 export async function readStripeEvent(
   request: Request,
-  secretName: "STRIPE_WEBHOOK_SECRET" | "STRIPE_CONNECT_WEBHOOK_SECRET",
+  kind: "payments" | "connect",
 ): Promise<Stripe.Event | NextResponse> {
   await connection();
   const payload = await request.text();
   const signature = request.headers.get("stripe-signature") ?? "";
-  const secret = process.env[secretName] ?? "";
-  try {
-    return stripeWebhookEvent(payload, signature, secret);
-  } catch {
-    return NextResponse.json({ ok: false }, { status: 400 });
+  for (const candidate of webhookSecretCandidates(kind, process.env)) {
+    try {
+      const event = constructStripeEvent(payload, signature, candidate.secret);
+      if (!webhookSecretAgrees(candidate.mode, event.livemode)) continue;
+      return event;
+    } catch {
+      // The other mode's secret may be the one that signed this delivery.
+    }
   }
+  return NextResponse.json({ ok: false }, { status: 400 });
 }
 
 export async function claimStripeEvent(

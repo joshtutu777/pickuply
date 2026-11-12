@@ -13,6 +13,7 @@ export function PayPanel({
   minutesLeft,
   windowOpen,
   returning,
+  needsEmail = false,
 }: {
   jobId: string;
   driverPayCents: number;
@@ -23,6 +24,7 @@ export function PayPanel({
   minutesLeft: number;
   windowOpen: boolean;
   returning: boolean;
+  needsEmail?: boolean;
 }) {
   const offerCents = driverPayCents + platformFeeCents;
   const additionalCents = totalCents - offerCents - serviceFeeCents;
@@ -34,8 +36,8 @@ export function PayPanel({
         {balanced ? (
           <>
             <p>{"Selected driver's offer "}{formatCents(offerCents)}</p>
-            <p>Card processing fee {formatCents(serviceFeeCents)}</p>
-            <p className="text-muted">This processing fee is added to the offer. Pickuply does not add another service fee.</p>
+            <p>Service fee {formatCents(serviceFeeCents)}</p>
+            <p className="text-muted">This 5% service fee is added to the offer. The total below is what is held on your card.</p>
             <p>{additionalCents === 0 ? "No additional charges" : `Additional charges ${formatCents(additionalCents)}`}</p>
           </>
         ) : null}
@@ -51,8 +53,26 @@ export function PayPanel({
               Confirm your booking. Your card will be authorized now and charged after delivery is completed under
               Pickuply&apos;s payment policy.
             </p>
-            <form action={startCheckout}>
+            <form action={startCheckout} className="grid gap-3">
               <input type="hidden" name="jobId" value={jobId} />
+              {needsEmail ? (
+                <label className="block text-base font-semibold text-ink" htmlFor="bookingEmail">
+                  Email address
+                  <span className="mt-1 block text-sm font-normal text-muted">
+                    Required to confirm this booking. You can skip it when you sign up.
+                  </span>
+                  <input
+                    id="bookingEmail"
+                    name="bookingEmail"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    required
+                    maxLength={200}
+                    className="mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper px-4 text-base font-normal text-ink"
+                  />
+                </label>
+              ) : null}
               <button
                 type="submit"
                 className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-6 text-center font-semibold text-white sm:w-auto"

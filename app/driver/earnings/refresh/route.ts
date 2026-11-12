@@ -2,6 +2,8 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { ensureExpressAccount, onboardingLink, requestOrigin } from "@/lib/payments/connect";
+import { connectLivemode } from "@/lib/payments/connect-eligibility";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -18,6 +20,7 @@ export async function GET() {
     .from("driver_connect_accounts")
     .select("stripe_account_id, details_submitted")
     .eq("driver_id", user.id)
+    .eq("livemode", connectLivemode(paymentsMode(process.env.PAYMENTS_MODE)))
     .maybeSingle();
   try {
     const accountId = await ensureExpressAccount(user.id, data?.stripe_account_id ?? null);

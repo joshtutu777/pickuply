@@ -10,13 +10,17 @@ const quote = {
   service: "delivery",
 };
 
-test("a quote stays hidden from drivers until the customer accepts the price", () => {
-  for (const status of ["requested", "in_review", "quoted"]) {
+test("a posted quote is visible so drivers can send a quote", () => {
+  for (const status of ["requested", "in_review"]) {
     assert.equal(
       quoteRequestCopy({ ...quote, status }),
-      "We're preparing your price. Drivers can't see this request until you accept it.",
+      "Drivers can see this request and send a quote. You choose who to book. Nothing is charged until you confirm.",
     );
   }
+  assert.equal(
+    quoteRequestCopy({ ...quote, status: "quoted" }),
+    "A Pickuply price is ready, and drivers can still send their own quote. You choose who to book.",
+  );
 });
 
 test("an accepted quote uses the existing driver availability wording", () => {

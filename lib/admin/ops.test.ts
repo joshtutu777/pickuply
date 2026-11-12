@@ -9,10 +9,16 @@ import {
   filterJobs,
   jobEventLabel,
   needsAction,
+  offerActivityLabel,
+  offerKindLabel,
+  openJobsDetail,
   openWithoutOffers,
   paymentNearDeadline,
   quoteExpiresSoon,
   readableTime,
+  showNoDriverYet,
+  tallyOffers,
+  visibleOfferTally,
   waitedLabel,
   type AdminDriver,
   type AdminJob,
@@ -43,6 +49,8 @@ function job(overrides: Partial<AdminJob> = {}): AdminJob {
     openedAt: null,
     quotedAt: null,
     offerCount: 0,
+    expiredOfferCount: 0,
+    closedOfferCount: 0,
     hasRequestPhotos: false,
     overThousand: false,
     specialty: false,
@@ -131,10 +139,66 @@ test("quote, offer, and payment rules use the planned windows", () => {
   assert.equal(counts.quotes, 1);
   assert.equal(counts.quotesSoon, 1);
   assert.equal(counts.open, 2);
+  assert.equal(counts.openWithOffers, 1);
   assert.equal(counts.openStale, 1);
   assert.equal(counts.awaitingPayment, 1);
   assert.equal(counts.soonestPaymentDue, "2026-10-22T16:10:00.000Z");
   assert.equal(counts.needsAction, 3);
+});
+
+test("acceptances, counters, and expired offers are counted separately", () => {
+  const at = Date.parse("2026-11-08T13:00:00.000Z");
+  const none = tallyOffers([], at);
+  assert.deepEqual(none, { open: 0, expired: 0, closed: 0 });
+  assert.equal(offerActivityLabel(none), "No offers yet");
+
+  const oneAccept = tallyOffers([{ status: "active", kind: "accept", expiresAt: "2026-11-08T14:00:00.000Z" }], at);
+  assert.deepEqual(oneAccept, { open: 1, expired: 0, closed: 0 });
+  assert.equal(offerActivityLabel(oneAccept), "1 offer open");
+  assert.equal(offerKindLabel("accept"), "Accepted the posted price");
+
+  const mixed = tallyOffers(
+    [
+      { status: "active", kind: "accept", expiresAt: "2026-11-08T14:00:00.000Z" },
+      { status: "active", kind: "accept", expiresAt: "2026-11-08T12:00:00.000Z" },
+      { status: "active", kind: "accept", expiresAt: "2026-11-08T15:00:00.000Z" },
+      { status: "active", kind: "counter", expiresAt: "2026-11-08T16:00:00.000Z" },
+      { status: "active", kind: "offer", expiresAt: "2026-11-08T16:30:00.000Z" },
+      { status: "declined", kind: "offer", expiresAt: "2026-11-08T16:30:00.000Z" },
+    ],
+    at,
+  );
+  assert.deepEqual(mixed, { open: 5, expired: 0, closed: 1 });
+  assert.equal(offerActivityLabel(mixed), "5 offers open · 1 closed");
+  assert.equal(offerKindLabel("counter"), "Counteroffer");
+
+  const cancelled = visibleOfferTally("cancelled", mixed);
+  assert.deepEqual(cancelled, { open: 0, expired: 0, closed: 6 });
+  assert.equal(offerActivityLabel(cancelled), "6 closed");
+
+  const expiredOnly = job({
+    status: "open",
+    openedAt: "2026-10-22T15:00:00.000Z",
+    offerCount: 0,
+    expiredOfferCount: 3,
+  });
+  const choosable = job({
+    id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    status: "open",
+    openedAt: "2026-10-22T15:00:00.000Z",
+    offerCount: 3,
+  });
+  assert.equal(openWithoutOffers(expiredOnly, now), true);
+  assert.equal(showNoDriverYet(expiredOnly, now), false);
+  assert.equal(showNoDriverYet(job({ status: "open", openedAt: "2026-10-22T15:00:00.000Z" }), now), true);
+  assert.equal(showNoDriverYet(choosable, now), false);
+  const counts = dashboardCounts([expiredOnly, choosable], [], now);
+  assert.equal(counts.openWithOffers, 1);
+  assert.equal(counts.openStale, 1);
+  assert.equal(
+    openJobsDetail(counts.openWithOffers, counts.openStale),
+    "1 has an offer the customer can still choose. 1 has no open offer after 20 minutes",
+  );
 });
 
 test("filters search city and job id without dropping the stage", () => {

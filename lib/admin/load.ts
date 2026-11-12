@@ -4,6 +4,7 @@ import { cache } from "react";
 import { inTestLane, type TestLane } from "@/lib/admin/test-lane";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { requireAdmin } from "@/lib/auth/session";
+import { displayFullName } from "@/lib/auth/name";
 import { createClient } from "@/lib/supabase/server";
 import {
   activityHref,
@@ -15,6 +16,8 @@ import {
   isSpecialty,
   jobEventLabel,
   needsAction,
+  offerBucket,
+  visibleOfferTally,
   type ActivityItem,
   type AdminDriver,
   type AdminJob,
@@ -37,7 +40,14 @@ export type AdminDashboard = {
 
 export type AdminDashboardResult = AdminDashboard | { error: true };
 
-type ProfileRow = { id: string; full_name: string | null; role: string | null; is_test?: boolean };
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+  is_test?: boolean;
+};
 
 export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: TestLane = "real"): Promise<AdminDashboardResult> {
   await requireAdmin("/admin");
@@ -62,7 +72,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
         supabase.from("driver_feed_filters").select("profile_id, cities, zips, radius_miles").limit(2000),
         supabase.from("driver_item_reviews").select("driver_id").limit(2000),
         supabase.from("zones").select("id, name").order("name"),
-        supabase.from("job_offers").select("job_id").limit(5000),
+        supabase.from("job_offers").select("job_id, status, expires_at").limit(5000),
         supabase.from("job_photos").select("job_id").eq("stage", "request").limit(5000),
         supabase
           .from("job_events")
@@ -97,9 +107,11 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
       return { error: true };
     }
 
-    const offerCounts = new Map<string, number>();
+    const offerTallies = new Map<string, { open: number; expired: number; closed: number }>();
     for (const offer of offersResult.data ?? []) {
-      offerCounts.set(offer.job_id, (offerCounts.get(offer.job_id) ?? 0) + 1);
+      const current = offerTallies.get(offer.job_id) ?? { open: 0, expired: 0, closed: 0 };
+      current[offerBucket({ status: offer.status, expiresAt: offer.expires_at }, now)] += 1;
+      offerTallies.set(offer.job_id, current);
     }
     const photoJobs = new Set((photosResult.data ?? []).map((photo) => photo.job_id));
     const openedAt = new Map<string, string>();
@@ -126,7 +138,7 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
     if (profileIds.size > 0) {
       const profileResult = await supabase
         .from("profiles")
-        .select("id, full_name, role, is_test")
+        .select("id, full_name, first_name, last_name, role, is_test")
         .in("id", [...profileIds]);
       if (profileResult.error) return { error: true };
       for (const profile of profileResult.data ?? []) profiles.set(profile.id, profile);
@@ -137,33 +149,38 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
     const eventRows = (eventsResult.data ?? []).filter((event) => !event.job_id || visibleJobIds.has(event.job_id) || lane === "all");
     const auditRows = auditResult.data ?? [];
 
-    const jobs: AdminJob[] = visibleJobs.map((job) => ({
-      id: job.id,
-      service: job.service,
-      status: job.status,
-      createdAt: job.created_at,
-      pricingMethod: job.pricing_method,
-      pickupArea: job.pickup_area,
-      zoneId: job.zone_id,
-      paymentStatus: job.payment_status,
-      paymentDueAt: job.payment_due_at,
-      quoteExpiresAt: job.quote_expires_at,
-      assignedDriverId: job.assigned_driver_id,
-      customerId: job.customer_id,
-      preferredDate: job.preferred_date,
-      itemValueCents: job.item_value_cents,
-      offerCents: job.offer_cents,
-      budgetMinCents: job.budget_min_cents,
-      budgetMaxCents: job.budget_max_cents,
-      priceCents: job.price_cents,
-      openedAt: openedAt.get(job.id) ?? null,
-      quotedAt: quotedAt.get(job.id) ?? null,
-      offerCount: offerCounts.get(job.id) ?? 0,
-      hasRequestPhotos: photoJobs.has(job.id),
-      overThousand: isOverThousand(job.item_value_cents),
-      specialty: isSpecialty(job.description, job.junk_special_items),
-      detailsOpen: detailRequestOpen(job.detail_request),
-    }));
+    const jobs: AdminJob[] = visibleJobs.map((job) => {
+      const tally = visibleOfferTally(job.status, offerTallies.get(job.id) ?? { open: 0, expired: 0, closed: 0 });
+      return {
+        id: job.id,
+        service: job.service,
+        status: job.status,
+        createdAt: job.created_at,
+        pricingMethod: job.pricing_method,
+        pickupArea: job.pickup_area,
+        zoneId: job.zone_id,
+        paymentStatus: job.payment_status,
+        paymentDueAt: job.payment_due_at,
+        quoteExpiresAt: job.quote_expires_at,
+        assignedDriverId: job.assigned_driver_id,
+        customerId: job.customer_id,
+        preferredDate: job.preferred_date,
+        itemValueCents: job.item_value_cents,
+        offerCents: job.offer_cents,
+        budgetMinCents: job.budget_min_cents,
+        budgetMaxCents: job.budget_max_cents,
+        priceCents: job.price_cents,
+        openedAt: openedAt.get(job.id) ?? null,
+        quotedAt: quotedAt.get(job.id) ?? null,
+        offerCount: tally.open,
+        expiredOfferCount: tally.expired,
+        closedOfferCount: tally.closed,
+        hasRequestPhotos: photoJobs.has(job.id),
+        overThousand: isOverThousand(job.item_value_cents),
+        specialty: isSpecialty(job.description, job.junk_special_items),
+        detailsOpen: detailRequestOpen(job.detail_request),
+      };
+    });
 
     const changedDrivers = new Set((reviewsResult.data ?? []).map((row) => row.driver_id));
     const coverageByDriver = new Map(
@@ -187,7 +204,11 @@ export const loadAdminDashboard = cache(async function loadAdminDashboard(lane: 
       licenseExpires: driver.license_expires,
       insuranceExpires: driver.insurance_expires,
       createdAt: driver.created_at,
-      name: profiles.get(driver.profile_id)?.full_name ?? null,
+      name: displayFullName({
+        firstName: profiles.get(driver.profile_id)?.first_name,
+        lastName: profiles.get(driver.profile_id)?.last_name,
+        fullName: profiles.get(driver.profile_id)?.full_name,
+      }),
       needsChanges: changedDrivers.has(driver.profile_id),
       coverage: coverageByDriver.get(driver.profile_id) || null,
     }));
@@ -242,7 +263,14 @@ function buildActivity(
       return {
         id: `event-${event.id}`,
         at: event.created_at,
-        actor: actorLabel(profile?.role ?? null, profile?.full_name ?? null),
+        actor: actorLabel(
+          profile?.role ?? null,
+          displayFullName({
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            fullName: profile?.full_name,
+          }) ?? profile?.full_name ?? null,
+        ),
         label: jobEventLabel(event.type, event.data),
         href: activityHref("job", event.job_id),
       };
@@ -252,13 +280,34 @@ function buildActivity(
       return {
         id: `audit-${entry.id}`,
         at: entry.created_at,
-        actor: actorLabel(profile?.role ?? null, profile?.full_name ?? null),
+        actor: actorLabel(
+          profile?.role ?? null,
+          displayFullName({
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            fullName: profile?.full_name,
+          }) ?? profile?.full_name ?? null,
+        ),
         label: auditLabel(entry.action, entry.data),
         href: activityHref(entry.target_type, entry.target_id),
       };
     }),
   ];
   return rows.sort((left, right) => right.at.localeCompare(left.at) || left.id.localeCompare(right.id)).slice(0, 25);
+}
+
+/** Active customer profiles in the current test lane. Deleted accounts are left out. */
+export async function countCustomerAccounts(lane: TestLane): Promise<number | null> {
+  const supabase = await createClient();
+  let request = supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "customer")
+    .is("deleted_at", null);
+  if (lane !== "all") request = request.eq("is_test", lane === "test");
+  const { count, error } = await request;
+  if (error || count == null) return null;
+  return count;
 }
 
 export function expiringDrivers(drivers: AdminDriver[], now: number): AdminDriver[] {

@@ -169,7 +169,7 @@ test("rejecting the item captures only the trip fee", async ({ browser }) => {
   await driver.page.getByRole("button", { name: "Start trip", exact: true }).click();
   await driver.page.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver.page, "pickup");
-  await driver.page.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+  await driver.page.getByRole("button", { name: "Item loaded" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
   await customer.page.goto(`/jobs/${jobId}`);
   await customer.page.locator("#reject-reason").fill("The item is the wrong size.");
@@ -393,10 +393,9 @@ async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await expect(driver.getByRole("button", { name: "Arrived at pickup" })).toBeVisible();
   await driver.getByRole("button", { name: "Arrived at pickup" }).click();
   await saveProof(driver, "pickup");
-  await driver.getByRole("button", { name: "Item loaded — head to drop-off" }).click();
+  await driver.getByRole("button", { name: "Item loaded" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^item_check$/);
-  await customer.goto(`/jobs/${jobId}`);
-  await customer.getByRole("button", { name: "Looks good" }).click();
+  await driver.getByRole("button", { name: "Proceed to drop-off" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^in_transit$/);
   await driver.goto(`/driver/jobs/${jobId}`);
   await driver.getByRole("button", { name: "Arrived at drop-off" }).click();
@@ -404,7 +403,7 @@ async function driveToDelivery(customer: Page, driver: Page, jobId: string) {
   await driver.getByRole("button", { name: "Delivered" }).click();
   await waitForRow(`select status from public.jobs where id = '${jobId}'`, /^delivered$/);
   await customer.goto(`/jobs/${jobId}`);
-  await expect(customer.getByRole("button", { name: "Confirm delivery" })).toBeVisible();
+  await expect(customer.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
 }
 
 async function saveProof(page: Page, stage: "pickup" | "dropoff") {
@@ -478,7 +477,9 @@ async function signedIn(browser: Browser, person: { phone: string; code: string;
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill(person.name);
+    const nameParts = person.name.trim().split(/\s+/);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"));
@@ -488,7 +489,13 @@ async function signedIn(browser: Browser, person: { phone: string; code: string;
 
 async function onboard(page: Page, name: string) {
   await page.goto("/driver/onboarding");
-  await page.locator("#fullName").fill(name);
+  const nameParts = name.trim().split(/\s+/);
+  await page.getByLabel("First name").fill(nameParts[0] ?? "");
+  await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
+  const email = page.getByLabel("Email address");
+  if ((await email.inputValue()) === "") {
+    await email.fill(`${(nameParts[0] ?? "driver").toLowerCase()}.${(nameParts[1] ?? "driver").toLowerCase()}@pickuply.test`);
+  }
   await page.getByLabel("Street").fill("10 Test Street");
   await page.getByLabel("City", { exact: true }).fill("Austell");
   await page.getByLabel("ZIP", { exact: true }).fill("30106");

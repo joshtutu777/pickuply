@@ -1,7 +1,5 @@
 import { customerStatusDetail } from "@/lib/jobs/tracker";
 
-const preparing = new Set(["requested", "in_review", "quoted"]);
-
 /** Customer copy for a Get a quote request. Other pricing methods return null. */
 export function quoteRequestCopy(input: {
   pricingMethod: string;
@@ -13,8 +11,11 @@ export function quoteRequestCopy(input: {
   if (input.status === "cancelled" || input.status === "disputed") {
     return customerStatusDetail(input);
   }
-  if (preparing.has(input.status)) {
-    return "We're preparing your price. Drivers can't see this request until you accept it.";
+  if (input.status === "requested" || input.status === "in_review") {
+    return "Drivers can see this request and send a quote. You choose who to book. Nothing is charged until you confirm.";
+  }
+  if (input.status === "quoted") {
+    return "A Pickuply price is ready, and drivers can still send their own quote. You choose who to book.";
   }
   return customerStatusDetail(input);
 }

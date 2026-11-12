@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { respondToQuote } from "@/app/jobs/actions";
+import { updatePickupTiming } from "@/app/jobs/offer-actions";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { DetailsFold } from "@/components/details-fold";
 import { ScreenTabs } from "@/components/ui/screen-tabs";
@@ -40,7 +41,7 @@ const statusLabels: Record<string, string> = {
   assigned: "Driver assigned",
   en_route: "Driver on the way",
   arrived: "Driver arrived",
-  item_check: "Item check",
+  item_check: "Item loaded",
   in_transit: "On the way",
   delivered: "Delivered",
   completed: "Completed",
@@ -89,6 +90,7 @@ export function JobStatus({
     paymentStatus: job.payment_status,
     driverName: driver?.firstName ?? null,
     dropoffArrived: job.dropoff_arrived_at != null,
+    service: job.service,
   });
 
   return (
@@ -102,7 +104,13 @@ export function JobStatus({
         <StatusPill status={job.status} />
       </div>
       <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
-        {job.status === "completed" ? "Delivery complete" : statusLabel(job.status)}
+        {job.status === "completed"
+          ? job.service === "junk"
+            ? "Removal complete"
+            : "Delivery complete"
+          : job.status === "delivered"
+            ? "Awaiting confirmation"
+            : statusLabel(job.status)}
       </h1>
       <p className="mt-1 text-base text-ink">
         {job.pickup_area}
@@ -110,7 +118,7 @@ export function JobStatus({
       </p>
       {job.price_cents != null ? <p className="mt-1 font-semibold text-ink">Total {formatCents(job.price_cents)}</p> : null}
       {job.service_fee_cents != null && job.service_fee_cents > 0 ? (
-        <p className="text-sm text-ink">Card processing fee {formatCents(job.service_fee_cents)}</p>
+        <p className="text-sm text-ink">Service fee {formatCents(job.service_fee_cents)}</p>
       ) : null}
       {driver ? (
         <p className="text-base text-ink">
@@ -144,6 +152,20 @@ export function JobStatus({
           {takenJobMessage(error)}
         </p>
       ) : null}
+      {canRespond && error?.includes("Update your pickup time") ? (
+        <form action={updatePickupTiming} className="mt-3 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+          <p className="text-base text-ink">Choose a new pickup timing, then choose the driver again. This does not invent a clock time.</p>
+          <input type="hidden" name="jobId" value={job.id} />
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" name="timing" value="asap" className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 font-semibold text-white">
+              As soon as possible
+            </button>
+            <button type="submit" name="timing" value="anytime" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-5 font-semibold text-white">
+              Anytime
+            </button>
+          </div>
+        </form>
+      ) : null}
       {notice?.adminNote ? (
         <p className="mt-3 rounded-2xl bg-paper-raised p-4 text-base ring-1 ring-line">{notice.adminNote}</p>
       ) : null}
@@ -152,7 +174,7 @@ export function JobStatus({
           <QuoteViewed service={job.service} />
           <h2 className="text-lg font-semibold text-ink">Your quote</h2>
           <p>Offer {formatCents(notice.quote.driverPayCents + notice.quote.platformFeeCents)}</p>
-          <p>Card processing fee {formatCents(notice.quote.serviceFeeCents)}</p>
+          <p>Service fee {formatCents(notice.quote.serviceFeeCents)}</p>
           <p className="font-semibold">Total {formatCents(notice.quote.totalCents)}</p>
           <p>Expires {new Date(notice.quote.expiresAt).toLocaleString()}</p>
           <p>
@@ -200,7 +222,7 @@ export function JobStatus({
                   <p className="text-base text-ink">Delivery paused while Pickuply reviews your report.</p>
                 ) : null}
                 <ol className="grid gap-1">
-                  {deliveryStages(job.status, job.dropoff_arrived_at != null).map((step) => (
+                  {deliveryStages(job.status, job.dropoff_arrived_at != null, job.service).map((step) => (
                     <li
                       key={step.label}
                       className={`flex min-h-10 items-center gap-2 text-base ${

@@ -12,24 +12,62 @@ const inputClass =
 const primaryButton =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 text-base font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60";
 
-export function NameForm({ next, intent }: { next: string; intent: string }) {
+export function NameForm({
+  next,
+  intent,
+  defaultFirst,
+  defaultLast,
+  savedName,
+}: {
+  next: string;
+  intent: string;
+  defaultFirst: string;
+  defaultLast: string;
+  savedName: string;
+}) {
   const [state, action, pending] = useActionState(saveFullName, initialState);
+  const saved = savedName.trim();
+  const showSaved = saved.length > 0 && saved !== defaultFirst.trim();
   return (
     <form action={action} className="mt-8 flex flex-col gap-4">
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="intent" value={intent} />
-      <label className="block" htmlFor="fullName">
+      {showSaved ? (
+        <p className="text-base text-ink">
+          Saved name: {saved}. Enter your first and last name to finish. This stays as it is until you save.
+        </p>
+      ) : null}
+      <label className="block" htmlFor="firstName">
         <span className="text-base font-semibold text-ink">First name</span>
         <input
-          id="fullName"
-          name="fullName"
+          id="firstName"
+          name="firstName"
           type="text"
           required
           minLength={1}
-          maxLength={80}
+          maxLength={40}
           autoComplete="given-name"
+          autoCapitalize="words"
+          defaultValue={defaultFirst}
           aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? "fullName-error" : undefined}
+          aria-describedby={state.error ? "name-error" : undefined}
+          className={inputClass}
+        />
+      </label>
+      <label className="block" htmlFor="lastName">
+        <span className="text-base font-semibold text-ink">Last name</span>
+        <input
+          id="lastName"
+          name="lastName"
+          type="text"
+          required
+          minLength={1}
+          maxLength={40}
+          autoComplete="family-name"
+          autoCapitalize="words"
+          defaultValue={defaultLast}
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? "name-error" : undefined}
           className={inputClass}
         />
       </label>
@@ -47,7 +85,7 @@ export function NameForm({ next, intent }: { next: string; intent: string }) {
         </Link>
       </p>
       {state.error ? (
-        <p id="fullName-error" role="alert" className="text-sm font-medium text-danger">
+        <p id="name-error" role="alert" className="text-sm font-medium text-danger">
           {state.error}
         </p>
       ) : null}

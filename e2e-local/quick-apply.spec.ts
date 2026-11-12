@@ -77,11 +77,14 @@ test("admin ask for details returns to the review queue after the customer answe
 test("quick apply cannot go online until the checklist is finished, then can claim", async ({ page }) => {
   await signIn(page, driver, "/driver/onboarding");
   await page.waitForFunction(() =>
-    Object.keys(document.querySelector("#fullName") ?? {}).some((key) => key.startsWith("__react")),
+    Object.keys(document.querySelector("#firstName") ?? {}).some((key) => key.startsWith("__react")),
   );
-  await page.getByLabel("Your name").fill(driver.name);
+  const nameParts = driver.name.trim().split(/\s+/);
+  await page.getByLabel("First name").fill(nameParts[0] ?? "");
+  await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
   await page.getByLabel("Email address").fill("riley.driver@pickuply.test");
-  await expect(page.getByLabel("Your name")).toHaveValue(driver.name);
+  await expect(page.getByLabel("First name")).toHaveValue(nameParts[0] ?? "");
+  await expect(page.getByLabel("Last name")).toHaveValue(nameParts.slice(1).join(" "));
   await page.getByLabel("Street").fill("10 Test Street");
   await page.getByLabel("City").fill("Austell");
   await page.getByLabel("ZIP").fill("30106");
@@ -209,7 +212,9 @@ async function signIn(page: Page, person: { phone: string; code: string; name: s
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await page.waitForURL((url) => url.pathname !== "/login", { timeout: 20_000 });
   if (page.url().includes("/login/name")) {
-    await page.getByLabel("First name").fill(person.name);
+    const nameParts = person.name.trim().split(/\s+/);
+    await page.getByLabel("First name").fill(nameParts[0] ?? "");
+    await page.getByLabel("Last name").fill(nameParts.slice(1).join(" "));
     await page.getByRole("checkbox", { name: /Terms and Privacy/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
   }

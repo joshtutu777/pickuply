@@ -93,7 +93,20 @@ test("terms must be accepted on review", () => {
   const draft = emptyDraft("delivery");
   draft.customerName = "Ada";
   draft.customerPhone = "4045551212";
+  assert.equal(validateStep("verify", draft).customerName, undefined);
   assert.match(validateStep("verify", draft).agreedToTerms ?? "", /Agree/);
   draft.agreedToTerms = true;
   assert.equal(validateStep("verify", draft).agreedToTerms, undefined);
+});
+
+test("a request name can be one word and cannot include a digit", () => {
+  const draft = emptyDraft("delivery");
+  draft.customerName = "Ada";
+  draft.customerPhone = "4045551212";
+  draft.agreedToTerms = true;
+  assert.equal(validateStep("verify", draft).customerName, undefined);
+  draft.customerName = "Ada Lovelace";
+  assert.equal(validateStep("verify", draft).customerName, undefined);
+  draft.customerName = "John3";
+  assert.match(validateStep("verify", draft).customerName ?? "", /letters/);
 });

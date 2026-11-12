@@ -5,20 +5,22 @@
  * The amount a driver or admin enters is the customer-facing offer.
  * Driver earnings = round half up(offer × (100% − commission)).
  * Pickuply commission = offer − driver earnings. It comes out of the offer.
- * The customer pays that offer plus the card-processing amount. Pickuply does
- * not pay the processing amount out of the commission or the driver earnings.
- * There is no extra platform fee, service fee, or commission minimum.
+ * The customer pays that offer plus a marketplace service fee. The default is
+ * 5% of the offer (500 basis points), rounded half up. It is not Stripe's fee.
+ * Driver earnings stay 85% of the offer. Commission stays inside the offer.
  * platformMinCents is kept so older settings rows still load. It is not applied.
- * The processing amount is the smallest cent total whose separately rounded
- * percent plus the fixed amount still covers the offer.
+ * serviceBps and serviceFixedCents are the old card-processing settings. They
+ * are not added to the customer total.
  * Half-up: (numerator + denominator/2) / denominator for positive integers.
  */
 
 export type FeeSettings = {
   platformBps: number;
   platformMinCents: number;
-  serviceBps: number;
-  serviceFixedCents: number;
+  serviceFeeBps: number;
+  /** Kept so older callers still load. Not added to the customer total. */
+  serviceBps?: number;
+  serviceFixedCents?: number;
 };
 
 export type PriceBreakdown = {
@@ -32,6 +34,7 @@ export type PriceBreakdown = {
 export const defaultFeeSettings: FeeSettings = {
   platformBps: 1_500,
   platformMinCents: 0,
+  serviceFeeBps: 500,
   serviceBps: 290,
   serviceFixedCents: 30,
 };
@@ -47,24 +50,11 @@ export function percentOfCents(cents: number, bps: number): number {
   return roundHalfUp(cents * bps, 10_000);
 }
 
-export function serviceChargeCents(customerTotalCents: number, settings: FeeSettings): number {
-  return percentOfCents(customerTotalCents, settings.serviceBps) + settings.serviceFixedCents;
-}
-
-function smallestCoveredTotal(offerCents: number, settings: FeeSettings): number {
-  const denominator = 10_000 - settings.serviceBps;
-  let total = roundHalfUp((offerCents + settings.serviceFixedCents) * 10_000, denominator);
-  if (total < offerCents) total = offerCents;
-  while (
-    total > offerCents &&
-    total - 1 - serviceChargeCents(total - 1, settings) >= offerCents
-  ) {
-    total -= 1;
+export function serviceFeeCents(offerCents: number, settings: FeeSettings = defaultFeeSettings): number {
+  if (!Number.isInteger(settings.serviceFeeBps) || settings.serviceFeeBps < 0 || settings.serviceFeeBps >= 10_000) {
+    throw new Error("service fee rate is not valid");
   }
-  while (total - serviceChargeCents(total, settings) < offerCents) {
-    total += 1;
-  }
-  return total;
+  return percentOfCents(offerCents, settings.serviceFeeBps);
 }
 
 /** The entered amount is the customer-facing offer, not driver take-home pay. */
@@ -82,16 +72,13 @@ export function offerBreakdown(
   if (driverEarningsCents <= 0) {
     throw new Error("driver earnings would be zero");
   }
-  const total = smallestCoveredTotal(offerCents, settings);
-  if (total < offerCents) {
-    throw new Error("card processing cannot be taken from the offer");
-  }
+  const fee = serviceFeeCents(offerCents, settings);
   return {
     driverEarningsCents,
     platformFeeCents: offerCents - driverEarningsCents,
     subtotalCents: offerCents,
-    serviceFeeCents: total - offerCents,
-    customerTotalCents: total,
+    serviceFeeCents: fee,
+    customerTotalCents: offerCents + fee,
   };
 }
 
@@ -103,7 +90,7 @@ export function forwardFromEarnings(
   return offerBreakdown(offerCents, settings);
 }
 
-/** A posted price is the customer-facing offer. Processing is added on top. */
+/** A posted price is the customer-facing offer. The service fee is added on top. */
 export function acceptFixedPrice(
   offerCents: number,
   settings: FeeSettings = defaultFeeSettings,

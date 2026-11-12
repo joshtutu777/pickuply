@@ -12,10 +12,10 @@ test("a signed-out customer is sent to log in for a real request link", () => {
   assert.equal(customerRequestEntry("not-a-job", true), "invalid");
 });
 
-test("an open request with no selectable offers explains the two-hour window", () => {
-  assert.match(emptyOfferMessage("open"), /2 hours/);
+test("an open request with no offers keeps the request on screen", () => {
   assert.match(emptyOfferMessage("open"), /still here/);
-  assert.match(emptyOfferMessage("quoted"), /2 hours/);
+  assert.equal(emptyOfferMessage("open").includes("2 hours"), false);
+  assert.equal(emptyOfferMessage("quoted").includes("2 hours"), false);
   assert.equal(emptyOfferMessage("assigned").includes("2 hours"), false);
 });
 

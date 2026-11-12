@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isRole, safeIntent } from "@/lib/auth/access";
 import { preferredHome } from "@/lib/auth/mode";
 import { readMode } from "@/lib/auth/mode-cookie";
-import { validateFullName } from "@/lib/auth/name";
+import { validateNamePart } from "@/lib/auth/name";
 import { safeReturnPath } from "@/lib/auth/safe-return-path";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,15 +16,16 @@ export async function saveFullName(
   formData: FormData,
 ): Promise<NameFormState> {
   await connection();
-  const name = validateFullName(String(formData.get("fullName") ?? ""));
+  const given = validateNamePart(String(formData.get("firstName") ?? ""));
+  const family = validateNamePart(String(formData.get("lastName") ?? ""));
   const next = safeReturnPath(String(formData.get("next") ?? ""));
   const intent = safeIntent(String(formData.get("intent") ?? ""));
   if (formData.get("consent") !== "yes") {
     return { error: "Agree to the Terms and Privacy Policy to continue." };
   }
-  if (!name) {
+  if (!given || !family) {
     return {
-      error: "Enter your first name using letters, spaces, apostrophes, periods, or hyphens.",
+      error: "Enter your first and last name using letters, spaces, apostrophes, periods, or hyphens.",
     };
   }
 
@@ -44,18 +45,20 @@ export async function saveFullName(
     redirect(query ? `/login?${query}` : "/login");
   }
 
-  // Only the name column. The role trigger blocks a person from promoting themselves.
+  const saved = await supabase.rpc("save_profile_names", { next_first: given, next_last: family });
+  if (saved.error) {
+    return { error: "We couldn't save your name. Try again." };
+  }
   const { data, error } = await supabase
     .from("profiles")
-    .update({ full_name: name })
+    .select("role, first_name, last_name")
     .eq("id", userData.user.id)
-    .select("role, full_name")
     .maybeSingle();
 
   if (error || !data || typeof data.role !== "string" || !isRole(data.role)) {
     return { error: "We couldn't save your name. Try again." };
   }
-  if (typeof data.full_name !== "string" || data.full_name.trim().length === 0) {
+  if (typeof data.first_name !== "string" || typeof data.last_name !== "string") {
     return { error: "We couldn't save your name. Try again." };
   }
 

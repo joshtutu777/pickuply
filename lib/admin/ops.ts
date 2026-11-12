@@ -27,7 +27,7 @@ const statusLabels: Record<string, string> = {
   assigned: "Driver assigned",
   en_route: "Driver on the way",
   arrived: "Driver arrived",
-  item_check: "Item check",
+  item_check: "Item loaded",
   in_transit: "On the way",
   delivered: "Delivered",
   completed: "Completed",
@@ -79,7 +79,10 @@ export type AdminJob = {
   priceCents: number | null;
   openedAt: string | null;
   quotedAt: string | null;
+  /** Offers the customer can still choose. Posted-price acceptances and counteroffers both count. */
   offerCount: number;
+  expiredOfferCount: number;
+  closedOfferCount: number;
   hasRequestPhotos: boolean;
   overThousand: boolean;
   specialty: boolean;
@@ -234,6 +237,76 @@ export function quoteExpiresSoon(job: AdminJob, now: number): boolean {
   return new Date(job.quoteExpiresAt).getTime() <= now + quoteSoonMs;
 }
 
+export type OfferBucket = "open" | "expired" | "closed";
+
+export type OfferTally = { open: number; expired: number; closed: number };
+
+/** During the pilot, an active offer stays open. The clock on expires_at is not a cutoff. */
+export function offerBucket(offer: { status: string; expiresAt: string | null }, _now: number): OfferBucket {
+  if (offer.status === "active") return "open";
+  if (offer.status === "expired") return "expired";
+  return "closed";
+}
+
+export function tallyOffers(
+  rows: { status: string; expiresAt: string | null; kind?: string }[],
+  now: number,
+): OfferTally {
+  const tally: OfferTally = { open: 0, expired: 0, closed: 0 };
+  for (const row of rows) tally[offerBucket(row, now)] += 1;
+  return tally;
+}
+
+/** Cancelled and finished requests are not open opportunities, even if an offer row is still marked active. */
+export function visibleOfferTally(status: string, tally: OfferTally): OfferTally {
+  if (status === "open") return tally;
+  return { open: 0, expired: 0, closed: tally.open + tally.expired + tally.closed };
+}
+
+export function offerActivityLabel(tally: OfferTally): string {
+  if (tally.open === 0 && tally.expired === 0 && tally.closed === 0) return "No offers yet";
+  const parts: string[] = [];
+  if (tally.open > 0) parts.push(tally.open === 1 ? "1 offer open" : `${tally.open} offers open`);
+  if (tally.expired > 0) parts.push(tally.expired === 1 ? "1 expired" : `${tally.expired} expired`);
+  if (tally.closed > 0) parts.push(tally.closed === 1 ? "1 closed" : `${tally.closed} closed`);
+  return parts.join(" · ");
+}
+
+export function offerKindLabel(kind: string): string {
+  if (kind === "accept") return "Accepted the posted price";
+  if (kind === "counter") return "Counteroffer";
+  return "Offer";
+}
+
+export function offerStateLabel(bucket: OfferBucket, status: string): string {
+  if (bucket === "open") return "Customer can choose this";
+  if (bucket === "expired") return "Expired";
+  if (status === "declined") return "Declined";
+  if (status === "withdrawn") return "Withdrawn";
+  if (status === "chosen") return "Chosen";
+  return "Closed";
+}
+
+export function showNoDriverYet(
+  job: Pick<AdminJob, "status" | "assignedDriverId" | "offerCount" | "expiredOfferCount" | "closedOfferCount" | "openedAt" | "createdAt">,
+  now: number,
+): boolean {
+  if (job.status !== "open" || job.assignedDriverId) return false;
+  if (job.offerCount > 0 || job.expiredOfferCount > 0 || job.closedOfferCount > 0) return false;
+  const opened = new Date(job.openedAt ?? job.createdAt).getTime();
+  return now - opened >= openWaitMs;
+}
+
+export function openJobsDetail(withOffers: number, stale: number): string {
+  const offers =
+    withOffers === 1
+      ? "1 has an offer the customer can still choose"
+      : `${withOffers} have offers the customer can still choose`;
+  const waiting =
+    stale === 1 ? "1 has no open offer after 20 minutes" : `${stale} have no open offer after 20 minutes`;
+  return `${offers}. ${waiting}`;
+}
+
 export function openWithoutOffers(job: AdminJob, now: number): boolean {
   if (job.status !== "open" || job.offerCount > 0) return false;
   const opened = new Date(job.openedAt ?? job.createdAt).getTime();
@@ -321,6 +394,7 @@ export type DashboardCounts = {
   quotes: number;
   quotesSoon: number;
   open: number;
+  openWithOffers: number;
   openStale: number;
   active: number;
   awaitingPayment: number;
@@ -338,6 +412,7 @@ export function dashboardCounts(jobs: AdminJob[], drivers: AdminDriver[], now: n
     quotes: jobs.filter((job) => job.status === "quoted").length,
     quotesSoon: jobs.filter((job) => quoteExpiresSoon(job, now)).length,
     open: jobs.filter((job) => job.status === "open").length,
+    openWithOffers: jobs.filter((job) => job.status === "open" && job.offerCount > 0).length,
     openStale: jobs.filter((job) => openWithoutOffers(job, now)).length,
     active: jobs.filter((job) => activeJobStatuses.includes(job.status as (typeof activeJobStatuses)[number])).length,
     awaitingPayment: jobs.filter((job) => job.paymentStatus === "awaiting_payment").length,

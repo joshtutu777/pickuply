@@ -31,23 +31,28 @@ export function onlineGaps(input: {
       href: input.status === "removed" ? "/driver/onboarding" : "/driver",
     });
   }
-  if (!input.licenseExpires || input.licenseExpires < input.today) {
-    gaps.push({
-      label: "Add an unexpired driver license before going Online.",
-      href: "/driver/onboarding",
-    });
-  }
-  if (input.insuranceExpires && input.insuranceExpires < input.today) {
-    gaps.push({
-      label: "Your insurance expired. Upload a new card to go Online.",
-      href: "/driver/ready/insurance",
-    });
-  }
-  if (input.checklistRequired && input.termsVersion !== "driver-terms-v1") {
+  if (input.checklistRequired && input.termsVersion !== "driver-terms-v2") {
     gaps.push({
       label: "Accept the Driver Terms to go Online.",
       href: "/terms/driver",
     });
   }
   return gaps;
+}
+
+export function documentReviewNotes(input: {
+  licenseUrl: string | null;
+  licenseExpires: string | null;
+  insuranceUrl: string | null;
+  insuranceExpires: string | null;
+  today: string;
+}): string[] {
+  const notes: string[] = [];
+  if (!input.licenseUrl) notes.push("Driver license photo is missing.");
+  else if (!input.licenseExpires) notes.push("Driver license expiration date is missing.");
+  else if (input.licenseExpires < input.today) notes.push("Driver license date has passed.");
+  if (!input.insuranceUrl) notes.push("Insurance card is missing.");
+  else if (!input.insuranceExpires) notes.push("Insurance expiration date is missing.");
+  else if (input.insuranceExpires < input.today) notes.push("Insurance date has passed.");
+  return notes;
 }

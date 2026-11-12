@@ -5,6 +5,7 @@ import { BackLink } from "@/components/back-link";
 import { AreaMap } from "@/components/maps/area-map";
 import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileEmailForm } from "@/components/profile/email-form";
+import { ProfileNameForm } from "@/components/profile/name-form";
 import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { DeviceAlertPreferences } from "@/components/profile/device-alert-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
@@ -30,7 +31,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
   const query = await searchParams;
   const supabase = await createClient();
   const [{ data: profile }, { data: driver }, { data: place }, { data: prefs }] = await Promise.all([
-    supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("phone, email, first_name, last_name, full_name").eq("id", session.userId).maybeSingle(),
     supabase
       .from("drivers")
       .select("home_city, home_zip, status, is_online")
@@ -53,6 +54,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Driver profile"}
       </h1>
+      <ProfileNameForm firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
       {driver ? (
         <p className="mt-3 text-base text-ink">
           {driver.is_online ? "Online" : "Offline"} · {driver.status.replaceAll("_", " ")}

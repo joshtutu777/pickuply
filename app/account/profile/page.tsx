@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/back-link";
 import { PlaceEditor } from "@/components/maps/place-editor";
 import { ProfileEmailForm } from "@/components/profile/email-form";
+import { ProfileNameForm } from "@/components/profile/name-form";
 import { ContactPreferences } from "@/components/profile/contact-preferences";
 import { DeviceAlertPreferences } from "@/components/profile/device-alert-preferences";
 import { ProfileMenu } from "@/components/profile/profile-menu";
@@ -27,7 +28,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
   const query = await searchParams;
   const supabase = await createClient();
   const [{ data: profile }, { data: driver }, { data: places }, { data: prefs }] = await Promise.all([
-    supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
+    supabase.from("profiles").select("phone, email, first_name, last_name, full_name").eq("id", session.userId).maybeSingle(),
     supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
     supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
     supabase.from("notification_preferences").select("push_enabled, email_enabled, promotional_sms").maybeSingle(),
@@ -39,6 +40,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
       <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
         {session.fullName ?? "Your profile"}
       </h1>
+      <ProfileNameForm firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
       <section className="mt-6">
         <h2 className="text-lg font-semibold text-ink">Saved addresses</h2>
         {(places ?? []).length === 0 ? <p className="mt-2 text-base text-muted">No saved addresses yet.</p> : null}

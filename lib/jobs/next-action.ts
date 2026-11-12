@@ -3,7 +3,7 @@ export type CustomerNextAction = {
 };
 
 const payNow = new Set(["awaiting_payment", "failed"]);
-const progress = new Set(["assigned", "en_route", "arrived", "in_transit"]);
+const progress = new Set(["assigned", "en_route", "arrived", "item_check", "in_transit"]);
 
 /** The label on a customer job card. It follows status and payment, not a guess. */
 export function customerNextAction(input: {
@@ -12,9 +12,11 @@ export function customerNextAction(input: {
   pricingMethod: string;
 }): CustomerNextAction {
   if (input.status === "quoted") return { label: "Review quote" };
+  if ((input.status === "requested" || input.status === "in_review") && input.pricingMethod === "quote") {
+    return { label: "Review quotes" };
+  }
   if (input.status === "open" && input.pricingMethod !== "quote") return { label: "Select an offer" };
   if (input.status === "assigned" && payNow.has(input.paymentStatus ?? "")) return { label: "Confirm booking" };
-  if (input.status === "item_check") return { label: "Approve pickup photos" };
   if (input.status === "delivered") return { label: "Confirm delivery" };
   if (progress.has(input.status)) return { label: "View driver progress" };
   return { label: "View request" };

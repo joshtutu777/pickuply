@@ -110,13 +110,14 @@ select is(
 );
 
 update public.drivers
-set insurance_expires = '2020-01-01'
+set insurance_expires = '2020-01-01',
+    terms_version = 'driver-terms-v2',
+    terms_accepted_at = now()
 where profile_id = 'd4600000-0000-4000-8000-000000000001';
 select pg_temp.as_user('d4600000-0000-4000-8000-000000000001');
-select throws_ok(
+select lives_ok(
   $$select public.set_driver_online(true)$$,
-  'Your insurance expired on 1/1/2020 - upload a new card to go Online.',
-  'an expired insurance date still blocks Online'
+  'an approved driver with expired insurance can go Online'
 );
 
 select * from finish();
