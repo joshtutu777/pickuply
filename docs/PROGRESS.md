@@ -883,6 +883,10 @@ An approved driver can go Online and submit an offer after the license date has 
 
 Live offers were blocked by “Finish payout setup before accepting jobs” because payments are in live mode and that driver has no Stripe payout account. Migration `0125` removes that block from `assert_driver_can_take_job` on the local database and on the hosted project. Payout setup still holds earnings until it is finished. It does not block an offer. The site was not redeployed. A job that asks for a different vehicle still cannot be offered.
 
+## Payment mode lock (2026-11-12)
+
+Local commit `281eb1f` adds migration `0132`. A recorded Stripe mode can be set once and cannot be flipped. The same mode can be sent again. The migration was tested on a temporary local database and is not applied to the hosted project. The one-time SQL scripts in `scripts/sql` stay untracked. No production data was changed, and the site was not deployed.
+
 Existing open requests can take an offer without a pickup time. The customer's timing stays on the request. A date or window is checked only when the driver sends one. Open requests that were still marked as test are regular requests now, so approved drivers can see them and offer. Migration `0126` is on the local database and the hosted project. No offer was left behind by the check. The site was not redeployed.
 
 ## Admin sign out (2026-11-04)

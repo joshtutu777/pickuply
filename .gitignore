@@ -53,3 +53,11 @@ next-env.d.ts
 # Design references stay on this machine.
 docs/design/reference/
 design-reference/
+
+# One-time local data scripts. Do not commit.
+scripts/sql/backfill-unnamed-customers-from-requests.sql
+scripts/sql/pricing-window-hold.sql
+scripts/sql/pricing-window-release.sql
+scripts/sql/restore-open-test-requests.sql
+scripts/sql/restore-open-test-requests-rollback.sql
+scripts/sql/restore-open-test-requests-backup-*.sql
