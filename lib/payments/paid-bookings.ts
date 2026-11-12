@@ -1,6 +1,6 @@
 import { paymentsMode, type PaymentsMode } from "@/lib/payments/payments-mode";
 
-export const PAID_BOOKINGS_UNAVAILABLE = "Paid bookings are temporarily unavailable.";
+export const PAID_BOOKINGS_UNAVAILABLE = "Booking opens in the next few days.";
 
 export type CustomerChargeKind = "booking" | "tip";
 
