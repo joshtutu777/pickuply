@@ -4,5 +4,10 @@
       "path": "/api/cron/funnel-retention",
       "schedule": "0 4 * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "integrate/checkout-nov8": false
+    }
+  }
 }
