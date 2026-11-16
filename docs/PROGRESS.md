@@ -4,6 +4,10 @@
 
 Next.js and eslint-config-next moved from 16.4.2 to 16.4.5, the November 2026 security release. React and React DOM stay at 19.3.0. No application, payment, or database code changed. Not deployed.
 
+## Checkout session lock prepared, not deployed (2026-11-16)
+
+Saving a Checkout session now locks the job first. A cancelled or released request rejects the new session, and a stale attempt cannot replace a newer one. If that save fails, the Checkout page is expired. Migration 0143 is written and not applied. Not deployed.
+
 ## Abandoned checkout removal prepared, not deployed (2026-11-16)
 
 An admin can remove an open request when its only money records are an abandoned, failed, or expired checkout, after Stripe confirms each stored object is inactive. Active holds, captures, refunds, disputes, assigned drivers, ledger rows, and payouts still block removal. Payment attempts and ledger rows stay. Migration 0142 is written and not applied. Not deployed.

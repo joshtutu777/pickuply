@@ -88,29 +88,27 @@ export async function startCheckout(formData: FormData) {
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
   }
 
-  const service = createServiceClient();
-  const recorded = await service.rpc("record_checkout_session", {
-    target_job: jobId,
-    session_id: sessionId,
-    attempt: row.attempt,
-  });
-  if (!recorded.error) {
-    const marked = await service.rpc("note_stripe_livemode", { target_job: jobId, live: checkoutLive });
-    if (marked.error) {
-      try {
-        await getStripe().checkout.sessions.expire(sessionId);
-      } catch {
-        // The attempt number will not be reused. The customer can start again.
-      }
-      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
+  let saved = false;
+  try {
+    const service = createServiceClient();
+    const recorded = await service.rpc("record_checkout_session", {
+      target_job: jobId,
+      session_id: sessionId,
+      attempt: row.attempt,
+    });
+    if (!recorded.error) {
+      const marked = await service.rpc("note_stripe_livemode", { target_job: jobId, live: checkoutLive });
+      saved = !marked.error;
     }
+  } catch {
+    saved = false;
   }
-  if (recorded.error || !sessionUrl) {
+  if (!saved || !sessionUrl) {
     if (sessionId) {
       try {
         await getStripe().checkout.sessions.expire(sessionId);
       } catch {
-        // The attempt number will not be reused. The customer can start again.
+        // The customer does not receive this Checkout page. A card approval for a job that is no longer waiting is released.
       }
     }
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
