@@ -19,7 +19,7 @@ export function RemoveFromMarketplace({
 
   return (
     <section className="mt-8 rounded-3xl border border-danger/40 bg-paper p-4">
-      <h2 className="font-display text-2xl font-semibold text-ink">Remove from Marketplace</h2>
+      <h2 className="font-display text-2xl font-semibold text-ink">Delete Request</h2>
       {eligible ? (
         <p className="mt-2 text-base text-ink">
           This takes the request off the driver list and closes open offers. The request and its history stay.
@@ -38,13 +38,13 @@ export function RemoveFromMarketplace({
           onClick={() => setOpen(true)}
           disabled={pending}
         >
-          Remove from Marketplace
+          Delete Request
         </button>
       ) : null}
       {open && eligible ? (
         <div role="dialog" aria-modal="true" aria-labelledby="remove-marketplace-title" className="mt-4 rounded-2xl bg-paper-raised p-4 ring-1 ring-line">
           <h3 id="remove-marketplace-title" className="text-lg font-semibold text-ink">
-            Remove {label} from the marketplace?
+            Delete {label}?
           </h3>
           <p className="mt-2 text-base text-ink">
             Drivers will no longer see this request. Open offers are closed. The request record stays, and this does not refund a card.
@@ -76,7 +76,7 @@ export function RemoveFromMarketplace({
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-danger px-5 font-semibold text-white disabled:opacity-60"
               disabled={pending}
             >
-              {pending ? "Removing…" : "Remove request"}
+              {pending ? "Deleting…" : "Delete Request"}
             </button>
           </form>
         </div>

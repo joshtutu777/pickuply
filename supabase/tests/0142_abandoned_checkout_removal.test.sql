@@ -111,10 +111,12 @@ update public.jobs set trip_fee_cents = 1500 where id = 'c1420000-0000-4000-8000
 insert into public.job_offers (
   job_id, driver_id, kind, driver_amount_cents, platform_fee_cents, service_fee_cents,
   customer_total_cents, status, expires_at
-) values (
-  'c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002',
-  'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day'
-);
+) values
+  ('c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002', 'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day'),
+  ('c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002', 'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day'),
+  ('c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002', 'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day'),
+  ('c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002', 'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day'),
+  ('c1420000-0000-4000-8000-000000000101', 'c1420000-0000-4000-8000-000000000002', 'accept', 5000, 0, 0, 5000, 'active', now() + interval '1 day');
 
 insert into public.job_payments (job_id, checkout_session_id) values
   ('c1420000-0000-4000-8000-000000000102', 'cs_test142abandoned'),
@@ -200,7 +202,11 @@ select is(
 select is(pg_temp.remove_verified('c1420000-0000-4000-8000-000000000101', '', array[]::text[], array[]::text[], array[]::text[]), 'removed', 'a request with no payment history can be removed');
 select is(pg_temp.remove_verified('c1420000-0000-4000-8000-000000000101', '', array[]::text[], array[]::text[], array[]::text[]), 'already_removed', 'removing the same request again does not change it');
 select is((select status from public.jobs where id = 'c1420000-0000-4000-8000-000000000101'), 'cancelled', 'the request is cancelled and still stored');
-select is((select status from public.job_offers where job_id = 'c1420000-0000-4000-8000-000000000101'), 'declined', 'the open offer is closed and the offer row stays');
+select is(
+  (select count(*)::integer from public.job_offers where job_id = 'c1420000-0000-4000-8000-000000000101' and status = 'declined'),
+  5,
+  'all five open offers are declined and the offer rows stay'
+);
 select is(
   (select count(*)::integer from public.job_events where job_id = 'c1420000-0000-4000-8000-000000000101' and type = 'removed_from_marketplace'),
   1,

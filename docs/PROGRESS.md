@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Abandoned request deletion prepared on the security patch, not deployed (2026-11-16)
+
+The admin request page now says Delete Request. The action cancels an eligible abandoned request, declines every active offer, and keeps the payment and audit rows. An expired unpaid checkout, a failed payment, or a cancelled payment does not block it after Stripe confirms the stored object is inactive. An assigned driver, an active hold, a capture, a refund, a dispute, a ledger row, or a payout still blocks it. Migrations 0142 and 0143 are written and not applied. The 61 database assertions passed on a disposable database. Next.js stays 16.4.5. Not deployed.
+
 ## Next.js security patch prepared, not deployed (2026-11-16)
 
 Next.js and eslint-config-next moved from 16.4.2 to 16.4.5, the November 2026 security release. React and React DOM stay at 19.3.0. No application, payment, or database code changed. Not deployed.
