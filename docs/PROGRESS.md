@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Stripe id check for abandoned-request deletion (2026-11-16)
+
+Delete Request stopped before Stripe because a real Checkout id such as `cs_live_…` or `cs_test_…` contains an underscore. The id check now allows that character for Checkout sessions, PaymentIntents, and charges, and still rejects any other shape. Stripe is still retrieved before an abandoned request can be cancelled. An open checkout, a hold, a charge, a refund, or a dispute still blocks it. No migration.
+
 ## Abandoned request deletion prepared on the security patch, not deployed (2026-11-16)
 
 The admin request page now says Delete Request. The action cancels an eligible abandoned request, declines every active offer, and keeps the payment and audit rows. An expired unpaid checkout, a failed payment, or a cancelled payment does not block it after Stripe confirms the stored object is inactive. An assigned driver, an active hold, a capture, a refund, a dispute, a ledger row, or a payout still blocks it. Migrations 0142 and 0143 are written and not applied. The 61 database assertions passed on a disposable database. Next.js stays 16.4.5. Not deployed.

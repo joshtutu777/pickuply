@@ -18,9 +18,14 @@ export type RemovalStripeObject = {
 
 export type RemovalStripeVerdict = "inactive" | "active" | "unverified";
 
-const sessionId = /^cs_[A-Za-z0-9]+$/;
-const intentId = /^pi_[A-Za-z0-9]+$/;
-const chargeId = /^ch_[A-Za-z0-9]+$/;
+const sessionId = /^cs_[A-Za-z0-9_]+$/;
+const intentId = /^pi_[A-Za-z0-9_]+$/;
+const chargeId = /^ch_[A-Za-z0-9_]+$/;
+
+/** A PaymentIntent id returned by a Checkout session. Underscores are part of real Stripe ids. */
+export function isRemovalIntentId(value: string): boolean {
+  return intentId.test(value);
+}
 
 function addId(value: string | null, pattern: RegExp, bucket: Set<string>): boolean {
   if (!value) return true;

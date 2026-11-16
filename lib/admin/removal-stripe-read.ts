@@ -1,7 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { type RemovalStripeIds, type RemovalStripeObject } from "./removal-stripe";
+import { isRemovalIntentId, type RemovalStripeIds, type RemovalStripeObject } from "./removal-stripe";
 
 export type RemovalStripeRead =
   | { ok: true; objects: RemovalStripeObject[]; verified: RemovalStripeIds }
@@ -36,7 +36,7 @@ export async function readRemovalStripeObjects(ids: RemovalStripeIds): Promise<R
       const session = await stripe.checkout.sessions.retrieve(id);
       const discovered = intentIdOf(session.payment_intent);
       if (discovered) {
-        if (!/^pi_[A-Za-z0-9]+$/.test(discovered)) return { ok: false };
+        if (!isRemovalIntentId(discovered)) return { ok: false };
         intents.add(discovered);
       }
       objects.push({

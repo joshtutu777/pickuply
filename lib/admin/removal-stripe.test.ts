@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canFinishRemoval,
+  isRemovalIntentId,
   removalStripeIdCount,
   removalStripeIds,
   removalStripeVerdict,
@@ -136,11 +137,62 @@ test("one active object blocks a set that also contains an expired session", () 
 });
 
 test("a stored id with the wrong shape is not sent to Stripe", () => {
-  const ids = removalStripeIds({
-    jobIntent: "not-a-stripe-id",
-    payments: [],
-    attempts: [],
-  });
-  assert.equal(ids.ok, false);
+  const malformed = [
+    "not-a-stripe-id",
+    "cs_live_bad id",
+    "cs_test_bad/id",
+    "CS_LIVE_ABC",
+    "py_123",
+    "cs_",
+  ];
+  for (const value of malformed) {
+    const ids = removalStripeIds({
+      jobIntent: null,
+      payments: [{ checkout_session_id: value, payment_intent_id: null, charge_id: null }],
+      attempts: [],
+    });
+    assert.equal(ids.ok, false, value);
+  }
+  assert.equal(
+    removalStripeIds({ jobIntent: "pi_live bad", payments: [], attempts: [] }).ok,
+    false,
+  );
+  assert.equal(
+    removalStripeIds({
+      jobIntent: null,
+      payments: [{ checkout_session_id: null, payment_intent_id: null, charge_id: "ch_live bad" }],
+      attempts: [],
+    }).ok,
+    false,
+  );
   assert.equal(removalStripeIdCount(empty), 0);
+});
+
+test("live and test Stripe ids are accepted and still checked", () => {
+  const ids = removalStripeIds({
+    jobIntent: "pi_3Nq2abcDEF123",
+    payments: [{
+      checkout_session_id: "cs_live_a1B2c3D4",
+      payment_intent_id: "pi_3Nq2abcDEF123",
+      charge_id: "ch_3Nq2abcDEF123",
+    }],
+    attempts: [{
+      checkout_session_id: "cs_test_a1B2c3D4",
+      payment_intent_id: "pi_3TestIntent",
+    }],
+  });
+  assert.equal(ids.ok, true);
+  if (!ids.ok) return;
+  assert.deepEqual(ids.ids.sessions, ["cs_live_a1B2c3D4", "cs_test_a1B2c3D4"]);
+  assert.deepEqual(ids.ids.intents, ["pi_3Nq2abcDEF123", "pi_3TestIntent"]);
+  assert.deepEqual(ids.ids.charges, ["ch_3Nq2abcDEF123"]);
+  assert.equal(isRemovalIntentId("pi_3Nq2abc_DEF"), true);
+  assert.equal(isRemovalIntentId("pi_live bad"), false);
+  assert.equal(
+    removalStripeVerdict([{ kind: "session", status: "expired", paymentStatus: "unpaid" }]),
+    "inactive",
+  );
+  assert.equal(canFinishRemoval(ids.ids, "inactive"), true);
+  assert.equal(canFinishRemoval(ids.ids, "active"), false);
+  assert.equal(canFinishRemoval(ids.ids, "unverified"), false);
 });
