@@ -1,14 +1,28 @@
 import "server-only";
 
-import { acceptImage } from "@/lib/blog/content";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { acceptImage } from "@/lib/blog/content";
+import { photoConversionEnabled } from "@/lib/images/conversion";
+import { processImage } from "@/lib/images/process-image";
 
-export async function readImageFile(file: FormDataEntryValue | null): Promise<{ bytes: Uint8Array; ext: "jpg" | "png" | "webp" } | { error: string } | null> {
+export async function readImageFile(
+  file: FormDataEntryValue | null,
+): Promise<{ bytes: Uint8Array; ext: "jpg" | "png" | "webp" } | { error: string } | null> {
   if (!(file instanceof File) || file.size === 0) return null;
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const checked = acceptImage(bytes);
-  if (!checked.ok) return { error: checked.error };
-  return { bytes, ext: checked.ext };
+  if (!photoConversionEnabled(process.env.PHOTO_CONVERSION)) {
+    const checked = acceptImage(bytes);
+    if (!checked.ok) return { error: checked.error };
+    return { bytes, ext: checked.ext };
+  }
+  try {
+    const processed = await processImage(bytes, "photo");
+    return { bytes: processed.bytes, ext: "jpg" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "That image could not be prepared.";
+    console.error(JSON.stringify({ event: "photo_conversion_failed", use: "blog", bytes: bytes.byteLength, message }));
+    return { error: message };
+  }
 }
 
 export async function storeBlogImage(

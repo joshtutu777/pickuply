@@ -213,10 +213,17 @@ export const privacyAreaNote =
   "Drivers only see your general area until they're assigned.";
 
 export const maxPhotos = 8;
-export const photoMaxEdgePx = 1600;
+/** Longest stored edge. Smaller photos stay their original size. */
+export const photoMaxEdgePx = 1920;
+/** Stored JPEG target. Documents may stay larger so text stays readable. */
+export const photoTargetBytes = 1024 * 1024;
 export const photoMaxBytes = 5 * 1024 * 1024;
 /** A phone camera file can be much larger than the picture we store. */
 export const photoSourceMaxBytes = 80 * 1024 * 1024;
+/** Reject before decode. A 48-megapixel phone photo still fits. */
+export const photoMaxPixels = 60_000_000;
+/** Vercel refuses a request larger than this, so bigger photos are reduced first. */
+export const photoPrepareRequestBytes = 4 * 1024 * 1024;
 export const videoMaxSeconds = 30;
 export const videoMaxBytes = 8 * 1024 * 1024;
 

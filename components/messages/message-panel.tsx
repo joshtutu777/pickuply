@@ -4,7 +4,8 @@ import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { containsContact } from "@/lib/messages/contact";
-import { compressImage } from "@/lib/photos";
+import { compressImage, imageAccept } from "@/lib/photos";
+import { isPdf, sniffImage } from "@/lib/images/sniff";
 import { createClient } from "@/lib/supabase/client";
 
 export type ChatMessage = {
@@ -51,43 +52,57 @@ export function MessagePanel({
   const [messages, setMessages] = useState(initial);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fileStatus, setFileStatus] = useState("");
   const warning = containsContact(text);
   const nowIso = useSyncExternalStore(emptySubscribe, messageClockSnapshot, () => "");
   const closed = Boolean(closesAt && nowIso.length > 0 && closesAt <= nowIso);
   const lastMine = [...messages].reverse().find((message) => message.mine);
 
   async function addFile(file: File) {
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!["jpg", "jpeg", "png", "webp", "pdf"].includes(extension) || file.size > 5_000_000) {
-      setError("Choose a photo or PDF under 5 MB.");
+    const header = new Uint8Array(await file.slice(0, Math.min(file.size, 64)).arrayBuffer());
+    const image = sniffImage(header) != null;
+    const pdf = isPdf(header);
+    if (!image && !pdf) {
+      setError("Choose a photo or a PDF.");
       return;
     }
-    const image = extension !== "pdf";
-    const body = image ? await compressImage(file) : file;
-    const path = `${threadId}/${crypto.randomUUID()}.${image ? "jpg" : "pdf"}`;
-    const supabase = createClient();
-    const uploaded = await supabase.storage.from("message-files").upload(path, body, {
-      upsert: false,
-      contentType: image ? "image/jpeg" : "application/pdf",
-    });
-    if (uploaded.error) {
-      setError("That file could not be uploaded.");
+    if (pdf && file.size > 5_000_000) {
+      setError("Choose a PDF under 5 MB.");
       return;
     }
-    const registered = await supabase.rpc("register_message_file", {
-      target_thread: threadId,
-      storage_path: path,
-    });
-    if (registered.error) {
-      setError("That file could not be sent.");
-      return;
+    setFileStatus(image ? "Preparing your photo…" : "");
+    setError(null);
+    try {
+      const body = image ? await compressImage(file) : file;
+      const path = `${threadId}/${crypto.randomUUID()}.${image ? "jpg" : "pdf"}`;
+      const supabase = createClient();
+      const uploaded = await supabase.storage.from("message-files").upload(path, body, {
+        upsert: false,
+        contentType: image ? "image/jpeg" : "application/pdf",
+      });
+      if (uploaded.error) {
+        setError("That file could not be uploaded.");
+        return;
+      }
+      const registered = await supabase.rpc("register_message_file", {
+        target_thread: threadId,
+        storage_path: path,
+      });
+      if (registered.error) {
+        setError("That file could not be sent.");
+        return;
+      }
+      const response = await fetch(`/api/messages/${threadId}`);
+      if (response.ok) {
+        const payload = (await response.json()) as { messages?: ChatMessage[] };
+        if (payload.messages) setMessages(payload.messages);
+      }
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "That file could not be sent.");
+    } finally {
+      setFileStatus("");
     }
-    const response = await fetch(`/api/messages/${threadId}`);
-    if (response.ok) {
-      const payload = (await response.json()) as { messages?: ChatMessage[] };
-      if (payload.messages) setMessages(payload.messages);
-    }
-    router.refresh();
   }
 
   useEffect(() => {
@@ -197,7 +212,7 @@ export function MessagePanel({
             <input
               id={`file-${threadId}`}
               type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
+              accept={`${imageAccept},application/pdf,.pdf`}
               className="mt-2 block w-full text-base font-normal"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -206,6 +221,11 @@ export function MessagePanel({
               }}
             />
           </label>
+          {fileStatus ? (
+            <p role="status" className="text-base text-ink">
+              {fileStatus}
+            </p>
+          ) : null}
           {error ? (
             <p role="alert" className="text-base text-danger">
               {error}

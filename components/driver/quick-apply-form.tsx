@@ -14,8 +14,9 @@ import { validateFullName } from "@/lib/auth/name";
 import { driverApplyEmailError } from "@/lib/validation/email";
 import { pushTrackingEvent } from "@/components/analytics/analytics-root";
 import { recordFunnel } from "@/lib/funnel";
+import { PhotoField } from "@/components/photos/photo-field";
 import { createClient } from "@/lib/supabase/client";
-import { compressImage } from "@/lib/photos";
+import { assertPreparedJpeg } from "@/lib/photos";
 
 const vehicles = [
   { id: "pickup", label: "Pickup" },
@@ -30,11 +31,10 @@ const controlClass =
   "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
 
 async function uploadDoc(userId: string, name: "profile" | "license", file: File): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
-  const prepared = await compressImage(file);
+  await assertPreparedJpeg(file);
   const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
     upsert: true,
     contentType: "image/jpeg",
   });
@@ -64,8 +64,6 @@ export function QuickApplyForm({
   const [progress, setProgress] = useState<string | null>(null);
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
-  const [profilePreview, setProfilePreview] = useState<string | null>(null);
-  const [licensePreview, setLicensePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   useEffect(() => {
@@ -197,45 +195,30 @@ export function QuickApplyForm({
           Full service
         </label>
       </fieldset>
-      <label className="block text-base font-semibold text-ink" htmlFor="profilePhoto">
-        <span className="inline-flex items-center gap-2">
-          <User aria-hidden="true" className="size-5 text-brand" />
-          <Camera aria-hidden="true" className="size-5 text-brand" />
-          Profile photo
-        </span>
-        <input id="profilePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
-          setProfileFile(file);
-          setProfilePreview((current) => {
-            if (current) URL.revokeObjectURL(current);
-            return file ? URL.createObjectURL(file) : null;
-          });
-        }} />
-        {profilePreview ? (
-          // Local preview of a file that has not been uploaded yet.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profilePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
-        ) : null}
-      </label>
-      <label className="block text-base font-semibold text-ink" htmlFor="licensePhoto">
-        <span className="inline-flex items-center gap-2">
-          <IdCard aria-hidden="true" className="size-5 text-brand" />
-          <Camera aria-hidden="true" className="size-5 text-brand" />
-          Driver license photo
-        </span>
-        <input id="licensePhoto" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
-          setLicenseFile(file);
-          setLicensePreview((current) => {
-            if (current) URL.revokeObjectURL(current);
-            return file ? URL.createObjectURL(file) : null;
-          });
-        }} />
-        {licensePreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={licensePreview} alt="" className="mt-2 h-24 w-24 rounded-2xl object-cover" />
-        ) : null}
-      </label>
+      <PhotoField
+        id="profilePhoto"
+        use="photo"
+        label={
+          <span className="inline-flex items-center gap-2">
+            <User aria-hidden="true" className="size-5 text-brand" />
+            <Camera aria-hidden="true" className="size-5 text-brand" />
+            Profile photo
+          </span>
+        }
+        onPhotos={(files) => setProfileFile(files[0] ?? null)}
+      />
+      <PhotoField
+        id="licensePhoto"
+        use="document"
+        label={
+          <span className="inline-flex items-center gap-2">
+            <IdCard aria-hidden="true" className="size-5 text-brand" />
+            <Camera aria-hidden="true" className="size-5 text-brand" />
+            Driver license photo
+          </span>
+        }
+        onPhotos={(files) => setLicenseFile(files[0] ?? null)}
+      />
       <label className="block text-base font-semibold text-ink" htmlFor="licenseExpires">
         License expiration
         <input id="licenseExpires" type="date" required value={licenseExpires} onChange={(event) => setLicenseExpires(event.target.value)} className={controlClass} />

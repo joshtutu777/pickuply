@@ -11,8 +11,9 @@ import {
   signAgreement,
 } from "@/app/driver/ready/actions";
 import { CoverageEditor } from "@/components/driver/coverage-editor";
+import { PhotoField } from "@/components/photos/photo-field";
 import { createClient } from "@/lib/supabase/client";
-import { compressImage } from "@/lib/photos";
+import { assertPreparedJpeg } from "@/lib/photos";
 import type { CoverageDraft } from "@/lib/driver/coverage";
 
 const controlClass =
@@ -41,10 +42,9 @@ export type ReadyExisting = {
 };
 
 async function upload(userId: string, name: "insurance" | "vehicle" | "license", file: File): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) throw new Error("Each photo must be 5 MB or smaller.");
-  const prepared = await compressImage(file);
+  await assertPreparedJpeg(file);
   const path = `${userId}/${name}.jpg`;
-  const { error } = await createClient().storage.from("driver-docs").upload(path, prepared, {
+  const { error } = await createClient().storage.from("driver-docs").upload(path, file, {
     upsert: true,
     contentType: "image/jpeg",
   });
@@ -69,19 +69,6 @@ export function ReadyStep({
   const kept =
     step === "license" ? existing.licenseUrl : step === "insurance" ? existing.insuranceUrl : existing.vehiclePhoto;
 
-  async function onFile(name: "insurance" | "vehicle" | "license", file: File | null) {
-    if (!file) return;
-    setPending(true);
-    setPhotoError("");
-    try {
-      setPath(await upload(userId, name, file));
-    } catch (caught) {
-      setPhotoError(caught instanceof Error ? caught.message : "We couldn't upload that photo.");
-    } finally {
-      setPending(false);
-    }
-  }
-
   function requirePhoto(event: FormEvent) {
     if (!path && !kept) {
       event.preventDefault();
@@ -105,10 +92,22 @@ export function ReadyStep({
         <form action={saveLicense} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.licenseUrl ? <p className="text-base text-ink">Your license photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <label className="block font-semibold" htmlFor="license-photo">
-            License photo
-            <input id="license-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("license", event.target.files?.[0] ?? null)} />
-          </label>
+          <PhotoField
+            id="license-photo"
+            label="License photo"
+            use="document"
+            hint="Take a picture or choose one."
+            onPhotos={async (files) => {
+              const file = files[0];
+              if (!file) return;
+              setPending(true);
+              try {
+                setPath(await upload(userId, "license", file));
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
           <label className="block font-semibold" htmlFor="license-expires">
             License expiration
             <input id="license-expires" name="expires" type="date" required defaultValue={existing.licenseExpires ?? ""} className={controlClass} />
@@ -120,10 +119,22 @@ export function ReadyStep({
         <form action={saveInsurance} className="space-y-4" onSubmit={requirePhoto}>
           <input type="hidden" name="path" value={path} />
           {existing.insuranceUrl ? <p className="text-base text-ink">Your insurance photo is already on file. Upload a new one only if you need to replace it.</p> : null}
-          <label className="block font-semibold" htmlFor="insurance-photo">
-            Insurance photo
-            <input id="insurance-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("insurance", event.target.files?.[0] ?? null)} />
-          </label>
+          <PhotoField
+            id="insurance-photo"
+            label="Insurance photo"
+            use="document"
+            hint="Take a picture or choose one."
+            onPhotos={async (files) => {
+              const file = files[0];
+              if (!file) return;
+              setPending(true);
+              try {
+                setPath(await upload(userId, "insurance", file));
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
           <label className="block font-semibold" htmlFor="insurance-expires">
             Insurance expiration
             <input id="insurance-expires" name="expires" type="date" required defaultValue={existing.insuranceExpires ?? ""} className={controlClass} />
@@ -150,10 +161,21 @@ export function ReadyStep({
           <label className="block font-semibold" htmlFor="plate">Plate<input id="plate" name="plate" required defaultValue={existing.plate ?? ""} className={controlClass} /></label>
           <label className="block font-semibold" htmlFor="cargo">Cargo length in inches<input id="cargo" name="cargo" inputMode="numeric" required defaultValue={existing.cargo ?? ""} className={controlClass} /></label>
           {existing.vehiclePhoto ? <p className="text-base text-ink">Your vehicle photo is already on file.</p> : null}
-          <label className="block font-semibold" htmlFor="vehicle-photo">
-            Vehicle photo
-            <input id="vehicle-photo" type="file" accept="image/*" className="mt-2 block w-full" onChange={(event) => void onFile("vehicle", event.target.files?.[0] ?? null)} />
-          </label>
+          <PhotoField
+            id="vehicle-photo"
+            label="Vehicle photo"
+            hint="Take a picture or choose one."
+            onPhotos={async (files) => {
+              const file = files[0];
+              if (!file) return;
+              setPending(true);
+              try {
+                setPath(await upload(userId, "vehicle", file));
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
           <Submit pending={pending} label="Save vehicle" />
         </form>
       ) : null}

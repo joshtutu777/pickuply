@@ -1,5 +1,11 @@
 # Pickuply progress
 
+## Image conversion prepared, not deployed (2026-11-15)
+
+Uploads can be converted to JPEG when the server variable `PHOTO_CONVERSION` is `on`. Any other value keeps the previous browser upload path. This commit does not include the admin offer list. It does not change Stripe, payouts, or stored photos. No migration. Nothing was deployed.
+
+Set `PHOTO_CONVERSION=off` and redeploy this same commit to return to the previous upload path. Redeploying the parent commit `640babe` removes the converter code. Neither rollback rewrites photos already in storage.
+
 ## Launch penalty fees validated, not applied (2026-11-15)
 
 Migration `0141_launch_no_penalty_fees.sql` is written and not applied. Production already has `0140_operational_sms_hours`, so the earlier `0132` filename was discarded. Nothing was deployed. No live Stripe charge was created or changed. The database checks ran inside a transaction that was rolled back. Job, user, and ledger counts were unchanged afterward.
