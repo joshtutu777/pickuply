@@ -234,6 +234,97 @@ export function quoteExpiresSoon(job: AdminJob, now: number): boolean {
   return new Date(job.quoteExpiresAt).getTime() <= now + quoteSoonMs;
 }
 
+export type OfferBucket = "open" | "expired" | "closed";
+
+export type OfferTally = { open: number; expired: number; closed: number };
+
+/**
+ * The stored status decides the group. An active offer stays with the active
+ * offers even when expires_at has passed. The pilot booking rule does not
+ * treat that clock as a cutoff, so this function does not rewrite the status.
+ */
+export function offerBucket(offer: { status: string; expiresAt: string | null }, _now: number): OfferBucket {
+  if (offer.status === "active") return "open";
+  if (offer.status === "expired") return "expired";
+  return "closed";
+}
+
+export function tallyOffers(
+  rows: { status: string; expiresAt: string | null; kind?: string }[],
+  now: number,
+): OfferTally {
+  const tally: OfferTally = { open: 0, expired: 0, closed: 0 };
+  for (const row of rows) tally[offerBucket(row, now)] += 1;
+  return tally;
+}
+
+/** A request's booking status does not hide or relabel its offers. */
+export function visibleOfferTally(_status: string, tally: OfferTally): OfferTally {
+  return tally;
+}
+
+export function offerActivityLabel(tally: OfferTally): string {
+  if (tally.open === 0 && tally.expired === 0 && tally.closed === 0) return "No offers yet";
+  const parts: string[] = [];
+  if (tally.open > 0) parts.push(tally.open === 1 ? "1 offer open" : `${tally.open} offers open`);
+  if (tally.expired > 0) parts.push(tally.expired === 1 ? "1 expired" : `${tally.expired} expired`);
+  if (tally.closed > 0) parts.push(tally.closed === 1 ? "1 closed" : `${tally.closed} closed`);
+  return parts.join(" · ");
+}
+
+export function offerKindLabel(kind: string): string {
+  if (kind === "accept") return "Accepted the posted price";
+  if (kind === "counter") return "Counteroffer";
+  return "Offer";
+}
+
+/** The words for the stored status. This is not the same as whether it can be chosen. */
+export function offerStatusLabel(status: string): string {
+  if (status === "active") return "Active";
+  if (status === "chosen") return "Chosen";
+  if (status === "expired") return "Expired";
+  if (status === "withdrawn") return "Withdrawn";
+  if (status === "declined") return "Declined";
+  return "Closed";
+}
+
+export function offerExpirationPassed(offer: { status: string; expiresAt: string | null }, now: number): boolean {
+  if (offer.status !== "active" || !offer.expiresAt) return false;
+  const at = new Date(offer.expiresAt).getTime();
+  return Number.isFinite(at) && at < now;
+}
+
+/**
+ * Existing booking rule: the customer can choose an active offer while the
+ * request is still open. expires_at is not a cutoff during the pilot.
+ */
+export function offerCanBeChosen(status: string, jobStatus: string): boolean {
+  return status === "active" && jobStatus === "open";
+}
+
+export function splitOfferGroups<T extends { status: string }>(offers: T[]): { active: T[]; earlier: T[] } {
+  return {
+    active: offers.filter((offer) => offer.status === "active"),
+    earlier: offers.filter((offer) => offer.status !== "active"),
+  };
+}
+
+/** The driver's named offer, before the card-processing fee the customer pays on top. */
+export function offerAmountCents(row: {
+  driverAmountCents: number | null;
+  platformFeeCents: number | null;
+  serviceFeeCents: number | null;
+  customerTotalCents: number | null;
+}): number | null {
+  if (row.driverAmountCents != null && row.platformFeeCents != null) {
+    return row.driverAmountCents + row.platformFeeCents;
+  }
+  if (row.customerTotalCents != null && row.serviceFeeCents != null) {
+    return row.customerTotalCents - row.serviceFeeCents;
+  }
+  return row.customerTotalCents;
+}
+
 export function openWithoutOffers(job: AdminJob, now: number): boolean {
   if (job.status !== "open" || job.offerCount > 0) return false;
   const opened = new Date(job.openedAt ?? job.createdAt).getTime();

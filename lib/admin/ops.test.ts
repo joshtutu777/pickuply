@@ -9,10 +9,18 @@ import {
   filterJobs,
   jobEventLabel,
   needsAction,
+  offerActivityLabel,
+  offerAmountCents,
+  offerCanBeChosen,
+  offerExpirationPassed,
+  offerStatusLabel,
   openWithoutOffers,
   paymentNearDeadline,
   quoteExpiresSoon,
   readableTime,
+  splitOfferGroups,
+  tallyOffers,
+  visibleOfferTally,
   waitedLabel,
   type AdminDriver,
   type AdminJob,
@@ -215,4 +223,70 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/blog", ""), "blog");
   assert.equal(adminNavCurrent("/admin/support", ""), "support");
   assert.equal(adminNavCurrent("/admin/blog/new", ""), "blog");
+});
+
+test("request details keep every offer status and separate a passed expiration from selectability", () => {
+  const at = Date.parse("2026-11-08T13:00:00.000Z");
+  const none = visibleOfferTally("open", tallyOffers([], at));
+  assert.deepEqual(none, { open: 0, expired: 0, closed: 0 });
+  assert.equal(offerActivityLabel(none), "No offers yet");
+  assert.deepEqual(splitOfferGroups([]), { active: [], earlier: [] });
+
+  const one = [{ status: "active", expiresAt: "2026-11-08T15:00:00.000Z" }];
+  assert.deepEqual(visibleOfferTally("open", tallyOffers(one, at)), { open: 1, expired: 0, closed: 0 });
+  assert.equal(splitOfferGroups(one).active.length, 1);
+  assert.equal(offerExpirationPassed(one[0], at), false);
+  assert.equal(offerCanBeChosen("active", "open"), true);
+  assert.equal(offerStatusLabel("active"), "Active");
+
+  const several = [
+    { status: "active", expiresAt: "2026-11-08T12:00:00.000Z" },
+    { status: "chosen", expiresAt: null },
+    { status: "expired", expiresAt: null },
+    { status: "withdrawn", expiresAt: null },
+    { status: "declined", expiresAt: null },
+  ];
+  const groups = splitOfferGroups(several);
+  assert.equal(groups.active.length, 1);
+  assert.deepEqual(
+    groups.earlier.map((offer) => offer.status),
+    ["chosen", "expired", "withdrawn", "declined"],
+  );
+  assert.deepEqual(visibleOfferTally("completed", tallyOffers(several, at)), {
+    open: 1,
+    expired: 1,
+    closed: 3,
+  });
+  assert.equal(offerExpirationPassed(several[0], at), true);
+  assert.equal(offerCanBeChosen("active", "open"), true);
+  assert.equal(offerCanBeChosen("active", "assigned"), false);
+  assert.equal(offerCanBeChosen("chosen", "open"), false);
+  assert.equal(offerStatusLabel("chosen"), "Chosen");
+  assert.equal(offerStatusLabel("expired"), "Expired");
+  assert.equal(offerStatusLabel("withdrawn"), "Withdrawn");
+  assert.equal(offerStatusLabel("declined"), "Declined");
+
+  const completed = visibleOfferTally("completed", tallyOffers([{ status: "chosen", expiresAt: null }], at));
+  assert.deepEqual(completed, { open: 0, expired: 0, closed: 1 });
+  const canceled = visibleOfferTally(
+    "cancelled",
+    tallyOffers(
+      [
+        { status: "expired", expiresAt: null },
+        { status: "declined", expiresAt: null },
+      ],
+      at,
+    ),
+  );
+  assert.deepEqual(canceled, { open: 0, expired: 1, closed: 1 });
+
+  assert.equal(
+    offerAmountCents({
+      driverAmountCents: 4250,
+      platformFeeCents: 750,
+      serviceFeeCents: 175,
+      customerTotalCents: 5175,
+    }),
+    5000,
+  );
 });

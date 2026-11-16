@@ -10,12 +10,22 @@ import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
 import { AdminOverride } from "@/components/admin/admin-override";
+import { RequestOffers } from "@/components/admin/request-offers";
 import { DeliveryProof } from "@/components/admin/delivery-proof";
 import { AreaMap } from "@/components/maps/area-map";
 import { statusLabel } from "@/components/request/job-status";
 import { tripLabel } from "@/lib/maps/miles";
 import { requireAdmin } from "@/lib/auth/session";
-import { noDriverCutoffIso } from "@/lib/admin/ops";
+import {
+  noDriverCutoffIso,
+  offerAmountCents,
+  offerBucket,
+  offerCanBeChosen,
+  offerExpirationPassed,
+  tallyOffers,
+  visibleOfferTally,
+} from "@/lib/admin/ops";
+import { displayFullName } from "@/lib/auth/name";
 import { serviceById, type ServiceId } from "@/lib/constants";
 import { getJobDetail } from "@/lib/data/job-queries";
 import { formatCents } from "@/lib/money";
@@ -82,6 +92,52 @@ async function RequestDetail({
     .eq("status", "open")
     .is("assigned_driver_id", null)
     .lte("created_at", noDriverCutoffIso());
+  const now = Date.now();
+  const offerResult = await supabase
+    .from("job_offers")
+    .select(
+      "id, driver_id, kind, status, customer_total_cents, driver_amount_cents, platform_fee_cents, service_fee_cents, created_at, expires_at, reason",
+    )
+    .eq("job_id", id)
+    .order("created_at", { ascending: false });
+  const offerRows = offerResult.data ?? [];
+  const offerDriverIds = [...new Set(offerRows.map((row) => row.driver_id))];
+  const { data: offerNames } =
+    offerDriverIds.length > 0
+      ? await supabase.from("profiles").select("id, first_name, last_name, full_name").in("id", offerDriverIds)
+      : { data: [] as { id: string; first_name: string | null; last_name: string | null; full_name: string | null }[] };
+  const offerName = new Map(
+    (offerNames ?? []).map((row) => [
+      row.id,
+      displayFullName({ firstName: row.first_name, lastName: row.last_name, fullName: row.full_name }) || "Driver",
+    ]),
+  );
+  const offerTally = visibleOfferTally(
+    job.status,
+    tallyOffers(
+      offerRows.map((row) => ({ status: row.status, expiresAt: row.expires_at })),
+      now,
+    ),
+  );
+  const offers = offerRows.map((row) => ({
+    id: row.id,
+    driverName: offerName.get(row.driver_id) || "Driver",
+    kind: row.kind,
+    status: row.status,
+    bucket: offerBucket({ status: row.status, expiresAt: row.expires_at }, now),
+    offerAmountCents: offerAmountCents({
+      driverAmountCents: row.driver_amount_cents,
+      platformFeeCents: row.platform_fee_cents,
+      serviceFeeCents: row.service_fee_cents,
+      customerTotalCents: row.customer_total_cents,
+    }),
+    customerTotalCents: row.customer_total_cents,
+    driverAmountCents: row.driver_amount_cents,
+    createdAt: row.created_at,
+    reason: row.reason,
+    expirationPassed: offerExpirationPassed({ status: row.status, expiresAt: row.expires_at }, now),
+    canChoose: offerCanBeChosen(row.status, job.status),
+  }));
 
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -91,6 +147,14 @@ async function RequestDetail({
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
       {waitingWithoutDriver ? <p className="mt-2 text-base font-semibold text-danger">No driver yet</p> : null}
+      <RequestOffers
+        offers={offers}
+        tally={offerTally}
+        now={now}
+        failed={Boolean(offerResult.error)}
+        bookingStatus={job.status}
+        paymentStatus={job.payment_status}
+      />
       <BackLink href="/admin/requests" label="Requests" />
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}
       {typeof query.error === "string" ? (
