@@ -10,7 +10,9 @@ import { CopyMessage } from "@/components/admin/copy-message";
 import { ReviewRequestForm } from "@/components/admin/review-request-form";
 import { LoadingMain } from "@/components/loading-main";
 import { AdminOverride } from "@/components/admin/admin-override";
+import { RemoveFromMarketplace } from "@/components/admin/remove-from-marketplace";
 import { RequestOffers } from "@/components/admin/request-offers";
+import { marketplaceRemovalMessage } from "@/lib/admin/marketplace-removal";
 import { DeliveryProof } from "@/components/admin/delivery-proof";
 import { AreaMap } from "@/components/maps/area-map";
 import { statusLabel } from "@/components/request/job-status";
@@ -85,6 +87,8 @@ async function RequestDetail({
       ? await supabase.from("profiles").select("id, full_name").in("id", coveringIds)
       : { data: [] as { id: string; full_name: string | null }[] };
   const coveringName = new Map((coveringNames ?? []).map((row) => [row.id, row.full_name]));
+  const removal = await supabase.rpc("marketplace_removal_reason", { target: id });
+  const removalReason = removal.error || typeof removal.data !== "string" ? "unavailable" : removal.data;
   const { count: waitingWithoutDriver } = await supabase
     .from("jobs")
     .select("id", { count: "exact", head: true })
@@ -157,6 +161,11 @@ async function RequestDetail({
       />
       <BackLink href="/admin/requests" label="Requests" />
       {query.saved === "1" ? <p className="mt-4 text-base">Saved.</p> : null}
+      {query.removed === "1" || query.removed === "already" ? (
+        <p role="status" className="mt-4 text-base text-ink">
+          {marketplaceRemovalMessage(query.removed === "already" ? "already_removed" : "removed")}
+        </p>
+      ) : null}
       {typeof query.error === "string" ? (
         <p role="alert" className="mt-4 text-base text-danger">
           {query.error}
@@ -338,6 +347,11 @@ async function RequestDetail({
           <AccountControls profileId={extra.customer_id} returnTo={`/admin/requests/${id}`} label="Customer account" />
         </>
       ) : null}
+      <RemoveFromMarketplace
+        jobId={id}
+        label={`${service.name} in ${job.pickup_area}`}
+        reason={removalReason}
+      />
       {extra?.assigned_driver_id ? (
         <AccountControls
           profileId={extra.assigned_driver_id}

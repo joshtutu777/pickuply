@@ -2,6 +2,7 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { isMarketplaceRemovalCode, marketplaceRemovalMessage } from "@/lib/admin/marketplace-removal";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { recordFunnelServer } from "@/lib/funnel-server";
@@ -104,6 +105,34 @@ export async function inviteDriver(formData: FormData) {
   });
   if (error) redirect(`/admin/requests/${jobId}?error=${encodeURIComponent(error.message)}`);
   redirect(`/admin/requests/${jobId}?saved=1`);
+}
+
+function requestPath(value: FormDataEntryValue | null): string {
+  const path = String(value ?? "");
+  if (!/^\/admin\/requests\/[0-9a-f-]{36}$/i.test(path)) return "/admin/requests";
+  return path;
+}
+
+export async function removeFromMarketplace(formData: FormData) {
+  await connection();
+  const path = requestPath(formData.get("returnTo"));
+  const target = String(formData.get("jobId") ?? "");
+  if (formData.get("confirm") !== "yes") {
+    redirect(`${path}?error=${encodeURIComponent("Confirm the request before removing it from the marketplace.")}`);
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(target)) {
+    redirect(`${path}?error=${encodeURIComponent("Choose a request.")}`);
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_remove_from_marketplace", { target });
+  if (error) {
+    redirect(`${path}?error=${encodeURIComponent("The request could not be removed from the marketplace.")}`);
+  }
+  const code = typeof data === "string" ? data : "";
+  if (code === "removed" || code === "already_removed") {
+    redirect(`${path}?removed=${code === "already_removed" ? "already" : "1"}`);
+  }
+  redirect(`${path}?error=${encodeURIComponent(marketplaceRemovalMessage(isMarketplaceRemovalCode(code) ? code : ""))}`);
 }
 
 export async function overrideJobStatus(formData: FormData) {

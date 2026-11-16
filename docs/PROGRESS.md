@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Remove from Marketplace restored, not deployed (2026-11-16)
+
+The admin request page again shows Remove from Marketplace. It was in the November 7 release and was left out of later production builds. This commit puts that screen and server action back on production commit 6246c1f. The hosted functions already match that SQL, so no migration was applied. The button cancels an open, unassigned request with no payment, dispute, or payout record. The job, offers, payments, and audit rows stay. Not deployed.
+
 ## Customer account count on the admin dashboard, not deployed (2026-11-16)
 
 The admin overview has one new card, Customer accounts. It counts profiles whose role is customer and whose deleted time is empty, in the same test lane as the rest of the dashboard. The number is the registered count plus the unfinished count on the Customers page when search is blank and status is not Deleted. The Customers list itself still opens on completed registrations and shows at most 200 rows. The other dashboard cards are unchanged. Not deployed.
