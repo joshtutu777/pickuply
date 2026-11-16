@@ -104,7 +104,7 @@ export function ArticleForm({
       </label>
       <label className="grid gap-2 text-base font-semibold">
         Cover image
-        <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" className="font-normal" />
+        <input id="cover" name="cover" type="file" accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif" className="font-normal" />
       </label>
       <label className="grid gap-2 text-base font-semibold">
         Cover image description
@@ -233,7 +233,7 @@ function BodyImageUpload({ postId, onSaved }: { postId: string; onSaved: (path: 
         Add image
         <input
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif"
           className="font-normal"
           onChange={(event) => {
             const file = event.target.files?.[0];

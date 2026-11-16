@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { answerDetailRequest } from "@/app/jobs/actions";
-import { compressImage } from "@/lib/photos";
+import { compressImage, imageAccept } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 const labels: Record<string, string> = {
@@ -26,6 +26,7 @@ export function DetailReply({
   const [photoError, setPhotoError] = useState("");
   const [photoCount, setPhotoCount] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState("");
   const asked = items.filter((item) => labels[item]);
 
   async function addPhotos(list: FileList | null) {
@@ -33,6 +34,7 @@ export function DetailReply({
     if (files.length === 0) return;
     setUploading(true);
     setPhotoError("");
+    setStatus("Preparing your photo…");
     try {
       const supabase = createClient();
       for (const file of files) {
@@ -54,6 +56,7 @@ export function DetailReply({
       setPhotoError(error instanceof Error ? error.message : "A photo didn't upload. Try again.");
     } finally {
       setUploading(false);
+      setStatus("");
     }
   }
 
@@ -127,7 +130,7 @@ export function DetailReply({
           <input
             id="detail-photos"
             type="file"
-            accept="image/*"
+            accept={imageAccept}
             multiple
             className="mt-2 block w-full text-base"
             disabled={uploading}
@@ -137,6 +140,11 @@ export function DetailReply({
             }}
           />
         </label>
+      ) : null}
+      {status ? (
+        <p role="status" className="text-base text-ink">
+          {status}
+        </p>
       ) : null}
       {photoCount > 0 ? <p className="text-base text-ink">{photoCount} photo{photoCount === 1 ? "" : "s"} added.</p> : null}
       {photoError ? (

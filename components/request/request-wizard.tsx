@@ -30,7 +30,7 @@ import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
-import { compressImage } from "@/lib/photos";
+import { compressImage, imageAccept } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 import { emptyDraft, type RequestDraft } from "@/lib/types";
 import { validateStep, valueWarning, type FieldErrors } from "@/lib/validation/request";
@@ -125,6 +125,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   }, [draft.pricingMethod, draft.service, stepIndex]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(boot.formError);
   const [submitting, setSubmitting] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -245,17 +246,20 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     }
     const files = [...list].slice(0, Math.max(room, 0));
     const added: Preview[] = [];
-    for (const file of files) {
-      try {
-        const blob = await compressImage(file);
-        const id = crypto.randomUUID();
-        await savePhoto(id, blob);
-        added.push({ id, url: URL.createObjectURL(blob) });
-      } catch (error) {
-        setPhotoError(
-          error instanceof Error ? error.message : "This photo couldn't be prepared. Try a JPEG or PNG.",
-        );
+    setPhotoBusy(true);
+    try {
+      for (const file of files) {
+        try {
+          const blob = await compressImage(file);
+          const id = crypto.randomUUID();
+          await savePhoto(id, blob);
+          added.push({ id, url: URL.createObjectURL(blob) });
+        } catch (error) {
+          setPhotoError(error instanceof Error ? error.message : "This photo couldn't be prepared. Try again.");
+        }
       }
+    } finally {
+      setPhotoBusy(false);
     }
     if (added.length) {
       setPhotoError(null);
@@ -391,9 +395,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       ]);
       setPhotoError(null);
     } catch (error) {
-      setPhotoError(
-        error instanceof Error ? error.message : "This photo couldn't be prepared. Try a JPEG or PNG.",
-      );
+      setPhotoError(error instanceof Error ? error.message : "This photo couldn't be prepared. Try again.");
     }
   }
 
@@ -554,7 +556,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                         Choose this photo again
                         <input
                           type="file"
-                          accept="image/jpeg,image/png,image/webp"
+                          accept={imageAccept}
                           className="mt-2 block w-full"
                           onChange={(event) => void reselectPhoto(id, event.target.files)}
                         />
@@ -591,6 +593,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
               warning={warning}
               previews={previews}
               photoError={photoError}
+              photoBusy={photoBusy}
               onPhotos={addPhotos}
               onRemove={removePhoto}
             />
@@ -956,6 +959,7 @@ function ItemStep({
   warning,
   previews,
   photoError,
+  photoBusy,
   onPhotos,
   onRemove,
 }: {
@@ -965,6 +969,7 @@ function ItemStep({
   warning: string | null;
   previews: Preview[];
   photoError: string | null;
+  photoBusy: boolean;
   onPhotos: (list: FileList | null) => void;
   onRemove: (id: string) => void;
 }) {
@@ -996,7 +1001,7 @@ function ItemStep({
           id="photos"
           name="photos"
           type="file"
-          accept="image/*"
+          accept={imageAccept}
           multiple
           onChange={(event) => {
             void onPhotos(event.target.files);
@@ -1004,6 +1009,11 @@ function ItemStep({
           }}
           className="mt-2 block w-full text-base"
         />
+        {photoBusy ? (
+          <p role="status" className="mt-2 text-sm font-medium text-ink">
+            Preparing your photo…
+          </p>
+        ) : null}
         {photoError ? (
           <p role="alert" className="mt-2 text-sm font-medium text-danger">
             {photoError}

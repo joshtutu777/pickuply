@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { photoMaxBytes } from "@/lib/constants";
-import { compressImage, prepareProofVideo } from "@/lib/photos";
+import { PhotoField } from "@/components/photos/photo-field";
+import { prepareProofVideo } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 export function ProofForm({
@@ -22,29 +22,30 @@ export function ProofForm({
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [photoKey, setPhotoKey] = useState(0);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const file = data.get("file");
     const stage = String(data.get("stage") ?? "");
     const note = String(data.get("note") ?? "");
     const share = data.get("shareLocation") === "on";
-    if (!(file instanceof File) || file.size === 0) {
+    const chosenVideo = video;
+    const chosenPhoto = photo;
+    if (!chosenVideo && !chosenPhoto) {
       setMessage("Choose a photo or a short video.");
       return;
     }
     setPending(true);
     setMessage(null);
     try {
-      const video = file.type.startsWith("video/");
-      const blob = video ? await prepareProofVideo(file) : await compressImage(file);
-      if (!video && blob.size > photoMaxBytes) {
-        throw new Error("That photo is too large.");
-      }
+      const blob = chosenVideo ? await prepareProofVideo(chosenVideo) : chosenPhoto;
+      if (!blob) throw new Error("Choose a photo or a short video.");
       const id = crypto.randomUUID();
-      const path = `${jobId}/${stage}/${id}.${video ? "webm" : "jpg"}`;
+      const path = `${jobId}/${stage}/${id}.${chosenVideo ? "webm" : "jpg"}`;
       let lat: number | null = null;
       let lng: number | null = null;
       if (share && locationEnabled && "geolocation" in navigator) {
@@ -58,7 +59,7 @@ export function ProofForm({
       }
       const supabase = createClient();
       const uploaded = await supabase.storage.from("job-photos").upload(path, blob, {
-        contentType: video ? "video/webm" : "image/jpeg",
+        contentType: chosenVideo ? "video/webm" : "image/jpeg",
         upsert: false,
       });
       if (uploaded.error) throw new Error("The file could not be saved.");
@@ -67,13 +68,16 @@ export function ProofForm({
         photo_stage: stage,
         storage_path: path,
         photo_note: note,
-        media_kind: video ? "video" : "photo",
+        media_kind: chosenVideo ? "video" : "photo",
         share_location: share && locationEnabled,
         raw_lat: lat,
         raw_lng: lng,
       });
       if (recorded.error) throw new Error("The proof could not be recorded.");
       form.reset();
+      setPhoto(null);
+      setVideo(null);
+      setPhotoKey((current) => current + 1);
       router.refresh();
       setMessage("Proof saved. It cannot be replaced.");
     } catch (error) {
@@ -86,15 +90,27 @@ export function ProofForm({
   return (
     <form onSubmit={(event) => void submit(event)} className="grid gap-2 rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
       <h2 className="text-lg font-semibold text-ink">Add proof</h2>
-      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-file`}>
-        Photo or video
+      <PhotoField
+        key={photoKey}
+        id={`${idPrefix}proof-photo`}
+        label="Photo"
+        hint="Take a picture or choose one."
+        onPhotos={(files) => {
+          setPhoto(files[0] ?? null);
+          setVideo(null);
+        }}
+      />
+      <label className="text-base font-semibold" htmlFor={`${idPrefix}proof-video`}>
+        Or a short video
         <input
-          id={`${idPrefix}proof-file`}
-          name="file"
+          id={`${idPrefix}proof-video`}
           type="file"
-          accept="image/*,video/*"
-          capture="environment"
+          accept="video/*"
           className="mt-2 block min-h-12 w-full text-base"
+          onChange={(event) => {
+            setVideo(event.target.files?.[0] ?? null);
+            setPhoto(null);
+          }}
         />
       </label>
       <p className="text-sm text-muted">

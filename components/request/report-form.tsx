@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { compressImage } from "@/lib/photos";
+import { compressImage, imageAccept } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 const categories = [
@@ -34,6 +34,13 @@ export function ReportForm({ jobId, embedded = false }: { jobId: string; embedde
     setPending(true);
     setMessage(null);
     try {
+      const selected = data.get("photo");
+      const photo = selected instanceof File && selected.size > 0 ? selected : null;
+      let prepared: Blob | null = null;
+      if (photo) {
+        setMessage("Preparing your photo…");
+        prepared = await compressImage(photo);
+      }
       const supabase = createClient();
       const filed = await supabase.rpc("file_job_report", {
         target_job: jobId,
@@ -42,9 +49,8 @@ export function ReportForm({ jobId, embedded = false }: { jobId: string; embedde
         outcome_wanted: String(data.get("outcome") ?? ""),
       });
       if (filed.error || !filed.data) throw new Error("The report could not be saved.");
-      const file = data.get("photo");
-      if (file instanceof File && file.size > 0) {
-        const blob = await compressImage(file);
+      if (prepared) {
+        const blob = prepared;
         const path = `${jobId}/report/${crypto.randomUUID()}.jpg`;
         const uploaded = await supabase.storage.from("job-photos").upload(path, blob, {
           contentType: "image/jpeg",
@@ -102,7 +108,7 @@ export function ReportForm({ jobId, embedded = false }: { jobId: string; embedde
       </label>
       <label className="text-base font-semibold" htmlFor="report-photo">
         Photo
-        <input id="report-photo" name="photo" type="file" accept="image/*" className="mt-2 block w-full" />
+        <input id="report-photo" name="photo" type="file" accept={imageAccept} className="mt-2 block min-h-12 w-full text-base" />
       </label>
       {message ? <p className="text-base text-ink">{message}</p> : null}
       <button type="submit" disabled={pending} className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white disabled:opacity-60">

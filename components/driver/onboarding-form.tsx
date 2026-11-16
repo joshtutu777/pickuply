@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { TextField } from "@/components/request/fields";
 import { SmsConsent, recordOptionalSmsConsent } from "@/components/sms-consent";
 import { validateFullName } from "@/lib/auth/name";
-import { compressImage } from "@/lib/photos";
+import { PhotoField } from "@/components/photos/photo-field";
+import { assertPreparedJpeg } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
 const services = [
@@ -41,13 +42,10 @@ async function uploadDoc(
   name: "profile" | "license" | "insurance" | "vehicle",
   file: File,
 ): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error("Each photo must be 5 MB or smaller.");
-  }
-  const prepared = await compressImage(file);
+  await assertPreparedJpeg(file);
   const path = `${userId}/${name}.jpg`;
   const supabase = createClient();
-  const { error } = await supabase.storage.from("driver-docs").upload(path, prepared, {
+  const { error } = await supabase.storage.from("driver-docs").upload(path, file, {
     upsert: true,
     contentType: "image/jpeg",
   });
@@ -185,15 +183,7 @@ export function OnboardingForm({
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-ink">About you</h2>
         <TextField label="Full name" name="fullName" value={fullName} onChange={setFullName} autoComplete="name" />
-        <label className="block text-base font-semibold text-ink">
-          Profile photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setProfileFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <PhotoField id="profile-photo" label="Profile photo" onPhotos={(files) => setProfileFile(files[0] ?? null)} />
         <TextField label="Home city" name="homeCity" value={homeCity} onChange={setHomeCity} />
         <label className="block text-base font-semibold text-ink" htmlFor="zone">
           Service area
@@ -243,15 +233,7 @@ export function OnboardingForm({
           onChange={setCargo}
           inputMode="numeric"
         />
-        <label className="block text-base font-semibold text-ink">
-          Vehicle photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setVehicleFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <PhotoField id="vehicle-photo" label="Vehicle photo" onPhotos={(files) => setVehicleFile(files[0] ?? null)} />
       </section>
 
       <section className="space-y-4">
@@ -309,15 +291,12 @@ export function OnboardingForm({
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-ink">Documents and payout</h2>
-        <label className="block text-base font-semibold text-ink">
-          Driver license photo
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setLicenseFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <PhotoField
+          id="license-photo"
+          label="Driver license photo"
+          use="document"
+          onPhotos={(files) => setLicenseFile(files[0] ?? null)}
+        />
         <TextField
           label="License expiration"
           name="licenseExpires"
@@ -325,18 +304,13 @@ export function OnboardingForm({
           value={licenseExpires}
           onChange={setLicenseExpires}
         />
-        <label className="block text-base font-semibold text-ink">
-          Insurance proof
-          <span className="mt-1 block font-normal text-muted">
-            You can add this later. It is required before you go Online.
-          </span>
-          <input
-            className="mt-2 block w-full text-base"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setInsuranceFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <PhotoField
+          id="insurance-photo"
+          label="Insurance proof"
+          hint="You can add this later. It is required before you go Online."
+          use="document"
+          onPhotos={(files) => setInsuranceFile(files[0] ?? null)}
+        />
         <TextField
           label="Insurance expiration"
           name="insuranceExpires"

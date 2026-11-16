@@ -154,7 +154,9 @@ export async function createRequest(
       onProgress?.(photoId, "error");
       continue;
     }
-    if (blob.type !== "image/jpeg" || blob.size > photoMaxBytes) {
+    const header = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+    const jpeg = header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+    if (blob.type !== "image/jpeg" || !jpeg || blob.size > photoMaxBytes) {
       onProgress?.(photoId, "error");
       throw new RequestSubmitError(
         "upload",

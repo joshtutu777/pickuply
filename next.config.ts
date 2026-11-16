@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["sharp"],
+  experimental: {
+    proxyClientMaxBodySize: "8mb",
+  },
   async redirects() {
     return [
       { source: "/signup", destination: "/login", permanent: false },
