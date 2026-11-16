@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Customer account count on the admin dashboard, not deployed (2026-11-16)
+
+The admin overview has one new card, Customer accounts. It counts profiles whose role is customer and whose deleted time is empty, in the same test lane as the rest of the dashboard. The number is the registered count plus the unfinished count on the Customers page when search is blank and status is not Deleted. The Customers list itself still opens on completed registrations and shows at most 200 rows. The other dashboard cards are unchanged. Not deployed.
+
 ## Driver mobile cards committed, not deployed (2026-11-15)
 
 The driver home uses compact cards. Offer entry is on `/driver/open/[id]`. A card with a stored offer shows that status and amount, and the button says View Request Details. The written description migration is deferred. No payment or image-conversion files are in this commit. Not deployed. A signed-in phone check was not run: local Docker is off, the synthetic driver accounts are not on the hosted project, and a production sign-in would send a text.
