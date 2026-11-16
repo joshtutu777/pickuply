@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Next.js security patch prepared, not deployed (2026-11-16)
+
+Next.js and eslint-config-next moved from 16.4.2 to 16.4.5, the November 2026 security release. React and React DOM stay at 19.3.0. No application, payment, or database code changed. Not deployed.
+
 ## Remove from Marketplace restored, not deployed (2026-11-16)
 
 The admin request page again shows Remove from Marketplace. It was in the November 7 release and was left out of later production builds. This commit puts that screen and server action back on production commit 6246c1f. The hosted functions already match that SQL, so no migration was applied. The button cancels an open, unassigned request with no payment, dispute, or payout record. The job, offers, payments, and audit rows stay. Not deployed.
