@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   canFinishRemoval,
   isRemovalIntentId,
+  removalLivemode,
+  removalStripeErrorCategory,
   removalStripeIdCount,
   removalStripeIds,
+  removalStripeSecret,
   removalStripeVerdict,
   type RemovalStripeIds,
 } from "./removal-stripe";
@@ -195,4 +199,98 @@ test("live and test Stripe ids are accepted and still checked", () => {
   assert.equal(canFinishRemoval(ids.ids, "inactive"), true);
   assert.equal(canFinishRemoval(ids.ids, "active"), false);
   assert.equal(canFinishRemoval(ids.ids, "unverified"), false);
+});
+
+const saved = { sessions: ["cs_saved"], intents: [] as string[], charges: [] as string[] };
+const keys = {
+  STRIPE_LIVE_SECRET_KEY: "sk_live_removal",
+  STRIPE_TEST_SECRET_KEY: "sk_test_removal",
+  STRIPE_SECRET_KEY: "sk_test_current",
+};
+
+test("a saved live payment selects the live secret", () => {
+  const selected = removalStripeSecret(true, { sessions: ["cs_live_saved"], intents: [], charges: [] }, keys);
+  assert.equal(selected.ok, true);
+  if (!selected.ok) return;
+  assert.equal(selected.name, "STRIPE_LIVE_SECRET_KEY");
+  assert.equal(selected.secret, "sk_live_removal");
+  const unprefixed = removalStripeSecret(true, saved, keys);
+  assert.equal(unprefixed.ok, true);
+  if (!unprefixed.ok) return;
+  assert.equal(unprefixed.name, "STRIPE_LIVE_SECRET_KEY");
+});
+
+test("a saved test payment selects the test secret", () => {
+  const selected = removalStripeSecret(false, { sessions: ["cs_test_saved"], intents: [], charges: [] }, keys);
+  assert.equal(selected.ok, true);
+  if (!selected.ok) return;
+  assert.equal(selected.name, "STRIPE_TEST_SECRET_KEY");
+  assert.equal(selected.secret, "sk_test_removal");
+  const current = removalStripeSecret(false, saved, { STRIPE_SECRET_KEY: "sk_test_current" });
+  assert.equal(current.ok, true);
+  if (!current.ok) return;
+  assert.equal(current.name, "STRIPE_SECRET_KEY");
+});
+
+test("the id prefix cannot supply a missing mode or override the saved mode", () => {
+  const missing = removalStripeSecret("unknown", { sessions: ["cs_live_saved"], intents: [], charges: [] }, keys);
+  assert.equal(missing.ok, false);
+  if (missing.ok) return;
+  assert.equal(missing.code, "mode_unknown");
+  const mismatched = removalStripeSecret(false, { sessions: ["cs_live_saved"], intents: [], charges: [] }, keys);
+  assert.equal(mismatched.ok, false);
+  if (mismatched.ok) return;
+  assert.equal(mismatched.code, "mode_mismatch");
+  assert.equal(removalLivemode([{
+    checkout_session_id: "cs_saved",
+    payment_intent_id: null,
+    charge_id: null,
+    stripe_livemode: null,
+  }]), "unknown");
+  assert.equal(removalLivemode([
+    { checkout_session_id: "cs_one", payment_intent_id: null, charge_id: null, stripe_livemode: true },
+    { checkout_session_id: "cs_two", payment_intent_id: null, charge_id: null, stripe_livemode: false },
+  ]), "mixed");
+});
+
+test("a missing or wrong key does not fall back to another Stripe account", () => {
+  const missingLive = removalStripeSecret(true, saved, {
+    STRIPE_SECRET_KEY: "sk_live_other",
+    STRIPE_TEST_SECRET_KEY: "sk_test_removal",
+  });
+  assert.equal(missingLive.ok, false);
+  if (missingLive.ok) return;
+  assert.equal(missingLive.code, "key_missing");
+  assert.equal(missingLive.name, "STRIPE_LIVE_SECRET_KEY");
+  const wrongTest = removalStripeSecret(false, saved, {
+    STRIPE_TEST_SECRET_KEY: "sk_live_wrong",
+    STRIPE_SECRET_KEY: "sk_test_current",
+  });
+  assert.equal(wrongTest.ok, false);
+  if (wrongTest.ok) return;
+  assert.equal(wrongTest.name, "STRIPE_TEST_SECRET_KEY");
+});
+
+test("an expired unpaid session can be removed and active money stays blocked", () => {
+  const ids = { sessions: ["cs_saved"], intents: ["pi_saved"], charges: [] };
+  assert.equal(removalStripeVerdict([{ kind: "session", status: "expired", paymentStatus: "unpaid" }]), "inactive");
+  assert.equal(canFinishRemoval(ids, "inactive"), true);
+  assert.equal(canFinishRemoval(ids, null), false);
+  assert.equal(
+    removalStripeVerdict([{ kind: "intent", status: "requires_capture", amountReceived: 0, amountCapturable: 5000 }]),
+    "active",
+  );
+  assert.equal(
+    removalStripeVerdict([{ kind: "charge", status: "succeeded", paid: true, refunded: false, amountRefunded: 0, disputed: false }]),
+    "active",
+  );
+  assert.equal(removalStripeErrorCategory({ code: "resource_missing", message: "No such checkout.session: cs_live_private" }), "resource_missing");
+});
+
+test("removal verification only retrieves Stripe objects", () => {
+  const source = readFileSync(new URL("./removal-stripe-read.ts", import.meta.url), "utf8");
+  assert.match(source, /checkout\.sessions\.retrieve/);
+  assert.match(source, /paymentIntents\.retrieve/);
+  assert.match(source, /charges\.retrieve/);
+  assert.doesNotMatch(source, /\.(create|capture|cancel|refunds|expire)\(/);
 });

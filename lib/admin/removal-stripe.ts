@@ -109,3 +109,90 @@ export function canFinishRemoval(ids: RemovalStripeIds, verdict: RemovalStripeVe
   if (removalStripeIdCount(ids) === 0) return verdict == null;
   return verdict === "inactive";
 }
+
+export type RemovalLivemode = boolean | "unknown" | "mixed";
+
+type PaymentModeRow = {
+  checkout_session_id: string | null;
+  payment_intent_id: string | null;
+  charge_id: string | null;
+  stripe_livemode: boolean | null;
+};
+
+/** The saved payment row decides the mode. A missing or conflicting flag is not guessed from the id. */
+export function removalLivemode(payments: PaymentModeRow[]): RemovalLivemode {
+  const relevant = payments.filter(
+    (payment) => payment.checkout_session_id || payment.payment_intent_id || payment.charge_id,
+  );
+  if (relevant.length === 0 || relevant.some((payment) => payment.stripe_livemode == null)) return "unknown";
+  const modes = new Set(relevant.map((payment) => payment.stripe_livemode));
+  if (modes.size !== 1) return "mixed";
+  return relevant[0].stripe_livemode === true;
+}
+
+export type RemovalStripeKeyName = "STRIPE_LIVE_SECRET_KEY" | "STRIPE_TEST_SECRET_KEY" | "STRIPE_SECRET_KEY";
+
+export type RemovalStripeSecret =
+  | { ok: true; name: RemovalStripeKeyName; secret: string }
+  | { ok: false; code: "mode_unknown" | "mode_mismatch" | "key_missing"; name: RemovalStripeKeyName | null };
+
+function idMode(value: string): boolean | null {
+  if (/^(?:cs|pi|ch)_live_/.test(value)) return true;
+  if (/^(?:cs|pi|ch)_test_/.test(value)) return false;
+  return null;
+}
+
+/**
+ * Pick the secret for a stored payment's saved mode.
+ * A live row uses only STRIPE_LIVE_SECRET_KEY. A failed or missing key is not replaced
+ * with another account. An id prefix can disagree with the saved mode, but it cannot supply one.
+ */
+export function removalStripeSecret(
+  livemode: RemovalLivemode,
+  ids: RemovalStripeIds,
+  env: Record<string, string | undefined>,
+): RemovalStripeSecret {
+  if (livemode !== true && livemode !== false) {
+    return { ok: false, code: "mode_unknown", name: null };
+  }
+  const prefixed = [...ids.sessions, ...ids.intents, ...ids.charges].map(idMode).filter((mode): mode is boolean => mode != null);
+  if (prefixed.some((mode) => mode !== livemode)) {
+    return { ok: false, code: "mode_mismatch", name: livemode ? "STRIPE_LIVE_SECRET_KEY" : "STRIPE_TEST_SECRET_KEY" };
+  }
+  if (livemode) {
+    const live = env.STRIPE_LIVE_SECRET_KEY ?? "";
+    if (!live.startsWith("sk_live_")) return { ok: false, code: "key_missing", name: "STRIPE_LIVE_SECRET_KEY" };
+    return { ok: true, name: "STRIPE_LIVE_SECRET_KEY", secret: live };
+  }
+  const dedicated = env.STRIPE_TEST_SECRET_KEY;
+  if (dedicated) {
+    if (!dedicated.startsWith("sk_test_")) return { ok: false, code: "key_missing", name: "STRIPE_TEST_SECRET_KEY" };
+    return { ok: true, name: "STRIPE_TEST_SECRET_KEY", secret: dedicated };
+  }
+  const current = env.STRIPE_SECRET_KEY ?? "";
+  if (!current.startsWith("sk_test_")) return { ok: false, code: "key_missing", name: "STRIPE_TEST_SECRET_KEY" };
+  return { ok: true, name: "STRIPE_SECRET_KEY", secret: current };
+}
+
+export function logMarketplaceRemoval(entry: {
+  stage: "removal_stripe_key" | "removal_stripe_retrieve" | "removal_rpc";
+  code: string;
+  stripeError: string | null;
+  key: RemovalStripeKeyName | null;
+}) {
+  console.info(JSON.stringify({
+    source: "marketplace_removal",
+    stage: entry.stage,
+    code: entry.code,
+    stripeError: entry.stripeError,
+    key: entry.key,
+  }));
+}
+
+export function removalStripeErrorCategory(error: unknown): string {
+  if (!error || typeof error !== "object") return "unknown";
+  const record = error as { code?: unknown; type?: unknown };
+  if (typeof record.code === "string" && /^[a-z0-9_]+$/i.test(record.code)) return record.code;
+  if (typeof record.type === "string" && /^[A-Za-z0-9_]+$/.test(record.type)) return record.type;
+  return "unknown";
+}

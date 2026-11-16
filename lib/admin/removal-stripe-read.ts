@@ -1,19 +1,20 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { isRemovalIntentId, type RemovalStripeIds, type RemovalStripeObject } from "./removal-stripe";
+import {
+  isRemovalIntentId,
+  logMarketplaceRemoval,
+  removalStripeErrorCategory,
+  removalStripeIdCount,
+  removalStripeSecret,
+  type RemovalLivemode,
+  type RemovalStripeIds,
+  type RemovalStripeObject,
+} from "./removal-stripe";
 
 export type RemovalStripeRead =
   | { ok: true; objects: RemovalStripeObject[]; verified: RemovalStripeIds }
   | { ok: false };
-
-function removalStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY ?? "";
-  if (!key.startsWith("sk_test_") && !key.startsWith("sk_live_")) {
-    throw new Error("Stripe is not configured.");
-  }
-  return new Stripe(key);
-}
 
 function intentIdOf(value: string | Stripe.PaymentIntent | null): string | null {
   if (!value) return null;
@@ -21,12 +22,29 @@ function intentIdOf(value: string | Stripe.PaymentIntent | null): string | null 
 }
 
 /**
- * Read checkout sessions, PaymentIntents, and charges.
- * This client is retrieve-only. It must not create, capture, cancel, or refund a payment.
+ * Read checkout sessions, PaymentIntents, and charges for the saved payment mode.
+ * This client is retrieve-only. It must not create, capture, cancel, expire, or refund a payment.
+ * A lookup that fails is not repeated with a different Stripe account.
  */
-export async function readRemovalStripeObjects(ids: RemovalStripeIds): Promise<RemovalStripeRead> {
+export async function readRemovalStripeObjects(
+  ids: RemovalStripeIds,
+  livemode: RemovalLivemode,
+): Promise<RemovalStripeRead> {
+  if (removalStripeIdCount(ids) === 0) {
+    return { ok: true, objects: [], verified: { sessions: [], intents: [], charges: [] } };
+  }
+  const selected = removalStripeSecret(livemode, ids, process.env);
+  if (!selected.ok) {
+    logMarketplaceRemoval({
+      stage: "removal_stripe_key",
+      code: selected.code,
+      stripeError: null,
+      key: selected.name,
+    });
+    return { ok: false };
+  }
+  const stripe = new Stripe(selected.secret);
   try {
-    const stripe = removalStripe();
     const objects: RemovalStripeObject[] = [];
     const sessions: string[] = [];
     const intents = new Set(ids.intents);
@@ -36,7 +54,15 @@ export async function readRemovalStripeObjects(ids: RemovalStripeIds): Promise<R
       const session = await stripe.checkout.sessions.retrieve(id);
       const discovered = intentIdOf(session.payment_intent);
       if (discovered) {
-        if (!isRemovalIntentId(discovered)) return { ok: false };
+        if (!isRemovalIntentId(discovered)) {
+          logMarketplaceRemoval({
+            stage: "removal_stripe_retrieve",
+            code: "stripe_unverified",
+            stripeError: "unexpected_id",
+            key: selected.name,
+          });
+          return { ok: false };
+        }
         intents.add(discovered);
       }
       objects.push({
@@ -74,7 +100,13 @@ export async function readRemovalStripeObjects(ids: RemovalStripeIds): Promise<R
       objects,
       verified: { sessions, intents: [...intents], charges: [...charges] },
     };
-  } catch {
+  } catch (error) {
+    logMarketplaceRemoval({
+      stage: "removal_stripe_retrieve",
+      code: "stripe_unverified",
+      stripeError: removalStripeErrorCategory(error),
+      key: selected.name,
+    });
     return { ok: false };
   }
 }

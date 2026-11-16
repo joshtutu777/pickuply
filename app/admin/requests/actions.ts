@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { isMarketplaceRemovalCode, marketplaceRemovalMessage } from "@/lib/admin/marketplace-removal";
 import { readRemovalStripeObjects } from "@/lib/admin/removal-stripe-read";
-import { canFinishRemoval, removalStripeIds, removalStripeVerdict } from "@/lib/admin/removal-stripe";
+import { canFinishRemoval, logMarketplaceRemoval, removalLivemode, removalStripeIds, removalStripeVerdict } from "@/lib/admin/removal-stripe";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { recordFunnelServer } from "@/lib/funnel-server";
@@ -148,7 +148,7 @@ export async function removeFromMarketplace(formData: FormData) {
 
   const [jobResult, paymentResult, attemptResult] = await Promise.all([
     supabase.from("jobs").select("payment_status, stripe_payment_intent_id").eq("id", target).maybeSingle(),
-    supabase.from("job_payments").select("checkout_session_id, payment_intent_id, charge_id").eq("job_id", target),
+    supabase.from("job_payments").select("checkout_session_id, payment_intent_id, charge_id, stripe_livemode").eq("job_id", target),
     supabase.from("payment_attempts").select("checkout_session_id, payment_intent_id").eq("job_id", target),
   ]);
   if (jobResult.error || paymentResult.error || attemptResult.error || !jobResult.data) {
@@ -169,7 +169,7 @@ export async function removeFromMarketplace(formData: FormData) {
 
   let verified = { sessions: [] as string[], intents: [] as string[], charges: [] as string[] };
   if (reason === "needs_stripe" || collected.ids.sessions.length + collected.ids.intents.length + collected.ids.charges.length > 0) {
-    const read = await readRemovalStripeObjects(collected.ids);
+    const read = await readRemovalStripeObjects(collected.ids, removalLivemode(paymentResult.data ?? []));
     const verdict = read.ok ? removalStripeVerdict(read.objects) : "unverified";
     if (!canFinishRemoval(collected.ids, verdict)) {
       removalError(path, verdict === "active" ? "stripe_active" : "stripe_unverified");
@@ -188,8 +188,13 @@ export async function removeFromMarketplace(formData: FormData) {
       verified_intents: verified.intents,
       verified_charges: verified.charges,
     });
-    if (!error) verifiedCode = typeof data === "string" ? data : "";
+    if (error) {
+      logMarketplaceRemoval({ stage: "removal_rpc", code: error.code || "rpc_error", stripeError: null, key: null });
+    } else {
+      verifiedCode = typeof data === "string" ? data : "";
+    }
   } catch {
+    logMarketplaceRemoval({ stage: "removal_rpc", code: "service_unavailable", stripeError: null, key: null });
     verifiedCode = null;
   }
   if (verifiedCode !== null) finishRemoval(path, verifiedCode);

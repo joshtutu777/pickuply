@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Stripe key selection for abandoned-request deletion (2026-11-16)
+
+A live Checkout session was being read with the test secret, so Stripe returned no session and the request stayed open. Verification now uses the livemode saved on the payment row. A live row is read only with STRIPE_LIVE_SECRET_KEY, and a test row uses the test secret. A missing mode or key stops the removal. Checkout, capture, refunds, and payouts are unchanged. No migration.
+
 ## Stripe id check for abandoned-request deletion (2026-11-16)
 
 Delete Request stopped before Stripe because a real Checkout id such as `cs_live_…` or `cs_test_…` contains an underscore. The id check now allows that character for Checkout sessions, PaymentIntents, and charges, and still rejects any other shape. Stripe is still retrieved before an abandoned request can be cancelled. An open checkout, a hold, a charge, a refund, or a dispute still blocks it. No migration.
