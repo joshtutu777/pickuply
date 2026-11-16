@@ -1,5 +1,13 @@
 # Pickuply progress
 
+## Driver mobile cards committed, not deployed (2026-11-15)
+
+The driver home uses compact cards. Offer entry is on `/driver/open/[id]`. A card with a stored offer shows that status and amount, and the button says View Request Details. The written description migration is deferred. No payment or image-conversion files are in this commit. Not deployed. A signed-in phone check was not run: local Docker is off, the synthetic driver accounts are not on the hosted project, and a production sign-in would send a text.
+
+## Driver dashboard compact cards, not deployed (2026-11-15)
+
+The driver home lists a short card for each open job: type, cities, trip distance, distance from the driver, pickup time, and Available. The offer box is on `/driver/open/[id]`. That page uses the same `submit_offer` and `claim_job` calls. It shows city and ZIP, item size, request photos, vehicle, people, and stairs. The written description, customer instructions, and street address stay hidden until the driver is assigned. Not deployed.
+
 ## Image conversion prepared, not deployed (2026-11-15)
 
 Uploads can be converted to JPEG when the server variable `PHOTO_CONVERSION` is `on`. Any other value keeps the previous browser upload path. This commit does not include the admin offer list. It does not change Stripe, payouts, or stored photos. No migration. Nothing was deployed.

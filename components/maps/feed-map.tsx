@@ -30,7 +30,7 @@ export function FeedMap({ jobs }: { jobs: { id: string; pickup_area: string }[] 
               lat: row.lat,
               lng: row.lng,
               label: `${row.city} ${row.zip}`,
-              href: job ? `/driver/jobs/${job.id}` : undefined,
+              href: job ? `/driver/open/${job.id}` : undefined,
             };
           }),
         );

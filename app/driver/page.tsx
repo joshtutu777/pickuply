@@ -136,7 +136,7 @@ async function DriverContent({
       supabase.from("platform_settings").select("platform_bps, platform_min_cents, service_bps, service_fixed_cents").eq("id", 1).maybeSingle(),
       supabase
         .from("job_offers")
-        .select("id, driver_amount_cents, platform_fee_cents, status")
+        .select("id, job_id, driver_amount_cents, platform_fee_cents, status")
         .eq("driver_id", session.userId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
@@ -152,7 +152,7 @@ async function DriverContent({
         }
       : defaultFeeSettings;
     return (
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full min-w-0 max-w-xl flex-1 overflow-x-clip px-4 py-4">
         <DriverHome
           isOnline={Boolean(application?.is_online)}
           userId={session.userId}
@@ -225,6 +225,9 @@ async function DriverContent({
                 <li key={offer.id} className="rounded-3xl bg-paper-raised p-3 ring-1 ring-line">
                   <p>Job Amount: {formatCents(offer.driver_amount_cents + offer.platform_fee_cents)}</p>
                   <p className="font-semibold">Your Estimated Earnings: {formatCents(offer.driver_amount_cents)}</p>
+                  <Link href={`/driver/open/${offer.job_id}`} className="mt-2 inline-flex min-h-12 items-center font-semibold text-brand">
+                    View details
+                  </Link>
                 </li>
               ))}
             </ul>
