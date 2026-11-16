@@ -50,6 +50,7 @@ export async function captureReadyPayment(jobId: string): Promise<CaptureOutcome
     await supabase.rpc("note_capture_expired", { target_job: jobId });
     return skipped;
   }
+  if (row.kind !== "full") return skipped;
 
   const stripe = getStripe();
   const existing = await stripe.paymentIntents.retrieve(row.payment_intent_id);
@@ -57,8 +58,8 @@ export async function captureReadyPayment(jobId: string): Promise<CaptureOutcome
     existing.status === "requires_capture"
       ? await stripe.paymentIntents.capture(
           row.payment_intent_id,
-          row.kind === "trip" || row.kind === "late_cancel" ? { amount_to_capture: row.amount_cents } : {},
-          { idempotencyKey: `capture:${row.payment_intent_id}:${row.kind}` },
+          {},
+          { idempotencyKey: `capture:${row.payment_intent_id}:full` },
         )
       : existing;
   if (intent.status !== "succeeded") return skipped;
@@ -99,8 +100,7 @@ export async function syncStripeFees(): Promise<void> {
   }
 }
 
-export async function releaseCustomerAuthorization(jobId: string): Promise<"free" | "released" | "late_cancel"> {
-  const supabase = createServiceClient();
+export async function releaseCustomerAuthorization(jobId: string): Promise<"free" | "released"> {
   const user = await createClient();
   const started = await user.rpc("begin_customer_cancel", { target_job: jobId });
   if (started.error || !started.data) {
@@ -111,9 +111,9 @@ export async function releaseCustomerAuthorization(jobId: string): Promise<"free
     payment_intent_id: string | null;
     checkout_session_id?: string | null;
   };
-  if (row.outcome === "late_cancel") {
-    await captureReadyPayment(jobId);
-    return "late_cancel";
+  if (row.outcome === "late_cancel" || row.outcome === "release") {
+    await releaseUncapturedHold(jobId);
+    return "released";
   }
   if (row.outcome === "free") {
     if (row.checkout_session_id || row.payment_intent_id) {
@@ -137,15 +137,86 @@ export async function releaseCustomerAuthorization(jobId: string): Promise<"free
     return "free";
   }
 
-  if (!row.payment_intent_id) throw new Error("The card hold could not be found.");
-  const stripe = getStripe();
-  const intent = await stripe.paymentIntents.retrieve(row.payment_intent_id);
-  if (intent.status !== "canceled") {
-    await stripe.paymentIntents.cancel(row.payment_intent_id, {}, { idempotencyKey: `cancel:${row.payment_intent_id}` });
+  return "free";
+}
+
+type ReleaseRow = {
+  job_id: string;
+  payment_intent_id: string | null;
+};
+
+export async function releaseUncapturedHold(jobId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const job = await supabase
+    .from("jobs")
+    .select("status, payment_status, captured_cents, assigned_driver_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (job.error) throw new Error("The card hold could not be checked.");
+  const row = job.data;
+  const releasable =
+    row != null &&
+    row.captured_cents == null &&
+    row.payment_status === "authorized" &&
+    (row.status === "cancelled" || (row.status === "open" && row.assigned_driver_id == null));
+  if (!releasable) return;
+
+  const stored = await supabase.rpc("stored_payment_intent", { target_job: jobId });
+  if (stored.error) {
+    if (stored.error.message.includes("stored_payment_intent")) return;
+    throw new Error("The card hold could not be checked.");
   }
-  const finished = await supabase.rpc("finish_released_cancel", { target_job: jobId });
-  if (finished.error) throw new Error("The card hold was released, but the job could not be cancelled.");
-  return "released";
+  let intentId = stored.data;
+  if (!intentId) {
+    const payment = await supabase.from("job_payments").select("checkout_session_id").eq("job_id", jobId).maybeSingle();
+    if (payment.error) throw new Error("The card hold could not be checked.");
+    const sessionId = payment.data?.checkout_session_id;
+    if (sessionId?.startsWith("cs_")) {
+      const session = await getStripe().checkout.sessions.retrieve(sessionId);
+      const paymentIntent = session.payment_intent;
+      intentId = typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id ?? null;
+    }
+  }
+  if (!intentId) {
+    const flagged = await supabase.rpc("flag_missing_payment_intent", { target_job: jobId });
+    if (flagged.error && !flagged.error.message.includes("flag_missing_payment_intent")) {
+      throw new Error("The card hold could not be flagged for review.");
+    }
+    return;
+  }
+
+  const stripe = getStripe();
+  let intent = await stripe.paymentIntents.retrieve(intentId);
+  if (intent.status === "succeeded") return;
+  if (intent.status !== "canceled") {
+    intent = await stripe.paymentIntents.cancel(intentId, {}, { idempotencyKey: `cancel:${intentId}` });
+  }
+  if (intent.status !== "canceled") return;
+
+  const noted = await supabase.rpc("release_uncaptured_hold", { target_job: jobId });
+  if (noted.error && !noted.error.message.includes("release_uncaptured_hold")) {
+    throw new Error("The card hold could not be released.");
+  }
+}
+
+export async function releaseHeldAuthorizations(): Promise<void> {
+  const supabase = createServiceClient();
+  const ready = await supabase.rpc("jobs_to_release_authorization");
+  if (ready.error) {
+    if (ready.error.message.includes("jobs_to_release_authorization")) return;
+    throw new Error("Card holds to release could not be listed.");
+  }
+  for (const row of (ready.data ?? []) as ReleaseRow[]) {
+    try {
+      await releaseUncapturedHold(row.job_id);
+    } catch (error) {
+      console.error(
+        "hold release will retry",
+        row.job_id,
+        error instanceof Error ? error.message : "unknown",
+      );
+    }
+  }
 }
 
 async function sendReceipt(jobId: string): Promise<void> {

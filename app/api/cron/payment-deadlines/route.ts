@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { runCron } from "@/lib/cron/record";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
+import { releaseHeldAuthorizations } from "@/lib/payments/capture";
 import { getStripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -48,6 +49,8 @@ export async function GET(request: Request) {
       const released = await supabase.rpc("release_overdue_job", { target_job: row.job_id });
       if (released.error) throw new Error("An overdue job could not be released.");
     }
+
+    await releaseHeldAuthorizations();
 
     const flagged = await supabase.rpc("flag_capture_windows");
     if (flagged.error) throw new Error("Capture windows could not be checked.");

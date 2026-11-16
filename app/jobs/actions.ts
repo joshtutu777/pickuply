@@ -3,7 +3,7 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
-import { captureReadyPayment, releaseCustomerAuthorization } from "@/lib/payments/capture";
+import { captureReadyPayment, releaseCustomerAuthorization, releaseUncapturedHold } from "@/lib/payments/capture";
 import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,9 +57,9 @@ export async function decidePickup(formData: FormData) {
   }
   if (decision === "reject") {
     try {
-      await captureReadyPayment(jobId);
+      await releaseUncapturedHold(jobId);
     } catch {
-      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The item was rejected. The trip fee still needs to be captured.")}`);
+      redirect(`/jobs/${jobId}?error=${encodeURIComponent("The item was rejected. The card hold still needs to be released.")}`);
     }
   }
   redirect(`/jobs/${jobId}`);

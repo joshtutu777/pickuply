@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  fees,
   itemSizes,
   junkLoadSizes,
   maxPhotos,
@@ -1255,7 +1254,7 @@ function ReviewStep({
         onChange={(value) => update("customerEmail", value)}
       />
       <p className="text-base leading-relaxed text-ink">
-        Late cancel fee {formatCents(fees.lateCancelFeeCents)}. Trip fee {formatCents(fees.tripFeeCents)}.{" "}
+        During this launch there is no cancellation, no-show, or rejected-item penalty. Your card is held when you confirm a booking and charged after delivery.{" "}
         <Link href="/terms" className="font-semibold text-brand underline">
           Terms, fees, and prohibited items
         </Link>

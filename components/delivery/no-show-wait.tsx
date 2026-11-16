@@ -28,7 +28,7 @@ export function NoShowWait({ jobId, arrivedAt }: { jobId: string; arrivedAt: str
   return (
     <form action={reportCustomerNoShow} className="mt-3 grid gap-2">
       <p className="text-base text-ink">
-        15 minutes have passed. You can report a customer no-show after adding a photo of the wait. Pickuply reviews it before any fee.
+        15 minutes have passed. You can report a customer no-show after adding a photo of the wait. There is no no-show charge. A pending card hold can take extra time to leave the bank.
       </p>
       <input type="hidden" name="jobId" value={jobId} />
       <button

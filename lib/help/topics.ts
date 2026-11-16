@@ -35,7 +35,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "Is there a cancel fee?",
-        a: "Before a driver is assigned, canceling is free and any card hold is released. After a driver is assigned, a late cancel is one $15 charge from the existing hold. If the driver is already on the way, $10 goes to the driver and $5 stays with Pickuply. If the driver has not started, Pickuply keeps the $15. If the card was not authorized yet, there is no fee.",
+        a: "During this launch, canceling does not add a penalty. That includes a cancellation after a driver is assigned, a customer no-show, and a driver no-show. If your card was authorized, Pickuply cancels that hold. Your bank can take extra time to remove a pending authorization.",
       },
       {
         q: "Can I reschedule?",
@@ -49,7 +49,7 @@ export const customerTopics: HelpTopic[] = [
     questions: [
       {
         q: "What if the item is wrong?",
-        a: "You can reject the item at the pickup check. The trip fee is $25, and that is the only capture. The rest of the authorization is released.",
+        a: "You can reject the item at the pickup check. That does not add a penalty charge. If your card was authorized, Pickuply cancels that hold. Your bank can take extra time to remove the pending authorization.",
       },
     ],
   },

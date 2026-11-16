@@ -14,7 +14,7 @@ test("a completed job earns the driver pay and not the dump estimate", () => {
   );
 });
 
-test("a rejected pickup earns the trip fee and not the dump estimate", () => {
+test("a rejected pickup does not earn a penalty", () => {
   assert.equal(
     driverEarningCents({
       completed: false,
@@ -22,7 +22,7 @@ test("a rejected pickup earns the trip fee and not the dump estimate", () => {
       tripFeeCents: 2500,
       dumpFeeCents: 4500,
     }),
-    2500,
+    null,
   );
 });
 

@@ -6,8 +6,8 @@ test("a full capture takes the customer total", () => {
   assert.equal(captureCents({ kind: "full", priceCents: 5175, tripFeeCents: 2500 }), 5175);
 });
 
-test("a rejected item captures only the trip fee", () => {
-  assert.equal(captureCents({ kind: "trip", priceCents: 5175, tripFeeCents: 2500 }), 2500);
+test("a rejected item does not capture a penalty", () => {
+  assert.equal(captureCents({ kind: "trip", priceCents: 5175, tripFeeCents: 2500 }), 0);
 });
 
 test("a partial refund before transfer reduces the ledger and creates no recovery", () => {

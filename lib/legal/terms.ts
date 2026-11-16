@@ -31,7 +31,7 @@ export const termsSections: LegalSection[] = [
     paragraphs: [
       "A customer creates a request. Eligible drivers can submit offers. A job can have up to five active offers. Minimum offer amounts are set by Pickuply and can be changed in settings. Submitting an offer does not assign the job and does not book it.",
       "The customer must choose a driver. Choosing that offer assigns only that driver and declines the other active offers. The customer then sees the full price and confirms the booking.",
-      "An admin can still send a quote on a quote request. The customer must accept that quote before drivers see it. A driver claim on an accepted quote assigns that driver and starts the payment window. A posted fixed price can still be accepted as posted. Those paths are separate from an ordinary offer, which is never an automatic booking.",
+      "Drivers can send a quote on a Get a quote request as soon as it is posted. The customer chooses which quote to book. An admin can still send a price. Accepting that price lets a driver claim the job and starts the payment window. A posted fixed price can still be accepted as posted. An offer is never an automatic booking.",
     ],
   },
   {
@@ -56,7 +56,7 @@ export const termsSections: LegalSection[] = [
     id: "cancellations",
     heading: "Cancellations and refunds",
     paragraphs: [
-      "Whether money comes back depends on whether a driver is assigned, whether work has started, and whether a charge has already been captured. These Terms do not add a cancellation penalty beyond what the booking screen shows.",
+      "During this launch, Pickuply does not charge a cancellation, no-show, or rejected-item penalty. Canceling a booking cancels an uncaptured card authorization. A bank can take additional time to remove a pending authorization. A completed delivery can still be charged the agreed booking total. A charge that was already captured is not refunded automatically.",
       "Contact info@pickuplyapp.com for help with a cancellation or a refund question.",
     ],
   },

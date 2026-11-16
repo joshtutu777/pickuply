@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CookieSettingsLink } from "@/components/analytics/cookie-settings-link";
 import { TrackedLink } from "@/components/analytics/tracked-link";
 import { BetaBadge } from "@/components/beta-badge";
+import { PaymentProtection } from "@/components/payments/payment-protection";
 import { InstallButton } from "@/components/pwa/install-button";
 import type { ReactNode } from "react";
 
@@ -171,6 +172,8 @@ export function LandingPage({ blog = null, account }: { blog?: ReactNode; accoun
             </div>
           </div>
         </section>
+
+        <PaymentProtection place="home" />
 
         <section aria-label="Why Pickuply" className="bg-[#14211B] text-[#FFFDF8]">
           <div className="mx-auto flex max-w-[1160px] flex-wrap justify-center gap-x-14 gap-y-5 px-6 py-7 font-display text-[26px] font-semibold">

@@ -4,7 +4,7 @@ export function captureCents(input: {
   priceCents: number;
   tripFeeCents: number;
 }): number {
-  if (input.kind === "trip") return Math.min(input.tripFeeCents, input.priceCents);
+  if (input.kind === "trip") return 0;
   return input.priceCents;
 }
 

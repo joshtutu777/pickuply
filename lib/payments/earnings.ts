@@ -1,13 +1,15 @@
-/** Driver earnings are the quoted or offered pay, or the trip fee. Disposal is not added. */
+/** Driver earnings are the agreed pay after a completed delivery. A cancellation or rejection does not earn a penalty. Disposal is not added. */
 export function driverEarningCents(input: {
   completed: boolean;
   driverPayCents: number | null;
   tripFeeCents: number | null;
   dumpFeeCents: number | null;
 }): number | null {
-  const amount = input.completed ? input.driverPayCents : input.tripFeeCents;
-  if (amount == null || amount <= 0) return null;
-  return amount;
+  void input.tripFeeCents;
+  void input.dumpFeeCents;
+  if (!input.completed) return null;
+  if (input.driverPayCents == null || input.driverPayCents <= 0) return null;
+  return input.driverPayCents;
 }
 
 export type EarningsAvailability = {

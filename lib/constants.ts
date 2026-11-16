@@ -100,13 +100,13 @@ export const trustPoints = [
   "Card charged after delivery",
 ] as const;
 
-/** Locked v1 policies. Offer math lives in lib/fees.ts and platform_settings. These defaults are not added again on the request form. */
+/** Offer math lives in lib/fees.ts and platform_settings. Cancellation and no-show penalties are off during launch. These defaults are not added again on the request form. */
 export const fees = {
   currency: "USD",
   minimumCents: 3_500,
   junkMinimumCents: 5_000,
-  lateCancelFeeCents: 1_500,
-  tripFeeCents: 2_500,
+  lateCancelFeeCents: 0,
+  tripFeeCents: 0,
   damageCoverageLimitCents: 25_000,
   itemValueCapCents: 100_000,
   platformFeeRate: 0.15,
@@ -178,7 +178,7 @@ export const hearAboutOptions = [
 export type HearAbout = (typeof hearAboutOptions)[number]["id"];
 
 export const quotePricingCopy =
-  "Pickuply sends a price. You accept it before drivers see the job. Nothing is charged until a driver is booked.";
+  "Drivers see this request and send a quote. You choose who to book. Nothing is charged until you confirm.";
 
 export const driverPricingCopy =
   "Drivers can accept your price or send a counteroffer. You choose who to book. Nothing is charged until you accept.";
@@ -215,6 +215,8 @@ export const privacyAreaNote =
 export const maxPhotos = 8;
 export const photoMaxEdgePx = 1600;
 export const photoMaxBytes = 5 * 1024 * 1024;
+/** A phone camera file can be much larger than the picture we store. */
+export const photoSourceMaxBytes = 80 * 1024 * 1024;
 export const videoMaxSeconds = 30;
 export const videoMaxBytes = 8 * 1024 * 1024;
 
