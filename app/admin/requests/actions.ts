@@ -3,10 +3,13 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { isMarketplaceRemovalCode, marketplaceRemovalMessage } from "@/lib/admin/marketplace-removal";
+import { readRemovalStripeObjects } from "@/lib/admin/removal-stripe-read";
+import { canFinishRemoval, removalStripeIds, removalStripeVerdict } from "@/lib/admin/removal-stripe";
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { recordFunnelServer } from "@/lib/funnel-server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 const detailItems = ["stairs", "size", "pieces", "item_value", "access_notes", "photos"] as const;
 
@@ -113,6 +116,17 @@ function requestPath(value: FormDataEntryValue | null): string {
   return path;
 }
 
+function removalError(path: string, code: string): never {
+  redirect(`${path}?error=${encodeURIComponent(marketplaceRemovalMessage(isMarketplaceRemovalCode(code) ? code : ""))}`);
+}
+
+function finishRemoval(path: string, code: string): never {
+  if (code === "removed" || code === "already_removed") {
+    redirect(`${path}?removed=${code === "already_removed" ? "already" : "1"}`);
+  }
+  removalError(path, code);
+}
+
 export async function removeFromMarketplace(formData: FormData) {
   await connection();
   const path = requestPath(formData.get("returnTo"));
@@ -124,15 +138,66 @@ export async function removeFromMarketplace(formData: FormData) {
     redirect(`${path}?error=${encodeURIComponent("Choose a request.")}`);
   }
   const supabase = await createClient();
+  const { data: reason, error: reasonError } = await supabase.rpc("marketplace_removal_reason", { target });
+  if (reasonError || typeof reason !== "string") removalError(path, "");
+  if (reason !== "ready" && reason !== "needs_stripe") removalError(path, reason);
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const actor = userData.user?.id ?? "";
+  if (userError || !/^[0-9a-f-]{36}$/i.test(actor)) removalError(path, "");
+
+  const [jobResult, paymentResult, attemptResult] = await Promise.all([
+    supabase.from("jobs").select("payment_status, stripe_payment_intent_id").eq("id", target).maybeSingle(),
+    supabase.from("job_payments").select("checkout_session_id, payment_intent_id, charge_id").eq("job_id", target),
+    supabase.from("payment_attempts").select("checkout_session_id, payment_intent_id").eq("job_id", target),
+  ]);
+  if (jobResult.error || paymentResult.error || attemptResult.error || !jobResult.data) {
+    if (reason === "ready") {
+      const { data, error } = await supabase.rpc("admin_remove_from_marketplace", { target });
+      if (error) removalError(path, "");
+      finishRemoval(path, typeof data === "string" ? data : "");
+    }
+    removalError(path, "stripe_unverified");
+  }
+  const collected = removalStripeIds({
+    jobIntent: jobResult.data.stripe_payment_intent_id,
+    payments: paymentResult.data ?? [],
+    attempts: attemptResult.data ?? [],
+  });
+  if (!collected.ok) removalError(path, "stripe_unverified");
+  const observed = jobResult.data.payment_status ?? "";
+
+  let verified = { sessions: [] as string[], intents: [] as string[], charges: [] as string[] };
+  if (reason === "needs_stripe" || collected.ids.sessions.length + collected.ids.intents.length + collected.ids.charges.length > 0) {
+    const read = await readRemovalStripeObjects(collected.ids);
+    const verdict = read.ok ? removalStripeVerdict(read.objects) : "unverified";
+    if (!canFinishRemoval(collected.ids, verdict)) {
+      removalError(path, verdict === "active" ? "stripe_active" : "stripe_unverified");
+    }
+    if (read.ok) verified = read.verified;
+  }
+
+  let verifiedCode: string | null = null;
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.rpc("admin_remove_verified_marketplace", {
+      target,
+      actor,
+      observed_payment_status: observed,
+      verified_sessions: verified.sessions,
+      verified_intents: verified.intents,
+      verified_charges: verified.charges,
+    });
+    if (!error) verifiedCode = typeof data === "string" ? data : "";
+  } catch {
+    verifiedCode = null;
+  }
+  if (verifiedCode !== null) finishRemoval(path, verifiedCode);
+  if (reason !== "ready") removalError(path, "");
+
   const { data, error } = await supabase.rpc("admin_remove_from_marketplace", { target });
-  if (error) {
-    redirect(`${path}?error=${encodeURIComponent("The request could not be removed from the marketplace.")}`);
-  }
-  const code = typeof data === "string" ? data : "";
-  if (code === "removed" || code === "already_removed") {
-    redirect(`${path}?removed=${code === "already_removed" ? "already" : "1"}`);
-  }
-  redirect(`${path}?error=${encodeURIComponent(marketplaceRemovalMessage(isMarketplaceRemovalCode(code) ? code : ""))}`);
+  if (error) removalError(path, "");
+  finishRemoval(path, typeof data === "string" ? data : "");
 }
 
 export async function overrideJobStatus(formData: FormData) {

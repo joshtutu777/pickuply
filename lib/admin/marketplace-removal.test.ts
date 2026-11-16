@@ -9,5 +9,9 @@ test("marketplace removal messages name the blocker", () => {
   assert.match(marketplaceRemovalMessage("has_driver"), /driver is assigned/);
   assert.match(marketplaceRemovalMessage("has_payment"), /payment/);
   assert.match(marketplaceRemovalMessage("has_dispute"), /dispute/);
+  assert.match(marketplaceRemovalMessage("needs_stripe"), /Stripe/);
+  assert.match(marketplaceRemovalMessage("payment_changed"), /changed/);
+  assert.match(marketplaceRemovalMessage("stripe_active"), /card hold/);
+  assert.match(marketplaceRemovalMessage("stripe_unverified"), /could not be checked/);
   assert.match(marketplaceRemovalMessage("other"), /could not be removed/);
 });

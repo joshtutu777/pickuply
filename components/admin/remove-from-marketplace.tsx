@@ -15,14 +15,18 @@ export function RemoveFromMarketplace({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
-  const eligible = reason === "ready";
+  const eligible = reason === "ready" || reason === "needs_stripe";
 
   return (
     <section className="mt-8 rounded-3xl border border-danger/40 bg-paper p-4">
       <h2 className="font-display text-2xl font-semibold text-ink">Remove from Marketplace</h2>
       {eligible ? (
         <p className="mt-2 text-base text-ink">
-          This takes the request off the driver list and closes open offers. The request and its history stay. A driver, a card hold, a charge, a refund, or a dispute blocks this.
+          This takes the request off the driver list and closes open offers. The request and its history stay.
+          {reason === "needs_stripe"
+            ? " Stripe is checked before the request is removed."
+            : ""}{" "}
+          A driver, an active card hold, a charge, a refund, or a dispute still blocks this.
         </p>
       ) : (
         <p className="mt-2 text-base text-ink">{marketplaceRemovalMessage(reason)}</p>

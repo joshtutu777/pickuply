@@ -4,6 +4,10 @@
 
 Next.js and eslint-config-next moved from 16.4.2 to 16.4.5, the November 2026 security release. React and React DOM stay at 19.3.0. No application, payment, or database code changed. Not deployed.
 
+## Abandoned checkout removal prepared, not deployed (2026-11-16)
+
+An admin can remove an open request when its only money records are an abandoned, failed, or expired checkout, after Stripe confirms each stored object is inactive. Active holds, captures, refunds, disputes, assigned drivers, ledger rows, and payouts still block removal. Payment attempts and ledger rows stay. Migration 0142 is written and not applied. Not deployed.
+
 ## Remove from Marketplace restored, not deployed (2026-11-16)
 
 The admin request page again shows Remove from Marketplace. It was in the November 7 release and was left out of later production builds. This commit puts that screen and server action back on production commit 6246c1f. The hosted functions already match that SQL, so no migration was applied. The button cancels an open, unassigned request with no payment, dispute, or payout record. The job, offers, payments, and audit rows stay. Not deployed.
