@@ -263,6 +263,12 @@ export function visibleOfferTally(_status: string, tally: OfferTally): OfferTall
   return tally;
 }
 
+/** How many offers have come in for a request, including ones that are no longer active. */
+export function offersReceivedLabel(count: number): string {
+  if (count === 1) return "1 received";
+  return `${count} received`;
+}
+
 export function offerActivityLabel(tally: OfferTally): string {
   if (tally.open === 0 && tally.expired === 0 && tally.closed === 0) return "No offers yet";
   const parts: string[] = [];

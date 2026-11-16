@@ -7,6 +7,7 @@ import {
   filterJobs,
   firstName,
   parseRequestFilters,
+  offersReceivedLabel,
   paymentStatusLabel,
   pricingAmount,
   pricingMethodLabel,
@@ -107,6 +108,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
                   <th className="px-3">Pickup city</th>
                   <th className="px-3">Pricing</th>
                   <th className="px-3">Status</th>
+                  <th className="px-3">Offers</th>
                   <th className="px-3">Payment</th>
                   <th className="px-3">Driver</th>
                   <th className="px-3">Action</th>
@@ -132,6 +134,7 @@ async function Requests({ searchParams }: { searchParams: PageProps<"/admin/requ
                     <td className="px-3 py-3">
                       <StatusChip value={job.status} />
                     </td>
+                    <td className="px-3 py-3">{offersReceivedLabel(job.offerCount)}</td>
                     <td className="px-3 py-3">
                       <StatusChip value={job.paymentStatus} kind="payment" />
                     </td>
@@ -168,6 +171,7 @@ function RequestFacts({ job, driverName, now }: { job: AdminJob; driverName: str
         <StatusChip value={job.paymentStatus} kind="payment" />
       </div>
       <p className="text-base text-ink">{driverName ? `Driver ${driverName}` : "Unassigned"}</p>
+      <p className="text-base text-ink">Offers {offersReceivedLabel(job.offerCount)}</p>
       {job.status === "open" && !job.assignedDriverId && now - Date.parse(job.openedAt ?? job.createdAt) >= 20 * 60 * 1000 ? (
         <p className="text-base font-semibold text-danger">No driver yet</p>
       ) : null}

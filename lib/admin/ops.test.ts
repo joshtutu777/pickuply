@@ -13,6 +13,7 @@ import {
   offerAmountCents,
   offerCanBeChosen,
   offerExpirationPassed,
+  offersReceivedLabel,
   offerStatusLabel,
   openWithoutOffers,
   paymentNearDeadline,
@@ -223,6 +224,12 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/blog", ""), "blog");
   assert.equal(adminNavCurrent("/admin/support", ""), "support");
   assert.equal(adminNavCurrent("/admin/blog/new", ""), "blog");
+});
+
+test("the requests list shows how many offers were received", () => {
+  assert.equal(offersReceivedLabel(0), "0 received");
+  assert.equal(offersReceivedLabel(1), "1 received");
+  assert.equal(offersReceivedLabel(4), "4 received");
 });
 
 test("request details keep every offer status and separate a passed expiration from selectability", () => {
