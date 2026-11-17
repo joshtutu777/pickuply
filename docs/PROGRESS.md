@@ -6,7 +6,7 @@ Checkout, capture, refunds, deadlines, Connect onboarding, and driver transfers 
 
 ## Conversion events prepared, not deployed (2026-11-17)
 
-All four services use the same request form and the same checkout. A saved request, a live checkout session, and a verified live card authorization each push one consent-gated dataLayer event. The event id is a hash, not the job id or a Stripe id. A checkout retry gets its own id. The authorization event is named Purchase for Meta and payment_authorized for GA4, because the card is held and not yet captured. The published container still needs tags for pixel 1129937532824615. Not deployed.
+All four services use the same request form and the same checkout. A saved request, a live checkout session, and a verified live card authorization each push one consent-gated dataLayer event. The event id is a hash, not the job id or a Stripe id. A checkout retry gets its own id. The authorization event is named Purchase for Meta and payment_authorized for GA4, because the card is held and not yet captured. The tags for pixel 1129937532824615 are in `gtm/pickuply-conversion-workspace.json` for a new Tag Manager workspace. They are not published. New checkout sessions still come from the test Stripe client, so the live checkout and purchase events stay quiet. Not deployed.
 
 ## Stripe key selection for abandoned-request deletion (2026-11-16)
 
