@@ -5,40 +5,33 @@ import { createClient } from "../supabase/client";
 import type { RequestDraft } from "../types";
 import { saveJobPlaces } from "../maps/save-places";
 import { requestPayload } from "./request-payload";
+import { clearSubmissionId, submissionId, supabaseFailureDetail, type RequestSaveStage } from "./request-save";
 
-const submissionKey = "pickuply.submission-id";
+export { clearSubmissionId, submissionId };
 
 export class RequestSubmitError extends Error {
   readonly code: "auth" | "missing-photo" | "upload" | "rejected" | "network";
   readonly missingPhotoIds: string[];
+  readonly stage: RequestSaveStage;
+  readonly supabaseCode: string | null;
+  readonly safeDetail: string | null;
 
   constructor(
     code: RequestSubmitError["code"],
     message: string,
     missingPhotoIds: string[] = [],
+    detail?: { stage: RequestSaveStage; supabaseCode?: string | null; safeDetail?: string | null },
   ) {
     super(message);
     this.code = code;
     this.missingPhotoIds = missingPhotoIds;
+    this.stage = detail?.stage ?? "database";
+    this.supabaseCode = detail?.supabaseCode ?? null;
+    this.safeDetail = detail?.safeDetail ?? null;
   }
 }
 
 export type PhotoProgress = "waiting" | "uploading" | "done" | "error";
-
-/** One id per browser tab so a retry continues the same job. */
-export function submissionId(): string {
-  const existing = sessionStorage.getItem(submissionKey);
-  if (existing && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existing)) {
-    return existing;
-  }
-  const id = crypto.randomUUID();
-  sessionStorage.setItem(submissionKey, id);
-  return id;
-}
-
-export function clearSubmissionId(): void {
-  sessionStorage.removeItem(submissionKey);
-}
 
 function photoPath(jobId: string, photoId: string): string {
   return `${jobId}/request/${photoId}.jpg`;
@@ -62,7 +55,12 @@ export async function createRequest(
   const supabase = createClient();
   const user = await supabase.auth.getUser();
   if (user.error || !user.data.user) {
-    throw new RequestSubmitError("auth", "Sign in again before saving this request.");
+    throw new RequestSubmitError(
+      "auth",
+      "Sign in again before saving this request.",
+      [],
+      supabaseFailureDetail("auth", user.error),
+    );
   }
 
   const email = draft.customerEmail.trim();
@@ -74,6 +72,8 @@ export async function createRequest(
         saved.error.message.includes("email is not valid")
           ? "Enter a valid email, or leave it blank."
           : "We couldn't save this request. Your draft is still here.",
+        [],
+        supabaseFailureDetail("profile", saved.error),
       );
     }
   }
@@ -99,24 +99,29 @@ export async function createRequest(
   }
   if (created.error || !created.data) {
     const message = created.error?.message ?? "";
+    const detail = supabaseFailureDetail(created.error ? "database" : "response", created.error);
     if (/sign in required|jwt|session/i.test(message)) {
-      throw new RequestSubmitError("auth", "Sign in again before saving this request.");
+      throw new RequestSubmitError("auth", "Sign in again before saving this request.", [], detail);
     }
     if (/Georgia ZIP/i.test(message)) {
-      throw new RequestSubmitError("rejected", "Pickuply currently serves Georgia ZIP codes only.");
+      throw new RequestSubmitError("rejected", "Pickuply currently serves Georgia ZIP codes only.", [], detail);
     }
     if (/already saved with different details/i.test(message)) {
       throw new RequestSubmitError(
         "rejected",
         "This request was already saved. Start over to send a new one. The saved request was not changed.",
+        [],
+        detail,
       );
     }
     if (/failed to fetch|network|timeout/i.test(message)) {
-      throw new RequestSubmitError("network", "We couldn't reach Pickuply. Your draft is still here.");
+      throw new RequestSubmitError("network", "We couldn't reach Pickuply. Your draft is still here.", [], detail);
     }
     throw new RequestSubmitError(
       "rejected",
       "We couldn't save this request. Your draft is still here.",
+      [],
+      detail,
     );
   }
 
@@ -137,7 +142,12 @@ export async function createRequest(
     .eq("job_id", id)
     .eq("stage", "request");
   if (recorded.error) {
-    throw new RequestSubmitError("network", "We couldn't check the photos. Your draft is still here.");
+    throw new RequestSubmitError(
+      "network",
+      "We couldn't check the photos. Your draft is still here.",
+      [],
+      supabaseFailureDetail("photos", recorded.error),
+    );
   }
   const done = new Set((recorded.data ?? []).map((row) => row.storage_path));
   const missing: string[] = [];

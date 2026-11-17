@@ -216,8 +216,10 @@ test("conversion calls sit after the business action succeeds", () => {
   const wizard = readFileSync(new URL("../../components/request/request-wizard.tsx", import.meta.url), "utf8");
   const pay = readFileSync(new URL("../../components/request/pay-panel.tsx", import.meta.url), "utf8");
   const signals = readFileSync(new URL("../../components/analytics/job-signals.tsx", import.meta.url), "utf8");
-  assert.ok(wizard.indexOf("await createRequest") < wizard.indexOf("await leadConversion"));
+  assert.ok(wizard.indexOf("await createRequest") < wizard.indexOf("setSentId(job.id)"));
+  assert.ok(wizard.indexOf("setSentId(job.id)") < wizard.indexOf("await leadConversion"));
   assert.equal(wizard.includes("saved: true"), true);
+  assert.equal(wizard.includes("trackSavedRequest"), true);
   assert.ok(pay.indexOf("await startCheckout") < pay.indexOf("await checkoutConversion"));
   assert.equal(pay.includes("onSubmit"), false);
   assert.equal(signals.includes("paid=return"), false);

@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Request save stays successful when analytics fails (2026-11-17)
+
+The success screen appears as soon as the database accepts the request. Analytics and draft cleanup run afterward and cannot turn a saved request into a failure. A rejection shows a short stage and database code. Emails, phone numbers, addresses, and tokens are left out. Checkout, capture, and webhooks are unchanged.
+
 ## Live payment selection deployed (2026-11-17)
 
 Checkout, capture, refunds, deadlines, Connect onboarding, and driver transfers follow the Stripe mode. New charges use PAYMENTS_MODE, and an existing payment uses the mode saved on its row. A new live charge requires PAID_BOOKINGS_ENABLED to be exactly true. Production is c05fd8e. No migration.

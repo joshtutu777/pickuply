@@ -20,6 +20,7 @@ import {
 import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
+import { submitErrorText, trackSavedRequest } from "@/lib/data/request-save";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
@@ -422,41 +423,48 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
   async function saveRequest() {
     setSubmitting(true);
     setFormError(null);
+    let job: { id: string };
     try {
-      const job = await createRequest(draft, photoIds, (photoId, state) => {
+      job = await createRequest(draft, photoIds, (photoId, state) => {
         setPhotoProgress((current) => ({ ...current, [photoId]: state }));
       });
-      clearStoredDraft();
-      clearSubmissionId();
-      await Promise.all(photoIds.map((id) => deletePhoto(id).catch(() => undefined)));
-      void recordFunnel({
-        event: "request_submitted",
-        step: "submitted",
-        service: draft.service || null,
-        pricing: draft.pricingMethod || null,
-      });
-      pushTrackingEvent("delivery_request_created", `delivery_request_created:${job.id}`, {
-        service: draft.service || "",
-      });
-      const lead = await leadConversion({
-        jobId: job.id,
-        service: draft.service,
-        isTest: false,
-        saved: true,
-      });
-      if (lead) pushConversion(lead, lead.eventId);
-      setSentId(job.id);
-      setSubmitting(false);
     } catch (error) {
       if (error instanceof RequestSubmitError) {
         if (error.code === "missing-photo") setMissingPhotos(error.missingPhotoIds);
         if (error.code === "auth") setSignedIn(false);
-        setFormError(error.message);
+        setFormError(submitErrorText(error));
       } else {
-        setFormError("We couldn't save this request. Your draft is still here.");
+        setFormError("We couldn't save this request. Your draft is still here. Reference: client.");
       }
       setSubmitting(false);
+      return;
     }
+    setSentId(job.id);
+    setSubmitting(false);
+    const savedService = draft.service;
+    const savedPricing = draft.pricingMethod;
+    const savedPhotoIds = [...photoIds];
+    void trackSavedRequest(async () => {
+      clearStoredDraft();
+      clearSubmissionId();
+      await Promise.all(savedPhotoIds.map((id) => deletePhoto(id).catch(() => undefined)));
+      void recordFunnel({
+        event: "request_submitted",
+        step: "submitted",
+        service: savedService || null,
+        pricing: savedPricing || null,
+      });
+      pushTrackingEvent("delivery_request_created", `delivery_request_created:${job.id}`, {
+        service: savedService || "",
+      });
+      const lead = await leadConversion({
+        jobId: job.id,
+        service: savedService,
+        isTest: false,
+        saved: true,
+      });
+      if (lead) pushConversion(lead, lead.eventId);
+    });
   }
 
   if (sentId) {
