@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import type { StripeEnvName } from "@/lib/payments/payments-mode";
 import { stripeWebhookEvent } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -8,7 +9,7 @@ type ServiceClient = ReturnType<typeof createServiceClient>;
 
 export async function readStripeEvent(
   request: Request,
-  secretName: "STRIPE_WEBHOOK_SECRET" | "STRIPE_CONNECT_WEBHOOK_SECRET",
+  secretName: StripeEnvName,
 ): Promise<Stripe.Event | NextResponse> {
   await connection();
   const payload = await request.text();

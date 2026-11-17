@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Live payment selection restored locally, not deployed (2026-11-17)
+
+Checkout, capture, refunds, deadlines, Connect onboarding, and driver transfers again follow the Stripe mode. New charges use PAYMENTS_MODE, and an existing payment uses the mode saved on its row. A new live charge still requires PAID_BOOKINGS_ENABLED to be exactly true. No migration. Not deployed.
+
 ## Stripe key selection for abandoned-request deletion (2026-11-16)
 
 A live Checkout session was being read with the test secret, so Stripe returned no session and the request stayed open. Verification now uses the livemode saved on the payment row. A live row is read only with STRIPE_LIVE_SECRET_KEY, and a test row uses the test secret. A missing mode or key stops the removal. Checkout, capture, refunds, and payouts are unchanged. No migration.

@@ -2,7 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { captureReadyPayment } from "@/lib/payments/capture";
-import { getStripe } from "@/lib/stripe";
+import { getStripeForRecordedMode } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const handled = new Set([
@@ -19,6 +19,9 @@ const handled = new Set([
   "refund.created",
   "refund.updated",
   "charge.refunded",
+  "transfer.created",
+  "transfer.updated",
+  "transfer.reversed",
 ]);
 
 export function isPlatformPaymentEvent(type: string): boolean {
@@ -31,7 +34,7 @@ async function chargeDetails(intent: Stripe.PaymentIntent): Promise<{ id: string
   const latest = intent.latest_charge;
   const id = typeof latest === "string" ? latest : latest?.id ?? null;
   if (!id) return { id: null, captureBefore: null };
-  const charge = typeof latest === "object" && latest ? latest : await getStripe().charges.retrieve(id);
+  const charge = typeof latest === "object" && latest ? latest : await getStripeForRecordedMode(intent.livemode).charges.retrieve(id);
   const card = charge.payment_method_details?.card as ChargeCard | null | undefined;
   const unix = card?.capture_before ?? null;
   return { id, captureBefore: unix ? new Date(unix * 1000).toISOString() : null };
@@ -56,23 +59,22 @@ async function acceptOrRelease(intent: Stripe.PaymentIntent): Promise<void> {
   if (marked.error) throw new Error(marked.error.message);
   if (result.data === "released_late" || result.data === "duplicate") {
     try {
-      await getStripe().paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
+      await getStripeForRecordedMode(intent.livemode).paymentIntents.cancel(intent.id, {}, { idempotencyKey: `cancel:${intent.id}` });
     } catch {
-      const current = await getStripe().paymentIntents.retrieve(intent.id);
+      const current = await getStripeForRecordedMode(intent.livemode).paymentIntents.retrieve(intent.id);
       if (current.status !== "canceled") throw new Error("The card hold could not be released.");
     }
   }
 }
 
 export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<void> {
-  const stripe = getStripe();
   const supabase = createServiceClient();
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const intentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
     if (!intentId) return;
-    await acceptOrRelease(await stripe.paymentIntents.retrieve(intentId));
+    await acceptOrRelease(await getStripeForRecordedMode(session.livemode).paymentIntents.retrieve(intentId));
     return;
   }
 
@@ -128,7 +130,7 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
     const charge = event.data.object as Stripe.Charge;
     const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
     if (!intentId) return;
-    const intent = await stripe.paymentIntents.retrieve(intentId);
+    const intent = await getStripeForRecordedMode(charge.livemode).paymentIntents.retrieve(intentId);
     const jobId = intent.metadata?.job_id;
     if (jobId) await captureReadyPayment(jobId);
     return;
@@ -160,6 +162,17 @@ export async function handlePlatformPaymentEvent(event: Stripe.Event): Promise<v
   }
 
   if (event.type === "charge.refunded") return;
+
+  if (event.type.startsWith("transfer.")) {
+    const transfer = event.data.object as Stripe.Transfer;
+    const status = event.type === "transfer.reversed" || transfer.reversed ? "reversed" : "created";
+    const noted = await supabase.rpc("note_transfer_status", {
+      transfer_id: transfer.id,
+      next_status: status,
+    });
+    if (noted.error) throw new Error("The transfer status could not be recorded.");
+    return;
+  }
 
   if (event.type === "refund.created" || event.type === "refund.updated") {
     const refund = event.data.object as Stripe.Refund;

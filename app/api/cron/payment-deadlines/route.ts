@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { runCron } from "@/lib/cron/record";
 import { deliverPendingAlerts } from "@/lib/notifications/deliver";
 import { releaseHeldAuthorizations } from "@/lib/payments/capture";
-import { getStripe } from "@/lib/stripe";
+import { stripeForJob } from "@/lib/payments/recorded-client";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // Local check, from the project folder, with the cron secret from the environment:
@@ -19,7 +19,6 @@ export async function GET(request: Request) {
   }
 
   return runCron("payment-deadlines", async () => {
-    const stripe = getStripe();
     const supabase = createServiceClient();
     const due = await supabase.rpc("overdue_payment_jobs");
     if (due.error) throw new Error("Payment deadlines could not be listed.");
@@ -29,6 +28,12 @@ export async function GET(request: Request) {
       payment_intent_id: string | null;
       checkout_session_id: string | null;
     }[]) {
+      let stripe;
+      try {
+        stripe = await stripeForJob(row.job_id);
+      } catch {
+        continue;
+      }
       if (row.payment_intent_id) {
         try {
           const intent = await stripe.paymentIntents.retrieve(row.payment_intent_id);

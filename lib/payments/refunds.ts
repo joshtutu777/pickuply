@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getStripe } from "@/lib/stripe";
+import { stripeForJob } from "@/lib/payments/recorded-client";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -23,7 +23,7 @@ export async function requestRefund(jobId: string, amountCents: number, reason: 
     throw new Error(started.error?.message ?? "The refund could not be started.");
   }
   const row = started.data as RefundStart;
-  const stripe = getStripe();
+  const stripe = await stripeForJob(jobId);
   const service = createServiceClient();
 
   if (row.outcome === "release") {
@@ -70,7 +70,11 @@ export async function requestRefund(jobId: string, amountCents: number, reason: 
 }
 
 export async function reverseTransferForRecovery(obligationId: string, transferId: string, reason: string): Promise<void> {
-  const reversal = await getStripe().transfers.createReversal(transferId, {}, { idempotencyKey: `reversal:${obligationId}` });
+  const service = createServiceClient();
+  const entry = await service.from("ledger_entries").select("job_id").eq("stripe_transfer_id", transferId).maybeSingle();
+  if (entry.error || !entry.data?.job_id) throw new Error("The transfer could not be matched to a payment.");
+  const stripe = await stripeForJob(entry.data.job_id);
+  const reversal = await stripe.transfers.createReversal(transferId, {}, { idempotencyKey: `reversal:${obligationId}` });
   if (!reversal.id) throw new Error("Stripe did not reverse the transfer.");
   const user = await createClient();
   const marked = await user.rpc("mark_recovery", {

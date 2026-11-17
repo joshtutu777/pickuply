@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { checkoutCustomerEmail, checkoutExcludedPaymentMethods, checkoutLines } from "@/lib/payments/checkout-lines";
 import { checkoutExpiresAt } from "@/lib/payments/checkout-expiry";
 import { requestOrigin } from "@/lib/payments/connect";
+import { newLiveChargeDecision, PAID_BOOKINGS_UNAVAILABLE } from "@/lib/payments/paid-bookings";
+import { paymentsMode } from "@/lib/payments/payments-mode";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -32,6 +34,14 @@ export async function startCheckout(formData: FormData) {
   await connection();
   const jobId = String(formData.get("jobId") ?? "");
   const origin = requestOrigin(await headers());
+  if (
+    newLiveChargeDecision({
+      paymentsMode: paymentsMode(process.env.PAYMENTS_MODE),
+      paidBookings: process.env.PAID_BOOKINGS_ENABLED,
+    }) === "block"
+  ) {
+    redirect(`/jobs/${jobId}?error=${encodeURIComponent(PAID_BOOKINGS_UNAVAILABLE)}`);
+  }
   const supabase = await createClient();
   const prepared = await supabase.rpc("prepare_checkout", { target_job: jobId });
   if (prepared.error || !prepared.data) {

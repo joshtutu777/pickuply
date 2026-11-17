@@ -3,7 +3,7 @@ import "server-only";
 import type Stripe from "stripe";
 import { sendEmail } from "@/lib/email";
 import { buildReceiptText } from "@/lib/payments/receipt";
-import { getStripe } from "@/lib/stripe";
+import { stripeForJob } from "@/lib/payments/recorded-client";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -17,9 +17,12 @@ type CaptureContext = {
   expired: boolean;
 };
 
-async function stripeFeeCents(chargeId: string | null): Promise<{ fee: number | null; availableOn: string | null }> {
+async function stripeFeeCents(
+  chargeId: string | null,
+  stripe: Stripe,
+): Promise<{ fee: number | null; availableOn: string | null }> {
   if (!chargeId) return { fee: null, availableOn: null };
-  const charge = await getStripe().charges.retrieve(chargeId, { expand: ["balance_transaction"] });
+  const charge = await stripe.charges.retrieve(chargeId, { expand: ["balance_transaction"] });
   const balance = charge.balance_transaction;
   if (!balance || typeof balance === "string") return { fee: null, availableOn: null };
   return {
@@ -52,7 +55,7 @@ export async function captureReadyPayment(jobId: string): Promise<CaptureOutcome
   }
   if (row.kind !== "full") return skipped;
 
-  const stripe = getStripe();
+  const stripe = await stripeForJob(jobId);
   const existing = await stripe.paymentIntents.retrieve(row.payment_intent_id);
   const intent =
     existing.status === "requires_capture"
@@ -65,7 +68,7 @@ export async function captureReadyPayment(jobId: string): Promise<CaptureOutcome
   if (intent.status !== "succeeded") return skipped;
 
   const chargeId = (await chargeIdFromIntent(intent)) ?? row.charge_id;
-  const balance = await stripeFeeCents(chargeId);
+  const balance = await stripeFeeCents(chargeId, stripe);
   const recorded = await supabase.rpc("record_capture", {
     target_job: jobId,
     amount_cents: row.amount_cents,
@@ -91,7 +94,7 @@ export async function syncStripeFees(): Promise<void> {
   const missing = await supabase.rpc("payments_missing_stripe_fee");
   if (missing.error) return;
   for (const row of (missing.data ?? []) as { job_id: string; charge_id: string }[]) {
-    const fee = await stripeFeeCents(row.charge_id);
+    const fee = await stripeFeeCents(row.charge_id, await stripeForJob(row.job_id));
     if (fee.fee == null) continue;
     await supabase.rpc("record_stripe_fee", { target_job: row.job_id, stripe_fee: fee.fee });
     if (fee.availableOn) {
@@ -118,7 +121,7 @@ export async function releaseCustomerAuthorization(jobId: string): Promise<"free
   if (row.outcome === "free") {
     if (row.checkout_session_id || row.payment_intent_id) {
       try {
-        const stripe = getStripe();
+        const stripe = await stripeForJob(jobId);
         if (row.checkout_session_id) await stripe.checkout.sessions.expire(row.checkout_session_id);
         if (row.payment_intent_id) {
           const intent = await stripe.paymentIntents.retrieve(row.payment_intent_id);
@@ -172,7 +175,7 @@ export async function releaseUncapturedHold(jobId: string): Promise<void> {
     if (payment.error) throw new Error("The card hold could not be checked.");
     const sessionId = payment.data?.checkout_session_id;
     if (sessionId?.startsWith("cs_")) {
-      const session = await getStripe().checkout.sessions.retrieve(sessionId);
+      const session = await (await stripeForJob(jobId)).checkout.sessions.retrieve(sessionId);
       const paymentIntent = session.payment_intent;
       intentId = typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id ?? null;
     }
@@ -185,7 +188,7 @@ export async function releaseUncapturedHold(jobId: string): Promise<void> {
     return;
   }
 
-  const stripe = getStripe();
+  const stripe = await stripeForJob(jobId);
   let intent = await stripe.paymentIntents.retrieve(intentId);
   if (intent.status === "succeeded") return;
   if (intent.status !== "canceled") {

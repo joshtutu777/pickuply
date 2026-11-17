@@ -2,7 +2,7 @@ import "server-only";
 
 import type { FinanceJob, Money } from "@/lib/admin/finance";
 import { knownCents } from "@/lib/admin/finance";
-import { getStripe } from "@/lib/stripe";
+import { stripeForJob } from "@/lib/payments/recorded-client";
 
 export type StripeCheck = {
   captured: Money;
@@ -16,18 +16,13 @@ const limit = 30;
 
 export async function compareWithStripe(jobs: FinanceJob[]): Promise<{ checks: Map<string, StripeCheck>; note: string | null }> {
   const checks = new Map<string, StripeCheck>();
-  let stripe;
-  try {
-    stripe = getStripe();
-  } catch {
-    return { checks, note: "Stripe comparison is unavailable because test mode is not configured for this server." };
-  }
   const targets = jobs.filter((job) => job.paymentIntentId).slice(0, limit);
   const note = jobs.filter((job) => job.paymentIntentId).length > limit
     ? `Stripe was read for the first ${limit} PaymentIntents in this list. The rest are unavailable for this view.`
     : null;
   for (const job of targets) {
     try {
+      const stripe = await stripeForJob(job.id);
       const intent = await stripe.paymentIntents.retrieve(job.paymentIntentId!, { expand: ["latest_charge.balance_transaction"] });
       const charge = intent.latest_charge && typeof intent.latest_charge === "object" ? intent.latest_charge : null;
       const balance = charge?.balance_transaction && typeof charge.balance_transaction === "object" ? charge.balance_transaction : null;
@@ -45,7 +40,7 @@ export async function compareWithStripe(jobs: FinanceJob[]): Promise<{ checks: M
         refunded: knownCents(charge?.amount_refunded ?? null),
         fee: balance ? knownCents(balance.fee) : { unavailable: true },
         transfer,
-        note: "Read from Stripe test mode.",
+        note: "Read from the payment's Stripe mode.",
       });
     } catch {
       checks.set(job.id, {

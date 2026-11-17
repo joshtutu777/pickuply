@@ -7,6 +7,7 @@ import { IncludeTestData } from "@/components/admin/include-test-data";
 import { inTestLane, includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { requireAdmin } from "@/lib/auth/session";
+import { currentStripeLivemode } from "@/lib/payments/payments-mode";
 import { formatCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,7 +36,7 @@ async function Payouts({ searchParams }: { searchParams: PageProps<"/admin/payou
       .eq("status", "recovery_due")
       .limit(25),
     supabase.from("drivers").select("profile_id, status").in("status", ["approved_new", "active", "paused"]),
-    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled"),
+    supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled").eq("livemode", currentStripeLivemode()),
   ]);
   const readyAccounts = new Set((accounts ?? []).filter((account) => account.payouts_enabled).map((account) => account.driver_id));
   const entryJobs = [...new Set((entries ?? []).map((entry) => entry.job_id))];

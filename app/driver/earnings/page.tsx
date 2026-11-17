@@ -7,6 +7,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
 import { payoutSetupLabel, requirementLabels } from "@/lib/payments/requirements";
 import { refreshConnectAccount } from "@/lib/payments/connect";
+import { currentStripeLivemode } from "@/lib/payments/payments-mode";
 import { formatCents } from "@/lib/money";
 import { ledgerBuckets } from "@/lib/payments/ledger-summary";
 import { createClient } from "@/lib/supabase/server";
@@ -37,6 +38,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     .from("driver_connect_accounts")
     .select("stripe_account_id, charges_enabled, payouts_enabled, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
+    .eq("livemode", currentStripeLivemode())
     .maybeSingle();
 
   if (query.connect === "return" && data?.stripe_account_id) {
@@ -51,6 +53,7 @@ async function Earnings({ searchParams }: { searchParams: PageProps<"/driver/ear
     .from("driver_connect_accounts")
     .select("stripe_account_id, charges_enabled, payouts_enabled, details_submitted, requirements_due, disabled_reason")
     .eq("driver_id", session.userId)
+    .eq("livemode", currentStripeLivemode())
     .maybeSingle();
   const missing = requirementLabels(fresh?.requirements_due ?? []);
   const ready = Boolean(fresh?.payouts_enabled);

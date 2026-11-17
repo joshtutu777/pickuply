@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureExpressAccount, onboardingLink, refreshConnectAccount, requestOrigin } from "@/lib/payments/connect";
+import { currentStripeLivemode } from "@/lib/payments/payments-mode";
 import { requireSignedIn } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,6 +17,7 @@ async function driverAccount() {
     .from("driver_connect_accounts")
     .select("stripe_account_id, details_submitted")
     .eq("driver_id", session.userId)
+    .eq("livemode", currentStripeLivemode())
     .maybeSingle();
   return { userId: session.userId, accountId: data?.stripe_account_id ?? null, detailsSubmitted: Boolean(data?.details_submitted) };
 }

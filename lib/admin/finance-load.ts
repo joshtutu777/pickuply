@@ -2,6 +2,7 @@ import "server-only";
 
 import { firstName } from "@/lib/auth/name";
 import { areaParts, type FinanceJob } from "@/lib/admin/finance";
+import { currentStripeLivemode } from "@/lib/payments/payments-mode";
 import { createClient } from "@/lib/supabase/server";
 
 type JobRow = {
@@ -52,7 +53,7 @@ export async function loadFinanceJobs(lane: "real" | "test" | "all" = "real"): P
     ids.length ? supabase.from("job_disputes").select("job_id, resolved_at, capture_hold").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
     people.length ? supabase.from("profiles").select("id, full_name").in("id", people) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("job_events").select("job_id, created_at, data").eq("type", "status").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
-    people.length ? supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled").in("driver_id", people) : Promise.resolve({ data: [], error: null }),
+    people.length ? supabase.from("driver_connect_accounts").select("driver_id, payouts_enabled").in("driver_id", people).eq("livemode", currentStripeLivemode()) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("help_requests").select("job_id, case_number").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
     ids.length ? supabase.from("refund_requests").select("job_id, created_at, status").eq("status", "succeeded").in("job_id", ids) : Promise.resolve({ data: [], error: null }),
   ]);

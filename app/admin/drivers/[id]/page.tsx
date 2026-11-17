@@ -9,6 +9,7 @@ import { LoadingMain } from "@/components/loading-main";
 import { coverageSummary } from "@/lib/driver/coverage";
 import { formatUsPhone } from "@/lib/phone";
 import { requireAdmin } from "@/lib/auth/session";
+import { currentStripeLivemode } from "@/lib/payments/payments-mode";
 import { createClient } from "@/lib/supabase/server";
 
 const actions = [
@@ -65,6 +66,7 @@ async function DriverDetail({
       .from("driver_connect_accounts")
       .select("payouts_enabled, details_submitted, requirements_due, disabled_reason")
       .eq("driver_id", id)
+      .eq("livemode", currentStripeLivemode())
       .maybeSingle(),
     supabase
       .from("driver_feed_filters")

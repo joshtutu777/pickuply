@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { saveConnectAccount } from "@/lib/payments/connect";
+import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -14,7 +15,10 @@ const handled = new Set([
 ]);
 
 export async function POST(request: Request) {
-  const event = await readStripeEvent(request, "STRIPE_CONNECT_WEBHOOK_SECRET");
+  const event = await readStripeEvent(
+    request,
+    webhookSecretName("connect", paymentsMode(process.env.PAYMENTS_MODE)),
+  );
   if (event instanceof NextResponse) return event;
   if (!handled.has(event.type)) return NextResponse.json({ ok: true, ignored: true });
 
