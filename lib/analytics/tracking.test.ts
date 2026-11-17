@@ -1,24 +1,48 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   analyticsCookieNames,
+  analyticsOpen,
   bookingEvent,
+  checkoutConversion,
   claimEvent,
   containerId,
+  conversionEvents,
   deliveryEvent,
+  dollarsFromCents,
+  GA4_MEASUREMENT_ID,
+  GTM_CONTAINER_ID,
   isFreshAccount,
+  leadConversion,
+  META_PIXEL_ID,
   newOfferIds,
   nextPageView,
   notificationEvent,
-  purchaseEvent,
+  opaqueEventId,
+  purchaseConversion,
+  requestStartEvent,
+  requestStepEvent,
   sanitizeFields,
+  serviceType,
   shouldLoadTagManager,
 } from "./tracking";
 
+const job = "11111111-1111-4111-8111-111111111111";
+const services = ["delivery", "free_item", "junk", "construction"] as const;
+
+function expectedId(kind: "l" | "c" | "p", parts: string[]): string {
+  return `${kind}_${createHash("sha256").update([kind, ...parts].join("\n")).digest("hex").slice(0, 32)}`;
+}
+
 test("the tag manager container id is the only script id", () => {
-  assert.equal(containerId(), "GTM-WJ6GFSH4");
-  assert.equal(containerId("G-490EC1PJXG"), null);
-  assert.equal(containerId("1680735000138584"), null);
+  assert.equal(containerId(), GTM_CONTAINER_ID);
+  assert.equal(GTM_CONTAINER_ID, "GTM-WJ6GFSH4");
+  assert.equal(GA4_MEASUREMENT_ID, "G-490EC1PJXG");
+  assert.equal(META_PIXEL_ID, "1129937532824615");
+  assert.equal(containerId(GA4_MEASUREMENT_ID), null);
+  assert.equal(containerId(META_PIXEL_ID), null);
 });
 
 test("tag manager loads once after consent and stays off for a test account", () => {
@@ -27,6 +51,11 @@ test("tag manager loads once after consent and stays off for a test account", ()
   assert.equal(shouldLoadTagManager({ consent: "granted", isTest: true, loaded: false }), false);
   assert.equal(shouldLoadTagManager({ consent: "granted", isTest: false, loaded: false }), true);
   assert.equal(shouldLoadTagManager({ consent: "granted", isTest: false, loaded: true }), false);
+  assert.equal(analyticsOpen({ ready: false, consent: "granted", isTest: false }), "wait");
+  assert.equal(analyticsOpen({ ready: true, consent: null, isTest: false }), "skip");
+  assert.equal(analyticsOpen({ ready: true, consent: "denied", isTest: false }), "skip");
+  assert.equal(analyticsOpen({ ready: true, consent: "granted", isTest: true }), "skip");
+  assert.equal(analyticsOpen({ ready: true, consent: "granted", isTest: false }), "send");
 });
 
 test("a route is recorded once and query strings stay off the path", () => {
@@ -56,7 +85,7 @@ test("personal fields are left out of the event", () => {
   );
 });
 
-test("booking is the card hold and purchase is a live captured charge", () => {
+test("booking is the card hold and purchase is the live authorization", async () => {
   assert.deepEqual(bookingEvent({ returning: true, paymentStatus: "authorized", isTest: false }), {
     event: "booking_confirmed",
   });
@@ -64,46 +93,135 @@ test("booking is the card hold and purchase is a live captured charge", () => {
   assert.equal(bookingEvent({ returning: true, paymentStatus: "paid", isTest: false }), null);
   assert.equal(bookingEvent({ returning: true, paymentStatus: "awaiting_payment", isTest: false }), null);
   assert.equal(bookingEvent({ returning: true, paymentStatus: "authorized", isTest: true }), null);
+  assert.equal((5250 / 100).toFixed(2), "52.50");
+  assert.equal(dollarsFromCents(5250), 52.5);
+  assert.equal(dollarsFromCents(0), null);
+
+  for (const service of services) {
+    assert.equal(serviceType(service), service);
+    assert.deepEqual(requestStartEvent(service), { event: "request_started", service_type: service });
+    const lead = await leadConversion({ jobId: job, service, isTest: false, saved: true });
+    assert.equal(lead?.event, "Lead");
+    assert.equal(lead?.ga4Event, "generate_lead");
+    assert.equal(lead?.serviceType, service);
+    assert.equal(lead?.eventId, expectedId("l", [job]));
+    assert.equal(lead?.eventId.includes(job), false);
+  }
+  assert.equal(requestStartEvent("store_pickup"), null);
+  assert.deepEqual(requestStepEvent("delivery", "where"), {
+    event: "request_step",
+    service_type: "delivery",
+    step: "where",
+  });
+  assert.equal(requestStepEvent("delivery", "1 Main St"), null);
+  assert.equal(await leadConversion({ jobId: job, service: "delivery", isTest: true, saved: true }), null);
+  assert.equal(await leadConversion({ jobId: job, service: "delivery", isTest: false, saved: false }), null);
+  assert.equal(await leadConversion({ jobId: "not-a-job", service: "delivery", isTest: false, saved: true }), null);
+  assert.equal(await leadConversion({ jobId: job, service: "sofa notes", isTest: false, saved: true }), null);
+
   assert.equal(
-    purchaseEvent({
-      tracked: "delivered",
-      paymentStatus: "authorized",
-      capturedCents: 5000,
+    await checkoutConversion({
+      jobId: job,
+      attempt: 1,
+      service: "junk",
+      totalCents: 5250,
       live: true,
       isTest: false,
+      created: false,
     }),
     null,
   );
   assert.equal(
-    purchaseEvent({
-      tracked: "delivered",
-      paymentStatus: "captured",
-      capturedCents: 5000,
+    await checkoutConversion({
+      jobId: job,
+      attempt: 1,
+      service: "junk",
+      totalCents: 5250,
       live: false,
       isTest: false,
+      created: true,
     }),
     null,
   );
-  assert.equal(
-    purchaseEvent({
-      tracked: "delivered",
-      paymentStatus: "captured",
-      capturedCents: 5000,
-      live: true,
-      isTest: true,
-    }),
-    null,
-  );
+  const checkout = await checkoutConversion({
+    jobId: job,
+    attempt: 1,
+    service: "junk",
+    totalCents: 5250,
+    live: true,
+    isTest: false,
+    created: true,
+  });
+  const retry = await checkoutConversion({
+    jobId: job,
+    attempt: 2,
+    service: "junk",
+    totalCents: 5250,
+    live: true,
+    isTest: false,
+    created: true,
+  });
+  assert.equal(checkout?.event, "InitiateCheckout");
+  assert.equal(checkout?.ga4Event, "begin_checkout");
+  assert.equal(checkout?.value, 52.5);
+  assert.equal(checkout?.currency, "USD");
+  assert.equal(checkout?.eventId, expectedId("c", [job, "1"]));
+  assert.notEqual(checkout?.eventId, retry?.eventId);
+  assert.equal(await opaqueEventId("c", [job, "1"]), checkout?.eventId);
+
+  const held = {
+    jobId: job,
+    attempt: 3,
+    service: "construction",
+    totalCents: 5250,
+    live: true,
+    isTest: false,
+  };
+  assert.equal(await purchaseConversion({ ...held, paymentStatus: "failed" }), null);
+  assert.equal(await purchaseConversion({ ...held, paymentStatus: "captured" }), null);
+  assert.equal(await purchaseConversion({ ...held, paymentStatus: "authorized", live: false }), null);
+  assert.equal(await purchaseConversion({ ...held, paymentStatus: "authorized", isTest: true }), null);
+  assert.equal(await purchaseConversion({ ...held, paymentStatus: "authorized", attempt: 0 }), null);
+  const purchase = await purchaseConversion({ ...held, paymentStatus: "authorized" });
+  assert.deepEqual(conversionEvents(purchase!), [
+    {
+      event: "Purchase",
+      event_id: expectedId("p", [job, "3"]),
+      ga4_event: "payment_authorized",
+      service_type: "construction",
+      value: 52.5,
+      currency: "USD",
+    },
+  ]);
+  assert.equal(conversionEvents(purchase!).length, 1);
+  assert.equal(JSON.stringify(conversionEvents(purchase!)).includes(job), false);
   assert.deepEqual(
-    purchaseEvent({
-      tracked: "delivered",
-      paymentStatus: "captured",
-      capturedCents: 5030,
-      live: true,
-      isTest: false,
+    sanitizeFields({
+      event_id: purchase!.eventId,
+      email: "a@example.com",
+      phone: "5555550100",
+      address: "1 Main St",
+      description: "old couch by the door",
+      notes: "gate code 1234",
+      value: 52.5,
     }),
-    { event: "purchase", value: 50.3, currency: "USD" },
+    { event_id: purchase!.eventId, value: 52.5 },
   );
+  const seen = new Set<string>();
+  assert.equal(claimEvent(seen, purchase!.eventId), true);
+  assert.equal(claimEvent(seen, purchase!.eventId), false);
+});
+
+test("conversion calls sit after the business action succeeds", () => {
+  const wizard = readFileSync(new URL("../../components/request/request-wizard.tsx", import.meta.url), "utf8");
+  const pay = readFileSync(new URL("../../components/request/pay-panel.tsx", import.meta.url), "utf8");
+  const signals = readFileSync(new URL("../../components/analytics/job-signals.tsx", import.meta.url), "utf8");
+  assert.ok(wizard.indexOf("await createRequest") < wizard.indexOf("await leadConversion"));
+  assert.equal(wizard.includes("saved: true"), true);
+  assert.ok(pay.indexOf("await startCheckout") < pay.indexOf("await checkoutConversion"));
+  assert.equal(pay.includes("onSubmit"), false);
+  assert.equal(signals.includes("paid=return"), false);
+  assert.equal(signals.includes('paymentStatus !== "authorized"') || signals.includes("purchaseConversion"), true);
 });
 
 test("delivery and repeated events stay tied to a successful result", () => {

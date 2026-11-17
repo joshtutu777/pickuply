@@ -71,14 +71,20 @@ async function JobEntry({
   let offerError = false;
   let detailRequest: { items: string[]; note: string } | null = null;
   let livePayment = false;
+  let checkoutAttempt = 0;
   let testJob = false;
   try {
     const supabase = await createClient();
     const testRow = await supabase.from("jobs").select("is_test").eq("id", id).maybeSingle();
     testJob = testRow.data?.is_test === true;
     if (session?.role === "customer") {
-      const payment = await supabase.from("job_payments").select("stripe_livemode").eq("job_id", id).maybeSingle();
+      const payment = await supabase
+        .from("job_payments")
+        .select("stripe_livemode, checkout_attempt")
+        .eq("job_id", id)
+        .maybeSingle();
       livePayment = payment.data?.stripe_livemode === true;
+      checkoutAttempt = payment.data?.checkout_attempt ?? 0;
       const { data, error } = await supabase.rpc("offer_summaries", { target_job: id });
       if (error) offerError = true;
       else offers = (data ?? []) as OfferSummary[];
@@ -233,14 +239,17 @@ async function JobEntry({
             }
             windowOpen={job.payment_due_at != null && new Date(job.payment_due_at).getTime() > new Date().getTime()}
             returning={query.paid === "return"}
+            isTest={testJob}
           />
         ) : null}
       </JobStatus>
       <JobSignals
         jobId={id}
+        service={job.service}
         status={job.status}
         paymentStatus={job.payment_status}
-        capturedCents={job.captured_cents}
+        totalCents={job.price_cents}
+        checkoutAttempt={checkoutAttempt}
         live={livePayment}
         isTest={testJob}
         returning={query.paid === "return"}

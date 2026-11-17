@@ -23,8 +23,8 @@ import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
 import { estimateForDraft, estimateMessage } from "@/lib/estimate";
-import { pushTrackingEvent } from "@/components/analytics/analytics-root";
-import { isFreshAccount } from "@/lib/analytics/tracking";
+import { pushConversion, pushTrackingEvent, subscribeTracking, trackingDecision } from "@/components/analytics/analytics-root";
+import { isFreshAccount, leadConversion, requestStartEvent, requestStepEvent } from "@/lib/analytics/tracking";
 import { recordFunnel } from "@/lib/funnel";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
@@ -99,6 +99,26 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     scrollTransactionToTop();
   }, [stepIndex]);
   const funnelStarted = useRef(false);
+  const requestTracked = useRef(false);
+  const lastStep = useRef<string | null>(null);
+  const [trackingTick, setTrackingTick] = useState(0);
+  useEffect(() => subscribeTracking(() => setTrackingTick((current) => current + 1)), []);
+  useEffect(() => {
+    const decision = trackingDecision();
+    if (decision === "wait" || !draft.service) return;
+    if (!requestTracked.current) {
+      requestTracked.current = true;
+      const start = requestStartEvent(draft.service);
+      if (decision === "send" && start) pushTrackingEvent(start.event, "request_started", { service_type: start.service_type }, false);
+    }
+    const stepId = requestSteps[stepIndex]?.id;
+    const step = stepId ? requestStepEvent(draft.service, stepId) : null;
+    if (!step) return;
+    const key = `${step.service_type}:${step.step}`;
+    if (lastStep.current === key) return;
+    lastStep.current = key;
+    if (decision === "send") pushTrackingEvent(step.event, key, { service_type: step.service_type, step: step.step }, false);
+  }, [draft.service, stepIndex, trackingTick]);
   useEffect(() => {
     const supabase = createClient();
     void supabase.auth.getUser().then(async ({ data }) => {
@@ -418,6 +438,13 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
       pushTrackingEvent("delivery_request_created", `delivery_request_created:${job.id}`, {
         service: draft.service || "",
       });
+      const lead = await leadConversion({
+        jobId: job.id,
+        service: draft.service,
+        isTest: false,
+        saved: true,
+      });
+      if (lead) pushConversion(lead, lead.eventId);
       setSentId(job.id);
       setSubmitting(false);
     } catch (error) {

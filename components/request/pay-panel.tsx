@@ -1,5 +1,9 @@
+"use client";
+
 import { startCheckout } from "@/app/jobs/pay/actions";
+import { pushConversion } from "@/components/analytics/analytics-root";
 import { PaymentProtection } from "@/components/payments/payment-protection";
+import { checkoutConversion } from "@/lib/analytics/tracking";
 import { formatCents } from "@/lib/money";
 
 const confirmed = new Set(["authorized", "paid", "captured"]);
@@ -15,6 +19,7 @@ export function PayPanel({
   windowOpen,
   returning,
   needsEmail = false,
+  isTest = false,
 }: {
   jobId: string;
   driverPayCents: number;
@@ -26,6 +31,7 @@ export function PayPanel({
   windowOpen: boolean;
   returning: boolean;
   needsEmail?: boolean;
+  isTest?: boolean;
 }) {
   const offerCents = driverPayCents + platformFeeCents;
   const additionalCents = totalCents - offerCents - serviceFeeCents;
@@ -54,7 +60,27 @@ export function PayPanel({
               Confirm your booking. Your card will be authorized now and charged after delivery is completed under
               Pickuply&apos;s payment policy.
             </p>
-            <form action={startCheckout} className="grid gap-3">
+            <form
+              className="grid gap-3"
+              action={async (formData) => {
+                const result = await startCheckout(formData);
+                if (!result?.ok || !result.url.startsWith("https://")) return;
+                try {
+                  const checkout = await checkoutConversion({
+                    jobId,
+                    attempt: result.attempt,
+                    service: result.service,
+                    totalCents: result.totalCents,
+                    live: result.live,
+                    isTest,
+                    created: true,
+                  });
+                  if (checkout) pushConversion(checkout, checkout.eventId);
+                } finally {
+                  window.location.assign(result.url);
+                }
+              }}
+            >
               <input type="hidden" name="jobId" value={jobId} />
               {needsEmail ? (
                 <label className="block text-base font-semibold text-ink" htmlFor="bookingEmail">

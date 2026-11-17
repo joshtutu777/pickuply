@@ -1,8 +1,12 @@
 # Pickuply progress
 
-## Live payment selection restored locally, not deployed (2026-11-17)
+## Live payment selection deployed (2026-11-17)
 
-Checkout, capture, refunds, deadlines, Connect onboarding, and driver transfers again follow the Stripe mode. New charges use PAYMENTS_MODE, and an existing payment uses the mode saved on its row. A new live charge still requires PAID_BOOKINGS_ENABLED to be exactly true. No migration. Not deployed.
+Checkout, capture, refunds, deadlines, Connect onboarding, and driver transfers follow the Stripe mode. New charges use PAYMENTS_MODE, and an existing payment uses the mode saved on its row. A new live charge requires PAID_BOOKINGS_ENABLED to be exactly true. Production is c05fd8e. No migration.
+
+## Conversion events prepared, not deployed (2026-11-17)
+
+All four services use the same request form and the same checkout. A saved request, a live checkout session, and a verified live card authorization each push one consent-gated dataLayer event. The event id is a hash, not the job id or a Stripe id. A checkout retry gets its own id. The authorization event is named Purchase for Meta and payment_authorized for GA4, because the card is held and not yet captured. The published container still needs tags for pixel 1129937532824615. Not deployed.
 
 ## Stripe key selection for abandoned-request deletion (2026-11-16)
 

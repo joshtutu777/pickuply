@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { bookingEvent, deliveryEvent, newOfferIds, purchaseEvent } from "@/lib/analytics/tracking";
-import { pushTrackingEvent } from "@/components/analytics/analytics-root";
+import { bookingEvent, deliveryEvent, newOfferIds, purchaseConversion } from "@/lib/analytics/tracking";
+import { pushConversion, pushTrackingEvent } from "@/components/analytics/analytics-root";
 
 export function JobSignals({
   jobId,
+  service,
   status,
   paymentStatus,
-  capturedCents,
+  totalCents,
+  checkoutAttempt,
   live,
   isTest,
   returning,
@@ -16,9 +18,11 @@ export function JobSignals({
   offers,
 }: {
   jobId: string;
+  service: string;
   status: string;
   paymentStatus: string | null;
-  capturedCents: number | null;
+  totalCents: number | null;
+  checkoutAttempt: number;
   live: boolean;
   isTest: boolean;
   returning: boolean;
@@ -30,15 +34,24 @@ export function JobSignals({
     if (booking) pushTrackingEvent(booking.event, `${booking.event}:${jobId}`);
     const delivery = deliveryEvent({ tracked, status, isTest });
     if (delivery) pushTrackingEvent(delivery.event, `${delivery.event}:${jobId}`);
-    const purchase = purchaseEvent({ tracked, paymentStatus, capturedCents, live, isTest });
-    if (purchase) pushTrackingEvent(purchase.event, `${purchase.event}:${jobId}`, { value: purchase.value, currency: purchase.currency });
+    void purchaseConversion({
+      jobId,
+      attempt: checkoutAttempt,
+      service,
+      paymentStatus,
+      totalCents,
+      live,
+      isTest,
+    }).then((purchase) => {
+      if (purchase) pushConversion(purchase, purchase.eventId);
+    });
     if (!isTest && tracked === "offer") pushTrackingEvent("offer_accepted", `offer_accepted:${jobId}`);
     if (!isTest) {
       for (const offerId of newOfferIds(offers)) {
         pushTrackingEvent("offer_received", `offer_received:${offerId}`);
       }
     }
-  }, [capturedCents, isTest, jobId, live, offers, paymentStatus, returning, status, tracked]);
+  }, [checkoutAttempt, isTest, jobId, live, offers, paymentStatus, returning, service, status, totalCents, tracked]);
 
   return null;
 }

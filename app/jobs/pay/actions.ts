@@ -56,7 +56,7 @@ export async function startCheckout(formData: FormData) {
   };
   const priced = await supabase
     .from("jobs")
-    .select("driver_pay_cents, platform_fee_cents, service_fee_cents")
+    .select("service, driver_pay_cents, platform_fee_cents, service_fee_cents")
     .eq("id", jobId)
     .maybeSingle();
   const offerCents = (priced.data?.driver_pay_cents ?? 0) + (priced.data?.platform_fee_cents ?? 0);
@@ -123,5 +123,12 @@ export async function startCheckout(formData: FormData) {
     }
     redirect(`/jobs/${jobId}?error=${encodeURIComponent("The card checkout could not be started.")}`);
   }
-  redirect(sessionUrl);
+  return {
+    ok: true as const,
+    url: sessionUrl,
+    attempt: row.attempt,
+    totalCents: row.amount_cents,
+    service: typeof priced.data?.service === "string" ? priced.data.service : "",
+    live: checkoutLive,
+  };
 }

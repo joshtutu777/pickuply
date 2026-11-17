@@ -6,13 +6,16 @@ import { useEffect, useState } from "react";
 import {
   analyticsCookieNames,
   claimEvent,
+  analyticsOpen,
   containerId,
+  conversionEvents,
   gtmScriptUrl,
   nextPageView,
   pagePath,
   sanitizeFields,
   shouldLoadTagManager,
   type ConsentChoice,
+  type ConversionPush,
   type TrackingEvent,
 } from "@/lib/analytics/tracking";
 import { createClient } from "@/lib/supabase/client";
@@ -24,12 +27,26 @@ type Gate = { consent: ConsentChoice | null; isTest: boolean; ready: boolean };
 
 const gate: Gate = { consent: null, isTest: false, ready: false };
 const seen = new Set<string>();
+const listeners = new Set<() => void>();
 let loaded = false;
 let lastPath: string | null = null;
 let requestSettings: (() => void) | null = null;
 
 export function openCookieSettings() {
   requestSettings?.();
+}
+
+export function trackingDecision(): "send" | "skip" | "wait" {
+  return analyticsOpen({ ready: gate.ready, consent: gate.consent, isTest: gate.isTest });
+}
+
+export function subscribeTracking(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function notifyTracking() {
+  for (const listener of listeners) listener();
 }
 
 function readConsent(): ConsentChoice | null {
@@ -110,8 +127,15 @@ function loadTagManager() {
   script.async = true;
   script.src = gtmScriptUrl(id);
   script.dataset.gtm = id;
+  script.onload = () => {
+    if (gate.consent === "granted" && !gate.isTest) updateConsent("granted");
+  };
   document.head.appendChild(script);
   dataLayer().push({ "gtm.start": Date.now(), event: "gtm.js" });
+}
+
+function canSend(): boolean {
+  return trackingDecision() === "send";
 }
 
 export function pushTrackingEvent(
@@ -120,11 +144,21 @@ export function pushTrackingEvent(
   fields: Record<string, unknown> = {},
   once = true,
 ): boolean {
-  if (!gate.ready || gate.consent !== "granted" || gate.isTest) return false;
+  if (!canSend()) return false;
   if (once && !claimEvent(seen, key)) return false;
   if (once) writeSeen();
+  updateConsent("granted");
   const payload = sanitizeFields(fields);
   dataLayer().push({ event, ...payload });
+  return true;
+}
+
+export function pushConversion(conversion: ConversionPush, key: string): boolean {
+  if (!canSend()) return false;
+  if (!claimEvent(seen, key)) return false;
+  writeSeen();
+  updateConsent("granted");
+  for (const payload of conversionEvents(conversion)) dataLayer().push(payload);
   return true;
 }
 
@@ -149,6 +183,7 @@ export function AnalyticsRoot() {
       }
       gate.ready = true;
       setReady(true);
+      notifyTracking();
     });
   }, []);
 
@@ -176,9 +211,11 @@ export function AnalyticsRoot() {
     if (choice === "denied") {
       updateConsent("denied");
       clearAnalyticsCookies();
+      notifyTracking();
       return;
     }
     loadTagManager();
+    notifyTracking();
     const path = pagePath(pathname);
     if (path && lastPath !== path) {
       lastPath = path;
