@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { bookingEvent, deliveryEvent, newOfferIds, purchaseConversion } from "@/lib/analytics/tracking";
-import { pushConversion, pushTrackingEvent } from "@/components/analytics/analytics-root";
+import { pushConversion, pushTrackingEvent, subscribeTracking } from "@/components/analytics/analytics-root";
 
 export function JobSignals({
   jobId,
@@ -29,6 +29,8 @@ export function JobSignals({
   tracked: string | null;
   offers: { offer_id: string; viewed?: boolean }[];
 }) {
+  const [trackingTick, setTrackingTick] = useState(0);
+  useEffect(() => subscribeTracking(() => setTrackingTick((current) => current + 1)), []);
   useEffect(() => {
     const booking = bookingEvent({ returning, paymentStatus, isTest });
     if (booking) pushTrackingEvent(booking.event, `${booking.event}:${jobId}`);
@@ -51,7 +53,7 @@ export function JobSignals({
         pushTrackingEvent("offer_received", `offer_received:${offerId}`);
       }
     }
-  }, [checkoutAttempt, isTest, jobId, live, offers, paymentStatus, returning, service, status, totalCents, tracked]);
+  }, [checkoutAttempt, isTest, jobId, live, offers, paymentStatus, returning, service, status, totalCents, tracked, trackingTick]);
 
   return null;
 }

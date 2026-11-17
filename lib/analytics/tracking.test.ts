@@ -221,7 +221,15 @@ test("conversion calls sit after the business action succeeds", () => {
   assert.ok(pay.indexOf("await startCheckout") < pay.indexOf("await checkoutConversion"));
   assert.equal(pay.includes("onSubmit"), false);
   assert.equal(signals.includes("paid=return"), false);
-  assert.equal(signals.includes('paymentStatus !== "authorized"') || signals.includes("purchaseConversion"), true);
+  assert.equal(signals.includes("subscribeTracking"), true);
+  assert.equal(signals.includes("purchaseConversion"), true);
+  const container = readFileSync(new URL("../../gtm/pickuply-conversion-workspace.json", import.meta.url), "utf8");
+  assert.equal(container.includes("GTM-WJ6GFSH4"), true);
+  assert.equal(container.includes("G-490EC1PJXG"), true);
+  assert.equal(container.includes("payment_authorized"), true);
+  assert.equal(container.includes("1680735000138584"), false);
+  assert.equal(container.includes("email"), false);
+  assert.equal(container.includes("phone"), false);
 });
 
 test("delivery and repeated events stay tied to a successful result", () => {
