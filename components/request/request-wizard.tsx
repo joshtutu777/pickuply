@@ -34,6 +34,7 @@ import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
 import { compressImage, imageAccept } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 import { emptyDraft, type RequestDraft } from "@/lib/types";
+import { requestEmailError } from "@/lib/validation/email";
 import { validateStep, valueWarning, type FieldErrors } from "@/lib/validation/request";
 import { CheckField, RadioCards, TextAreaField, TextField, YesNo } from "./fields";
 
@@ -313,15 +314,19 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     }
     const step = requestSteps[stepIndex];
     const options = { photoCount: photoIds.length, signedIn: signedIn === true };
+    const trimmedEmail = draft.customerEmail.trim();
+    const currentDraft =
+      trimmedEmail === draft.customerEmail ? draft : { ...draft, customerEmail: trimmedEmail };
+    if (currentDraft !== draft) setDraft((current) => ({ ...current, customerEmail: trimmedEmail }));
     if (step.id === "verify") {
       const firstInvalid = requestSteps.findIndex(
-        (item) => Object.keys(validateStep(item.id, draft, options)).length > 0,
+        (item) => Object.keys(validateStep(item.id, currentDraft, options)).length > 0,
       );
       if (firstInvalid >= 0) {
         setStepIndex(firstInvalid);
-        const stepErrors = validateStep(requestSteps[firstInvalid].id, draft, options);
+        const stepErrors = validateStep(requestSteps[firstInvalid].id, currentDraft, options);
         setErrors(stepErrors);
-        focusField(stepErrors);
+        focusField(stepErrors.customerEmail ? { customerEmail: stepErrors.customerEmail } : stepErrors);
         return;
       }
       setErrors({});
@@ -420,16 +425,48 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     }
   }
 
+  function showEmailProblem(message: string) {
+    const verifyIndex = requestSteps.findIndex((step) => step.id === "verify");
+    if (verifyIndex >= 0) setStepIndex(verifyIndex);
+    setErrors({ customerEmail: message });
+    setFormError(null);
+    setSubmitting(false);
+    window.setTimeout(() => focusField({ customerEmail: message }), 0);
+  }
+
   async function saveRequest() {
     setSubmitting(true);
     setFormError(null);
+    const trimmedEmail = draft.customerEmail.trim();
+    const emailProblem = requestEmailError(trimmedEmail);
+    if (emailProblem) {
+      if (trimmedEmail !== draft.customerEmail) {
+        setDraft((current) => ({ ...current, customerEmail: trimmedEmail }));
+      }
+      showEmailProblem(emailProblem);
+      return;
+    }
+    const submission = trimmedEmail === draft.customerEmail ? draft : { ...draft, customerEmail: trimmedEmail };
+    if (submission !== draft) {
+      setDraft((current) => ({ ...current, customerEmail: trimmedEmail }));
+    }
     let job: { id: string };
     try {
-      job = await createRequest(draft, photoIds, (photoId, state) => {
+      job = await createRequest(submission, photoIds, (photoId, state) => {
         setPhotoProgress((current) => ({ ...current, [photoId]: state }));
       });
     } catch (error) {
       if (error instanceof RequestSubmitError) {
+        const emailMessage =
+          error.message === "Please enter your email address." || error.message === "Please enter a valid email address."
+            ? error.message
+            : error.safeDetail === "email is not valid"
+              ? "Please enter a valid email address."
+              : null;
+        if (emailMessage) {
+          showEmailProblem(emailMessage);
+          return;
+        }
         if (error.code === "missing-photo") setMissingPhotos(error.missingPhotoIds);
         if (error.code === "auth") setSignedIn(false);
         setFormError(submitErrorText(error));
@@ -1292,7 +1329,7 @@ function ReviewStep({
         type="email"
         inputMode="email"
         autoComplete="email"
-        optional
+        required
         hint="For booking updates and receipts."
         value={draft.customerEmail}
         error={errors.customerEmail}

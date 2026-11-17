@@ -5,6 +5,7 @@ import { createClient } from "../supabase/client";
 import type { RequestDraft } from "../types";
 import { saveJobPlaces } from "../maps/save-places";
 import { requestPayload } from "./request-payload";
+import { requestEmailError } from "../validation/email";
 import { clearSubmissionId, submissionId, supabaseFailureDetail, type RequestSaveStage } from "./request-save";
 
 export { clearSubmissionId, submissionId };
@@ -64,13 +65,17 @@ export async function createRequest(
   }
 
   const email = draft.customerEmail.trim();
+  const emailProblem = requestEmailError(email);
+  if (emailProblem) {
+    throw new RequestSubmitError("rejected", emailProblem, [], { stage: "client" });
+  }
   if (email) {
     const saved = await supabase.rpc("save_profile_email", { next_email: email });
     if (saved.error) {
       throw new RequestSubmitError(
         "rejected",
         saved.error.message.includes("email is not valid")
-          ? "Enter a valid email, or leave it blank."
+          ? "Please enter a valid email address."
           : "We couldn't save this request. Your draft is still here.",
         [],
         supabaseFailureDetail("profile", saved.error),

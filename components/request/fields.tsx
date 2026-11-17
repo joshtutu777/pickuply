@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 const controlClass =
-  "mt-2 min-h-12 w-full rounded-2xl border border-line bg-paper-raised px-4 text-base text-ink";
+  "mt-2 min-h-12 w-full rounded-2xl border bg-paper-raised px-4 text-base text-ink";
+
+function controlBorder(error?: string): string {
+  return error ? "border-danger" : "border-line";
+}
 
 export function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
@@ -68,7 +72,7 @@ export function TextField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className={controlClass}
+        className={`${controlClass} ${controlBorder(error)}`}
       />
       <FieldError id={errorId} message={error} />
     </label>
@@ -108,7 +112,7 @@ export function TextAreaField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`${controlClass} py-3`}
+        className={`${controlClass} ${controlBorder(error)} py-3`}
       />
       <FieldError id={errorId} message={error} />
     </label>

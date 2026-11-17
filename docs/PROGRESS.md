@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Request email is checked before the save (2026-11-17)
+
+Every service requires an email. A missing or malformed address is shown under the email field, and the field is focused, before the request is sent. Surrounding spaces are removed. The database still rejects an address it cannot store.
+
 ## Request save stays successful when analytics fails (2026-11-17)
 
 The success screen appears as soon as the database accepts the request. Analytics and draft cleanup run afterward and cannot turn a saved request into a failure. A rejection shows a short stage and database code. Emails, phone numbers, addresses, and tokens are left out. Checkout, capture, and webhooks are unchanged.
