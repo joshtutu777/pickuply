@@ -232,28 +232,38 @@ test("the current production commit passes source and ancestry checks", { timeou
   const approved = loadApprovedRelease();
   const record = loadProductionRecord(policy);
   assert.ok(record, "production deployment could not be verified");
-  assert.equal(approved.sha, "7d125c3f1f3c533791e60bcd6c102beb0464dd7b");
-  assert.equal(approved.deploymentId, "dpl_C8kdECPddNNgH9nxWzFwZLgWE77G");
+  assert.equal(approved.sha, "58779556a9205a2982ffc7df00a56b223a420491");
+  assert.equal(approved.deploymentId, "dpl_Bd341qB4V2QPg99QMWJsJParw2h5");
   assert.equal(record.sha, approved.sha);
   assert.equal(record.deploymentId, approved.deploymentId);
   const commit = readCommit(root, record.sha);
   assert.ok(commit, "production commit is not available locally");
   const head = readCommit(root, "HEAD");
   const githubFailures = verifyGithubBranch(root, policy.productionBranch, approved.sha, head.sha);
-  const result = evaluateRelease(
-    releaseOf(head.sha, {
-      record,
-      approved,
-      previousApproved: approvedReleaseAt(root, "HEAD^"),
-      githubFailures,
-      ancestor: commitContains(root, approved.sha, head.sha),
-      baselineMigrations: commit.migrations,
-      releaseMigrations: head.migrations,
-      files: head.files,
-    }),
-  );
-  assert.deepEqual(result.failures, []);
-  assert.equal(result.ok, true);
+  const release = {
+    record,
+    approved,
+    githubFailures,
+    ancestor: commitContains(root, approved.sha, head.sha),
+    baselineMigrations: commit.migrations,
+    releaseMigrations: head.migrations,
+    files: head.files,
+  };
+  const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved }));
+  assert.deepEqual(future.failures, []);
+  assert.equal(future.ok, true);
+  const previousApproved = approvedReleaseAt(root, "HEAD^");
+  const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved }));
+  const recordMoved =
+    previousApproved != null &&
+    (previousApproved.sha !== approved.sha || previousApproved.deploymentId !== approved.deploymentId);
+  if (recordMoved) {
+    assert.equal(current.ok, false);
+    assert.ok(current.failures.includes("approved production baseline changed"));
+  } else {
+    assert.deepEqual(current.failures, []);
+    assert.equal(current.ok, true);
+  }
   assert.equal(commitContains(root, approved.sha, head.sha), true);
   for (const route of policy.requiredRoutes) assert.ok(head.files.includes(route.file), route.route);
   assert.deepEqual(
