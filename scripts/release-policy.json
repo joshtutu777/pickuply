@@ -1,0 +1,25 @@
+{
+  "repository": "joshtutu777/pickuply",
+  "productionBranch": "feat/admin-lead-analytics",
+  "productionHost": "pickuplyapp.com",
+  "vercelScope": "pickuply-app",
+  "vercelProjectId": "prj_EPGuyrSlw9XsFlDyeuWEZcM3Ymw0",
+  "requiredRoutes": [
+    { "route": "/app", "file": "app/app/page.tsx" },
+    { "route": "/driver", "file": "app/driver/page.tsx" },
+    { "route": "/driver/jobs", "file": "app/driver/jobs/page.tsx" },
+    { "route": "/driver/open/[id]", "file": "app/driver/open/[id]/page.tsx" },
+    { "route": "/request", "file": "app/request/page.tsx" },
+    { "route": "/admin/sms", "file": "app/admin/sms/page.tsx" },
+    { "route": "/admin/analytics/leads", "file": "app/admin/analytics/leads/page.tsx" }
+  ],
+  "regressionTests": [
+    "lib/auth/access.test.ts",
+    "lib/driver/feed-card.test.ts",
+    "lib/driver/offer-gate.test.ts",
+    "lib/validation/request.test.ts",
+    "lib/sms/center.test.ts",
+    "lib/admin/lead-metrics.test.ts",
+    "lib/payments/stripe-mode.test.ts"
+  ]
+}

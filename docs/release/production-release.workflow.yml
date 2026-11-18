@@ -1,0 +1,66 @@
+# DRAFT ONLY. This file is not in .github/workflows, so GitHub Actions will not run it.
+# Do not install it until main matches production and the production environment has a required reviewer.
+# This file contains no credentials.
+# The job must not edit scripts/approved-release.json. A Vercel deployment does not approve itself.
+# The job must not run supabase db push. RELEASE_MIGRATIONS does not authorize database changes.
+
+name: Production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Exact reviewed commit to release
+        required: true
+        type: string
+      approval:
+        description: Type approved to deploy after the guards pass
+        required: true
+        default: checks-only
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out the reviewed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+
+      - name: Confirm the checkout is the reviewed commit
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.sha }}"
+
+      - name: Run the release guards
+        run: node scripts/release-guard.mjs --full
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy the validated commit
+        id: deploy
+        if: inputs.approval == 'approved'
+        env:
+          SHA: ${{ inputs.sha }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url=$(npx vercel deploy . --prod --yes --scope pickuply-app --project pickuply --meta "gitCommitSha=${SHA}" --meta "gitCommitRef=feat/admin-lead-analytics")
+          id=$(npx vercel inspect "$url" --scope pickuply-app --json | node --input-type=module -e "let s=''; for await (const chunk of process.stdin) s += chunk; const deploymentId = JSON.parse(s).id; if (!String(deploymentId).startsWith('dpl_')) process.exit(1); process.stdout.write(deploymentId);")
+          echo "deployment-id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Record the deployment id and commit
+        if: inputs.approval == 'approved'
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment-id }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          node --input-type=module -e "const deploymentId=process.env.DEPLOYMENT_ID; const sha=process.env.SHA; if(!deploymentId?.startsWith('dpl_')||!/^[0-9a-f]{40}$/.test(sha??'')) process.exit(1); console.log(JSON.stringify({deploymentId, sha}));"
+          printf '\n%s\n' "{\"deploymentId\":\"$DEPLOYMENT_ID\",\"sha\":\"$SHA\"}" >> "$GITHUB_STEP_SUMMARY"

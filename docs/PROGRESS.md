@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Production release guard (2026-11-18)
+
+`scripts/approved-release.json` records the verified production commit `7d125c3f1f3c533791e60bcd6c102beb0464dd7b` and deployment `dpl_C8kdECPddNNgH9nxWzFwZLgWE77G`. The guard reads the live Vercel deployment and accepts it only when that deployment matches this record. It does not copy a new Vercel deployment into the record. A release that changes the record is refused once the parent commit already has it. `RELEASE_MIGRATIONS=approved` does not apply database changes, and new, edited, or deleted migration files block the release. If Vercel or GitHub cannot be verified, the release stops. The GitHub Actions file remains a draft in `docs/release/` and is not enabled. Nothing was deployed. Advancing the record after a future deploy needs a separate reviewed commit; the guard will keep failing closed until that record matches the live deployment.
+
 ## One open request crashes the driver detail page (2026-11-18)
 
 Job `97b53a8e-53eb-49aa-aebb-19ad53964972` is an open junk quote from Auburn, 30011, created 2:29 AM Eastern on November 13. Piece count and item size were left empty, which the database allows. The detail page tried to read the empty size and the browser showed “This page couldn’t load.” The page now says the size and quantity are not listed. The job row was not changed. Production commit `a9081ff`, deployment `dpl_ADwKqp3gY6fhhuCUPjQ83GGrMwyh`. A signed-in driver opened the Auburn request successfully.
