@@ -106,6 +106,7 @@ test("checkout, capture, refunds, deadlines, and transfers stay on the saved mod
   const refunds = readFileSync(new URL("./refunds.ts", import.meta.url), "utf8");
   const deadlines = readFileSync(new URL("../../app/api/cron/payment-deadlines/route.ts", import.meta.url), "utf8");
   const transfers = readFileSync(new URL("./transfers.ts", import.meta.url), "utf8");
+  const transferStripe = readFileSync(new URL("./transfer-stripe.ts", import.meta.url), "utf8");
   const connect = readFileSync(new URL("./connect.ts", import.meta.url), "utf8");
   const platform = readFileSync(new URL("./platform-events.ts", import.meta.url), "utf8");
   const webhook = readFileSync(new URL("../../app/api/stripe/webhook/route.ts", import.meta.url), "utf8");
@@ -132,7 +133,9 @@ test("checkout, capture, refunds, deadlines, and transfers stay on the saved mod
 
   assert.match(transfers, /ready_transfers",\s*\{\s*target_livemode:\s*livemode\s*\}/);
   assert.match(transfers, /getStripeForRecordedMode\(livemode\)/);
-  assert.match(transfers, /idempotencyKey:\s*row\.entry_id/);
+  assert.match(transfers, /entryId:\s*row\.entry_id/);
+  assert.match(transferStripe, /idempotencyKey:\s*input\.entryId/);
+  assert.match(transferStripe, /input\.idempotencyKey !== input\.entryId/);
   assert.equal(transfers.includes("for (const livemode of [false, true])"), true);
 
   assert.match(connect, /account_livemode:\s*accountLive/);

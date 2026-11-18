@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Transfer recovery prepared (2026-11-18)
+
+Driver transfers look up an existing Stripe transfer before creating one. A completed empty lookup can start the first send only when that ledger claim has never been submitted. An unknown Stripe result stays unresolved even if a later lookup is empty. A refusal Stripe returned before accepting the transfer is not sent again automatically. `reconcileUnresolvedTransfers` can record a transfer Stripe already created. It is not scheduled. No migration was added. Checkout, capture, webhooks, and payout recording were not changed. Not committed and not deployed.
+
 ## Production release guard (2026-11-18)
 
 `scripts/approved-release.json` records the verified production commit `7d125c3f1f3c533791e60bcd6c102beb0464dd7b` and deployment `dpl_C8kdECPddNNgH9nxWzFwZLgWE77G`. The guard reads the live Vercel deployment and accepts it only when that deployment matches this record. It does not copy a new Vercel deployment into the record. A release that changes the record is refused once the parent commit already has it. `RELEASE_MIGRATIONS=approved` does not apply database changes, and new, edited, or deleted migration files block the release. If Vercel or GitHub cannot be verified, the release stops. The GitHub Actions file remains a draft in `docs/release/` and is not enabled. Nothing was deployed. Advancing the record after a future deploy needs a separate reviewed commit; the guard will keep failing closed until that record matches the live deployment.
