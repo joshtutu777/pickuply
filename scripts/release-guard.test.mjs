@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -267,18 +270,36 @@ test("the current production commit passes source and ancestry checks", { timeou
   );
 });
 
-test("the guard command refuses this dirty worktree without deploying", { timeout: 90_000 }, () => {
+test("the guard command refuses a dirty fixture without deploying", { timeout: 90_000 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "pickuply-release-guard-"));
   let thrown = null;
   try {
-    execFileSync(process.execPath, ["scripts/release-guard.mjs"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch (error) {
-    thrown = error;
+    execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
+    writeFileSync(join(dir, "README"), "fixture\n");
+    execFileSync("git", ["add", "README"], { cwd: dir, stdio: "ignore" });
+    execFileSync(
+      "git",
+      ["-c", "user.email=guard@example.com", "-c", "user.name=Release Guard", "commit", "-m", "fixture"],
+      { cwd: dir, stdio: "ignore" },
+    );
+    writeFileSync(join(dir, "README"), "fixture\nuncommitted\n");
+    try {
+      execFileSync(process.execPath, [fileURLToPath(new URL("./release-guard.mjs", import.meta.url))], {
+        cwd: dir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      thrown = error;
+    }
+  } finally {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // A locked temporary directory must not hide the guard result.
+    }
   }
-  assert.ok(thrown, "the dirty worktree was accepted");
+  assert.ok(thrown, "the dirty fixture was accepted");
   assert.equal(thrown.status, 1);
   const output = `${thrown.stdout ?? ""}\n${thrown.stderr ?? ""}`;
   if (!output.includes("uncommitted changes")) throw new Error("dirty tree was not the refusal reason");
