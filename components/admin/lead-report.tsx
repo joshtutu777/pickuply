@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VisitFunnelPanel } from "@/components/admin/visit-funnel";
 import { services } from "@/lib/constants";
 import { formatCents } from "@/lib/money";
 import { sourceLabel } from "@/lib/analytics/attribution";
@@ -6,8 +7,12 @@ import {
   jobStageLabel,
   visitStageLabel,
   type FunnelRow,
+  type LeadEvent,
   type LeadReport,
+  type LeadVisit,
+  type TouchChoice,
   type TrendPoint,
+  type VisitRangePreset,
 } from "@/lib/admin/lead-metrics";
 
 const serviceName = new Map(services.map((service) => [service.id, service.name]));
@@ -98,7 +103,35 @@ function Chart({ title, points, field, moneyValues = false }: { title: string; p
   );
 }
 
-export function LeadReportView({ report }: { report: LeadReport }) {
+export function LeadReportView({
+  report,
+  events,
+  visits,
+  coverageStart,
+  coverageEnd,
+  preset,
+  from,
+  to,
+  source,
+  service,
+  touch,
+  now,
+  capped,
+}: {
+  report: LeadReport;
+  events: LeadEvent[];
+  visits: LeadVisit[];
+  coverageStart: string;
+  coverageEnd: string;
+  preset: VisitRangePreset;
+  from: string;
+  to: string;
+  source: string;
+  service: string;
+  touch: TouchChoice;
+  now: string;
+  capped: boolean;
+}) {
   const empty = report.visitors === 0 && report.sessions === 0 && report.submitted === 0 && report.captured === 0;
   return (
     <div className="grid gap-8">
@@ -129,16 +162,16 @@ export function LeadReportView({ report }: { report: LeadReport }) {
         </div>
       </section>
 
-      <section aria-labelledby="visit-funnel">
-        <h2 id="visit-funnel" className="font-display text-2xl font-semibold text-ink">Visit funnel</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted">
-          Each row is distinct sessions. A later step counts the session as having passed the earlier steps.
-          Abandoned means the session's last step was this one and nothing new arrived for 30 minutes.
-          Sessions newer than that stay in Still open.
-          {report.biggestDropOff ? ` The largest 30-minute drop-off is ${report.biggestDropOff}.` : " No step has reached the 30-minute drop-off threshold."}
-        </p>
-        <FunnelTable rows={report.visitFunnel} abandonLabel="Abandoned after 30 min" />
-      </section>
+      <VisitFunnelPanel
+        initial={{ start: Date.parse(coverageStart), end: Date.parse(coverageEnd), events, visits, capped }}
+        preset={preset}
+        from={from}
+        to={to}
+        source={source}
+        service={service}
+        touch={touch}
+        now={now}
+      />
 
       <section aria-labelledby="request-funnel">
         <h2 id="request-funnel" className="font-display text-2xl font-semibold text-ink">Saved request funnel</h2>
@@ -186,7 +219,6 @@ export function LeadReportView({ report }: { report: LeadReport }) {
           <Chart title="Captured revenue" points={report.trends} field="revenueCents" moneyValues />
           <RateChart points={report.trends} />
           <ServiceChart report={report} />
-          <AbandonChart rows={report.visitFunnel} />
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[48rem] text-left text-sm">
@@ -334,25 +366,6 @@ function ServiceChart({ report }: { report: LeadReport }) {
             <div className="flex justify-between text-sm"><span>{item.name}</span><span>{item.count}</span></div>
             <span className="mt-1 block h-2 rounded-full bg-paper">
               <span className="block h-2 rounded-full bg-brand" style={{ width: `${Math.round((item.count / max) * 100)}%` }} />
-            </span>
-          </li>
-        ))}
-      </ul>
-    </figure>
-  );
-}
-
-function AbandonChart({ rows }: { rows: FunnelRow[] }) {
-  const max = Math.max(1, ...rows.map((row) => row.abandoned));
-  return (
-    <figure className="rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
-      <figcaption className="font-semibold text-ink">Visit steps abandoned after 30 minutes</figcaption>
-      <ul className="mt-4 grid gap-2">
-        {rows.map((row) => (
-          <li key={row.key}>
-            <div className="flex justify-between text-sm"><span>{row.label}</span><span>{row.abandoned}</span></div>
-            <span className="mt-1 block h-2 rounded-full bg-paper">
-              <span className="block h-2 rounded-full bg-brand" style={{ width: `${Math.round((row.abandoned / max) * 100)}%` }} />
             </span>
           </li>
         ))}

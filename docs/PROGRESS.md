@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Visit funnel filters prepared, not deployed (2026-11-18)
+
+The visit funnel on `/admin/analytics/leads` can be filtered by Eastern date, traffic source, recorded UTM campaign, service, and stage without reloading the rest of the page. A step is counted only when that step was stored. Saved requests and payment totals stay on the page-level filters. Device type is not recorded, so it is not a filter. No new migration. Not deployed.
+
 ## Admin lead and conversion dashboard prepared (2026-11-18)
 
 `/admin/analytics/leads` reads saved jobs for requests, checkout, authorization, capture, refunds, delivery, and Stripe transfers. Gross captured revenue, refunded amount, and net captured revenue are separate. Net captured revenue is gross captured payments minus refunds currently recorded on those payments. It is not profit or a bank deposit. Visit steps are stored only after analytics cookies are allowed. A rejected or unanswered choice writes no visit, step, or attribution row. Anonymous granted calls also have to pass length checks and minute, hour, and day rate limits. A click id is never treated as a campaign id. Migration `0144_lead_analytics.sql` is not applied. Not deployed.

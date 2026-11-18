@@ -223,6 +223,14 @@ function ymd(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+export function easternDay(date: Date): string {
+  const piece = parts(date);
+  return ymd(piece.year, piece.month, piece.day);
+}
+
+export const visitRangePresets = ["today", "yesterday", "7d", "30d", "custom"] as const;
+export type VisitRangePreset = (typeof visitRangePresets)[number];
+
 function addDays(year: number, month: number, day: number, days: number): { year: number; month: number; day: number } {
   const date = midnightInNewYork(year, month, day);
   date.setUTCDate(date.getUTCDate() + days);
@@ -302,8 +310,11 @@ type SessionProgress = {
   highest: number;
   lastAt: number;
   service: string | null;
+  serviceAt: number;
   sawLanding: boolean;
   sawStart: boolean;
+  seen: Set<VisitStage>;
+  stageAt: Partial<Record<VisitStage, string>>;
 };
 
 function sessionsFrom(events: LeadEvent[], start: Date, end: Date): SessionProgress[] {
@@ -318,40 +329,194 @@ function sessionsFrom(events: LeadEvent[], start: Date, end: Date): SessionProgr
       highest: -1,
       lastAt: 0,
       service: null,
+      serviceAt: -1,
       sawLanding: false,
       sawStart: false,
+      seen: new Set<VisitStage>(),
+      stageAt: {},
     };
+    current.seen.add(event.stage);
+    const recordedAt = current.stageAt[event.stage];
+    if (!recordedAt || event.at < recordedAt) current.stageAt[event.stage] = event.at;
     if (index > current.highest) current.highest = index;
     if (time > current.lastAt) current.lastAt = time;
     if (event.stage === "landing_viewed") current.sawLanding = true;
     if (event.stage === "request_started") current.sawStart = true;
-    if (event.service) current.service = event.service;
+    if (event.service && time >= current.serviceAt) {
+      current.service = event.service;
+      current.serviceAt = time;
+    }
     grouped.set(event.sessionId, current);
   }
   return [...grouped.values()];
 }
 
-function visitFunnel(rows: SessionProgress[], now: Date): FunnelRow[] {
-  return visitStages.map((stage, index) => {
-    const reached = rows.filter((row) => row.highest >= index);
-    const continued = rows.filter((row) => row.highest > index);
-    const here = rows.filter((row) => row.highest === index);
+function visitFunnel(rows: SessionProgress[], now: Date, startStage: VisitStage | "" = ""): FunnelRow[] {
+  const population = startStage ? rows.filter((row) => row.seen.has(startStage)) : rows;
+  const startIndex = startStage ? stageIndex(startStage) : 0;
+  return visitStages.slice(startIndex).map((stage) => {
+    const index = stageIndex(stage);
+    const reachedRows = population.filter((row) => row.seen.has(stage));
+    const later = visitStages.slice(index + 1);
+    const continued = reachedRows.filter((row) => later.some((next) => row.seen.has(next)));
+    const here = reachedRows.filter((row) => row.highest === index);
     const abandoned = here.filter((row) => now.getTime() - row.lastAt >= visitInactivityMs);
     const inProgress = here.filter((row) => now.getTime() - row.lastAt < visitInactivityMs);
-    const next = index === visitStages.length - 1 ? null : rows.filter((row) => row.highest >= index + 1).length;
+    const nextStage = visitStages[index + 1];
+    const next = nextStage ? reachedRows.filter((row) => row.seen.has(nextStage)).length : null;
     return {
       key: stage,
       label: visitLabels[stage],
-      unit: "sessions",
-      reached: reached.length,
+      unit: "sessions" as const,
+      reached: reachedRows.length,
       continued: continued.length,
       abandoned: abandoned.length,
       inProgress: inProgress.length,
-      stepRate: next == null ? null : rate(next, reached.length),
-      overallRate: rate(reached.length, rows.filter((row) => row.highest >= 0).length),
+      stepRate: next == null ? null : rate(next, reachedRows.length),
+      overallRate: rate(reachedRows.length, population.length),
     };
   });
 }
+
+export type VisitFunnelFilters = {
+  start: Date;
+  end: Date;
+  source: AttributionSource | "";
+  campaign: string;
+  service: string;
+  stage: VisitStage | "";
+  touch: TouchChoice;
+  drill: VisitStage | "";
+};
+
+export type VisitBreakdown = { label: string; count: number };
+
+export type VisitStageDrill = {
+  stage: VisitStage;
+  label: string;
+  reached: number;
+  continued: number;
+  dropped: number;
+  abandoned: number;
+  sources: VisitBreakdown[];
+  campaigns: VisitBreakdown[];
+  services: VisitBreakdown[];
+  times: VisitBreakdown[];
+  sessions: string[];
+  sessionCount: number;
+};
+
+export type VisitFunnelView = {
+  rows: FunnelRow[];
+  sessions: number;
+  overallConversion: number | null;
+  biggestDropOff: string | null;
+  campaigns: string[];
+  empty: boolean;
+  drill: VisitStageDrill | null;
+};
+
+const unknownCampaign = "__unknown__";
+
+function chosenTouch(visit: LeadVisit | undefined, choice: TouchChoice) {
+  if (!visit) return { utmSource: null, referrerHost: null, campaign: null as string | null };
+  const touch = touchOf(visit, choice);
+  return {
+    utmSource: touch.utmSource,
+    referrerHost: touch.referrerHost,
+    campaign: touch.campaign?.trim() ? touch.campaign.trim() : null,
+  };
+}
+
+function visitSource(touch: { utmSource: string | null; referrerHost: string | null; campaign: string | null }): AttributionSource {
+  if (!touch.utmSource && !touch.referrerHost && !touch.campaign) return "unknown";
+  return classifySource(touch);
+}
+
+function countBy(labels: string[]): VisitBreakdown[] {
+  const counts = new Map<string, number>();
+  for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+/**
+ * Visit-session funnel. A stage counts only when that step was stored.
+ * Opening a later page does not create a landing session.
+ * Saved jobs and payments are not an input.
+ */
+export function buildVisitFunnel(input: {
+  events: LeadEvent[];
+  visits: LeadVisit[];
+  now: Date;
+  filters: VisitFunnelFilters;
+}): VisitFunnelView {
+  const sessions = sessionsFrom(input.events, input.filters.start, input.filters.end);
+  const visitsById = new Map(input.visits.map((visit) => [visit.sessionId, visit]));
+  const described = sessions.map((session) => {
+    const touch = chosenTouch(visitsById.get(session.sessionId), input.filters.touch);
+    return { session, source: visitSource(touch), campaign: touch.campaign };
+  });
+  const campaigns = [...new Set(described.flatMap((row) => (row.campaign ? [row.campaign] : [])))].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const filtered = described.filter((row) => {
+    if (input.filters.source && row.source !== input.filters.source) return false;
+    if (input.filters.campaign === unknownCampaign && row.campaign) return false;
+    if (input.filters.campaign && input.filters.campaign !== unknownCampaign && row.campaign !== input.filters.campaign) return false;
+    if (input.filters.service && row.session.service !== input.filters.service) return false;
+    if (input.filters.stage && !row.session.seen.has(input.filters.stage)) return false;
+    return true;
+  });
+  const rows = visitFunnel(filtered.map((row) => row.session), input.now, input.filters.stage);
+  const population = filtered.length;
+  const submitted = filtered.filter((row) => row.session.seen.has("request_submitted")).length;
+  const drillStage = input.filters.drill && rows.some((row) => row.key === input.filters.drill) ? input.filters.drill : "";
+  const drillRows = drillStage ? filtered.filter((row) => row.session.seen.has(drillStage)) : [];
+  const drillIndex = drillStage ? stageIndex(drillStage) : -1;
+  const drillContinued = drillRows.filter((row) => visitStages.slice(drillIndex + 1).some((next) => row.session.seen.has(next)));
+  const drillHere = drillRows.filter((row) => row.session.highest === drillIndex);
+  const serviceNames = new Map([
+    ["delivery", "Pickup & Delivery"],
+    ["free_item", "Free-Item Pickups"],
+    ["junk", "Junk Removal & Hauling"],
+    ["construction", "Construction Store Deliveries"],
+  ]);
+  const span = input.filters.end.getTime() - input.filters.start.getTime();
+  const group: TrendGroup = span <= 2 * 24 * 60 * 60 * 1000 ? "hour" : "day";
+  return {
+    rows,
+    sessions: population,
+    overallConversion: rate(submitted, population),
+    biggestDropOff: biggest(rows),
+    campaigns: campaigns.slice(0, 100),
+    empty: population === 0,
+    drill: drillStage
+      ? {
+          stage: drillStage,
+          label: visitLabels[drillStage],
+          reached: drillRows.length,
+          continued: drillContinued.length,
+          dropped: drillRows.length - drillContinued.length,
+          abandoned: drillHere.filter((row) => input.now.getTime() - row.session.lastAt >= visitInactivityMs).length,
+          sources: countBy(drillRows.map((row) => sourceLabel(row.source))),
+          campaigns: countBy(drillRows.map((row) => row.campaign ?? "Unknown")),
+          services: countBy(drillRows.map((row) => (row.session.service ? serviceNames.get(row.session.service) ?? row.session.service : "Not selected"))),
+          times: countBy(
+            drillRows.flatMap((row) => {
+              const at = row.session.stageAt[drillStage];
+              return at ? [trendBucket(at, group)] : [];
+            }),
+          ),
+          sessions: drillRows.map((row) => row.session.sessionId).slice(0, 20),
+          sessionCount: drillRows.length,
+        }
+      : null,
+  };
+}
+
+export const unknownVisitCampaign = unknownCampaign;
 
 function biggest(rows: FunnelRow[]): string | null {
   const candidates = rows.filter((row) => row.abandoned > 0);

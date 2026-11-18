@@ -7,13 +7,16 @@ import { resolveTestLane } from "@/lib/admin/test-lane-server";
 import { loadLeadAnalytics } from "@/lib/admin/lead-load";
 import {
   buildLeadReport,
+  easternDay,
   leadRange,
   leadTimeZone,
   rangePresets,
   trendGroups,
+  visitRangePresets,
   type RangePreset,
   type TouchChoice,
   type TrendGroup,
+  type VisitRangePreset,
 } from "@/lib/admin/lead-metrics";
 import { attributionSources, sourceLabel } from "@/lib/analytics/attribution";
 import { services } from "@/lib/constants";
@@ -108,10 +111,28 @@ async function LeadAnalytics({
       {loaded.capped ? <p className="mt-4 text-sm text-muted">This range was capped at the newest 2,000 jobs or 5,000 visit events.</p> : null}
       <FilterForm preset={preset} group={group} touch={touch} service={service} status={status} source={source} from={from} to={to} />
       <div className="mt-8">
-        <LeadReportView report={report} />
+        <LeadReportView
+          report={report}
+          events={loaded.events}
+          visits={loaded.visits}
+          coverageStart={range.start.toISOString()}
+          coverageEnd={range.end.toISOString()}
+          preset={visitPreset(preset)}
+          from={visitPreset(preset) === "custom" ? easternDay(range.start) : from}
+          to={visitPreset(preset) === "custom" ? easternDay(new Date(range.end.getTime() - 1)) : to}
+          source={source}
+          service={service}
+          touch={touch}
+          now={now.toISOString()}
+          capped={loaded.visitCapped}
+        />
       </div>
     </main>
   );
+}
+
+function visitPreset(preset: RangePreset): VisitRangePreset {
+  return (visitRangePresets as readonly string[]).includes(preset) ? (preset as VisitRangePreset) : "custom";
 }
 
 function FilterForm({

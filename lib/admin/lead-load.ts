@@ -27,6 +27,7 @@ export type LeadLoad = {
   visitorStore: "ready" | "missing" | "unavailable";
   jobError: string | null;
   capped: boolean;
+  visitCapped: boolean;
 };
 
 function missingTable(error: { code?: string; message?: string } | null): boolean {
@@ -55,7 +56,7 @@ export async function loadLeadAnalytics(input: {
   if (input.lane !== "all") jobsQuery = jobsQuery.eq("is_test", input.lane === "test");
   const jobsResult = await jobsQuery;
   if (jobsResult.error) {
-    return { events: [], visits: [], jobs: [], visitorStore: "unavailable", jobError: "The request list could not be loaded.", capped: false };
+    return { events: [], visits: [], jobs: [], visitorStore: "unavailable", jobError: "The request list could not be loaded.", capped: false, visitCapped: false };
   }
   const jobRows = (jobsResult.data ?? []) as JobRow[];
   const ids = jobRows.map((job) => job.id);
@@ -180,5 +181,57 @@ export async function loadLeadAnalytics(input: {
     visitorStore: visitorMissing ? "missing" : visitorFailed ? "unavailable" : "ready",
     jobError: attempts.error || payments.error || ledger.error ? "Some payment details could not be loaded." : null,
     capped: jobRows.length >= 2000 || (leadEvents.data?.length ?? 0) >= 5000,
+    visitCapped: (leadEvents.data?.length ?? 0) >= 5000 || (leadVisits.data?.length ?? 0) >= 5000,
+  };
+}
+
+/** Consented visit steps for the visit funnel. Jobs, payments, and customer details are not read. */
+export async function loadVisitActivity(start: Date, end: Date): Promise<{
+  events: LeadEvent[];
+  visits: LeadVisit[];
+  capped: boolean;
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const [leadEvents, leadVisits] = await Promise.all([
+    supabase.from("lead_events").select("session_id, stage, service, created_at").gte("created_at", startIso).lt("created_at", endIso).limit(5000),
+    supabase
+      .from("lead_visits")
+      .select("session_id, first_utm_source, utm_source, first_utm_campaign, utm_campaign, first_referrer_host, referrer_host, first_meta_campaign_id, meta_campaign_id, first_meta_adset_id, meta_adset_id, first_meta_ad_id, meta_ad_id, first_landing_path")
+      .gte("last_seen_at", startIso)
+      .lt("started_at", endIso)
+      .limit(5000),
+  ]);
+  if (missingTable(leadEvents.error) || missingTable(leadVisits.error)) {
+    return { events: [], visits: [], capped: false, error: "Visit and campaign tracking is not installed in the database yet." };
+  }
+  if (leadEvents.error || leadVisits.error) {
+    return { events: [], visits: [], capped: false, error: "Visit sessions could not be loaded." };
+  }
+  const events: LeadEvent[] = (leadEvents.data ?? []).flatMap((row) => {
+    if (!visitStageSet.has(row.stage)) return [];
+    return [{ sessionId: row.session_id, stage: row.stage as LeadEvent["stage"], service: row.service, at: row.created_at }];
+  });
+  const visits: LeadVisit[] = (leadVisits.data ?? []).map((row) => ({
+    sessionId: row.session_id,
+    firstUtmSource: row.first_utm_source,
+    lastUtmSource: row.utm_source,
+    firstReferrerHost: row.first_referrer_host,
+    lastReferrerHost: row.referrer_host,
+    firstCampaign: campaignName(row.first_meta_campaign_id, row.first_utm_campaign),
+    lastCampaign: campaignName(row.meta_campaign_id, row.utm_campaign),
+    firstAdset: row.first_meta_adset_id,
+    lastAdset: row.meta_adset_id,
+    firstAd: row.first_meta_ad_id,
+    lastAd: row.meta_ad_id,
+    landingPath: row.first_landing_path,
+  }));
+  return {
+    events,
+    visits,
+    capped: (leadEvents.data?.length ?? 0) >= 5000 || (leadVisits.data?.length ?? 0) >= 5000,
+    error: null,
   };
 }

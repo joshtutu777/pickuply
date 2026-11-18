@@ -100,6 +100,10 @@ test("signed-out visitors are sent to login from protected pages only", () => {
   );
   assert.equal(new URL(redirectTo("/admin/jobs", anonymous), "http://local").searchParams.get("next"), "/admin/jobs");
   assert.equal(
+    new URL(redirectTo("/admin/analytics/leads", anonymous), "http://local").searchParams.get("next"),
+    "/admin/analytics/leads",
+  );
+  assert.equal(
     new URL(redirectTo("/login/name", anonymous, "?next=/driver"), "http://local").searchParams.get("next"),
     "/driver",
   );
@@ -152,8 +156,11 @@ test("a named person leaves login and is limited to their role", () => {
 
   assert.equal(redirectTo("/admin", ready("customer")), "/account?error=forbidden");
   assert.equal(redirectTo("/admin/jobs", ready("driver")), "/driver?error=forbidden");
+  assert.equal(redirectTo("/admin/analytics/leads", ready("customer")), "/account?error=forbidden");
+  assert.equal(redirectTo("/admin/analytics/leads", ready("driver")), "/driver?error=forbidden");
   assertAllowed("/admin", ready("admin"));
   assertAllowed("/admin/jobs", ready("admin"));
+  assertAllowed("/admin/analytics/leads", ready("admin"));
 
   assertAllowed("/driver", ready("customer"));
   assertAllowed("/driver", ready("admin"));
