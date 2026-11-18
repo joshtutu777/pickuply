@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { LoadingMain } from "@/components/loading-main";
@@ -17,6 +18,9 @@ export default function InstalledAppStart({ searchParams }: AppStartProps) {
 }
 
 async function Start({ searchParams }: AppStartProps) {
+  // Session loading calls Date.now(). That must happen on the request,
+  // or the installed app prerender fails and drivers never reach their jobs.
+  await connection();
   const params = await searchParams;
   const next = typeof params.next === "string" && params.next.startsWith("/") && !params.next.startsWith("//") ? params.next : null;
   const supabase = await createClient();
