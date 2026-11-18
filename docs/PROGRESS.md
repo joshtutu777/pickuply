@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Upload cards restored on a branch (2026-11-18)
+
+`restore/upload-graphics` is based on production commit `6ef15b5`. Photo pickers use the dashed camera card again, and form buttons show a spinner while they save. The current photo field still offers Take photo and Photo library, and it still prepares a JPEG preview. Checkout is unchanged. Not deployed.
+
 ## Request email is checked before the save (2026-11-17)
 
 Every service requires an email. A missing or malformed address is shown under the email field, and the field is focused, before the request is sent. Surrounding spaces are removed. The database still rejects an address it cannot store.
