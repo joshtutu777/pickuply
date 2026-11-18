@@ -10,6 +10,7 @@ const items = [
   { id: "drivers", href: "/admin/drivers", label: "Drivers" },
   { id: "customers", href: "/admin/customers", label: "Customers" },
   { id: "messages", href: "/admin/messages", label: "Messages" },
+  { id: "texts", href: "/admin/sms", label: "Texts" },
   { id: "communications", href: "/admin/communications", label: "Communications" },
   { id: "alerts", href: "/admin/notifications", label: "Alerts" },
   { id: "feedback", href: "/admin/feedback", label: "Feedback" },

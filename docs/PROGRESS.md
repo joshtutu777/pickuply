@@ -1,8 +1,24 @@
 # Pickuply progress
 
-## Visit funnel filters prepared, not deployed (2026-11-18)
+## One open request crashes the driver detail page (2026-11-18)
 
-The visit funnel on `/admin/analytics/leads` can be filtered by Eastern date, traffic source, recorded UTM campaign, service, and stage without reloading the rest of the page. A step is counted only when that step was stored. Saved requests and payment totals stay on the page-level filters. Device type is not recorded, so it is not a filter. No new migration. Not deployed.
+Job `97b53a8e-53eb-49aa-aebb-19ad53964972` is an open junk quote from Auburn, 30011, created 2:29 AM Eastern on November 13. Piece count and item size were left empty, which the database allows. The detail page tried to read the empty size and the browser showed “This page couldn’t load.” The page now says the size and quantity are not listed. The job row was not changed. Production commit `a9081ff`, deployment `dpl_ADwKqp3gY6fhhuCUPjQ83GGrMwyh`. A signed-in driver opened the Auburn request successfully.
+
+## Installed app chooses a home on each visit (2026-11-18)
+
+The first `/app` fix stopped the crash, but the signed-out redirect to the homepage was saved and could be reused for a later visitor. `/app` now chooses the destination on the request itself and marks that answer private so it is not shared. A driver still goes to `/driver`, a customer to `/account`, an admin to `/admin`, and a signed-out visitor to the homepage or a safe login return path. Production commit `4c7f513`, deployment `dpl_HFxQQL4cs9pxMXVBLqRQhP2qq92U`. No migration and no payment change. A signed-in driver still has to confirm the installed app.
+
+## Installed app opens again (2026-11-18)
+
+Signed-in drivers opening the installed app hit `/app` and saw “This page couldn’t load.” Session loading used `Date.now()` during prerender. `/app` now waits for the request before reading the session, the same way the driver pages already do. Drivers still go to `/driver`, customers to `/account`, and signed-out visitors to the homepage. Production commit `6b16339`, deployment `dpl_GauXZPsNp5eNNtyPKwTH6QgHDqjF`. No migration. Signed-in use still needs a driver login.
+
+## Admin Texts restored (2026-11-18)
+
+The Texts item and `/admin/sms` are restored on production commit `a9081ff`. The inbox, compose screen, recipient selection, scheduled messages, sent messages, and conversation view are back, with the five-minute scheduler. Payment reminder sending was not restored. Migrations `0135` through `0140` are already recorded, and the existing campaigns and messages were not changed. A signed-in admin still has to open Texts to confirm the screen.
+
+## Visit funnel filters deployed (2026-11-18)
+
+The visit funnel on `/admin/analytics/leads` can be filtered by Eastern date, traffic source, recorded UTM campaign, service, and stage without reloading the rest of the page. A step is counted only when that step was stored. Saved requests and payment totals stay on the page-level filters. Device type is not recorded, so it is not a filter. No new migration. Production commit `a4d680a`, deployment `dpl_9f5C4tBCbfjzkZhZyhiyjLm3XnYG`. Signed-in use of the new filters still needs an admin login.
 
 ## Admin lead and conversion dashboard prepared (2026-11-18)
 

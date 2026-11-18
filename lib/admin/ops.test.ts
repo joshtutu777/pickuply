@@ -212,6 +212,8 @@ test("navigation highlights the jobs board separately from request review", () =
   assert.equal(adminNavCurrent("/admin/drivers", "status=pending_review"), "drivers");
   assert.equal(adminNavCurrent("/admin/settings", ""), "settings");
   assert.equal(adminNavCurrent("/admin/messages", ""), "messages");
+  assert.equal(adminNavCurrent("/admin/sms", ""), "texts");
+  assert.equal(adminNavCurrent("/admin/sms/compose", ""), "texts");
   assert.equal(adminNavCurrent("/admin/communications", ""), "communications");
   assert.equal(adminNavCurrent("/admin/customers", ""), "customers");
   assert.equal(adminNavCurrent("/admin/finance", ""), "payments");

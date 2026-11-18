@@ -29,6 +29,12 @@ export const cronJobs = [
     schedule: "Every 15 minutes",
     route: "/api/cron/transfers",
   },
+  {
+    name: "sms",
+    label: "Admin texts",
+    schedule: "Every 5 minutes",
+    route: "/api/cron/sms",
+  },
 ] as const;
 
 export type CronJobName = (typeof cronJobs)[number]["name"];
