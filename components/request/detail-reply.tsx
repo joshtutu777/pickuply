@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { answerDetailRequest } from "@/app/jobs/actions";
+import { UploadPicker } from "@/components/upload-picker";
 import { compressImage, imageAccept } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/client";
 
@@ -125,21 +126,19 @@ export function DetailReply({
         </label>
       ) : null}
       {asked.includes("photos") ? (
-        <label className="block text-base font-semibold text-ink" htmlFor="detail-photos">
-          Photos
-          <input
-            id="detail-photos"
-            type="file"
-            accept={imageAccept}
-            multiple
-            className="mt-2 block w-full text-base"
-            disabled={uploading}
-            onChange={(event) => {
-              void addPhotos(event.target.files);
-              event.target.value = "";
-            }}
-          />
-        </label>
+        <UploadPicker
+          id="detail-photos"
+          accept={imageAccept}
+          multiple
+          clearAfter
+          disabled={uploading}
+          busy={uploading}
+          busyLabel="Preparing your photo…"
+          error={photoError || null}
+          label="Add photos"
+          kinds="Camera or photo library"
+          onChange={(files) => void addPhotos(files)}
+        />
       ) : null}
       {status ? (
         <p role="status" className="text-base text-ink">
@@ -147,11 +146,6 @@ export function DetailReply({
         </p>
       ) : null}
       {photoCount > 0 ? <p className="text-base text-ink">{photoCount} photo{photoCount === 1 ? "" : "s"} added.</p> : null}
-      {photoError ? (
-        <p role="alert" className="text-base text-danger">
-          {photoError}
-        </p>
-      ) : null}
       <label className="block text-base font-semibold text-ink" htmlFor="detail-message">
         Your answer
         <textarea id="detail-message" name="message" className="mt-2 min-h-24 w-full rounded-2xl border border-line px-4 py-3" />

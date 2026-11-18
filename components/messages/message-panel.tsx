@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { containsContact } from "@/lib/messages/contact";
+import { UploadPicker } from "@/components/upload-picker";
 import { compressImage, imageAccept } from "@/lib/photos";
 import { isPdf, sniffImage } from "@/lib/images/sniff";
 import { createClient } from "@/lib/supabase/client";
@@ -207,20 +208,17 @@ export function MessagePanel({
               Remove the phone number or email before sending. Pickuply keeps contact details off the chat.
             </p>
           ) : null}
-          <label className="text-base font-semibold text-ink" htmlFor={`file-${threadId}`}>
-            Photo or PDF
-            <input
-              id={`file-${threadId}`}
-              type="file"
-              accept={`${imageAccept},application/pdf,.pdf`}
-              className="mt-2 block w-full text-base font-normal"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void addFile(file);
-                event.target.value = "";
-              }}
-            />
-          </label>
+          <UploadPicker
+            id={`file-${threadId}`}
+            accept={`${imageAccept},application/pdf,.pdf`}
+            clearAfter
+            label="Add a photo or PDF"
+            kinds="Picture or PDF"
+            onChange={(files) => {
+              const file = files?.[0];
+              if (file) void addFile(file);
+            }}
+          />
           {fileStatus ? (
             <p role="status" className="text-base text-ink">
               {fileStatus}

@@ -34,6 +34,7 @@ import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
 import { deletePhoto, loadPhoto, savePhoto } from "@/lib/photo-store";
 import { compressImage, imageAccept } from "@/lib/photos";
+import { UploadPicker } from "@/components/upload-picker";
 import { createClient } from "@/lib/supabase/client";
 import { emptyDraft, type RequestDraft } from "@/lib/types";
 import { requestEmailError } from "@/lib/validation/email";
@@ -642,15 +643,17 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
                       Photo {photoProgress[id] === "done" ? "saved" : photoProgress[id] === "uploading" ? "uploading" : "waiting"}
                     </p>
                     {missingPhotos.includes(id) ? (
-                      <label className="mt-2 block text-sm font-semibold text-ink">
-                        Choose this photo again
-                        <input
-                          type="file"
+                      <div className="mt-2">
+                        <UploadPicker
+                          id={`reselect-${id}`}
                           accept={imageAccept}
-                          className="mt-2 block w-full"
-                          onChange={(event) => void reselectPhoto(id, event.target.files)}
+                          clearAfter
+                          required
+                          label="Choose this photo again"
+                          kinds="Camera or photo library"
+                          onChange={(files) => void reselectPhoto(id, files)}
                         />
-                      </label>
+                      </div>
                     ) : null}
                   </li>
                 ))}
@@ -1084,31 +1087,20 @@ function ItemStep({
         onChange={(value) => update("listingUrl", value)}
       />
       <div>
-        <label className="block text-base font-semibold text-ink" htmlFor="photos">
-          Photos <span className="font-normal text-muted">(up to {maxPhotos})</span>
-        </label>
-        <input
+        <UploadPicker
+          key={previews.map((preview) => preview.id).join("|") || "empty"}
           id="photos"
           name="photos"
-          type="file"
           accept={imageAccept}
           multiple
-          onChange={(event) => {
-            void onPhotos(event.target.files);
-            event.target.value = "";
-          }}
-          className="mt-2 block w-full text-base"
+          clearAfter
+          label={`Add item photos, up to ${maxPhotos}`}
+          kinds="Camera or photo library"
+          busy={photoBusy}
+          busyLabel="Preparing your photo…"
+          error={photoError}
+          onChange={(files) => void onPhotos(files)}
         />
-        {photoBusy ? (
-          <p role="status" className="mt-2 text-sm font-medium text-ink">
-            Preparing your photo…
-          </p>
-        ) : null}
-        {photoError ? (
-          <p role="alert" className="mt-2 text-sm font-medium text-danger">
-            {photoError}
-          </p>
-        ) : null}
         {previews.length > 0 ? (
           <ul className="mt-3 grid grid-cols-3 gap-2">
             {previews.map((preview) => (

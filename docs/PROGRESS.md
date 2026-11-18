@@ -1,8 +1,12 @@
 # Pickuply progress
 
-## Admin lead and conversion dashboard prepared (2026-11-17)
+## Admin lead and conversion dashboard prepared (2026-11-18)
 
 `/admin/analytics/leads` reads saved jobs for requests, checkout, authorization, capture, refunds, delivery, and Stripe transfers. Gross captured revenue, refunded amount, and net captured revenue are separate. Net captured revenue is gross captured payments minus refunds currently recorded on those payments. It is not profit or a bank deposit. Visit steps are stored only after analytics cookies are allowed. A rejected or unanswered choice writes no visit, step, or attribution row. Anonymous granted calls also have to pass length checks and minute, hour, and day rate limits. A click id is never treated as a campaign id. Migration `0144_lead_analytics.sql` is not applied. Not deployed.
+
+## Upload cards restored (2026-11-18)
+
+Photo pickers use the dashed camera card again, and form buttons show a spinner while they save. The current photo field still offers Take photo and Photo library, and it still prepares a JPEG preview. Checkout is unchanged. This restoration is production commit `dc3dd1f`.
 
 ## Request email is checked before the save (2026-11-17)
 

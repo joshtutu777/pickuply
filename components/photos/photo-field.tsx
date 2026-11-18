@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { BusyMark, UploadMark } from "@/components/upload-picker";
 import { imageAccept, prepareStoredPhoto } from "@/lib/photos";
 
 type Prepared = { file: File; url: string };
@@ -61,7 +62,7 @@ export function PhotoField({
         {label}
       </p>
       {hint ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
-      <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-labelledby={`${id}-label`}>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2" role="group" aria-labelledby={`${id}-label`}>
         <input
           id={`${id}-camera`}
           className="sr-only"
@@ -75,9 +76,11 @@ export function PhotoField({
         />
         <label
           htmlFor={`${id}-camera`}
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-center text-base font-semibold text-ink"
+          className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-3xl border-2 border-dashed border-brand bg-brand-soft px-4 py-4 text-center focus-within:ring-2 focus-within:ring-brand"
         >
-          Take photo
+          <UploadMark />
+          <span className="text-base font-semibold text-ink">Take photo</span>
+          <span className="text-sm text-muted">Use the camera</span>
         </label>
         <input
           id={`${id}-library`}
@@ -92,13 +95,16 @@ export function PhotoField({
         />
         <label
           htmlFor={`${id}-library`}
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-center text-base font-semibold text-ink"
+          className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-3xl border-2 border-dashed border-brand bg-brand-soft px-4 py-4 text-center focus-within:ring-2 focus-within:ring-brand"
         >
-          Photo library
+          <UploadMark />
+          <span className="text-base font-semibold text-ink">Photo library</span>
+          <span className="text-sm text-muted">Choose a saved picture</span>
         </label>
       </div>
       {status === "working" ? (
-        <p role="status" className="mt-2 text-base text-ink">
+        <p role="status" className="mt-2 inline-flex items-center gap-2 text-base font-semibold text-ink">
+          <BusyMark />
           Preparing your photo…
         </p>
       ) : null}

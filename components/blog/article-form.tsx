@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { UploadPicker } from "@/components/upload-picker";
 import { blogCategories, slugifyTitle, type ArticleBlock } from "@/lib/blog/content";
 
 type Initial = {
@@ -102,10 +103,7 @@ export function ArticleForm({
         Author display name
         <input name="authorName" defaultValue={initial.authorName} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
       </label>
-      <label className="grid gap-2 text-base font-semibold">
-        Cover image
-        <input id="cover" name="cover" type="file" accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif" className="font-normal" />
-      </label>
+      <UploadPicker id="cover" name="cover" accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif" label="Add a cover image" kinds="Camera or photo library" />
       <label className="grid gap-2 text-base font-semibold">
         Cover image description
         <input name="coverAlt" defaultValue={initial.coverAlt} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
@@ -229,18 +227,17 @@ function BodyImageUpload({ postId, onSaved }: { postId: string; onSaved: (path: 
         Image description
         <input value={alt} onChange={(event) => setAlt(event.target.value)} className="min-h-12 rounded-2xl border border-line bg-paper px-4 font-normal" />
       </label>
-      <label className="grid gap-2 text-base font-semibold">
-        Add image
-        <input
-          type="file"
-          accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif"
-          className="font-normal"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void upload(file);
-          }}
-        />
-      </label>
+      <UploadPicker
+        id="article-image"
+        accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.avif"
+        clearAfter
+        label="Add image"
+        kinds="Camera or photo library"
+        onChange={(files) => {
+          const file = files?.[0];
+          if (file) void upload(file);
+        }}
+      />
       {message ? <p className="text-base">{message}</p> : null}
     </div>
   );
