@@ -78,6 +78,28 @@ test("item facts use the structured fields and leave out the written description
     handling: "2 people · 1 at pickup, 0 at drop-off · No elevator reported",
   });
   assert.equal(JSON.stringify(facts).includes("description"), false);
+  const optionalJunk = structuredItemFacts({
+    service: "junk",
+    pieces: null,
+    size: null,
+    helpLoading: true,
+    stairsPickup: 0,
+    stairsDropoff: null,
+    elevator: false,
+  });
+  assert.deepEqual(optionalJunk, {
+    type: "Junk Removal & Hauling",
+    quantity: "Quantity not listed",
+    size: "Size not listed",
+    handling: "2 people · No stairs reported · No elevator reported",
+  });
+  assert.equal(pickupTimeLabel("asap", null), "As soon as possible");
+  assert.equal(placeLabel("Auburn, 30011", "pickup"), "Auburn, 30011");
+  assert.equal(placeLabel(null, "dropoff"), "No drop-off");
+  assert.equal(tripDistanceLabel(null), "Trip distance not listed");
+  assert.equal(vehicleNeedLabel(null), "Any vehicle");
+  assert.equal(itemSummary(null, null), "Quantity not listed");
+  assert.equal(itemSummary(1, "medium"), "1 piece · medium");
   assert.equal(itemPhotoLabel(0), "No item photos");
   assert.equal(itemPhotoLabel(2), null);
   assert.equal(unavailableJobTitle, "This request is no longer available");

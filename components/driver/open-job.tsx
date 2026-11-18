@@ -25,8 +25,8 @@ import { createClient } from "@/lib/supabase/client";
 type OpenJobRow = {
   id: string;
   service: string;
-  pieces: number;
-  size: string;
+  pieces: number | null;
+  size: string | null;
   pickup_area: string;
   dropoff_area: string | null;
   distance_miles: number | null;

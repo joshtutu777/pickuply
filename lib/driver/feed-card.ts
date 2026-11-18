@@ -31,9 +31,9 @@ export function jobTypeLabel(service: string): string {
   return services.find((item) => item.id === service)?.name ?? "Request";
 }
 
-export function itemSummary(pieces: number, size: string): string {
-  const count = pieces === 1 ? "1 piece" : `${pieces} pieces`;
-  const named = size.trim().replaceAll("_", " ");
+export function itemSummary(pieces: number | null, size: string | null): string {
+  const count = pieces == null ? "Quantity not listed" : pieces === 1 ? "1 piece" : `${pieces} pieces`;
+  const named = size?.trim().replaceAll("_", " ") ?? "";
   return named ? `${count} · ${named}` : count;
 }
 
@@ -88,8 +88,10 @@ export function pickupTimeLabel(date: string, window: string | null): string {
   return `${when} · ${windows[window] ?? window.replaceAll("_", " ")}`;
 }
 
-export function sizeLabel(size: string): string {
-  return itemSizes.find((item) => item.id === size)?.label ?? (size.trim() ? size.replaceAll("_", " ") : "Size not listed");
+export function sizeLabel(size: string | null | undefined): string {
+  const named = size?.trim() ?? "";
+  if (!named) return "Size not listed";
+  return itemSizes.find((item) => item.id === named)?.label ?? named.replaceAll("_", " ");
 }
 
 export type StructuredItem = {
@@ -102,8 +104,8 @@ export type StructuredItem = {
 /** Facts an eligible driver can already see. This does not include the written description. */
 export function structuredItemFacts(input: {
   service: string;
-  pieces: number;
-  size: string;
+  pieces: number | null;
+  size: string | null;
   helpLoading: boolean;
   stairsPickup: number;
   stairsDropoff: number | null;
@@ -116,7 +118,7 @@ export function structuredItemFacts(input: {
   ].join(" · ");
   return {
     type: jobTypeLabel(input.service),
-    quantity: input.pieces === 1 ? "1 piece" : `${input.pieces} pieces`,
+    quantity: input.pieces == null ? "Quantity not listed" : input.pieces === 1 ? "1 piece" : `${input.pieces} pieces`,
     size: sizeLabel(input.size),
     handling,
   };
