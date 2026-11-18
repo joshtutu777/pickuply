@@ -5,6 +5,7 @@ import {
   accessStateFromProfile,
   continueDestination,
   decideAccess,
+  installedAppDestination,
   roleHome,
   safeIntent,
   safeNextParam,
@@ -211,4 +212,22 @@ test("continue drops external and forbidden destinations", () => {
   assert.equal(safeIntent("driver/../admin"), null);
   assert.equal(safeNextParam("//evil.example"), null);
   assert.equal(safeNextParam("/account?error=forbidden"), "/account?error=forbidden");
+});
+
+test("the installed app sends a driver to jobs and leaves a signed-out visitor on the homepage", () => {
+  const anonymous = { status: "anonymous" } as const;
+  const driver = { status: "ready", role: "driver", fullName: "Ada" } as const;
+  const customer = { status: "ready", role: "customer", fullName: "Bea" } as const;
+  const admin = { status: "ready", role: "admin", fullName: "Cam" } as const;
+  assert.equal(installedAppDestination({ state: anonymous }), "/");
+  assert.equal(installedAppDestination({ state: anonymous, next: "/driver/jobs" }), "/login?next=%2Fdriver%2Fjobs");
+  assert.equal(installedAppDestination({ state: anonymous, next: "https://evil.example" }), "/");
+  assert.equal(installedAppDestination({ state: driver, next: "//evil.example" }), "/driver");
+  assert.notEqual(installedAppDestination({ state: driver }), installedAppDestination({ state: anonymous }));
+  assert.notEqual(installedAppDestination({ state: customer }), installedAppDestination({ state: driver }));
+  assert.equal(installedAppDestination({ state: driver }), "/driver");
+  assert.equal(installedAppDestination({ state: customer }), "/account");
+  assert.equal(installedAppDestination({ state: customer, mode: "driver" }), "/driver");
+  assert.equal(installedAppDestination({ state: admin }), "/admin");
+  assert.equal(installedAppDestination({ state: driver, next: "/driver/jobs" }), "/driver/jobs");
 });

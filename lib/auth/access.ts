@@ -19,6 +19,21 @@ export function isRole(value: string): value is Role {
   return ROLES.has(value as Role);
 }
 
+/** Where the installed app should send this person. A safe next path wins after sign-in. */
+export function installedAppDestination(input: {
+  state: AccessState;
+  next?: string | null;
+  mode?: "customer" | "driver" | null;
+}): string {
+  const next = safeNextParam(input.next);
+  if (input.state.status === "anonymous") return next ? withNext("/login", next) : "/";
+  if (next) return next;
+  const role = input.state.status === "ready" || input.state.status === "needs-name" ? input.state.role : null;
+  if (role === "admin") return "/admin";
+  if (role === "driver" || input.mode === "driver") return "/driver";
+  return "/account";
+}
+
 export function roleHome(role: Role): "/account" | "/driver" | "/admin" {
   if (role === "admin") return "/admin";
   if (role === "driver") return "/driver";

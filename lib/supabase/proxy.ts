@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { accessStateFromProfile, decideAccess, isRole } from "@/lib/auth/access";
+import { accessStateFromProfile, decideAccess, installedAppDestination, isRole } from "@/lib/auth/access";
 import { supabaseProjectUrl } from "@/lib/supabase/project-url";
 
 type PendingCookie = {
@@ -76,6 +76,22 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
+  const pathname = request.nextUrl.pathname.length > 1 && request.nextUrl.pathname.endsWith("/")
+    ? request.nextUrl.pathname.replace(/\/+$/, "")
+    : request.nextUrl.pathname;
+  if (pathname === "/app") {
+    const modeCookie = request.cookies.get("pickuply.mode")?.value;
+    const mode = modeCookie === "driver" || modeCookie === "customer" ? modeCookie : null;
+    const redirectResponse = redirectTo(
+      installedAppDestination({ state, next: request.nextUrl.searchParams.get("next"), mode }),
+      request,
+      jar,
+      extraHeaders,
+    );
+    redirectResponse.headers.set("Cache-Control", "private, no-store");
+    return redirectResponse;
+  }
+
   const decision = decideAccess({
     pathname: request.nextUrl.pathname,
     search: request.nextUrl.search,
@@ -83,14 +99,22 @@ export async function updateSession(request: NextRequest) {
   });
   if (decision.type === "allow") return response;
 
-  const location = decision.location;
-  if (!location.startsWith("/") || location.startsWith("//")) return response;
-  const target = new URL(location, request.url);
-  if (target.origin !== request.nextUrl.origin) return response;
-  if (target.pathname === request.nextUrl.pathname && target.search === request.nextUrl.search) {
-    return response;
-  }
+  return redirectTo(decision.location, request, jar, extraHeaders, response);
+}
 
+function redirectTo(
+  location: string,
+  request: NextRequest,
+  jar: PendingCookie[],
+  extraHeaders: Record<string, string>,
+  fallback?: NextResponse,
+) {
+  if (!location.startsWith("/") || location.startsWith("//")) return fallback ?? NextResponse.next({ request });
+  const target = new URL(location, request.url);
+  if (target.origin !== request.nextUrl.origin) return fallback ?? NextResponse.next({ request });
+  if (target.pathname === request.nextUrl.pathname && target.search === request.nextUrl.search) {
+    return fallback ?? NextResponse.next({ request });
+  }
   const redirectResponse = NextResponse.redirect(target, 303);
   applyAuth(redirectResponse, jar, extraHeaders);
   return redirectResponse;
