@@ -19,6 +19,7 @@ import {
   type TrackingEvent,
 } from "@/lib/analytics/tracking";
 import { createClient } from "@/lib/supabase/client";
+import { clearLeadTouch, recordLeadStage } from "@/lib/analytics/lead-collect";
 
 const consentKey = "pickuply-analytics-consent";
 const seenKey = "pickuply-analytics-seen";
@@ -38,6 +39,11 @@ export function openCookieSettings() {
 
 export function trackingDecision(): "send" | "skip" | "wait" {
   return analyticsOpen({ ready: gate.ready, consent: gate.consent, isTest: gate.isTest });
+}
+
+/** First-party visit steps are recorded for real visitors. Test profiles and signed-out loading are skipped. */
+export function internalLeadAllowed(): boolean {
+  return gate.ready && !gate.isTest;
 }
 
 export function subscribeTracking(listener: () => void): () => void {
@@ -203,6 +209,13 @@ export function AnalyticsRoot() {
     dataLayer().push(view);
   }, [pathname, ready, consent]);
 
+  useEffect(() => {
+    if (!ready || gate.isTest) return;
+    const path = pagePath(pathname);
+    if (path === "/") void recordLeadStage("landing_viewed");
+    if (path === "/request") void recordLeadStage("request_viewed");
+  }, [pathname, ready]);
+
   function choose(choice: ConsentChoice) {
     localStorage.setItem(consentKey, choice);
     gate.consent = choice;
@@ -211,11 +224,15 @@ export function AnalyticsRoot() {
     if (choice === "denied") {
       updateConsent("denied");
       clearAnalyticsCookies();
+      clearLeadTouch();
       notifyTracking();
       return;
     }
     loadTagManager();
     notifyTracking();
+    const leadPath = pagePath(pathname);
+    if (leadPath === "/") void recordLeadStage("landing_viewed");
+    if (leadPath === "/request") void recordLeadStage("request_viewed");
     const path = pagePath(pathname);
     if (path && lastPath !== path) {
       lastPath = path;

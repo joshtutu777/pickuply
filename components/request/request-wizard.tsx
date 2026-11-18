@@ -27,6 +27,8 @@ import { estimateForDraft, estimateMessage } from "@/lib/estimate";
 import { pushConversion, pushTrackingEvent, subscribeTracking, trackingDecision } from "@/components/analytics/analytics-root";
 import { isFreshAccount, leadConversion, requestStartEvent, requestStepEvent } from "@/lib/analytics/tracking";
 import { recordFunnel } from "@/lib/funnel";
+import { attachJobAttribution, recordLeadStage } from "@/lib/analytics/lead-collect";
+import { internalLeadAllowed } from "@/components/analytics/analytics-root";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { mapOtpError, otpErrorCopy } from "@/lib/auth/otp-errors";
 import { codeSentMessage, normalizeUsPhone } from "@/lib/phone";
@@ -145,6 +147,18 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     }
     void recordFunnel({ event: "request_screen", step: String(stepIndex + 1), service, pricing });
   }, [draft.pricingMethod, draft.service, stepIndex]);
+  useEffect(() => {
+    if (!internalLeadAllowed()) return;
+    const service = draft.service || null;
+    void recordLeadStage("request_started", service);
+    if (service) void recordLeadStage("service_selected", service);
+    if (stepIndex >= 1) void recordLeadStage("what_completed", service);
+    if (stepIndex >= 2) {
+      void recordLeadStage("where_completed", service);
+      void recordLeadStage("price_reached", service);
+    }
+    if (stepIndex >= 3) void recordLeadStage("verify_reached", service);
+  }, [draft.service, stepIndex, trackingTick]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -491,6 +505,10 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
         service: savedService || null,
         pricing: savedPricing || null,
       });
+      if (internalLeadAllowed()) {
+        await recordLeadStage("request_submitted", savedService || null);
+        await attachJobAttribution(job.id);
+      }
       pushTrackingEvent("delivery_request_created", `delivery_request_created:${job.id}`, {
         service: savedService || "",
       });

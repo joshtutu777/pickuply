@@ -90,6 +90,17 @@ function NavLinks({
       </li>
       <li>
         <Link
+          href="/admin/analytics/leads"
+          aria-current={current === "leads" ? "page" : undefined}
+          className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
+            current === "leads" ? "bg-brand-soft text-brand-dark" : "text-ink hover:bg-paper-raised"
+          }`}
+        >
+          Leads
+        </Link>
+      </li>
+      <li>
+        <Link
           href="/admin/help"
           aria-current={current === "help" ? "page" : undefined}
           className={`flex min-h-12 items-center rounded-2xl px-3 text-base font-semibold ${
