@@ -1,8 +1,12 @@
 # DRAFT ONLY. This file is not in .github/workflows, so GitHub Actions will not run it.
-# Do not install it until main matches production and the production environment has a required reviewer.
+# Do not install it until GitHub's production environment requires a reviewer.
+# Keep the Vercel Git integration disconnected. This workflow deploys with the CLI.
 # This file contains no credentials.
-# The job must not edit scripts/approved-release.json. A Vercel deployment does not approve itself.
-# The job must not run supabase db push. RELEASE_MIGRATIONS does not authorize database changes.
+# The deploy job must not edit scripts/approved-release.json. A deployment does not approve itself.
+# The job must not run supabase db push. The release guard rejects migration changes.
+# After the deployment is verified, a later commit may update only scripts/approved-release.json.
+# Check that commit with: node scripts/release-guard.mjs --record
+# That check does not deploy, and the release guard still refuses the record change as a release.
 
 name: Production release
 
@@ -10,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: Exact reviewed commit to release
+        description: Exact main commit to release
         required: true
         type: string
       approval:
@@ -33,8 +37,11 @@ jobs:
           ref: ${{ inputs.sha }}
           fetch-depth: 0
 
-      - name: Confirm the checkout is the reviewed commit
-        run: test "$(git rev-parse HEAD)" = "${{ inputs.sha }}"
+      - name: Confirm the commit is the current main tip
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.sha }}"
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "${{ inputs.sha }}"
 
       - name: Run the release guards
         run: node scripts/release-guard.mjs --full
@@ -52,15 +59,15 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          url=$(npx vercel deploy . --prod --yes --scope pickuply-app --project pickuply --meta "gitCommitSha=${SHA}" --meta "gitCommitRef=feat/admin-lead-analytics")
-          id=$(npx vercel inspect "$url" --scope pickuply-app --json | node --input-type=module -e "let s=''; for await (const chunk of process.stdin) s += chunk; const deploymentId = JSON.parse(s).id; if (!String(deploymentId).startsWith('dpl_')) process.exit(1); process.stdout.write(deploymentId);")
-          echo "deployment-id=$id" >> "$GITHUB_OUTPUT"
+          url=$(npx vercel deploy . --prod --yes --scope pickuply-app --project pickuply --meta "gitCommitSha=${SHA}" --meta "gitCommitRef=main")
+          node --input-type=module -e "let s=''; for await (const c of process.stdin) s += c; const text=s.replace(/^\uFEFF/, ''); const value=JSON.parse(text.slice(text.search(/[\[{]/))); const sha=value.meta?.gitCommitSha ?? ''; const aliases=Array.isArray(value.alias)?value.alias:[]; if (value.readyState!=='READY' || value.target!=='production' || !aliases.includes('pickuplyapp.com') || sha!==process.env.SHA || !String(value.id??'').startsWith('dpl_')) process.exit(1); process.stdout.write(value.id);" <<< "$(npx vercel inspect "$url" --scope pickuply-app --json)" > deployment-id.txt
+          echo "deployment-id=$(cat deployment-id.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Record the deployment id and commit
+      - name: Show the record for the follow-up commit
         if: inputs.approval == 'approved'
         env:
           DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment-id }}
           SHA: ${{ inputs.sha }}
         run: |
-          node --input-type=module -e "const deploymentId=process.env.DEPLOYMENT_ID; const sha=process.env.SHA; if(!deploymentId?.startsWith('dpl_')||!/^[0-9a-f]{40}$/.test(sha??'')) process.exit(1); console.log(JSON.stringify({deploymentId, sha}));"
-          printf '\n%s\n' "{\"deploymentId\":\"$DEPLOYMENT_ID\",\"sha\":\"$SHA\"}" >> "$GITHUB_STEP_SUMMARY"
+          node --input-type=module -e "const deploymentId=process.env.DEPLOYMENT_ID; const sha=process.env.SHA; if(!deploymentId?.startsWith('dpl_')||!/^[0-9a-f]{40}$/.test(sha??'')) process.exit(1); const record={repository:'joshtutu777/pickuply',branch:'main',sha,deploymentId}; console.log(JSON.stringify(record,null,2));"
+          printf '\n%s\n' "Do not deploy the follow-up commit. Commit only scripts/approved-release.json with this SHA and deployment ID, then run node scripts/release-guard.mjs --record." >> "$GITHUB_STEP_SUMMARY"

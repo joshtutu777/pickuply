@@ -9,6 +9,7 @@ import {
   approvedReleaseAt,
   commitContains,
   databaseChangesAllowed,
+  evaluateRecordAdvance,
   evaluateRelease,
   loadApprovedRelease,
   loadProductionRecord,
@@ -220,6 +221,89 @@ test("an unapproved Vercel deployment cannot replace the approved baseline", () 
   assert.ok(result.failures.includes("approved production baseline changed"));
 });
 
+test("a verified record update is still refused by the release guard", () => {
+  const previousSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const nextSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const previousApproved = {
+    repository: policy.repository,
+    branch: "feat/admin-lead-analytics",
+    sha: previousSha,
+    deploymentId: "dpl_olddeploy",
+  };
+  const approved = {
+    repository: policy.repository,
+    branch: policy.productionBranch,
+    sha: nextSha,
+    deploymentId: "dpl_newdeploy",
+  };
+  const record = {
+    deploymentId: "dpl_newdeploy",
+    sha: nextSha,
+    readyState: "READY",
+    target: "production",
+    aliases: [policy.productionHost],
+  };
+  const advance = evaluateRecordAdvance({
+    policy,
+    previousApproved,
+    approved,
+    record,
+    containsPrevious: true,
+    changedPaths: ["scripts/approved-release.json"],
+  });
+  assert.deepEqual(advance.failures, []);
+  const release = evaluateRelease(
+    releaseOf(readCommit(root, "HEAD").sha, {
+      previousApproved,
+      approved,
+      record,
+      ancestor: true,
+    }),
+  );
+  assert.equal(release.ok, false);
+  assert.ok(release.failures.includes("approved production baseline changed"));
+});
+
+test("a record update cannot include another file or skip the previous commit", () => {
+  const approved = {
+    repository: policy.repository,
+    branch: policy.productionBranch,
+    sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    deploymentId: "dpl_newdeploy",
+  };
+  const record = {
+    deploymentId: approved.deploymentId,
+    sha: approved.sha,
+    readyState: "READY",
+    target: "production",
+    aliases: [policy.productionHost],
+  };
+  const previousApproved = {
+    repository: policy.repository,
+    branch: policy.productionBranch,
+    sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    deploymentId: "dpl_olddeploy",
+  };
+  const extraFile = evaluateRecordAdvance({
+    policy,
+    previousApproved,
+    approved,
+    record,
+    containsPrevious: true,
+    changedPaths: ["scripts/approved-release.json", "lib/payments/transfers.ts"],
+  });
+  assert.ok(extraFile.failures.includes("production record update changes more than the approved release record"));
+  const skipped = evaluateRecordAdvance({
+    policy,
+    previousApproved,
+    approved,
+    record,
+    containsPrevious: false,
+    changedPaths: ["scripts/approved-release.json"],
+  });
+  assert.ok(skipped.failures.includes("new production commit does not contain the previous production commit"));
+});
+
 test("GitHub verification failure blocks the release", () => {
   const result = evaluateRelease(
     releaseOf(readCommit(root, "HEAD").sha, { githubFailures: ["GitHub branch could not be verified"] }),
@@ -256,7 +340,10 @@ test("the current production commit passes source and ancestry checks", { timeou
   const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved }));
   const recordMoved =
     previousApproved != null &&
-    (previousApproved.sha !== approved.sha || previousApproved.deploymentId !== approved.deploymentId);
+    (previousApproved.sha !== approved.sha ||
+      previousApproved.deploymentId !== approved.deploymentId ||
+      previousApproved.branch !== approved.branch ||
+      previousApproved.repository !== approved.repository);
   if (recordMoved) {
     assert.equal(current.ok, false);
     assert.ok(current.failures.includes("approved production baseline changed"));

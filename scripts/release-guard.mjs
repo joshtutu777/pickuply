@@ -97,6 +97,32 @@ export function checkApprovedAgreement(approved, record, policy) {
   return failures;
 }
 
+export function evaluateRecordAdvance(input) {
+  const failures = [
+    ...checkProductionRecord(input.record, input.policy),
+    ...checkApprovedAgreement(input.approved, input.record, input.policy),
+  ];
+  const previous = input.previousApproved;
+  const approved = input.approved;
+  if (!previous) failures.push("previous approved production record is missing");
+  if (previous && approved) {
+    if (previous.repository !== approved.repository) failures.push("approved production repository changed");
+    const unchanged =
+      previous.sha === approved.sha &&
+      previous.deploymentId === approved.deploymentId &&
+      previous.branch === approved.branch;
+    if (unchanged) failures.push("approved production record did not advance");
+    if (previous.sha !== approved.sha && input.containsPrevious !== true) {
+      failures.push("new production commit does not contain the previous production commit");
+    }
+  }
+  const paths = (input.changedPaths ?? []).map((path) => String(path).replaceAll("\\", "/")).sort();
+  if (paths.length !== 1 || paths[0] !== "scripts/approved-release.json") {
+    failures.push("production record update changes more than the approved release record");
+  }
+  return { ok: failures.length === 0, failures };
+}
+
 export function checkBaselineUnchanged(previousApproved, approved) {
   if (!previousApproved) return [];
   if (
@@ -336,7 +362,54 @@ export function runFullChecks(cwd, policy = loadReleasePolicy()) {
   runCaptured(process.execPath, [join(cwd, "node_modules/next/dist/bin/next"), "build"], cwd);
 }
 
+function recordAdvanceMain() {
+  if (process.argv.includes("--full")) {
+    console.error("release refused: the record check does not deploy");
+    process.exit(1);
+  }
+  const cwd = process.cwd();
+  const policy = loadReleasePolicy();
+  const status = git(cwd, ["status", "--porcelain"]);
+  const clean = checkClean(status);
+  if (clean.length > 0) {
+    for (const failure of clean) console.error(`release refused: ${failure}`);
+    process.exit(1);
+  }
+  const head = git(cwd, ["rev-parse", "HEAD"]).trim();
+  let parent = null;
+  try {
+    parent = git(cwd, ["rev-parse", `${head}^`]).trim();
+  } catch {
+    parent = null;
+  }
+  const approved = approvedReleaseAt(cwd, head);
+  const previousApproved = parent ? approvedReleaseAt(cwd, parent) : null;
+  const changedPaths = parent
+    ? git(cwd, ["diff", "--name-only", parent, head])
+        .split(/\r?\n/)
+        .filter(Boolean)
+    : [];
+  const result = evaluateRecordAdvance({
+    policy,
+    previousApproved,
+    approved,
+    record: loadProductionRecord(policy),
+    containsPrevious:
+      previousApproved?.sha && approved?.sha ? commitContains(cwd, previousApproved.sha, approved.sha) : false,
+    changedPaths,
+  });
+  if (!result.ok) {
+    for (const failure of result.failures) console.error(`release refused: ${failure}`);
+    process.exit(1);
+  }
+  console.log(`production record ok ${approved.sha} (${approved.deploymentId})`);
+}
+
 function main() {
+  if (process.argv.includes("--record")) {
+    recordAdvanceMain();
+    return;
+  }
   const cwd = process.cwd();
   const policy = loadReleasePolicy();
   const full = process.argv.includes("--full");

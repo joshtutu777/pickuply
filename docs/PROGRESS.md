@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Main release workflow drafted (2026-11-18)
+
+GitHub `main` is `e70e85063d38c2b533cead27b9b3435dd2051eec`. Live production is still `58779556a9205a2982ffc7df00a56b223a420491`, deployment `dpl_Bd341qB4V2QPg99QMWJsJParw2h5`. The Vercel Git connection stays disconnected. The draft workflow in `docs/release/` is manual, requires GitHub's production environment, and deploys only the current `main` tip after the release guard passes. It does not update `scripts/approved-release.json`. A later commit that changes only that file can be checked with `node scripts/release-guard.mjs --record`. A normal release still refuses any change to the record. The workflow is not installed under `.github/workflows`. Nothing was deployed.
+
 ## Transfer recovery prepared (2026-11-18)
 
 Driver transfers look up an existing Stripe transfer before creating one. A completed empty lookup can start the first send only when that ledger claim has never been submitted. An unknown Stripe result stays unresolved even if a later lookup is empty. A refusal Stripe returned before accepting the transfer is not sent again automatically. `reconcileUnresolvedTransfers` can record a transfer Stripe already created. It is not scheduled. No migration was added. Checkout, capture, webhooks, and payout recording were not changed. Not committed and not deployed.

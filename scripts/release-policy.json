@@ -1,6 +1,6 @@
 {
   "repository": "joshtutu777/pickuply",
-  "productionBranch": "feat/admin-lead-analytics",
+  "productionBranch": "main",
   "productionHost": "pickuplyapp.com",
   "vercelScope": "pickuply-app",
   "vercelProjectId": "prj_EPGuyrSlw9XsFlDyeuWEZcM3Ymw0",
