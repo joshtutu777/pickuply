@@ -13,6 +13,7 @@ import {
   evaluateRelease,
   loadApprovedRelease,
   loadProductionRecord,
+  productionDeploymentsFromApi,
   loadReleasePolicy,
   readCommit,
   repositoryName,
@@ -56,6 +57,17 @@ function releaseOf(sha, patch = {}) {
     ...patch,
   };
 }
+
+test("a production list keeps each deployment and fails closed when a detail is missing", () => {
+  const list = { deployments: [{ uid: "dpl_olddeploy", target: "production", readyState: "READY" }] };
+  const details = new Map([
+    ["dpl_olddeploy", { id: "dpl_olddeploy", readyState: "READY", target: "production", meta: { gitCommitSha: "b".repeat(40) } }],
+  ]);
+  assert.deepEqual(productionDeploymentsFromApi(list, details), [
+    { deploymentId: "dpl_olddeploy", sha: "b".repeat(40), readyState: "READY", target: "production" },
+  ]);
+  assert.equal(productionDeploymentsFromApi(list, new Map()), null);
+});
 
 test("repository names accept both GitHub URL shapes", () => {
   assert.equal(repositoryName("https://github.com/joshtutu777/pickuply.git"), policy.repository);

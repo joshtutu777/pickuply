@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Release workflow pins and preflight (2026-11-18)
+
+The draft workflow pins `actions/checkout` to `11d5960a326750d5838078e36cf38b85af677262` (v4.4.0) and uses the installed Vercel CLI 66.2.0. Immediately before the single deploy, it refuses a commit that is already serving production, a live deployment that does not match the approved record, a commit that is no longer the `main` tip, an unfinished production deployment, an existing deployment of the same commit, or another Production release run that is still open. The workflow is still not installed. GitHub's plan for this private repository could not be read because the GitHub CLI is not signed in. Required reviewers cannot be assumed. Nothing was deployed.
+
 ## Main release workflow hardened locally (2026-11-18)
 
 The draft workflow still lives only in `docs/release/` and is not installed. A production deploy is attempted once. If it fails or cannot be verified, the job reports every deployment ID it found, reads the deployment currently serving `pickuplyapp.com`, and stops. It does not retry, roll back, or edit `scripts/approved-release.json`. The record check refuses any commit that changes more than that file, and it refuses a record that does not match a ready deployment on `pickuplyapp.com`. A normal release still refuses a record edit. Nothing was deployed.

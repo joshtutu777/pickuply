@@ -119,6 +119,51 @@ export function buildDeploymentReport(input) {
   };
 }
 
+const activeRunStates = new Set(["queued", "in_progress", "waiting", "pending", "requested"]);
+
+export function releaseRunConflicts(runs, currentRunId) {
+  const items = Array.isArray(runs?.workflow_runs) ? runs.workflow_runs : Array.isArray(runs) ? runs : null;
+  if (!items) return null;
+  return items.some((run) => {
+    const sameWorkflow = run?.name === "Production release" || String(run?.path ?? "").endsWith("production-release.yml");
+    return sameWorkflow && activeRunStates.has(run?.status) && String(run?.id ?? "") !== String(currentRunId ?? "");
+  });
+}
+
+export function evaluatePreDeployment(input) {
+  const failures = [];
+  const requested = input.requestedSha ?? "";
+  if (!shaPattern.test(requested)) failures.push("requested commit is not a full commit id");
+  if (input.mainTip !== requested) failures.push("requested commit is not the current main tip");
+  const live = input.live;
+  const approved = input.approved;
+  if (!live) failures.push("production deployment could not be verified");
+  else {
+    if (live.readyState !== "READY") failures.push("production deployment is not READY");
+    if (!(live.aliases ?? []).includes(input.host)) failures.push(`deployment is not serving ${input.host}`);
+    if (live.sha === requested) failures.push("requested commit is already serving production");
+    if (!approved || live.sha !== approved.sha || live.deploymentId !== approved.deploymentId) {
+      failures.push("live production does not match the approved release record");
+    }
+  }
+  if (!Array.isArray(input.deployments)) failures.push("production deployment list could not be verified");
+  else {
+    const unfinished = input.deployments.some((item) => {
+      const state = item?.readyState ?? "";
+      return state !== "READY" && state !== "ERROR" && state !== "CANCELED";
+    });
+    const sameCommit = input.deployments.some((item) => item?.sha && item.sha === requested);
+    if (unfinished) failures.push("a production deployment is still in progress");
+    if (sameCommit) failures.push("a deployment for the requested commit already exists");
+  }
+  if (!input.runs || releaseRunConflicts(input.runs, input.currentRunId) == null) {
+    failures.push("could not verify whether another release is in progress");
+  } else if (releaseRunConflicts(input.runs, input.currentRunId)) {
+    failures.push("another production release is in progress");
+  }
+  return { ok: failures.length === 0, failures };
+}
+
 export function nextApprovedRecord(policy, sha, deploymentId) {
   if (!shaPattern.test(sha ?? "") || !deploymentPattern.test(deploymentId ?? "")) return null;
   return {
@@ -187,6 +232,23 @@ function reportMain() {
   console.log(JSON.stringify(record));
 }
 
+function preflightMain() {
+  const policy = loadReleasePolicy();
+  const result = evaluatePreDeployment({
+    host: policy.productionHost,
+    requestedSha: option("--sha"),
+    mainTip: option("--main-tip"),
+    live: readJsonFile(option("--live")),
+    approved: readJsonFile(option("--approved")),
+    deployments: readJsonFile(option("--deployments")),
+    runs: readJsonFile(option("--runs")),
+    currentRunId: option("--run-id"),
+  });
+  for (const failure of result.failures) console.error(`release refused: ${failure}`);
+  if (!result.ok) process.exit(1);
+  console.log("preflight ok");
+}
+
 function recordMain() {
   const record = nextApprovedRecord(loadReleasePolicy(), process.env.SHA, process.env.DEPLOYMENT_ID);
   if (!record) process.exit(1);
@@ -201,6 +263,10 @@ function main() {
   }
   if (process.argv.includes("report")) {
     reportMain();
+    return;
+  }
+  if (process.argv.includes("preflight")) {
+    preflightMain();
     return;
   }
   if (process.argv.includes("record")) {

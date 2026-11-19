@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildDeploymentReport,
   deploymentTarget,
+  evaluatePreDeployment,
   nextApprovedRecord,
 } from "./release-deploy-report.mjs";
 import { loadReleasePolicy } from "./release-guard.mjs";
@@ -198,6 +199,62 @@ test("the report command records a failed deployment id without deploying", () =
   }
 });
 
+test("a release is refused when production moved, is already current, or another release is open", () => {
+  const requested = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const approved = {
+    repository: policy.repository,
+    branch: "main",
+    sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    deploymentId: "dpl_olddeploy",
+  };
+  const live = {
+    deploymentId: approved.deploymentId,
+    sha: approved.sha,
+    readyState: "READY",
+    target: "production",
+    aliases: [policy.productionHost],
+  };
+  const base = {
+    host: policy.productionHost,
+    requestedSha: requested,
+    mainTip: requested,
+    live,
+    approved,
+    deployments: [{ deploymentId: approved.deploymentId, sha: approved.sha, readyState: "READY", target: "production" }],
+    runs: { workflow_runs: [{ id: 9, name: "Production release", status: "in_progress" }] },
+    currentRunId: "9",
+  };
+  assert.deepEqual(evaluatePreDeployment(base).failures, []);
+  assert.ok(evaluatePreDeployment({ ...base, live: { ...live, sha: requested } }).failures.includes("requested commit is already serving production"));
+  assert.ok(
+    evaluatePreDeployment({ ...base, live: { ...live, deploymentId: "dpl_otherdeploy" } }).failures.includes(
+      "live production does not match the approved release record",
+    ),
+  );
+  assert.ok(
+    evaluatePreDeployment({ ...base, mainTip: approved.sha }).failures.includes("requested commit is not the current main tip"),
+  );
+  assert.ok(
+    evaluatePreDeployment({
+      ...base,
+      deployments: [...base.deployments, { deploymentId: "dpl_building", sha: "", readyState: "BUILDING", target: "production" }],
+    }).failures.includes("a production deployment is still in progress"),
+  );
+  assert.ok(
+    evaluatePreDeployment({
+      ...base,
+      deployments: [...base.deployments, { deploymentId: "dpl_newdeploy", sha: requested, readyState: "ERROR", target: "production" }],
+    }).failures.includes("a deployment for the requested commit already exists"),
+  );
+  assert.ok(evaluatePreDeployment({ ...base, runs: null }).failures.includes("could not verify whether another release is in progress"));
+  assert.ok(
+    evaluatePreDeployment({
+      ...base,
+      runs: { workflow_runs: [{ id: 10, name: "Production release", status: "waiting" }] },
+    }).failures.includes("another production release is in progress"),
+  );
+});
+
 test("the draft workflow is manual, read-only, and deploys at most once", () => {
   const workflow = readFileSync(new URL("../docs/release/production-release.workflow.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
   const onBlock = workflow.slice(workflow.indexOf('\n"on":'), workflow.indexOf("\npermissions:"));
@@ -206,17 +263,24 @@ test("the draft workflow is manual, read-only, and deploys at most once", () => 
   assert.match(onBlock, /approval:/);
   assert.match(onBlock, /default: checks-only/);
   assert.doesNotMatch(onBlock, /push:|pull_request:|schedule:|workflow_run:/);
-  assert.match(workflow, /permissions:\n {2}contents: read/);
-  assert.doesNotMatch(workflow, /contents: write/);
+  assert.match(workflow, /contents: read/);
+  assert.match(workflow, /actions: read/);
+  assert.doesNotMatch(workflow, /contents: write|actions: write|deployments: write/);
   assert.match(workflow, /environment: production/);
+  assert.match(workflow, /uses: actions\/checkout@11d5960a326750d5838078e36cf38b85af677262/);
+  assert.doesNotMatch(workflow, /actions\/checkout@v|npx /);
   assert.match(workflow, /ref: \$\{\{ inputs\.sha \}\}/);
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$SHA"/);
   assert.match(workflow, /if: inputs\.approval == 'approved'/);
   assert.match(workflow, /if: success\(\) && inputs\.approval == 'approved'/);
-  assert.equal(workflow.match(/vercel deploy/g).length, 1);
-  assert.equal(workflow.match(/vercel inspect/g).length, 1);
-  assert.equal(workflow.match(/--production-json/g).length, 1);
-  assert.doesNotMatch(workflow, /vercel rollback|vercel promote|supabase|git commit|git push|RELEASE_MIGRATIONS/);
+  const preflight = workflow.indexOf("release-deploy-report.mjs preflight");
+  const deploy = workflow.indexOf("node_modules/vercel/dist/vc.js deploy");
+  assert.ok(preflight > 0 && deploy > preflight);
+  assert.equal(workflow.match(/vc\.js deploy/g).length, 1);
+  assert.equal(workflow.match(/vc\.js inspect/g).length, 1);
+  assert.equal(workflow.match(/--production-json/g).length, 2);
+  assert.equal(workflow.match(/--production-list/g).length, 1);
+  assert.doesNotMatch(workflow, /vercel rollback|vercel promote|supabase|git commit|git push|RELEASE_MIGRATIONS|--verify|--env /);
   assert.equal(workflow.includes("cancel-in-progress: false"), true);
   const installed = new URL("../.github/workflows/production-release.yml", import.meta.url);
   assert.throws(() => readFileSync(installed));

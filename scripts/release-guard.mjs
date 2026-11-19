@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -270,6 +270,12 @@ function decodeApi(buffer) {
   return text.slice(start);
 }
 
+export function vercelBin() {
+  const entry = join(here, "..", "node_modules", "vercel", "dist", "vc.js");
+  if (!existsSync(entry)) throw new Error("pinned Vercel CLI 66.2.0 is not installed");
+  return entry;
+}
+
 function vercelApi(scope, path) {
   if (!scopePattern.test(scope)) throw new Error("unsafe scope");
   if (
@@ -278,8 +284,7 @@ function vercelApi(scope, path) {
   ) {
     throw new Error("unsafe path");
   }
-  const cli = join(dirname(process.execPath), "node_modules", "npm", "bin", "npx-cli.js");
-  const buffer = execFileSync(process.execPath, [cli, "--yes", "vercel", "api", path, "--scope", scope], {
+  const buffer = execFileSync(process.execPath, [vercelBin(), "api", path, "--scope", scope], {
     encoding: "buffer",
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -308,6 +313,47 @@ export function productionRecordFromApi(list, details, policy) {
     };
   }
   return null;
+}
+
+export function productionDeploymentsFromApi(list, details) {
+  const deployments = Array.isArray(list?.deployments) ? list.deployments : [];
+  const rows = [];
+  for (const item of deployments) {
+    if (item.target && item.target !== "production") continue;
+    const id = [item.uid, item.id].find((value) => deploymentPattern.test(value ?? ""));
+    if (!id) continue;
+    const detail = details.get(id);
+    if (!detail) return null;
+    const sha = detail.meta?.gitCommitSha ?? "";
+    rows.push({
+      deploymentId: deploymentPattern.test(detail.id ?? "") ? detail.id : id,
+      sha: shaPattern.test(sha) ? sha : "",
+      readyState: detail.readyState ?? "",
+      target: detail.target ?? "",
+    });
+  }
+  return rows;
+}
+
+export function loadProductionDeployments(policy = loadReleasePolicy()) {
+  if (!projectPattern.test(policy.vercelProjectId ?? "") || !scopePattern.test(policy.vercelScope ?? "")) return null;
+  let list;
+  try {
+    list = vercelApi(policy.vercelScope, `/v6/deployments?projectId=${policy.vercelProjectId}&target=production&limit=8`);
+  } catch {
+    return null;
+  }
+  const details = new Map();
+  for (const item of list.deployments ?? []) {
+    const id = [item.uid, item.id].find((value) => deploymentPattern.test(value ?? ""));
+    if (!id) continue;
+    try {
+      details.set(id, vercelApi(policy.vercelScope, `/v13/deployments/${id}`));
+    } catch {
+      return null;
+    }
+  }
+  return productionDeploymentsFromApi(list, details);
 }
 
 export function loadProductionRecord(policy = loadReleasePolicy()) {
@@ -406,7 +452,7 @@ function recordAdvanceMain() {
 }
 
 function productionJsonMain() {
-  if (process.argv.includes("--full") || process.argv.includes("--record")) {
+  if (process.argv.includes("--full") || process.argv.includes("--record") || process.argv.includes("--production-list")) {
     console.error("release refused: production lookup does not deploy");
     process.exit(1);
   }
@@ -418,6 +464,19 @@ function productionJsonMain() {
   console.log(JSON.stringify(record));
 }
 
+function productionListMain() {
+  if (process.argv.includes("--full") || process.argv.includes("--record") || process.argv.includes("--production-json")) {
+    console.error("release refused: production lookup does not deploy");
+    process.exit(1);
+  }
+  const rows = loadProductionDeployments(loadReleasePolicy());
+  if (!rows) {
+    console.log("null");
+    process.exit(2);
+  }
+  console.log(JSON.stringify(rows));
+}
+
 function main() {
   if (process.argv.includes("--record")) {
     recordAdvanceMain();
@@ -425,6 +484,10 @@ function main() {
   }
   if (process.argv.includes("--production-json")) {
     productionJsonMain();
+    return;
+  }
+  if (process.argv.includes("--production-list")) {
+    productionListMain();
     return;
   }
   const cwd = process.cwd();

@@ -1,12 +1,16 @@
 # DRAFT ONLY. This file is not in .github/workflows, so GitHub Actions will not run it.
-# Do not install it until the production environment requires a reviewer other than the person who started the run.
-# Keep the Vercel Git integration disconnected. This workflow deploys with the CLI.
-# This file contains no credentials.
+# actions/checkout is pinned to v4.4.0, commit 11d5960a326750d5838078e36cf38b85af677262.
+# The Vercel CLI is the installed 66.2.0 package at node_modules/vercel/dist/vc.js. Do not use npx.
 # The job deploys at most once. It does not retry, roll back, promote, or edit scripts/approved-release.json.
+# Re-running a failed job repeats every step. The preflight refuses that deploy when this commit
+# already has a Vercel deployment or the live production no longer matches the approved record.
+# Keep the Vercel Git integration disconnected. This file contains no credentials.
 # The job must not apply database migrations. The release guard rejects migration changes.
 # After a verified deployment, a later commit may update only scripts/approved-release.json.
 # Check that commit with: node scripts/release-guard.mjs --record
 # That check does not deploy, and the release guard still refuses the record change as a release.
+# Do not install this file until the private repository's plan is confirmed. Required reviewers
+# and prevent-self-review are not available for a private repository on GitHub Free, Pro, or Team.
 
 name: Production release
 
@@ -25,6 +29,7 @@ name: Production release
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: production-release
@@ -50,7 +55,7 @@ jobs:
     environment: production
     steps:
       - name: Check out the reviewed commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.sha }}
           fetch-depth: 0
@@ -71,6 +76,33 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Confirm this release can deploy once
+        if: inputs.approval == 'approved'
+        env:
+          SHA: ${{ inputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -e
+          node --input-type=module -e "const sha=process.env.SHA??''; const repo=process.env.REPOSITORY??''; if(!/^[0-9a-f]{40}$/.test(sha)||repo!=='joshtutu777/pickuply') process.exit(1);"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          main_tip=$(git rev-parse origin/main)
+          test "$main_tip" = "$SHA"
+          set +e
+          node scripts/release-guard.mjs --production-json >"$RUNNER_TEMP/live.json"
+          node scripts/release-guard.mjs --production-list >"$RUNNER_TEMP/deployments.json"
+          curl -sS -o "$RUNNER_TEMP/runs.json" -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/joshtutu777/pickuply/actions/runs?event=workflow_dispatch&per_page=20" >"$RUNNER_TEMP/runs-status.txt"
+          runs_code=$?
+          set -e
+          if [ "$runs_code" -ne 0 ] || [ "$(tr -d '\r\n' < "$RUNNER_TEMP/runs-status.txt")" != "200" ]; then
+            echo null >"$RUNNER_TEMP/runs.json"
+          fi
+          node scripts/release-deploy-report.mjs preflight --sha "$SHA" --main-tip "$main_tip" --live "$RUNNER_TEMP/live.json" --deployments "$RUNNER_TEMP/deployments.json" --approved scripts/approved-release.json --runs "$RUNNER_TEMP/runs.json" --run-id "$RUN_ID"
+
       - name: Deploy the reviewed commit once
         id: deploy
         if: inputs.approval == 'approved'
@@ -81,13 +113,13 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set +e
-          npx --yes vercel deploy . --prod --yes --scope pickuply-app --project pickuply --meta "gitCommitSha=${SHA}" --meta "gitCommitRef=main" >"$RUNNER_TEMP/deploy-out.txt" 2>"$RUNNER_TEMP/deploy-err.txt"
+          node node_modules/vercel/dist/vc.js deploy . --prod --yes --scope pickuply-app --project pickuply --meta "gitCommitSha=${SHA}" --meta "gitCommitRef=main" >"$RUNNER_TEMP/deploy-out.txt" 2>"$RUNNER_TEMP/deploy-err.txt"
           deploy_code=$?
           node scripts/release-deploy-report.mjs target --stdout "$RUNNER_TEMP/deploy-out.txt" --stderr "$RUNNER_TEMP/deploy-err.txt" >"$RUNNER_TEMP/deploy-target.txt"
           target=$(tr -d '\r\n' < "$RUNNER_TEMP/deploy-target.txt")
           inspect_code=1
           if [ -n "$target" ]; then
-            npx --yes vercel inspect "$target" --scope pickuply-app --json >"$RUNNER_TEMP/inspect.json" 2>"$RUNNER_TEMP/inspect-err.txt"
+            node node_modules/vercel/dist/vc.js inspect "$target" --scope pickuply-app --json >"$RUNNER_TEMP/inspect.json" 2>"$RUNNER_TEMP/inspect-err.txt"
             inspect_code=$?
           fi
           node scripts/release-guard.mjs --production-json >"$RUNNER_TEMP/live.json" 2>"$RUNNER_TEMP/live-err.txt"
