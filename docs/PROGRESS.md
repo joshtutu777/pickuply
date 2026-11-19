@@ -1,5 +1,11 @@
 # Pickuply progress
 
+## Manual production release command (2026-11-18)
+
+`node scripts/release-manual.mjs` is the manual release path. It deploys only from a clean checkout of the current `origin/main` commit, after the release guard passes and the owner confirms that commit and the current production deployment. It uses Vercel CLI 66.2.0 once. A failed or unfinished deployment is reported and is not retried. The command prints the next `scripts/approved-release.json` only after `pickuplyapp.com` serves the new deployment. It does not write that file. GitHub Actions stays uninstalled. Nothing was deployed.
+
+The command takes an exclusive lock at `~/.pickuply/production-release.lock` after the local checkout checks and before it reads Vercel or deploys. A second run on this computer stops when that file already exists. The lock is removed when the command finishes normally. A crash after the deploy starts leaves the lock in place. This lock covers only this user on this computer. Releases from other machines are outside it. To clear a stale lock, confirm no `node scripts/release-manual.mjs` process is running, inspect the deployment serving `pickuplyapp.com` and the newest production deployments, and investigate any deployment that was created or is still building. An uncertain deployment must be investigated before another release. Then delete the lock file and start the command again.
+
 ## Release workflow pins and preflight (2026-11-18)
 
 The draft workflow pins `actions/checkout` to `11d5960a326750d5838078e36cf38b85af677262` (v4.4.0) and uses the installed Vercel CLI 66.2.0. Immediately before the single deploy, it refuses a commit that is already serving production, a live deployment that does not match the approved record, a commit that is no longer the `main` tip, an unfinished production deployment, an existing deployment of the same commit, or another Production release run that is still open. The workflow is still not installed. GitHub's plan for this private repository could not be read because the GitHub CLI is not signed in. Required reviewers cannot be assumed. Nothing was deployed.
