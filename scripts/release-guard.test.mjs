@@ -264,6 +264,101 @@ test("a verified record update is still refused by the release guard", () => {
   assert.ok(release.failures.includes("approved production baseline changed"));
 });
 
+test("the record check refuses application, guard, and migration changes", () => {
+  const previousSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const nextSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const base = {
+    policy,
+    previousApproved: {
+      repository: policy.repository,
+      branch: policy.productionBranch,
+      sha: previousSha,
+      deploymentId: "dpl_olddeploy",
+    },
+    approved: {
+      repository: policy.repository,
+      branch: policy.productionBranch,
+      sha: nextSha,
+      deploymentId: "dpl_newdeploy",
+    },
+    record: {
+      deploymentId: "dpl_newdeploy",
+      sha: nextSha,
+      readyState: "READY",
+      target: "production",
+      aliases: [policy.productionHost],
+    },
+    containsPrevious: true,
+    changedPaths: ["scripts/approved-release.json"],
+  };
+  assert.deepEqual(evaluateRecordAdvance(base).failures, []);
+  for (const path of ["lib/payments/transfers.ts", "scripts/release-guard.mjs", "supabase/migrations/0199_new.sql"]) {
+    const result = evaluateRecordAdvance({ ...base, changedPaths: ["scripts/approved-release.json", path] });
+    assert.equal(result.ok, false, path);
+    assert.ok(result.failures.includes("production record update changes more than the approved release record"), path);
+  }
+  const release = evaluateRelease(
+    releaseOf(readCommit(root, "HEAD").sha, {
+      previousApproved: base.previousApproved,
+      approved: base.approved,
+      record: base.record,
+      ancestor: true,
+    }),
+  );
+  assert.equal(release.ok, false);
+  assert.ok(release.failures.includes("approved production baseline changed"));
+});
+
+test("the record check refuses a deployment that is missing, unfinished, or for another site", () => {
+  const previousSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const nextSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const approved = {
+    repository: policy.repository,
+    branch: policy.productionBranch,
+    sha: nextSha,
+    deploymentId: "dpl_newdeploy",
+  };
+  const previousApproved = {
+    repository: policy.repository,
+    branch: policy.productionBranch,
+    sha: previousSha,
+    deploymentId: "dpl_olddeploy",
+  };
+  const ready = {
+    deploymentId: "dpl_newdeploy",
+    sha: nextSha,
+    readyState: "READY",
+    target: "production",
+    aliases: [policy.productionHost],
+  };
+  const input = {
+    policy,
+    previousApproved,
+    approved,
+    containsPrevious: true,
+    changedPaths: ["scripts/approved-release.json"],
+  };
+  const missing = evaluateRecordAdvance({ ...input, record: null });
+  assert.ok(missing.failures.includes("production deployment could not be verified"));
+  for (const readyState of ["BUILDING", "ERROR"]) {
+    const unfinished = evaluateRecordAdvance({ ...input, record: { ...ready, readyState } });
+    assert.ok(unfinished.failures.includes("production deployment is not READY"), readyState);
+  }
+  const wrongDomain = evaluateRecordAdvance({
+    ...input,
+    record: { ...ready, aliases: ["preview.example"] },
+  });
+  assert.ok(wrongDomain.failures.some((failure) => failure.includes(policy.productionHost)));
+  const unrelated = evaluateRecordAdvance({ ...input, record: ready, containsPrevious: false });
+  assert.ok(unrelated.failures.includes("new production commit does not contain the previous production commit"));
+  const differentProduction = evaluateRecordAdvance({
+    ...input,
+    record: { ...ready, deploymentId: "dpl_otherdeploy", sha: previousSha },
+  });
+  assert.ok(differentProduction.failures.includes("production deployment SHA does not match the approved release record"));
+  assert.ok(differentProduction.failures.includes("production deployment id does not match the approved release record"));
+});
+
 test("a record update cannot include another file or skip the previous commit", () => {
   const approved = {
     repository: policy.repository,
@@ -401,4 +496,56 @@ test("the guard command refuses a dirty fixture without deploying", { timeout: 9
   const output = `${thrown.stdout ?? ""}\n${thrown.stderr ?? ""}`;
   if (!output.includes("uncommitted changes")) throw new Error("dirty tree was not the refusal reason");
   if (output.includes("vercel deploy")) throw new Error("the guard tried to deploy");
+});
+
+test("the record command refuses a dirty tree and cannot deploy", () => {
+  let combined = null;
+  try {
+    execFileSync(process.execPath, [fileURLToPath(new URL("./release-guard.mjs", import.meta.url)), "--record", "--full"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    throw new Error("record check with --full was accepted");
+  } catch (error) {
+    combined = `${error.stdout ?? ""}\n${error.stderr ?? ""}`;
+    assert.equal(error.status, 1);
+  }
+  assert.match(combined, /does not deploy/);
+  if (combined.includes("vercel deploy")) throw new Error("the record check tried to deploy");
+
+  const dir = mkdtempSync(join(tmpdir(), "pickuply-record-guard-"));
+  let thrown = null;
+  try {
+    execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
+    writeFileSync(join(dir, "README"), "fixture\n");
+    execFileSync("git", ["add", "README"], { cwd: dir, stdio: "ignore" });
+    execFileSync(
+      "git",
+      ["-c", "user.email=guard@example.com", "-c", "user.name=Release Guard", "commit", "-m", "fixture"],
+      { cwd: dir, stdio: "ignore" },
+    );
+    writeFileSync(join(dir, "README"), "fixture\nuncommitted\n");
+    try {
+      execFileSync(process.execPath, [fileURLToPath(new URL("./release-guard.mjs", import.meta.url)), "--record"], {
+        cwd: dir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      thrown = error;
+    }
+  } finally {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // A locked temporary directory must not hide the guard result.
+    }
+  }
+  assert.ok(thrown, "the dirty record update was accepted");
+  assert.equal(thrown.status, 1);
+  const output = `${thrown.stdout ?? ""}\n${thrown.stderr ?? ""}`;
+  assert.match(output, /uncommitted changes/);
+  assert.doesNotMatch(output, /production record ok/);
+  assert.doesNotMatch(output, /vercel deploy/);
 });

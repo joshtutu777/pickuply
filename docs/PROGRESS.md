@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Main release workflow hardened locally (2026-11-18)
+
+The draft workflow still lives only in `docs/release/` and is not installed. A production deploy is attempted once. If it fails or cannot be verified, the job reports every deployment ID it found, reads the deployment currently serving `pickuplyapp.com`, and stops. It does not retry, roll back, or edit `scripts/approved-release.json`. The record check refuses any commit that changes more than that file, and it refuses a record that does not match a ready deployment on `pickuplyapp.com`. A normal release still refuses a record edit. Nothing was deployed.
+
 ## Main release workflow drafted (2026-11-18)
 
 GitHub `main` is `e70e85063d38c2b533cead27b9b3435dd2051eec`. Live production is still `58779556a9205a2982ffc7df00a56b223a420491`, deployment `dpl_Bd341qB4V2QPg99QMWJsJParw2h5`. The Vercel Git connection stays disconnected. The draft workflow in `docs/release/` is manual, requires GitHub's production environment, and deploys only the current `main` tip after the release guard passes. It does not update `scripts/approved-release.json`. A later commit that changes only that file can be checked with `node scripts/release-guard.mjs --record`. A normal release still refuses any change to the record. The workflow is not installed under `.github/workflows`. Nothing was deployed.

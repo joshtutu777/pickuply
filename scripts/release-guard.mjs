@@ -405,9 +405,26 @@ function recordAdvanceMain() {
   console.log(`production record ok ${approved.sha} (${approved.deploymentId})`);
 }
 
+function productionJsonMain() {
+  if (process.argv.includes("--full") || process.argv.includes("--record")) {
+    console.error("release refused: production lookup does not deploy");
+    process.exit(1);
+  }
+  const record = loadProductionRecord(loadReleasePolicy());
+  if (!record) {
+    console.log("null");
+    process.exit(2);
+  }
+  console.log(JSON.stringify(record));
+}
+
 function main() {
   if (process.argv.includes("--record")) {
     recordAdvanceMain();
+    return;
+  }
+  if (process.argv.includes("--production-json")) {
+    productionJsonMain();
     return;
   }
   const cwd = process.cwd();
