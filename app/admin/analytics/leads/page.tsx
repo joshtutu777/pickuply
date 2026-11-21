@@ -1,10 +1,11 @@
 import { Suspense } from "react";
+import { LandingLoadTable } from "@/components/admin/landing-load-table";
 import { LeadReportView } from "@/components/admin/lead-report";
 import { IncludeTestData } from "@/components/admin/include-test-data";
 import { LoadingMain } from "@/components/loading-main";
 import { includeTestParam } from "@/lib/admin/test-lane";
 import { resolveTestLane } from "@/lib/admin/test-lane-server";
-import { loadLeadAnalytics } from "@/lib/admin/lead-load";
+import { loadLandingLoads, loadLeadAnalytics } from "@/lib/admin/lead-load";
 import {
   buildLeadReport,
   easternDay,
@@ -62,7 +63,10 @@ async function LeadAnalytics({
   const lane = await resolveTestLane(includeTestParam(one(query.includeTest)));
   const now = new Date();
   const range = leadRange(preset, from, to, now);
-  const loaded = await loadLeadAnalytics({ start: range.start, end: range.end, lane });
+  const [loaded, landingLoads] = await Promise.all([
+    loadLeadAnalytics({ start: range.start, end: range.end, lane }),
+    loadLandingLoads(range.start, range.end),
+  ]);
   const report = buildLeadReport({
     events: loaded.events,
     visits: loaded.visits,
@@ -110,6 +114,7 @@ async function LeadAnalytics({
       {loaded.jobError ? <p className="mt-4 text-base text-danger" role="alert">{loaded.jobError}</p> : null}
       {loaded.capped ? <p className="mt-4 text-sm text-muted">This range was capped at the newest 2,000 jobs or 5,000 visit events.</p> : null}
       <FilterForm preset={preset} group={group} touch={touch} service={service} status={status} source={source} from={from} to={to} />
+      <LandingLoadTable rows={landingLoads.rows} status={landingLoads.status} />
       <div className="mt-8">
         <LeadReportView
           report={report}

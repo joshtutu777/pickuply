@@ -19,6 +19,7 @@ import {
   type TrackingEvent,
 } from "@/lib/analytics/tracking";
 import { createClient } from "@/lib/supabase/client";
+import { recordLandingLoad } from "@/lib/analytics/landing-load-client";
 import { clearLeadTouch, recordLeadStage } from "@/lib/analytics/lead-collect";
 
 const consentKey = "pickuply-analytics-consent";
@@ -208,6 +209,12 @@ export function AnalyticsRoot() {
     lastPath = view.page_path;
     dataLayer().push(view);
   }, [pathname, ready, consent]);
+
+  // Landing load counts run for every real visitor, with or without optional cookies.
+  useEffect(() => {
+    if (!ready || gate.isTest) return;
+    void recordLandingLoad(window.location.href, document.referrer);
+  }, [pathname, ready]);
 
   useEffect(() => {
     if (!ready || gate.isTest) return;
