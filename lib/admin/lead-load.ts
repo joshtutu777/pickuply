@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { LeadEvent, LeadJob, LeadVisit, VisitStage } from "@/lib/admin/lead-metrics";
-import { visitStages } from "@/lib/admin/lead-metrics";
+import { landingLoadRows, type LandingLoadRow } from "@/lib/admin/landing-loads";
+import { easternDay, visitStages, type LeadEvent, type LeadJob, type LeadVisit, type VisitStage } from "@/lib/admin/lead-metrics";
 import { createClient } from "@/lib/supabase/server";
 
 const visitStageSet = new Set<string>(visitStages);
@@ -183,6 +183,27 @@ export async function loadLeadAnalytics(input: {
     capped: jobRows.length >= 2000 || (leadEvents.data?.length ?? 0) >= 5000,
     visitCapped: (leadEvents.data?.length ?? 0) >= 5000 || (leadVisits.data?.length ?? 0) >= 5000,
   };
+}
+
+export type LandingLoadResult = {
+  rows: LandingLoadRow[];
+  status: "ready" | "missing" | "unavailable";
+};
+
+/** Page-load totals. These rows are separate from consented visit sessions. */
+export async function loadLandingLoads(start: Date, end: Date): Promise<LandingLoadResult> {
+  const supabase = await createClient();
+  const result = await supabase
+    .from("landing_load_counts")
+    .select("counted_on, landing_path, source_category, campaign_label, load_count")
+    .gte("counted_on", easternDay(start))
+    .lt("counted_on", easternDay(end))
+    .order("counted_on", { ascending: false })
+    .order("load_count", { ascending: false })
+    .limit(500);
+  if (!result.error) return { rows: landingLoadRows(result.data ?? []), status: "ready" };
+  const missing = result.error.code === "42P01" || result.error.code === "PGRST205" || /landing_load_counts/.test(result.error.message ?? "");
+  return { rows: [], status: missing ? "missing" : "unavailable" };
 }
 
 /** Consented visit steps for the visit funnel. Jobs, payments, and customer details are not read. */
