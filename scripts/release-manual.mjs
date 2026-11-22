@@ -14,6 +14,8 @@ import {
   checkClean,
   compareMigrations,
   databaseChangesAllowed,
+  loadDotEnv,
+  readLandingLoadApplied,
   git,
   loadApprovedRelease,
   loadProductionDeployments,
@@ -210,15 +212,15 @@ function fetchMainTip(cwd) {
   return git(cwd, ["rev-parse", "origin/main"]).trim();
 }
 
-function migrationFailures(cwd, approved) {
+function migrationFailures(cwd, approved, landingLoadApplied) {
   if (!approved?.sha) return ["production migration history could not be read"];
   const baseline = readCommit(cwd, approved.sha);
   const head = readCommit(cwd, "HEAD");
   if (!baseline || !head) return ["production migration history could not be read"];
-  return compareMigrations(baseline.migrations, head.migrations);
+  return compareMigrations(baseline.migrations, head.migrations, { landingLoadApplied });
 }
 
-function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy) {
+function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy, landingLoadApplied) {
   const head = git(cwd, ["rev-parse", "HEAD"]).trim();
   const branch = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   const status = git(cwd, ["status", "--porcelain"]);
@@ -236,7 +238,7 @@ function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy) {
     live,
     approved: atHead ?? approved,
     deployments,
-    migrationFailures: migrationFailures(cwd, atHead ?? approved),
+    migrationFailures: migrationFailures(cwd, atHead ?? approved, landingLoadApplied),
     migrationsApproved: process.env.RELEASE_MIGRATIONS === "approved",
     checksPassed: true,
     confirmSha: option("--confirm-sha"),
@@ -368,7 +370,7 @@ function localCheckout(cwd) {
   };
 }
 
-function main() {
+async function main() {
   const unknown = process.argv.slice(2).filter((arg, index, args) => {
     if (!arg.startsWith("--")) return false;
     if (arg !== "--confirm-sha" && arg !== "--confirm-deployment") return true;
@@ -391,7 +393,8 @@ function main() {
   } catch {
     refuse(["origin/main could not be verified"]);
   }
-  let input = releaseInput(cwd, policy, mainTip, mainTip);
+  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(cwd));
+  let input = releaseInput(cwd, policy, mainTip, mainTip, landingLoadApplied);
   const early = manualSourceFailures(input);
   if (early.length > 0) refuse(early, identityLine(input));
   const guard = runGuard(cwd);
@@ -402,11 +405,16 @@ function main() {
   } catch {
     refuse(["origin/main could not be verified"], identityLine(input));
   }
-  input = releaseInput(cwd, policy, mainTip, tipBeforeDeploy);
+  input = releaseInput(cwd, policy, mainTip, tipBeforeDeploy, landingLoadApplied);
   const decision = evaluateManualRelease({ ...input, checksPassed: true });
   if (!decision.ok) refuse(decision.failures, identityLine(input));
   finish(cwd, policy, input.head);
 }
 
 const entry = process.argv[1]?.replaceAll("\\", "/");
-if (entry?.endsWith("/scripts/release-manual.mjs")) main();
+if (entry?.endsWith("/scripts/release-manual.mjs")) {
+  main().catch(() => {
+    console.error("release refused: release preparation failed");
+    process.exit(1);
+  });
+}

@@ -11,7 +11,10 @@ import {
   databaseChangesAllowed,
   evaluateRecordAdvance,
   evaluateRelease,
+  landingMigrationApplied,
   loadApprovedRelease,
+  loadDotEnv,
+  readLandingLoadApplied,
   loadProductionRecord,
   productionDeploymentsFromApi,
   loadReleasePolicy,
@@ -145,6 +148,52 @@ test("E unexpected migration changes are refused", () => {
   );
   assert.equal(removed.ok, false);
   assert.ok(removed.failures.some((failure) => failure.startsWith("migration removed:")));
+});
+
+test("E2 only the reviewed landing migration can pass, and only after it is applied", () => {
+  const commit = readCommit(root, "58779556a9205a2982ffc7df00a56b223a420491");
+  const reviewed = { path: "supabase/migrations/0145_landing_load_counts.sql", oid: "reviewed" };
+  const blocked = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed],
+      landingLoadApplied: false,
+    }),
+  );
+  assert.equal(blocked.ok, false);
+  assert.ok(blocked.failures.some((failure) => failure.includes("0145_landing_load_counts.sql")));
+
+  const allowed = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed],
+      landingLoadApplied: true,
+    }),
+  );
+  assert.equal(allowed.failures.some((failure) => failure.includes("new migration files")), false);
+
+  const extra = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed, { path: "supabase/migrations/0199_new.sql", oid: "abc" }],
+      landingLoadApplied: true,
+    }),
+  );
+  assert.equal(extra.ok, false);
+  assert.ok(extra.failures.some((failure) => failure.includes("0199_new.sql")));
+  assert.equal(extra.failures.some((failure) => failure.includes("0145_landing_load_counts.sql")), false);
+  assert.equal(databaseChangesAllowed(), false);
+  assert.equal(
+    landingMigrationApplied({
+      tableStatus: 200,
+      tableIsArray: true,
+      specStatus: 200,
+      functionExposed: true,
+      minuteTableExposed: true,
+    }),
+    true,
+  );
+  assert.equal(landingMigrationApplied({ tableStatus: 404, tableIsArray: false, specStatus: 200, functionExposed: false, minuteTableExposed: false }), false);
 });
 
 test("F a missing required route is refused", () => {
@@ -419,7 +468,7 @@ test("GitHub verification failure blocks the release", () => {
   assert.ok(result.failures.includes("GitHub branch could not be verified"));
 });
 
-test("the current production commit passes source and ancestry checks", { timeout: 90_000 }, () => {
+test("the current production commit passes source and ancestry checks", { timeout: 90_000 }, async () => {
   const approved = loadApprovedRelease();
   const record = loadProductionRecord(policy);
   assert.ok(record, "production deployment could not be verified");
@@ -440,11 +489,12 @@ test("the current production commit passes source and ancestry checks", { timeou
     releaseMigrations: head.migrations,
     files: head.files,
   };
-  const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved }));
+  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(root));
+  const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved, landingLoadApplied }));
   assert.deepEqual(future.failures, []);
   assert.equal(future.ok, true);
   const previousApproved = approvedReleaseAt(root, "HEAD^");
-  const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved }));
+  const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved, landingLoadApplied }));
   const recordMoved =
     previousApproved != null &&
     (previousApproved.sha !== approved.sha ||

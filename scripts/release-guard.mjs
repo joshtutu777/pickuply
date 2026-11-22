@@ -143,7 +143,9 @@ export function checkAncestry(containsBaseline) {
   return ["production ancestry could not be verified"];
 }
 
-export function compareMigrations(baseline, release) {
+export const reviewedLandingMigration = "supabase/migrations/0145_landing_load_counts.sql";
+
+export function compareMigrations(baseline, release, options = {}) {
   const failures = [];
   const base = new Map(baseline.map((entry) => [entry.path, entry.oid]));
   const next = new Map(release.map((entry) => [entry.path, entry.oid]));
@@ -152,8 +154,75 @@ export function compareMigrations(baseline, release) {
     else if (next.get(path) !== oid) failures.push(`migration rewritten: ${path}`);
   }
   const added = [...next.keys()].filter((path) => !base.has(path)).sort();
-  if (added.length > 0) failures.push(`new migration files block the release: ${added.join(", ")}`);
+  const unexpected = added.filter((path) => path !== reviewedLandingMigration);
+  if (unexpected.length > 0) failures.push(`new migration files block the release: ${unexpected.join(", ")}`);
+  if (added.includes(reviewedLandingMigration) && options.landingLoadApplied !== true) {
+    failures.push(`new migration files block the release: ${reviewedLandingMigration}`);
+  }
   return failures;
+}
+
+export function landingMigrationApplied(probe) {
+  return probe?.tableStatus === 200
+    && probe?.tableIsArray === true
+    && probe?.specStatus === 200
+    && probe?.functionExposed === true
+    && probe?.minuteTableExposed === true;
+}
+
+export function loadDotEnv(cwd) {
+  const candidates = [join(cwd, ".env.local")];
+  try {
+    const common = git(cwd, ["rev-parse", "--git-common-dir"]).trim().replaceAll("/", "\\");
+    candidates.push(join(dirname(common), ".env.local"));
+  } catch {
+    // A missing git directory leaves only the checkout-local env file.
+  }
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    const values = {};
+    for (const raw of readFileSync(candidate, "utf8").split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      const split = line.indexOf("=");
+      if (split < 1) continue;
+      values[line.slice(0, split).trim()] = line.slice(split + 1).trim().replace(/^["']|["']$/g, "");
+    }
+    return values;
+  }
+  return {};
+}
+
+export async function readLandingLoadApplied(env) {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (!url || !key) return false;
+  try {
+    const headers = { apikey: key, Authorization: `Bearer ${key}` };
+    const table = await fetch(`${url}/rest/v1/landing_load_counts?select=counted_on&limit=1`, {
+      headers: { ...headers, Accept: "application/json" },
+    });
+    const tableText = await table.text();
+    let tableIsArray = false;
+    try {
+      tableIsArray = Array.isArray(JSON.parse(tableText));
+    } catch {
+      tableIsArray = false;
+    }
+    const spec = await fetch(`${url}/rest/v1/`, {
+      headers: { ...headers, Accept: "application/openapi+json" },
+    });
+    const specText = await spec.text();
+    return landingMigrationApplied({
+      tableStatus: table.status,
+      tableIsArray,
+      specStatus: spec.status,
+      functionExposed: specText.includes('"/rpc/record_landing_load"'),
+      minuteTableExposed: specText.includes("landing_load_minutes"),
+    });
+  } catch {
+    return false;
+  }
 }
 
 export function missingRoutes(files, policy) {
@@ -168,7 +237,9 @@ export function evaluateRelease(input) {
   const migrationFailures =
     input.baselineMigrations == null
       ? ["production migration history could not be read"]
-      : compareMigrations(input.baselineMigrations, input.releaseMigrations ?? []);
+      : compareMigrations(input.baselineMigrations, input.releaseMigrations ?? [], {
+          landingLoadApplied: input.landingLoadApplied === true,
+        });
   const failures = [
     ...checkRepository(input.remoteUrl, policy),
     ...checkBranch(input.branch, policy),
@@ -477,7 +548,7 @@ function productionListMain() {
   console.log(JSON.stringify(rows));
 }
 
-function main() {
+async function main() {
   if (process.argv.includes("--record")) {
     recordAdvanceMain();
     return;
@@ -507,6 +578,7 @@ function main() {
   const previousApproved = parent ? approvedReleaseAt(cwd, parent) : null;
   const baselineSha = approved?.sha && record?.sha === approved.sha ? approved.sha : record?.sha;
   const baseline = baselineSha ? readCommit(cwd, baselineSha) : null;
+  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(cwd));
   const result = evaluateRelease({
     policy,
     remoteUrl: snapshot?.remoteUrl,
@@ -516,6 +588,7 @@ function main() {
     baselineMigrations: baseline?.migrations ?? null,
     releaseMigrations: snapshot?.migrations ?? [],
     migrationsApproved: process.env.RELEASE_MIGRATIONS === "approved",
+    landingLoadApplied,
     record,
     approved,
     previousApproved,
@@ -538,4 +611,9 @@ function main() {
 }
 
 const entry = process.argv[1]?.replaceAll("\\", "/");
-if (entry?.endsWith("/scripts/release-guard.mjs")) main();
+if (entry?.endsWith("/scripts/release-guard.mjs")) {
+  main().catch(() => {
+    console.error("release refused: release preparation failed");
+    process.exit(1);
+  });
+}
