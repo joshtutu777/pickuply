@@ -19,6 +19,7 @@ import { JobStatusWatch } from "@/components/request/job-status-watch";
 import { ScrollOnValue } from "@/components/scroll-restore";
 import { JobMessages } from "@/components/messages/job-messages";
 import { statusLabel } from "@/components/request/job-status";
+import { acknowledgeJob } from "@/app/driver/jobs/actions";
 import { requireSignedIn } from "@/lib/auth/session";
 import { buildJobTracker, customerProgress, nextDriverAction } from "@/lib/jobs/tracker";
 import { formatCents } from "@/lib/money";
@@ -204,6 +205,11 @@ async function DriverJob({
           Add a photo of the wait, and wait 15 minutes after arrival. This does not charge a fee.
         </p>
       ) : null}
+      {query.error === "ack" ? (
+        <p role="alert" className="mt-3 text-base text-danger">
+          That confirmation could not be saved.
+        </p>
+      ) : null}
       {!retired && job.status === "in_transit" && job.dropoff_arrived_at && !job.no_show_pending ? (
         <ProofForm
           jobId={job.id}
@@ -233,6 +239,23 @@ async function DriverJob({
       ) : null}
       {job.status === "assigned" && ["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Payment secured — you can start the trip.</p>
+      ) : null}
+      {job.status === "assigned" &&
+      ["authorized", "paid", "captured"].includes(job.payment_status ?? "") &&
+      !(events ?? []).some((event) => event.type === "driver_acknowledged") ? (
+        <form action={acknowledgeJob} className="mt-3 space-y-2">
+          <p className="text-base text-ink">Tap I’m on it to confirm you will start this trip. Opening an alert does not confirm it.</p>
+          <input type="hidden" name="jobId" value={job.id} />
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+          >
+            I’m on it
+          </button>
+        </form>
+      ) : null}
+      {(events ?? []).some((event) => event.type === "driver_acknowledged") ? (
+        <p className="mt-3 text-base text-ink">You confirmed you are on this trip.</p>
       ) : null}
       {job.payment_due_at && !["authorized", "paid", "captured"].includes(job.payment_status ?? "") ? (
         <p>Payment due {new Date(job.payment_due_at).toLocaleString()}. Work cannot start until it is paid.</p>

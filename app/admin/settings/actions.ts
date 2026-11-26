@@ -46,6 +46,22 @@ export async function saveSmsSetting(formData: FormData) {
   redirect(error ? "/admin/settings?error=Could%20not%20save%20text%20messages" : "/admin/settings?saved=1");
 }
 
+export async function saveTransactionalAlerts(formData: FormData) {
+  await requireAdmin("/admin/settings");
+  const audience = String(formData.get("audience") ?? "");
+  if (audience !== "eligible" && audience !== "online" && audience !== "off") {
+    redirect("/admin/settings?error=Choose%20who%20receives%20new-job%20texts");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_transactional_alerts", {
+    phone: String(formData.get("adminPhone") ?? ""),
+    audience,
+    turn_on: formData.get("transactionalOn") === "on",
+  });
+  revalidatePath("/admin/settings");
+  redirect(error ? "/admin/settings?error=Could%20not%20save%20booking%20texts" : "/admin/settings?saved=1");
+}
+
 export async function saveSupportContact(formData: FormData) {
   await requireAdmin("/admin/settings");
   const supabase = await createClient();

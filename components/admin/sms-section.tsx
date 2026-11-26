@@ -34,5 +34,6 @@ export function deliveryLabel(status: string): string {
   if (status === "delivered") return "Delivered";
   if (status === "failed") return "Failed";
   if (status === "skipped") return "Skipped";
+  if (status === "undelivered") return "Undelivered";
   return "Unknown";
 }

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { publicSiteUrl } from "@/lib/blog/site";
+
 type SmsResult = { ok: boolean; sid: string | null; errorCode: string | null };
 
 async function postSms(to: string, body: string, statusCallback?: string): Promise<SmsResult> {
@@ -34,4 +36,11 @@ export async function sendSms(to: string, body: string): Promise<boolean> {
 /** Admin and campaign texts. Delivery updates come back to the status webhook. */
 export async function sendAdminSms(to: string, body: string, statusCallback?: string): Promise<SmsResult> {
   return postSms(to, body, statusCallback);
+}
+
+/** Booking texts. The status webhook records accepted, delivered, and undelivered. */
+export async function sendTransactionalSms(to: string, body: string): Promise<SmsResult> {
+  const site = publicSiteUrl();
+  const callback = site.startsWith("https://") ? `${site}/api/twilio/status` : undefined;
+  return postSms(to, body, callback);
 }

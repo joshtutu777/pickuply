@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { NextResponse } from "next/server";
 import { runCron } from "@/lib/cron/record";
+import { flushTransactionalSms } from "@/lib/notifications/transactional-send";
 import { dispatchDueSms } from "@/lib/sms/dispatch";
 
 export async function GET(request: Request) {
@@ -11,6 +12,7 @@ export async function GET(request: Request) {
   }
   return runCron("sms", async () => {
     const result = await dispatchDueSms();
-    return { ok: true, campaigns: result.campaigns, sent: result.sent };
+    const texts = await flushTransactionalSms();
+    return { ok: true, campaigns: result.campaigns, sent: result.sent, transactional: texts };
   });
 }

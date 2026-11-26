@@ -6,6 +6,21 @@ export function normalizeUsPhone(value: string): string | null {
   return null;
 }
 
+/**
+ * A number safe to hand to the text provider.
+ * Sign-in still uses the stored value. This does not rewrite it.
+ * Area codes and exchanges cannot start with 0 or 1.
+ */
+export function transactionalPhone(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const normalized = normalizeUsPhone(value);
+  if (!normalized) return null;
+  const national = normalized.slice(2);
+  if (national[0] === "0" || national[0] === "1") return null;
+  if (national[3] === "0" || national[3] === "1") return null;
+  return normalized;
+}
+
 /** Readable number for the signed-in person and for an admin. */
 export function formatUsPhone(value: string): string | null {
   const normalized = normalizeUsPhone(value);

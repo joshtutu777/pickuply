@@ -20,6 +20,7 @@ import {
 import { TripPreview } from "@/components/maps/area-map";
 import { AddressLookup } from "@/components/maps/place-field";
 import { createRequest, clearSubmissionId, RequestSubmitError } from "@/lib/data/requests";
+import { flushTexts } from "@/lib/notifications/flush-client";
 import { submitErrorText, trackSavedRequest } from "@/lib/data/request-save";
 import { addDays, localDateISO } from "@/lib/dates";
 import { clearStoredDraft, loadStoredDraft, saveStoredDraft } from "@/lib/draft";
@@ -499,6 +500,7 @@ export function RequestWizard({ initialService }: { initialService: ServiceId | 
     void trackSavedRequest(async () => {
       clearStoredDraft();
       clearSubmissionId();
+      flushTexts();
       await Promise.all(savedPhotoIds.map((id) => deletePhoto(id).catch(() => undefined)));
       void recordFunnel({
         event: "request_submitted",

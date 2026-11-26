@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { assignCoveringDriver, inviteDriver, pauseRequest, refundJob } from "@/app/admin/requests/actions";
+import { textEligibleDrivers } from "@/app/admin/requests/text-actions";
 import { AccountControls } from "@/components/admin/account-controls";
 import { BackLink } from "@/components/back-link";
 import { DisputeResolution } from "@/components/admin/dispute-resolution";
@@ -150,6 +151,21 @@ async function RequestDetail({
       <p className="mt-2 text-base text-muted">
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
+      {job.status === "open" ? (
+        <form action={textEligibleDrivers} className="mt-4">
+          <input type="hidden" name="jobId" value={job.id} />
+          <button
+            type="submit"
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper-raised px-5 font-semibold text-ink ring-1 ring-line"
+          >
+            Text eligible drivers
+          </button>
+          <p className="mt-2 text-sm text-muted">Sends one follow-up. It does not repeat the first automatic text.</p>
+        </form>
+      ) : null}
+      {typeof query.texted === "string" ? (
+        <p className="mt-3 text-base text-ink">Follow-up handed to the provider for {query.texted} drivers.</p>
+      ) : null}
       {waitingWithoutDriver ? <p className="mt-2 text-base font-semibold text-danger">No driver yet</p> : null}
       <RequestOffers
         offers={offers}

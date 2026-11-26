@@ -1,5 +1,9 @@
 # Pickuply progress
 
+## Transactional booking texts (2026-11-26)
+
+Booking texts are prepared on `feat/transactional-sms`. A stored 11-digit phone is converted to `+1` only at send time. Sign-in numbers are not rewritten. Sending stays off until an admin turns on booking texts, and that switch does not resend older alerts. Migration `0146_transactional_sms.sql` is not applied. No text was sent and nothing was deployed.
+
 ## Landing-page load counts (2026-11-21)
 
 Public landing pages add one row to a daily aggregate for every real visitor, whether optional cookies are allowed, rejected, or unanswered. The stored fields are the New York date, the page path, a source category, a campaign label, and the load count. The count is page loads, not people. A visitor id, session id, click id, name, email, phone, and IP address are not stored, and the count is not sent to Meta. Tag Manager and the Meta pixel still load only after Allow, and only for a profile that is not a test profile. A day keeps at most 100 campaign labels; further labels add to Other. More than 600 loads in one minute are ignored. Migration `0145_landing_load_counts.sql` is additive and has not been applied. Nothing was deployed.

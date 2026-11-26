@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { transactionalProviderStatus } from "@/lib/notifications/transactional";
 import { mapTwilioStatus, providerErrorCode } from "@/lib/sms/center";
 import { twilioSignatureValid } from "@/lib/sms/signature";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -19,6 +20,11 @@ export async function POST(request: Request) {
   try {
     const supabase = createServiceClient();
     const delivery = mapTwilioStatus(params.get("MessageStatus"));
+    await supabase.rpc("record_transactional_delivery", {
+      provider_sid: sid,
+      next_status: transactionalProviderStatus(params.get("MessageStatus")),
+      error_code: providerErrorCode(params.get("ErrorCode")),
+    }).then(() => undefined, () => undefined);
     await supabase.rpc("record_sms_delivery", {
       provider_sid: sid,
       next_status: delivery,

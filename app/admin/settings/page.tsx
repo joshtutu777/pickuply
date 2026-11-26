@@ -5,6 +5,7 @@ import {
   saveOfferMinimums,
   saveSmsSetting,
   saveSupportContact,
+  saveTransactionalAlerts,
   saveProofLocation,
   saveWavesSetting,
 } from "@/app/admin/settings/actions";
@@ -38,6 +39,9 @@ async function SettingsContent({
     service_bps: 290,
     service_fixed_cents: 30,
     payment_due_minutes: 30,
+    admin_alert_phone: null as string | null,
+    driver_job_sms_audience: "eligible",
+    transactional_sms_enabled_at: null as string | null,
     sms_enabled: false,
     support_phone: null,
     support_email: null,
@@ -197,6 +201,47 @@ async function SettingsContent({
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
         >
           Save text setting
+        </button>
+      </form>
+      <form action={saveTransactionalAlerts} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">
+        <h2 className="text-lg font-semibold text-ink">Booking texts</h2>
+        <p className="text-base text-muted">
+          These are the texts for a request, an offer, payment, and the trip. Leave this off until Twilio
+          approves Pickuply. Turning it on does not resend older alerts.
+        </p>
+        <label className="block text-base font-semibold" htmlFor="adminPhone">
+          Admin alert phone (+1 and 10 digits)
+          <input
+            id="adminPhone"
+            name="adminPhone"
+            type="tel"
+            autoComplete="tel"
+            defaultValue={settings.admin_alert_phone ?? ""}
+            className={controlClass}
+          />
+        </label>
+        <label className="block text-base font-semibold" htmlFor="audience">
+          New-job texts
+          <select id="audience" name="audience" defaultValue={settings.driver_job_sms_audience ?? "eligible"} className={controlClass}>
+            <option value="eligible">Eligible drivers, including offline</option>
+            <option value="online">Online drivers only</option>
+            <option value="off">No new-job texts</option>
+          </select>
+        </label>
+        <label className="flex min-h-12 items-center gap-3 text-base font-semibold" htmlFor="transactionalOn">
+          <input
+            id="transactionalOn"
+            name="transactionalOn"
+            type="checkbox"
+            defaultChecked={Boolean(settings.transactional_sms_enabled_at)}
+          />
+          Send booking texts
+        </label>
+        <button
+          type="submit"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-6 font-semibold text-white"
+        >
+          Save booking texts
         </button>
       </form>
       <form action={saveSupportContact} className="mt-8 space-y-3 rounded-3xl bg-paper-raised p-4 ring-1 ring-line">

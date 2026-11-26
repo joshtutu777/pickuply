@@ -7,6 +7,7 @@ import { offerBreakdown, type FeeSettings } from "@/lib/fees";
 import { offerButtonLabel, offerDraftReady, offerFieldLabel } from "@/lib/driver/feed-card";
 import { offerMaySubmit, showOfflineOfferNotice } from "@/lib/driver/offer-gate";
 import { recordFunnel } from "@/lib/funnel";
+import { flushTexts } from "@/lib/notifications/flush-client";
 import { takenJobMessage } from "@/lib/jobs/taken-message";
 import { formatCents, parseDollarsToCents } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
@@ -114,6 +115,7 @@ export function OfferForm({
     if (kind === "claim" || kind === "accept") {
       void recordFunnel({ event: "driver_claim", step: kind, service: job.service, pricing: job.pricing_method });
     }
+    flushTexts();
     if (kind === "offer") pushTrackingEvent("driver_offer_submitted", `driver_offer_submitted:${job.id}`, { service: job.service });
     if (kind === "accept") pushTrackingEvent("driver_offer_accepted", `driver_offer_accepted:${job.id}`, { service: job.service });
     if (kind === "claim") router.refresh();
