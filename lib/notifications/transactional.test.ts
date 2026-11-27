@@ -6,16 +6,20 @@ import {
   nextTransactionalStatus,
   planAckReminder,
   planAdminAck,
+  bulkGapMs,
+  bulkSubmissionMs,
   followupWindow,
   isBulkTransactional,
+  maxNotificationWindowMs,
   planFollowup,
   planLifecycle,
   planNoOffer,
   resolveSmsOutcome,
   runTransactionalPass,
   smsRetryDecision,
-  transactionalBulkBatch,
+  targetNotificationWindowMs,
   transactionalRank,
+  type TransactionalClock,
   transactionalProviderStatus,
   type BookingNotice,
   type PlannedSms,
@@ -252,38 +256,135 @@ test("turning the feature off sends nothing and holds queued texts", async () =>
     held += 1;
   };
   const result = await runTransactionalPass(io, new Date("2026-11-26T18:10:00.000Z"));
-  assert.deepEqual(result, { sent: 0, skipped: 0, failed: 0 });
+  assert.deepEqual(result, { sent: 0, skipped: 0, failed: 0, remaining: false });
   assert.equal(calls.length, 0);
   assert.equal(held, 1);
 });
 
-test("payment and cancellation go out before a capped new-job batch", async () => {
+function newJobPlan(index: number): PlannedSms {
+  return {
+    dedupeKey: `sms:new_job:job-1:driver-${index}`,
+    sourceId: null,
+    profileId: `driver-${index}`,
+    jobId: "job-1",
+    kind: "new_job",
+    body: "New pickup in Marietta.",
+    phone: `+1555555${String(1000 + index)}`,
+    status: "queued",
+    reason: null,
+  };
+}
+
+function pacedClock(startMs: number): { clock: TransactionalClock; elapsed: () => number } {
+  let nowMs = startMs;
+  return {
+    clock: {
+      now: () => nowMs,
+      sleep: async (ms: number) => {
+        nowMs += ms;
+      },
+    },
+    elapsed: () => nowMs - startMs,
+  };
+}
+
+test("sixty one-segment texts fit the registered carrier pace", () => {
+  assert.equal(bulkGapMs(1), 4_000);
+  assert.equal(bulkGapMs(2), 8_000);
+  assert.equal(bulkSubmissionMs(60, 1), 59 * 4_000);
+  assert.ok(bulkSubmissionMs(60, 1) <= targetNotificationWindowMs);
+  assert.ok(bulkSubmissionMs(60, 1) < maxNotificationWindowMs);
+  assert.ok(transactionalRank("admin_new_request") < transactionalRank("new_job"));
+  assert.ok(transactionalRank("offer") < transactionalRank("new_job"));
+  assert.ok(transactionalRank("cleared_to_start") < transactionalRank("ack_reminder"));
+});
+
+test("sixty new-job texts are submitted within five minutes, after critical texts", async () => {
+  const start = Date.parse("2026-11-26T18:00:00.000Z");
+  const { clock, elapsed } = pacedClock(start);
   const sent: string[] = [];
+  const claimed = new Set<string>();
+  let last: number | null = null;
+  const plans = Array.from({ length: 60 }, (_, index) => newJobPlan(index));
   const payment = notice({ id: "pay", kind: "payment_confirmed", phone: "15555550110" });
-  const cancel = notice({ id: "cancel", kind: "cancelled", role: "driver", phone: "15555550111" });
-  const io = fakeIo([payment, cancel], new Set(), sent, async () => ({ ok: true, sid: "SM1", error: null }));
-  io.timers = async () =>
-    Array.from({ length: transactionalBulkBatch + 4 }, (_, index) => ({
-      dedupeKey: `sms:new_job:job-1:driver-${index}`,
-      sourceId: null,
-      profileId: `driver-${index}`,
-      jobId: "job-1",
-      kind: "new_job",
-      body: "New job",
-      phone: `155555502${String(index).padStart(2, "0")}`,
-      status: "queued" as const,
-      reason: null,
-    }));
-  const result = await runTransactionalPass(io, new Date("2026-11-26T18:10:00.000Z"));
+  const io = fakeIo([payment], claimed, sent, async () => ({ ok: true, sid: "SM1", error: null }));
+  io.timers = async () => plans.filter((plan) => !claimed.has(plan.dedupeKey));
+  io.jobOpen = async () => true;
+  io.lastBulkSentAt = async () => last;
+  io.noteBulkSent = async (at) => {
+    last = at;
+  };
+  let remaining = true;
+  let guard = 0;
+  while (remaining && guard < 40) {
+    const result = await runTransactionalPass(io, new Date(clock.now()), clock);
+    remaining = result.remaining;
+    guard += 1;
+  }
+  assert.equal(remaining, false);
   assert.equal(sent[0], "+15555550110");
-  assert.equal(sent[1], "+15555550111");
-  assert.equal(sent.filter((phone) => phone.includes("5555502")).length, transactionalBulkBatch);
-  assert.equal(sent.length, 3 + transactionalBulkBatch);
-  assert.equal(result.sent, sent.length);
+  assert.equal(sent.length, 61);
+  assert.equal(elapsed(), bulkSubmissionMs(60, 1));
+  assert.ok(elapsed() <= targetNotificationWindowMs);
   assert.equal(isBulkTransactional("new_job"), true);
-  assert.ok(transactionalRank("cleared_to_start") < transactionalRank("cancelled"));
-  assert.ok(transactionalRank("cancelled") < transactionalRank("new_job"));
-  assert.equal(payment.checkedAt, "2026-11-26T18:10:00.000Z");
+});
+
+test("a request that is no longer open does not keep sending new-job texts", async () => {
+  const { clock } = pacedClock(Date.parse("2026-11-26T18:00:00.000Z"));
+  const sent: string[] = [];
+  const claimed = new Set<string>();
+  let last: number | null = null;
+  let open = true;
+  const plans = Array.from({ length: 20 }, (_, index) => newJobPlan(index));
+  const io = fakeIo([], claimed, sent, async () => {
+    if (sent.length >= 10) open = false;
+    return { ok: true, sid: "SM1", error: null };
+  });
+  io.timers = async () => plans.filter((plan) => !claimed.has(plan.dedupeKey));
+  io.jobOpen = async () => open;
+  io.lastBulkSentAt = async () => last;
+  io.noteBulkSent = async (at) => {
+    last = at;
+  };
+  let remaining = true;
+  let guard = 0;
+  while (remaining && guard < 20) {
+    const result = await runTransactionalPass(io, new Date(clock.now()), clock);
+    remaining = result.remaining;
+    guard += 1;
+  }
+  assert.equal(sent.length, 10);
+  assert.equal(remaining, false);
+});
+
+test("two workers submit each new-job text once", async () => {
+  const { clock } = pacedClock(Date.parse("2026-11-26T18:00:00.000Z"));
+  const sent: string[] = [];
+  const claimed = new Set<string>();
+  let last: number | null = null;
+  const plans = Array.from({ length: 60 }, (_, index) => newJobPlan(index));
+  const make = () => {
+    const io = fakeIo([], claimed, sent, async () => ({ ok: true, sid: "SM1", error: null }));
+    io.timers = async () => plans.filter((plan) => !claimed.has(plan.dedupeKey));
+    io.jobOpen = async () => true;
+    io.lastBulkSentAt = async () => last;
+    io.noteBulkSent = async (at) => {
+      last = at;
+    };
+    return io;
+  };
+  const drain = async () => {
+    let remaining = true;
+    let guard = 0;
+    while (remaining && guard < 40) {
+      const result = await runTransactionalPass(make(), new Date(clock.now()), clock);
+      remaining = result.remaining;
+      guard += 1;
+    }
+  };
+  await Promise.all([drain(), drain()]);
+  assert.equal(sent.length, 60);
+  assert.equal(new Set(sent).size, 60);
 });
 
 function fakeIo(

@@ -155,7 +155,7 @@ async function RequestDetail({
         <form action={textEligibleDrivers} className="mt-4 space-y-3">
           <input type="hidden" name="jobId" value={job.id} />
           <p className="text-sm text-muted">
-            Sends one follow-up to eligible drivers. The pilot list, consent, and text preference apply. It does not repeat the first automatic text. At most 8 go out now, and another follow-up waits 15 minutes.
+            Queues one follow-up for eligible drivers. The pilot list, consent, and text preference apply. It does not repeat the first automatic text. Pickuply submits the texts over the next few minutes. Another follow-up waits 15 minutes.
           </p>
           <label className="flex min-h-12 items-start gap-3 text-base font-semibold text-ink">
             <input type="checkbox" name="confirmFollowup" value="on" required />

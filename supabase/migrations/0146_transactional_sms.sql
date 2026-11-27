@@ -245,8 +245,19 @@ begin
   if coalesce(auth.role(), '') is distinct from 'service_role' then
     raise exception 'service role required';
   end if;
-  if target_status not in ('accepted', 'failed', 'delivered', 'undelivered', 'retry') then
+  if target_status not in ('accepted', 'failed', 'delivered', 'undelivered', 'retry', 'skipped') then
     raise exception 'status is not valid';
+  end if;
+  if target_status = 'skipped' then
+    update public.transactional_sms
+    set status = 'skipped',
+        skip_reason = coalesce(nullif(target_error, ''), 'job_unavailable'),
+        retryable = false,
+        updated_at = now()
+    where dedupe_key = target_key
+      and provider_sid is null
+      and status = 'queued';
+    return;
   end if;
   if target_status = 'retry' then
     update public.transactional_sms

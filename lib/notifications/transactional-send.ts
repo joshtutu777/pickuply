@@ -1,5 +1,6 @@
 import "server-only";
 
+import { after } from "next/server";
 import { publicSiteUrl } from "@/lib/blog/site";
 import { cityFromArea } from "@/lib/jobs/next-action";
 import { sendTransactionalSms } from "@/lib/sms";
@@ -15,7 +16,6 @@ import {
   planLifecycle,
   planNoOffer,
   runTransactionalPass,
-  transactionalBulkBatch,
   type AudienceMode,
   type BookingNotice,
   type PlannedSms,
@@ -368,6 +368,25 @@ function createIo(supabase: ServiceClient): TransactionalIo {
       return plans;
     },
     async claim(plan) {
+      const { data: existing } = await supabase
+        .from("transactional_sms")
+        .select("id, status, claimed_at")
+        .eq("dedupe_key", plan.dedupeKey)
+        .maybeSingle();
+      if (existing) {
+        if (existing.claimed_at != null || existing.status !== "queued") return false;
+        const patch =
+          plan.status === "skipped"
+            ? { status: "skipped", skip_reason: plan.reason, claimed_at: new Date().toISOString() }
+            : { claimed_at: new Date().toISOString(), attempt_count: 1 };
+        const { data } = await supabase
+          .from("transactional_sms")
+          .update(patch)
+          .eq("id", existing.id)
+          .is("claimed_at", null)
+          .select("id");
+        return Array.isArray(data) && data.length > 0;
+      }
       const { data, error } = await supabase.rpc("claim_transactional_sms", {
         target_key: plan.dedupeKey,
         target_profile: plan.profileId,
@@ -432,13 +451,72 @@ function createIo(supabase: ServiceClient): TransactionalIo {
         .eq("status", "queued")
         .is("provider_sid", null);
     },
+    async pending() {
+      const { data } = await supabase
+        .from("transactional_sms")
+        .select("dedupe_key, profile_id, job_id, kind, body, to_phone")
+        .eq("status", "queued")
+        .is("claimed_at", null)
+        .is("provider_sid", null)
+        .order("created_at", { ascending: true })
+        .limit(200);
+      return (data ?? []).map((row) => ({
+        dedupeKey: row.dedupe_key as string,
+        sourceId: null,
+        profileId: (row.profile_id as string | null) ?? null,
+        jobId: (row.job_id as string | null) ?? null,
+        kind: row.kind as string,
+        body: row.body as string,
+        phone: (row.to_phone as string | null) ?? null,
+        status: "queued" as const,
+        reason: null,
+      }));
+    },
+    async jobOpen(jobId) {
+      const { data } = await supabase
+        .from("jobs")
+        .select("status, assigned_driver_id, paused_at")
+        .eq("id", jobId)
+        .maybeSingle();
+      return Boolean(data && data.status === "open" && data.assigned_driver_id == null && data.paused_at == null);
+    },
+    async lastBulkSentAt() {
+      const { data } = await supabase
+        .from("transactional_sms")
+        .select("send_started_at")
+        .in("kind", ["new_job", "admin_followup"])
+        .not("send_started_at", "is", null)
+        .order("send_started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.send_started_at ? Date.parse(String(data.send_started_at)) : null;
+    },
   };
 }
 
-/** Sends booking texts that are waiting. Returns quietly to the caller when the provider fails. */
+function continueDrain(): void {
+  const secret = process.env.CRON_SECRET;
+  const site = publicSiteUrl();
+  if (!secret || !site) return;
+  try {
+    after(() => {
+      void fetch(`${site}/api/notifications/drain`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${secret}` },
+        cache: "no-store",
+      }).catch(() => undefined);
+    });
+  } catch {
+    // The five-minute text job starts another pass.
+  }
+}
+
+/** Sends booking texts that are waiting. A full driver list continues immediately instead of waiting for the next schedule. */
 export async function flushTransactionalSms(): Promise<{ sent: number; skipped: number; failed: number }> {
   try {
-    return await runTransactionalPass(createIo(createServiceClient()), new Date());
+    const result = await runTransactionalPass(createIo(createServiceClient()), new Date());
+    if (result.remaining && result.sent + result.skipped > 0) continueDrain();
+    return { sent: result.sent, skipped: result.skipped, failed: result.failed };
   } catch {
     return { sent: 0, skipped: 0, failed: 0 };
   }
@@ -505,7 +583,21 @@ export async function queueDriverFollowup(jobId: string): Promise<{ sent: number
   if (queued.length === 0) {
     return { error: "No eligible driver can be texted. The pilot list, consent, and preferences still apply." };
   }
-  const batch = queued.slice(0, transactionalBulkBatch);
-  const result = await deliverPlans(io, [...batch, ...plans.filter((plan) => plan.status === "skipped")]);
-  return { sent: result.sent, waiting: queued.length - batch.length };
+  await deliverPlans(io, plans.filter((plan) => plan.status === "skipped"));
+  for (const plan of queued) {
+    const { error: insertError } = await supabase.from("transactional_sms").insert({
+      dedupe_key: plan.dedupeKey,
+      profile_id: plan.profileId,
+      job_id: plan.jobId,
+      kind: plan.kind,
+      body: plan.body,
+      to_phone: plan.phone,
+      status: "queued",
+      claimed_at: null,
+      attempt_count: 0,
+    });
+    if (insertError && insertError.code !== "23505") return { error: "The follow-up could not be queued." };
+  }
+  const drained = await flushTransactionalSms();
+  return { sent: drained.sent, waiting: Math.max(0, queued.length - drained.sent) };
 }

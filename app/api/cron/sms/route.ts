@@ -4,6 +4,8 @@ import { runCron } from "@/lib/cron/record";
 import { flushTransactionalSms } from "@/lib/notifications/transactional-send";
 import { dispatchDueSms } from "@/lib/sms/dispatch";
 
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   await connection();
   const secret = process.env.CRON_SECRET;

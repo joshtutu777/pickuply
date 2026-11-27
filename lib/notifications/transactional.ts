@@ -1,3 +1,4 @@
+import { smsSegments } from "@/lib/communications/sms";
 import { defaultFeeSettings, offerBreakdown } from "@/lib/fees";
 import { formatCents } from "@/lib/money";
 import { transactionalPhone } from "@/lib/phone";
@@ -85,15 +86,29 @@ export type TransactionalIo = {
   timers(enabledAt: string, now: Date): Promise<PlannedSms[]>;
   claim(plan: PlannedSms): Promise<boolean>;
   send(phone: string, body: string): Promise<SendResult>;
-  mark(dedupeKey: string, status: "accepted" | "failed" | "retry", sid: string | null, error: string | null): Promise<void>;
+  mark(dedupeKey: string, status: "accepted" | "failed" | "retry" | "skipped", sid: string | null, error: string | null): Promise<void>;
   /** Records that the provider request has started. A later crash is not retried. */
   started?(dedupeKey: string): Promise<void>;
   checked(noticeId: string): Promise<void>;
   /** Rows that had a definite temporary provider failure and no message id. */
   retries?(): Promise<PlannedSms[]>;
+  /** Queued rows that have not been claimed yet, including a manual follow-up. */
+  pending?(): Promise<PlannedSms[]>;
   /** Marks queued rows that never received a provider id so a later switch-on cannot send them. */
   suspendUnsent?(): Promise<void>;
+  /** False when the request is no longer open for offers. */
+  jobOpen?(jobId: string): Promise<boolean>;
+  /** When the last new-job text was submitted. Used to keep the carrier pace across passes. */
+  lastBulkSentAt?(): Promise<number | null>;
+  noteBulkSent?(at: number): Promise<void>;
 };
+
+export type TransactionalClock = {
+  now(): number;
+  sleep(ms: number): Promise<void>;
+};
+
+export type PassResult = { sent: number; skipped: number; failed: number; remaining: boolean };
 
 const serviceNames: Record<string, string> = {
   delivery: "pickup",
@@ -449,8 +464,26 @@ export function resolveSmsOutcome(result: SendResult): SmsOutcome {
   return "rejected";
 }
 
-/** One batch of new-job texts. AT&T accepts this campaign at 0.25 messages per second, so a full driver list stays on later passes. */
-export const transactionalBulkBatch = 8;
+/** Registered AT&T throughput for this sole-proprietor campaign. Submission is paced to this rate; carrier delivery can finish later. */
+export const carrierMessagesPerSecond = 0.25;
+
+/** One pass stays inside a short serverless limit, then the next pass starts immediately. */
+export const sliceBudgetMs = 8_000;
+
+export const maxNotificationWindowMs = 10 * 60 * 1000;
+
+export const targetNotificationWindowMs = 5 * 60 * 1000;
+
+export function bulkGapMs(segments: number): number {
+  const count = Number.isFinite(segments) && segments > 0 ? Math.ceil(segments) : 1;
+  return Math.ceil((count * 1000) / carrierMessagesPerSecond);
+}
+
+/** Wall-clock time from the first submission to the last. The first text does not wait. */
+export function bulkSubmissionMs(count: number, segments = 1): number {
+  if (count <= 1) return 0;
+  return (count - 1) * bulkGapMs(segments);
+}
 
 export const followupWindowMs = 15 * 60 * 1000;
 
@@ -544,10 +577,19 @@ export async function deliverPlans(
   return counts;
 }
 
-/** Sends each planned text once. A provider failure is counted and does not throw. */
-export async function runTransactionalPass(io: TransactionalIo, now: Date): Promise<{ sent: number; skipped: number; failed: number }> {
+const realtimeClock: TransactionalClock = {
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+/** Sends each planned text once. Critical texts go first. New-job texts keep the carrier pace and continue on the next pass. */
+export async function runTransactionalPass(
+  io: TransactionalIo,
+  now: Date,
+  clock: TransactionalClock = realtimeClock,
+): Promise<PassResult> {
   const settings = await io.settings();
-  const counts = { sent: 0, skipped: 0, failed: 0 };
+  const counts: PassResult = { sent: 0, skipped: 0, failed: 0, remaining: false };
   if (!settings.enabledAt) {
     await io.suspendUnsent?.();
     return counts;
@@ -557,21 +599,42 @@ export async function runTransactionalPass(io: TransactionalIo, now: Date): Prom
   for (const notice of notices) {
     for (const plan of planLifecycle(notice, settings)) items.push({ plan, noticeId: notice.id });
   }
+  for (const plan of (await io.pending?.()) ?? []) items.push({ plan, noticeId: null });
   for (const plan of await io.timers(settings.enabledAt, now)) items.push({ plan, noticeId: null });
   for (const plan of (await io.retries?.()) ?? []) {
     items.push({ plan: { ...plan, alreadyClaimed: true }, noticeId: null });
   }
   items.sort((left, right) => transactionalRank(left.plan.kind) - transactionalRank(right.plan.kind));
   const deferred = new Set<string>();
-  let bulk = 0;
+  const sliceStart = clock.now();
+  let lastBulk = (await io.lastBulkSentAt?.()) ?? null;
   for (const item of items) {
-    const holdForLater = isBulkTransactional(item.plan.kind) && !item.plan.alreadyClaimed && bulk >= transactionalBulkBatch;
-    if (holdForLater) {
-      if (item.noticeId) deferred.add(item.noticeId);
+    const plan = item.plan;
+    const bulk = isBulkTransactional(plan.kind) && plan.status === "queued";
+    if (bulk && plan.jobId && io.jobOpen && !(await io.jobOpen(plan.jobId))) {
+      if (plan.alreadyClaimed) {
+        await io.mark(plan.dedupeKey, "skipped", null, "job_unavailable").catch(() => undefined);
+        counts.skipped += 1;
+      } else {
+        await deliver(io, { ...plan, status: "skipped", reason: "job_unavailable" }, counts);
+      }
       continue;
     }
-    if (isBulkTransactional(item.plan.kind) && !item.plan.alreadyClaimed) bulk += 1;
-    await deliver(io, item.plan, counts);
+    if (bulk && !plan.alreadyClaimed) {
+      const wait = lastBulk == null ? 0 : Math.max(0, bulkGapMs(smsSegments(plan.body)) - (clock.now() - lastBulk));
+      if (clock.now() + wait - sliceStart > sliceBudgetMs) {
+        counts.remaining = true;
+        if (item.noticeId) deferred.add(item.noticeId);
+        continue;
+      }
+      if (wait > 0) await clock.sleep(wait);
+    }
+    const attempted = counts.sent + counts.failed;
+    await deliver(io, plan, counts);
+    if (bulk && counts.sent + counts.failed > attempted) {
+      lastBulk = clock.now();
+      await io.noteBulkSent?.(lastBulk);
+    }
   }
   for (const notice of notices) {
     if (!deferred.has(notice.id)) await io.checked(notice.id).catch(() => undefined);
