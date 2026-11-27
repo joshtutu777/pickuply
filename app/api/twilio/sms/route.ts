@@ -34,6 +34,8 @@ export async function POST(request: Request) {
   const sid = params.get("MessageSid") ?? "";
   try {
     const supabase = createServiceClient();
+    if (keyword === "stop") await supabase.rpc("record_sms_opt_out", { target_phone: phone });
+    if (keyword === "start") await supabase.rpc("record_sms_opt_in", { target_phone: phone });
     const { data, error } = await supabase.rpc("record_inbound_sms", {
       target_phone: phone,
       body: params.get("Body") ?? "",

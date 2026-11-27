@@ -2,7 +2,7 @@
 
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { flushTransactionalSms } from "@/lib/notifications/transactional-send";
+import { scheduleBookingTexts } from "@/lib/notifications/schedule-flush";
 import { createClient } from "@/lib/supabase/server";
 
 export async function chooseOffer(formData: FormData) {
@@ -12,6 +12,6 @@ export async function chooseOffer(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("choose_offer", { target_offer: offerId });
   if (error) redirect(`/jobs/${jobId}?error=${encodeURIComponent(error.message)}`);
-  await flushTransactionalSms();
+  scheduleBookingTexts();
   redirect(`/jobs/${jobId}?tracked=offer`);
 }

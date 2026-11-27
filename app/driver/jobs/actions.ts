@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getOptionalSession, requireSignedIn } from "@/lib/auth/session";
 import { advanceErrorCode } from "@/lib/jobs/delivery-step";
-import { flushTransactionalSms } from "@/lib/notifications/transactional-send";
+import { scheduleBookingTexts } from "@/lib/notifications/schedule-flush";
 import { createClient } from "@/lib/supabase/server";
 
 export async function advanceJob(formData: FormData) {
@@ -27,7 +27,7 @@ export async function advanceJob(formData: FormData) {
     target_job: jobId,
     next_status: nextStatus,
   });
-  if (!error) await flushTransactionalSms();
+  if (!error) scheduleBookingTexts();
   revalidatePath(`/driver/jobs/${jobId}`);
   revalidatePath(`/jobs/${jobId}`);
   redirect(error ? `/driver/jobs/${jobId}?error=${advanceErrorCode(error.message)}` : `/driver/jobs/${jobId}`);

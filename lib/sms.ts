@@ -38,9 +38,40 @@ export async function sendAdminSms(to: string, body: string, statusCallback?: st
   return postSms(to, body, statusCallback);
 }
 
-/** Booking texts. The status webhook records accepted, delivered, and undelivered. */
-export async function sendTransactionalSms(to: string, body: string): Promise<SmsResult> {
+export type TransactionalSmsResult = SmsResult & {
+  outcome: "accepted" | "temporary" | "rejected" | "ambiguous";
+};
+
+/** Booking texts. A thrown network error is ambiguous and must not be sent again. */
+export async function sendTransactionalSms(to: string, body: string): Promise<TransactionalSmsResult> {
   const site = publicSiteUrl();
   const callback = site.startsWith("https://") ? `${site}/api/twilio/status` : undefined;
-  return postSms(to, body, callback);
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER;
+  if (!sid || !token || !from) return { ok: false, sid: null, errorCode: "not_configured", outcome: "rejected" };
+  const payload = new URLSearchParams({ To: to, From: from, Body: body });
+  if (callback) payload.set("StatusCallback", callback);
+  try {
+    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: payload,
+    });
+    if (response.ok) {
+      const saved = (await response.json()) as { sid?: string };
+      if (!saved.sid) return { ok: false, sid: null, errorCode: "no_sid", outcome: "ambiguous" };
+      return { ok: true, sid: saved.sid, errorCode: null, outcome: "accepted" };
+    }
+    const failure = (await response.json().catch(() => null)) as { code?: number } | null;
+    const errorCode = failure?.code ? String(failure.code) : String(response.status);
+    // 21610 and other 4xx answers, including an opted-out recipient, are final. Do not clear Twilio's block from here.
+    const outcome = response.status === 429 || response.status >= 500 ? "temporary" : "rejected";
+    return { ok: false, sid: null, errorCode, outcome };
+  } catch {
+    return { ok: false, sid: null, errorCode: "no_response", outcome: "ambiguous" };
+  }
 }

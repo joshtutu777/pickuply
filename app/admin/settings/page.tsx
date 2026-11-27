@@ -32,16 +32,19 @@ async function SettingsContent({
   await requireAdmin("/admin/settings");
   const query = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.from("platform_settings").select("*").eq("id", 1).maybeSingle();
+  const [{ data }, { data: privateTexts }] = await Promise.all([
+    supabase.from("platform_settings").select("*").eq("id", 1).maybeSingle(),
+    supabase.from("booking_text_private").select("admin_alert_phone, pilot_profile_ids").eq("id", 1).maybeSingle(),
+  ]);
   const settings = data ?? {
     platform_bps: 1500,
     platform_min_cents: 0,
     service_bps: 290,
     service_fixed_cents: 30,
     payment_due_minutes: 30,
-    admin_alert_phone: null as string | null,
     driver_job_sms_audience: "eligible",
     transactional_sms_enabled_at: null as string | null,
+    transactional_pilot_only: true,
     sms_enabled: false,
     support_phone: null,
     support_email: null,
@@ -216,7 +219,7 @@ async function SettingsContent({
             name="adminPhone"
             type="tel"
             autoComplete="tel"
-            defaultValue={settings.admin_alert_phone ?? ""}
+            defaultValue={privateTexts?.admin_alert_phone ?? ""}
             className={controlClass}
           />
         </label>
@@ -227,6 +230,25 @@ async function SettingsContent({
             <option value="online">Online drivers only</option>
             <option value="off">No new-job texts</option>
           </select>
+        </label>
+        <label className="flex min-h-12 items-start gap-3 text-base font-semibold" htmlFor="pilotOnly">
+          <input
+            id="pilotOnly"
+            name="pilotOnly"
+            type="checkbox"
+            defaultChecked={settings.transactional_pilot_only !== false}
+          />
+          <span>Only text people on the pilot list. A new request will not text every driver.</span>
+        </label>
+        <label className="block text-base font-semibold" htmlFor="pilotIds">
+          Pilot profile ids, one per line
+          <textarea
+            id="pilotIds"
+            name="pilotIds"
+            rows={4}
+            defaultValue={(privateTexts?.pilot_profile_ids ?? []).join("\n")}
+            className={controlClass}
+          />
         </label>
         <label className="flex min-h-12 items-center gap-3 text-base font-semibold" htmlFor="transactionalOn">
           <input

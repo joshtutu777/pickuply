@@ -52,11 +52,21 @@ export async function saveTransactionalAlerts(formData: FormData) {
   if (audience !== "eligible" && audience !== "online" && audience !== "off") {
     redirect("/admin/settings?error=Choose%20who%20receives%20new-job%20texts");
   }
+  const pilotIds = String(formData.get("pilotIds") ?? "")
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (pilotIds.some((id) => !uuid.test(id))) {
+    redirect("/admin/settings?error=Enter%20profile%20ids%20for%20the%20pilot%20list");
+  }
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_transactional_alerts", {
     phone: String(formData.get("adminPhone") ?? ""),
     audience,
     turn_on: formData.get("transactionalOn") === "on",
+    pilot_only: formData.get("pilotOnly") === "on",
+    pilot_ids: pilotIds,
   });
   revalidatePath("/admin/settings");
   redirect(error ? "/admin/settings?error=Could%20not%20save%20booking%20texts" : "/admin/settings?saved=1");

@@ -6,10 +6,16 @@ import {
   nextTransactionalStatus,
   planAckReminder,
   planAdminAck,
+  followupWindow,
+  isBulkTransactional,
   planFollowup,
   planLifecycle,
   planNoOffer,
+  resolveSmsOutcome,
   runTransactionalPass,
+  smsRetryDecision,
+  transactionalBulkBatch,
+  transactionalRank,
   transactionalProviderStatus,
   type BookingNotice,
   type PlannedSms,
@@ -25,6 +31,8 @@ const settings: TransactionalSettings = {
   platformSms: true,
   platformBps: 1500,
   site: "https://pickuplyapp.com",
+  pilotOnly: false,
+  pilotProfileIds: [],
 };
 
 function notice(overrides: Partial<BookingNotice> = {}): BookingNotice {
@@ -163,6 +171,45 @@ test("ASAP reminders wait 10 and 20 minutes and do not fire after acknowledgment
   assert.equal(planNoOffer(job({ status: "open", offerCount: 1, createdAt: "2026-11-26T18:00:00.000Z" }), settings, now), null);
 });
 
+test("admin alerts do not use the pilot list, and a manual follow-up does", () => {
+  const limited = { ...settings, pilotOnly: true, pilotProfileIds: [] };
+  const plans = planLifecycle(notice({ kind: "request_received" }), limited);
+  assert.equal(plans.find((plan) => plan.kind === "admin_new_request")?.status, "queued");
+  assert.equal(plans.find((plan) => plan.kind === "request_received")?.reason, "pilot_limited");
+  const follow = planFollowup(notice({ role: "driver", kind: "new_job" }), limited, followupWindow(new Date("2026-11-26T18:00:00.000Z")));
+  assert.equal(follow?.reason, "pilot_limited");
+  const first = planFollowup(notice({ role: "driver", kind: "new_job", profileId: "profile-2" }), { ...limited, pilotProfileIds: ["profile-2"] }, "100");
+  const repeat = planFollowup(notice({ role: "driver", kind: "new_job", profileId: "profile-2" }), { ...limited, pilotProfileIds: ["profile-2"] }, "100");
+  assert.equal(first?.dedupeKey, repeat?.dedupeKey);
+  assert.notEqual(first?.dedupeKey, planFollowup(notice({ role: "driver", kind: "new_job", profileId: "profile-2" }), { ...limited, pilotProfileIds: ["profile-2"] }, "101")?.dedupeKey);
+});
+
+test("a pilot list blocks every driver who is not on it, including a valid consenting driver", () => {
+  const limited = { ...settings, pilotOnly: true, pilotProfileIds: ["profile-2"] };
+  const blocked = planLifecycle(notice(), limited)[0];
+  const allowed = planLifecycle(notice({ profileId: "profile-2" }), limited)[0];
+  assert.equal(blocked?.reason, "pilot_limited");
+  assert.equal(allowed?.status, "queued");
+  assert.equal(planLifecycle(notice({ isTest: true }), limited)[0]?.reason, "test_account");
+});
+
+test("starting the trip counts as acknowledgment", () => {
+  const now = new Date("2026-11-26T18:21:00.000Z");
+  const started = job({ status: "en_route", acknowledged: false });
+  assert.equal(planAckReminder(started, settings, now), null);
+  assert.equal(planAdminAck(started, settings, now), null);
+});
+
+test("a temporary provider refusal can be tried once, and a lost response cannot", () => {
+  assert.equal(smsRetryDecision("temporary", 1), "retry");
+  assert.equal(smsRetryDecision("temporary", 2), "fail");
+  assert.equal(smsRetryDecision("ambiguous", 1), "fail");
+  assert.equal(smsRetryDecision("rejected", 1), "fail");
+  assert.equal(smsRetryDecision("accepted", 1), "accept");
+  assert.equal(resolveSmsOutcome({ ok: true, sid: null, error: null }), "ambiguous");
+  assert.equal(resolveSmsOutcome({ ok: false, sid: "SM1", error: null, outcome: "accepted" }), "accepted");
+});
+
 test("provider statuses stay distinct and a delivered text is not rewritten", () => {
   assert.equal(transactionalProviderStatus("undelivered"), "undelivered");
   assert.equal(transactionalProviderStatus("sent"), "accepted");
@@ -196,13 +243,47 @@ test("a failed send, a repeat, and two workers do not throw or send twice", asyn
   assert.equal(calls.length, 1);
 });
 
-test("turning the feature off sends nothing, including older alerts", async () => {
+test("turning the feature off sends nothing and holds queued texts", async () => {
   const calls: string[] = [];
+  let held = 0;
   const io = fakeIo([notice()], new Set(), calls, async () => ({ ok: true, sid: "SM1", error: null }));
   io.settings = async () => ({ ...settings, enabledAt: null });
+  io.suspendUnsent = async () => {
+    held += 1;
+  };
   const result = await runTransactionalPass(io, new Date("2026-11-26T18:10:00.000Z"));
   assert.deepEqual(result, { sent: 0, skipped: 0, failed: 0 });
   assert.equal(calls.length, 0);
+  assert.equal(held, 1);
+});
+
+test("payment and cancellation go out before a capped new-job batch", async () => {
+  const sent: string[] = [];
+  const payment = notice({ id: "pay", kind: "payment_confirmed", phone: "15555550110" });
+  const cancel = notice({ id: "cancel", kind: "cancelled", role: "driver", phone: "15555550111" });
+  const io = fakeIo([payment, cancel], new Set(), sent, async () => ({ ok: true, sid: "SM1", error: null }));
+  io.timers = async () =>
+    Array.from({ length: transactionalBulkBatch + 4 }, (_, index) => ({
+      dedupeKey: `sms:new_job:job-1:driver-${index}`,
+      sourceId: null,
+      profileId: `driver-${index}`,
+      jobId: "job-1",
+      kind: "new_job",
+      body: "New job",
+      phone: `155555502${String(index).padStart(2, "0")}`,
+      status: "queued" as const,
+      reason: null,
+    }));
+  const result = await runTransactionalPass(io, new Date("2026-11-26T18:10:00.000Z"));
+  assert.equal(sent[0], "+15555550110");
+  assert.equal(sent[1], "+15555550111");
+  assert.equal(sent.filter((phone) => phone.includes("5555502")).length, transactionalBulkBatch);
+  assert.equal(sent.length, 3 + transactionalBulkBatch);
+  assert.equal(result.sent, sent.length);
+  assert.equal(isBulkTransactional("new_job"), true);
+  assert.ok(transactionalRank("cleared_to_start") < transactionalRank("cancelled"));
+  assert.ok(transactionalRank("cancelled") < transactionalRank("new_job"));
+  assert.equal(payment.checkedAt, "2026-11-26T18:10:00.000Z");
 });
 
 function fakeIo(

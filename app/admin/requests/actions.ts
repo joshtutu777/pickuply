@@ -8,6 +8,7 @@ import { canFinishRemoval, logMarketplaceRemoval, removalLivemode, removalStripe
 import { parseDollarsToCents } from "@/lib/money";
 import { requestRefund } from "@/lib/payments/refunds";
 import { recordFunnelServer } from "@/lib/funnel-server";
+import { scheduleBookingTexts } from "@/lib/notifications/schedule-flush";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -81,6 +82,7 @@ export async function reviewRequest(formData: FormData) {
   if (action === "quote") {
     await recordFunnelServer({ event: "quote_sent", step: "sent", pricing: "quote" });
   }
+  if (action === "publish") scheduleBookingTexts();
   redirect(`/admin/requests/${jobId}?saved=1`);
 }
 

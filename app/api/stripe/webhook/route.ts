@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handlePlatformPaymentEvent, isPlatformPaymentEvent } from "@/lib/payments/platform-events";
 import { paymentsMode, webhookSecretName } from "@/lib/payments/payments-mode";
-import { flushTransactionalSms } from "@/lib/notifications/transactional-send";
+import { scheduleBookingTexts } from "@/lib/notifications/schedule-flush";
 import { claimStripeEvent, readStripeEvent, releaseStripeEvent } from "@/lib/payments/webhook";
 
 export async function POST(request: Request) {
@@ -18,11 +18,11 @@ export async function POST(request: Request) {
 
   try {
     await handlePlatformPaymentEvent(event);
-    await flushTransactionalSms();
   } catch (error) {
     console.error(error instanceof Error ? error.message : "webhook failed");
     await releaseStripeEvent(event.id);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  scheduleBookingTexts();
   return NextResponse.json({ ok: true });
 }

@@ -20,6 +20,7 @@ import {
   loadReleasePolicy,
   readCommit,
   repositoryName,
+  reviewedLandingMigration,
   verifyGithubBranch,
 } from "./release-guard.mjs";
 
@@ -28,6 +29,23 @@ const policy = loadReleasePolicy();
 const mobileUx = "5da7fcc5327aebc79542bd0118af179d8fd48047";
 const oldMain = "8fddccd745a3ad7e46032f0c0bc768460e9c6fea";
 const remote = "https://github.com/joshtutu777/pickuply.git";
+
+function assertReleaseBlock(result, baseline, release, landingLoadApplied) {
+  const other = result.failures.filter((failure) => !failure.startsWith("new migration files block the release:"));
+  assert.deepEqual(other, []);
+  const base = new Set(baseline.map((entry) => entry.path));
+  const added = release
+    .map((entry) => entry.path)
+    .filter((path) => !base.has(path))
+    .filter((path) => path !== reviewedLandingMigration || landingLoadApplied !== true);
+  if (added.length === 0) {
+    assert.deepEqual(result.failures, []);
+    assert.equal(result.ok, true);
+    return;
+  }
+  assert.equal(result.ok, false);
+  for (const path of added) assert.ok(result.failures.some((failure) => failure.includes(path)), path);
+}
 
 function releaseOf(sha, patch = {}) {
   const commit = readCommit(root, sha);
@@ -472,8 +490,8 @@ test("the current production commit passes source and ancestry checks", { timeou
   const approved = loadApprovedRelease();
   const record = loadProductionRecord(policy);
   assert.ok(record, "production deployment could not be verified");
-  assert.equal(approved.sha, "58779556a9205a2982ffc7df00a56b223a420491");
-  assert.equal(approved.deploymentId, "dpl_Bd341qB4V2QPg99QMWJsJParw2h5");
+  assert.equal(approved.sha, "93ca93541f05273fbdad14e27478a7d21828bf40");
+  assert.equal(approved.deploymentId, "dpl_GSSf3Nr1tK8kk9fnKnWMwK9QmMqh");
   assert.equal(record.sha, approved.sha);
   assert.equal(record.deploymentId, approved.deploymentId);
   const commit = readCommit(root, record.sha);
@@ -491,8 +509,7 @@ test("the current production commit passes source and ancestry checks", { timeou
   };
   const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(root));
   const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved, landingLoadApplied }));
-  assert.deepEqual(future.failures, []);
-  assert.equal(future.ok, true);
+  assertReleaseBlock(future, commit.migrations, head.migrations, landingLoadApplied);
   const previousApproved = approvedReleaseAt(root, "HEAD^");
   const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved, landingLoadApplied }));
   const recordMoved =
@@ -505,8 +522,7 @@ test("the current production commit passes source and ancestry checks", { timeou
     assert.equal(current.ok, false);
     assert.ok(current.failures.includes("approved production baseline changed"));
   } else {
-    assert.deepEqual(current.failures, []);
-    assert.equal(current.ok, true);
+    assertReleaseBlock(current, commit.migrations, head.migrations, landingLoadApplied);
   }
   assert.equal(commitContains(root, approved.sha, head.sha), true);
   for (const route of policy.requiredRoutes) assert.ok(head.files.includes(route.file), route.route);

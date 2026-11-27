@@ -18,6 +18,7 @@ export async function saveAlertPreferences(formData: FormData) {
     push_on: formData.get("push") === "on",
     email_on: formData.get("email") === "on",
     promotional_on: formData.get("promotional") === "on",
+    transactional_on: formData.get("transactional") === "on",
   });
   const requested = String(formData.get("returnTo") ?? "");
   const path = requested === "/account/profile" || requested === "/driver/profile" ? requested : alertsPath(session.role);

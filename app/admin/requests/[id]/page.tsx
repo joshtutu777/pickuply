@@ -152,19 +152,28 @@ async function RequestDetail({
         {statusLabel(job.status)} · {job.pricing_method}
       </p>
       {job.status === "open" ? (
-        <form action={textEligibleDrivers} className="mt-4">
+        <form action={textEligibleDrivers} className="mt-4 space-y-3">
           <input type="hidden" name="jobId" value={job.id} />
+          <p className="text-sm text-muted">
+            Sends one follow-up to eligible drivers. The pilot list, consent, and text preference apply. It does not repeat the first automatic text. At most 8 go out now, and another follow-up waits 15 minutes.
+          </p>
+          <label className="flex min-h-12 items-start gap-3 text-base font-semibold text-ink">
+            <input type="checkbox" name="confirmFollowup" value="on" required />
+            <span>I confirm this follow-up text.</span>
+          </label>
           <button
             type="submit"
             className="inline-flex min-h-12 items-center justify-center rounded-full bg-paper-raised px-5 font-semibold text-ink ring-1 ring-line"
           >
             Text eligible drivers
           </button>
-          <p className="mt-2 text-sm text-muted">Sends one follow-up. It does not repeat the first automatic text.</p>
         </form>
       ) : null}
       {typeof query.texted === "string" ? (
-        <p className="mt-3 text-base text-ink">Follow-up handed to the provider for {query.texted} drivers.</p>
+        <p className="mt-3 text-base text-ink">
+          Follow-up handed to the provider for {query.texted} drivers.
+          {query.waiting && query.waiting !== "0" ? ` ${query.waiting} more can be texted after 15 minutes.` : ""}
+        </p>
       ) : null}
       {waitingWithoutDriver ? <p className="mt-2 text-base font-semibold text-danger">No driver yet</p> : null}
       <RequestOffers

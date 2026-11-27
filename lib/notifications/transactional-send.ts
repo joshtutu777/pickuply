@@ -6,6 +6,8 @@ import { sendTransactionalSms } from "@/lib/sms";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   deliverPlans,
+  followupWindow,
+  followupWindowStart,
   knownDriverEarnings,
   planAckReminder,
   planAdminAck,
@@ -13,6 +15,7 @@ import {
   planLifecycle,
   planNoOffer,
   runTransactionalPass,
+  transactionalBulkBatch,
   type AudienceMode,
   type BookingNotice,
   type PlannedSms,
@@ -152,11 +155,14 @@ function createIo(supabase: ServiceClient): TransactionalIo {
   return {
     async settings() {
       if (cached) return cached;
-      const { data, error } = await supabase
-        .from("platform_settings")
-        .select("transactional_sms_enabled_at, driver_job_sms_audience, admin_alert_phone, sms_enabled, platform_bps")
-        .eq("id", 1)
-        .single();
+      const [{ data, error }, { data: privateSettings }] = await Promise.all([
+        supabase
+          .from("platform_settings")
+          .select("transactional_sms_enabled_at, driver_job_sms_audience, sms_enabled, platform_bps, transactional_pilot_only")
+          .eq("id", 1)
+          .single(),
+        supabase.from("booking_text_private").select("admin_alert_phone, pilot_profile_ids").eq("id", 1).maybeSingle(),
+      ]);
       if (error || !data) throw new Error("transactional settings unavailable");
       const audience = audiences.has(data.driver_job_sms_audience as AudienceMode)
         ? (data.driver_job_sms_audience as AudienceMode)
@@ -164,10 +170,12 @@ function createIo(supabase: ServiceClient): TransactionalIo {
       cached = {
         enabledAt: (data.transactional_sms_enabled_at as string | null) ?? null,
         audience,
-        adminPhone: (data.admin_alert_phone as string | null) ?? null,
+        adminPhone: (privateSettings?.admin_alert_phone as string | null) ?? null,
         platformSms: Boolean(data.sms_enabled),
         platformBps: Number(data.platform_bps ?? 1500),
         site: publicSiteUrl(),
+        pilotOnly: data.transactional_pilot_only !== false,
+        pilotProfileIds: ((privateSettings?.pilot_profile_ids ?? []) as string[]).filter(Boolean),
       };
       return cached;
     },
@@ -376,7 +384,7 @@ function createIo(supabase: ServiceClient): TransactionalIo {
     },
     async send(phone, body) {
       const result = await sendTransactionalSms(phone, body);
-      return { ok: result.ok, sid: result.sid, error: result.errorCode };
+      return { ok: result.ok, sid: result.sid, error: result.errorCode, outcome: result.outcome };
     },
     async mark(dedupeKey, status, sid, error) {
       const { error: updateError } = await supabase.rpc("finish_transactional_sms", {
@@ -387,8 +395,42 @@ function createIo(supabase: ServiceClient): TransactionalIo {
       });
       if (updateError) throw new Error("status update failed");
     },
+    async started(dedupeKey) {
+      await supabase.rpc("mark_transactional_send_started", { target_key: dedupeKey });
+    },
+    async retries() {
+      const { data } = await supabase.rpc("reclaim_transactional_sms");
+      return ((data ?? []) as {
+        dedupe_key: string;
+        profile_id: string | null;
+        job_id: string | null;
+        kind: string;
+        body: string;
+        to_phone: string | null;
+        attempt_count: number;
+      }[]).map((row) => ({
+        dedupeKey: row.dedupe_key,
+        sourceId: null,
+        profileId: row.profile_id,
+        jobId: row.job_id,
+        kind: row.kind,
+        body: row.body,
+        phone: row.to_phone,
+        status: "queued" as const,
+        reason: null,
+        attempt: row.attempt_count,
+        alreadyClaimed: true,
+      }));
+    },
     async checked(noticeId) {
       await supabase.from("notifications").update({ transactional_checked_at: new Date().toISOString() }).eq("id", noticeId);
+    },
+    async suspendUnsent() {
+      await supabase
+        .from("transactional_sms")
+        .update({ status: "skipped", skip_reason: "texts_disabled", retryable: false })
+        .eq("status", "queued")
+        .is("provider_sid", null);
     },
   };
 }
@@ -403,11 +445,21 @@ export async function flushTransactionalSms(): Promise<{ sent: number; skipped: 
 }
 
 /** One extra text to each eligible driver on an open request. It does not reuse the first new-job key. */
-export async function queueDriverFollowup(jobId: string): Promise<{ sent: number } | { error: string }> {
+export async function queueDriverFollowup(jobId: string): Promise<{ sent: number; waiting: number } | { error: string }> {
   const supabase = createServiceClient();
   const io = createIo(supabase);
   const settings = await io.settings();
-  if (!settings.enabledAt) return { error: "Transactional texts are off." };
+  if (!settings.enabledAt) return { error: "Booking texts are off." };
+  const now = new Date();
+  const { count: recent } = await supabase
+    .from("transactional_sms")
+    .select("id", { count: "exact", head: true })
+    .eq("job_id", jobId)
+    .eq("kind", "admin_followup")
+    .gte("created_at", followupWindowStart(now));
+  if ((recent ?? 0) > 0) {
+    return { error: "A follow-up already went out for this request. Wait 15 minutes before another." };
+  }
   const jobs = await loadJobs(supabase, [jobId]);
   const job = jobs.get(jobId);
   if (!job || job.status !== "open") return { error: "This request is not open." };
@@ -416,7 +468,7 @@ export async function queueDriverFollowup(jobId: string): Promise<{ sent: number
   if (driverError) return { error: "Eligible drivers could not be loaded." };
   const ids = ((driverRows ?? []) as { profile_id: string }[]).map((item) => item.profile_id);
   const people = await loadPeople(supabase, ids);
-  const nonce = crypto.randomUUID();
+  const windowId = followupWindow(now);
   const plans = ids.flatMap((id) => {
     const person = people.get(id);
     if (!person) return [];
@@ -446,9 +498,14 @@ export async function queueDriverFollowup(jobId: string): Promise<{ sent: number
       createdAt: job.created_at,
       checkedAt: null,
     };
-    const plan = planFollowup(notice, settings, nonce);
+    const plan = planFollowup(notice, settings, windowId);
     return plan ? [plan] : [];
   });
-  const result = await deliverPlans(io, plans);
-  return { sent: result.sent };
+  const queued = plans.filter((plan) => plan.status === "queued");
+  if (queued.length === 0) {
+    return { error: "No eligible driver can be texted. The pilot list, consent, and preferences still apply." };
+  }
+  const batch = queued.slice(0, transactionalBulkBatch);
+  const result = await deliverPlans(io, [...batch, ...plans.filter((plan) => plan.status === "skipped")]);
+  return { sent: result.sent, waiting: queued.length - batch.length };
 }

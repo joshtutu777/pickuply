@@ -8,6 +8,7 @@ import { DeviceAlertPreferences } from "@/components/profile/device-alert-prefer
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
+import { loadTextChoice } from "@/lib/notifications/text-choice-load";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -26,11 +27,11 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
   const session = await requireSignedIn("/account/profile");
   const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: profile }, { data: driver }, { data: places }, { data: prefs }] = await Promise.all([
+  const [{ data: profile }, { data: driver }, { data: places }, texts] = await Promise.all([
     supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase.from("drivers").select("profile_id").eq("profile_id", session.userId).maybeSingle(),
     supabase.from("customer_places").select("id, label, city, zip").eq("customer_id", session.userId),
-    supabase.from("notification_preferences").select("push_enabled, email_enabled, promotional_sms").maybeSingle(),
+    loadTextChoice(supabase),
   ]);
   return (
     <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">
@@ -57,9 +58,12 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/acco
         phone={profile?.phone ?? null}
         email={profile?.email ?? null}
         returnTo="/account/profile"
-        pushEnabled={prefs?.push_enabled ?? true}
-        emailEnabled={prefs?.email_enabled ?? true}
-        promotional={Boolean(prefs?.promotional_sms)}
+        pushEnabled={texts.pushEnabled}
+        emailEnabled={texts.emailEnabled}
+        promotional={texts.promotional}
+        textsAvailable={texts.textsAvailable}
+        smsOptIn={texts.smsOptIn}
+        optedOut={texts.optedOut}
         saved={query.saved === "1"}
         error={query.error === "save"}
       />

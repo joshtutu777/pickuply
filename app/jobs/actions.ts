@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { parseDollarsToCents } from "@/lib/money";
 import { captureReadyPayment, releaseCustomerAuthorization, releaseUncapturedHold } from "@/lib/payments/capture";
 import { recordFunnelServer } from "@/lib/funnel-server";
+import { scheduleBookingTexts } from "@/lib/notifications/schedule-flush";
 import { createClient } from "@/lib/supabase/server";
 
 export async function respondToQuote(formData: FormData) {
@@ -21,6 +22,7 @@ export async function respondToQuote(formData: FormData) {
   }
   if (decision !== "decline") {
     await recordFunnelServer({ event: "quote_accepted", step: "accepted", pricing: "quote" });
+    scheduleBookingTexts();
   }
   redirect(`/jobs/${jobId}`);
 }
@@ -88,6 +90,7 @@ export async function cancelAssignedJob(formData: FormData) {
   const jobId = String(formData.get("jobId") ?? "");
   try {
     await releaseCustomerAuthorization(jobId);
+    scheduleBookingTexts();
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     const known = [

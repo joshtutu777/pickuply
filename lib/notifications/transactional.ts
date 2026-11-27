@@ -11,6 +11,9 @@ export type TransactionalSettings = {
   platformSms: boolean;
   platformBps: number;
   site: string;
+  /** While true, only the listed profiles can receive a booking text. */
+  pilotOnly: boolean;
+  pilotProfileIds: string[];
 };
 
 export type BookingNotice = {
@@ -68,9 +71,13 @@ export type PlannedSms = {
   phone: string | null;
   status: "queued" | "skipped";
   reason: string | null;
+  attempt?: number;
+  alreadyClaimed?: boolean;
 };
 
-export type SendResult = { ok: boolean; sid: string | null; error: string | null };
+export type SmsOutcome = "accepted" | "temporary" | "rejected" | "ambiguous";
+
+export type SendResult = { ok: boolean; sid: string | null; error: string | null; outcome?: SmsOutcome };
 
 export type TransactionalIo = {
   settings(): Promise<TransactionalSettings>;
@@ -78,8 +85,14 @@ export type TransactionalIo = {
   timers(enabledAt: string, now: Date): Promise<PlannedSms[]>;
   claim(plan: PlannedSms): Promise<boolean>;
   send(phone: string, body: string): Promise<SendResult>;
-  mark(dedupeKey: string, status: "accepted" | "failed", sid: string | null, error: string | null): Promise<void>;
+  mark(dedupeKey: string, status: "accepted" | "failed" | "retry", sid: string | null, error: string | null): Promise<void>;
+  /** Records that the provider request has started. A later crash is not retried. */
+  started?(dedupeKey: string): Promise<void>;
   checked(noticeId: string): Promise<void>;
+  /** Rows that had a definite temporary provider failure and no message id. */
+  retries?(): Promise<PlannedSms[]>;
+  /** Marks queued rows that never received a provider id so a later switch-on cannot send them. */
+  suspendUnsent?(): Promise<void>;
 };
 
 const serviceNames: Record<string, string> = {
@@ -188,6 +201,9 @@ function personGate(
 ): PlannedSms {
   const phone = transactionalPhone(notice.phone);
   if (notice.isTest || notice.jobIsTest) return skipped({ ...base, phone }, "test_account");
+  if (settings.pilotOnly && !settings.pilotProfileIds.includes(notice.profileId)) {
+    return skipped({ ...base, phone }, "pilot_limited");
+  }
   if (!settings.platformSms) return skipped({ ...base, phone }, "platform_off");
   const broadcast = base.kind === "new_job" || base.kind === "admin_followup";
   if (broadcast && settings.audience === "off") return skipped({ ...base, phone }, "audience_off");
@@ -377,6 +393,7 @@ export function planNoOffer(job: TimerJob, settings: TransactionalSettings, now:
 }
 
 export function planAckReminder(job: TimerJob, settings: TransactionalSettings, now: Date): PlannedSms | null {
+  if (job.status !== "assigned") return null;
   if (job.isTest || job.urgency !== "asap" || job.acknowledged || !job.driverId || !job.driver) return null;
   if (!minutesAfter(job.authorizedAt, 10, now)) return null;
   const driver: BookingNotice = {
@@ -411,6 +428,7 @@ export function planAckReminder(job: TimerJob, settings: TransactionalSettings, 
 }
 
 export function planAdminAck(job: TimerJob, settings: TransactionalSettings, now: Date): PlannedSms | null {
+  if (job.status !== "assigned") return null;
   if (job.isTest || job.urgency !== "asap" || job.acknowledged) return null;
   if (!minutesAfter(job.authorizedAt, 20, now)) return null;
   return adminGate(settings, false, {
@@ -423,29 +441,95 @@ export function planAdminAck(job: TimerJob, settings: TransactionalSettings, now
   });
 }
 
-async function deliver(io: TransactionalIo, plan: PlannedSms, counts: { sent: number; skipped: number; failed: number }) {
-  let claimed = false;
-  try {
-    claimed = await io.claim(plan);
-  } catch {
-    return;
+/** A provider id, a rejection, or a lost response is never sent again. A temporary refusal can be tried once more. */
+export function resolveSmsOutcome(result: SendResult): SmsOutcome {
+  if (result.outcome) return result.outcome;
+  if (result.ok && result.sid) return "accepted";
+  if (result.ok) return "ambiguous";
+  return "rejected";
+}
+
+/** One batch of new-job texts. AT&T accepts this campaign at 0.25 messages per second, so a full driver list stays on later passes. */
+export const transactionalBulkBatch = 8;
+
+export const followupWindowMs = 15 * 60 * 1000;
+
+export function followupWindow(now: Date): string {
+  return String(Math.floor(now.getTime() / followupWindowMs));
+}
+
+export function followupWindowStart(now: Date): string {
+  return new Date(Math.floor(now.getTime() / followupWindowMs) * followupWindowMs).toISOString();
+}
+
+export function transactionalRank(kind: string): number {
+  switch (kind) {
+    case "payment_authorized":
+    case "cleared_to_start":
+      return 0;
+    case "cancelled":
+    case "admin_cancelled":
+      return 1;
+    case "driver_selected":
+    case "offer":
+      return 2;
+    case "admin_new_request":
+    case "admin_no_offer":
+      return 3;
+    case "ack_reminder":
+    case "admin_no_ack":
+      return 4;
+    case "new_job":
+    case "admin_followup":
+      return 8;
+    default:
+      return 5;
   }
-  if (!claimed) return;
+}
+
+export function isBulkTransactional(kind: string): boolean {
+  return kind === "new_job" || kind === "admin_followup";
+}
+
+export function smsRetryDecision(outcome: SmsOutcome, attempt: number): "accept" | "retry" | "fail" {
+  if (outcome === "accepted") return "accept";
+  if (outcome === "temporary" && attempt < 2) return "retry";
+  return "fail";
+}
+
+async function deliver(io: TransactionalIo, plan: PlannedSms, counts: { sent: number; skipped: number; failed: number }) {
+  if (!plan.alreadyClaimed) {
+    let claimed = false;
+    try {
+      claimed = await io.claim(plan);
+    } catch {
+      return;
+    }
+    if (!claimed) return;
+  }
   if (plan.status === "skipped") {
     counts.skipped += 1;
     return;
   }
+  const attempt = plan.attempt ?? 1;
   try {
+    await io.started?.(plan.dedupeKey);
     const result = await io.send(plan.phone ?? "", plan.body);
-    if (result.ok) {
+    const decision = smsRetryDecision(resolveSmsOutcome(result), attempt);
+    if (decision === "accept") {
       await io.mark(plan.dedupeKey, "accepted", result.sid, null);
       counts.sent += 1;
       return;
     }
-    await io.mark(plan.dedupeKey, "failed", null, result.error);
+    if (decision === "retry") {
+      await io.mark(plan.dedupeKey, "retry", null, result.error);
+      counts.failed += 1;
+      return;
+    }
+    await io.mark(plan.dedupeKey, "failed", null, result.error ?? "provider_rejected");
     counts.failed += 1;
   } catch {
-    await io.mark(plan.dedupeKey, "failed", null, "send_failed").catch(() => undefined);
+    await io.mark(plan.dedupeKey, "failed", null, "ambiguous_no_response").catch(() => undefined);
     counts.failed += 1;
   }
 }
@@ -464,16 +548,33 @@ export async function deliverPlans(
 export async function runTransactionalPass(io: TransactionalIo, now: Date): Promise<{ sent: number; skipped: number; failed: number }> {
   const settings = await io.settings();
   const counts = { sent: 0, skipped: 0, failed: 0 };
-  if (!settings.enabledAt) return counts;
-  const notices = dueNotices(await io.notices(settings.enabledAt), settings.enabledAt);
-  for (const notice of notices) {
-    for (const plan of planLifecycle(notice, settings)) {
-      await deliver(io, plan, counts);
-    }
-    await io.checked(notice.id).catch(() => undefined);
+  if (!settings.enabledAt) {
+    await io.suspendUnsent?.();
+    return counts;
   }
-  for (const plan of await io.timers(settings.enabledAt, now)) {
-    await deliver(io, plan, counts);
+  const notices = dueNotices(await io.notices(settings.enabledAt), settings.enabledAt);
+  const items: { plan: PlannedSms; noticeId: string | null }[] = [];
+  for (const notice of notices) {
+    for (const plan of planLifecycle(notice, settings)) items.push({ plan, noticeId: notice.id });
+  }
+  for (const plan of await io.timers(settings.enabledAt, now)) items.push({ plan, noticeId: null });
+  for (const plan of (await io.retries?.()) ?? []) {
+    items.push({ plan: { ...plan, alreadyClaimed: true }, noticeId: null });
+  }
+  items.sort((left, right) => transactionalRank(left.plan.kind) - transactionalRank(right.plan.kind));
+  const deferred = new Set<string>();
+  let bulk = 0;
+  for (const item of items) {
+    const holdForLater = isBulkTransactional(item.plan.kind) && !item.plan.alreadyClaimed && bulk >= transactionalBulkBatch;
+    if (holdForLater) {
+      if (item.noticeId) deferred.add(item.noticeId);
+      continue;
+    }
+    if (isBulkTransactional(item.plan.kind) && !item.plan.alreadyClaimed) bulk += 1;
+    await deliver(io, item.plan, counts);
+  }
+  for (const notice of notices) {
+    if (!deferred.has(notice.id)) await io.checked(notice.id).catch(() => undefined);
   }
   return counts;
 }

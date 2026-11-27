@@ -5,6 +5,8 @@ import { EnablePush } from "@/components/notifications/enable-push";
 import { AppBadge } from "@/components/pwa/app-badge";
 import { HomeScreenHint } from "@/components/notifications/home-screen-hint";
 import { requireSignedIn } from "@/lib/auth/session";
+import { bookingTextMessage } from "@/lib/notifications/text-choice";
+import { loadTextChoice } from "@/lib/notifications/text-choice-load";
 import { createClient } from "@/lib/supabase/server";
 
 export async function AlertCenter({
@@ -24,7 +26,7 @@ export async function AlertCenter({
 }) {
   await requireSignedIn(path);
   const supabase = await createClient();
-  const [{ data: alerts, error: alertError }, { data: prefs }] = await Promise.all([
+  const [{ data: alerts, error: alertError }, { data: prefs }, texts] = await Promise.all([
     supabase
       .from("notifications")
       .select("id, kind, title, body, href, read_at, created_at")
@@ -34,6 +36,7 @@ export async function AlertCenter({
       .from("notification_preferences")
       .select("push_enabled, email_enabled, home_screen_hint_dismissed, promotional_sms")
       .maybeSingle(),
+    loadTextChoice(supabase),
   ]);
   const unread = (alerts ?? []).some((alert) => !alert.read_at);
 
@@ -63,8 +66,12 @@ export async function AlertCenter({
           Email
         </label>
         <p className="text-base text-muted">
-          Text messages are off until Pickuply&apos;s texting registration is approved.
+          {bookingTextMessage({ available: texts.textsAvailable, optedOut: texts.optedOut, optedIn: texts.smsOptIn })}
         </p>
+        <label className="flex min-h-12 items-start gap-3 text-base">
+          <input type="checkbox" name="transactional" defaultChecked={texts.smsOptIn} />
+          <span>Text me about my requests and jobs. Message and data rates may apply. This does not include promotional texts.</span>
+        </label>
         <label className="flex min-h-12 items-start gap-3 text-base">
           <input type="checkbox" name="promotional" defaultChecked={Boolean(prefs?.promotional_sms)} />
           <span>I agree to receive promotional text messages from Pickuply. Message and data rates may apply. Message frequency varies. Reply STOP to opt out.</span>

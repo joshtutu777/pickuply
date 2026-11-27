@@ -1,4 +1,5 @@
 import { saveAlertPreferences } from "@/app/account/notification-actions";
+import { bookingTextMessage } from "@/lib/notifications/text-choice";
 import { formatUsPhone } from "@/lib/phone";
 
 export function ContactPreferences({
@@ -8,6 +9,9 @@ export function ContactPreferences({
   pushEnabled,
   emailEnabled,
   promotional,
+  textsAvailable,
+  smsOptIn,
+  optedOut,
   saved,
   error,
 }: {
@@ -17,6 +21,9 @@ export function ContactPreferences({
   pushEnabled: boolean;
   emailEnabled: boolean;
   promotional: boolean;
+  textsAvailable: boolean;
+  smsOptIn: boolean;
+  optedOut: boolean;
   saved: boolean;
   error: boolean;
 }) {
@@ -45,7 +52,11 @@ export function ContactPreferences({
           <input type="checkbox" name="email" defaultChecked={emailEnabled} />
           Email
         </label>
-        <p className="text-base text-muted">Text messages are off until Pickuply&apos;s texting registration is approved.</p>
+        <p className="text-base text-muted">{bookingTextMessage({ available: textsAvailable, optedOut, optedIn: smsOptIn })}</p>
+        <label className="flex min-h-12 items-start gap-3 text-base">
+          <input type="checkbox" name="transactional" defaultChecked={smsOptIn} />
+          <span>Text me about my requests and jobs. Message and data rates may apply. This does not include promotional texts.</span>
+        </label>
         <label className="flex min-h-12 items-start gap-3 text-base">
           <input type="checkbox" name="promotional" defaultChecked={promotional} />
           <span>I agree to receive promotional text messages from Pickuply. Message and data rates may apply. Message frequency varies. Reply STOP to opt out.</span>

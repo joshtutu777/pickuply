@@ -10,6 +10,7 @@ import { DeviceAlertPreferences } from "@/components/profile/device-alert-prefer
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { LoadingMain } from "@/components/loading-main";
 import { requireSignedIn } from "@/lib/auth/session";
+import { loadTextChoice } from "@/lib/notifications/text-choice-load";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
   if (session.role !== "driver") notFound();
   const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: profile }, { data: driver }, { data: place }, { data: prefs }] = await Promise.all([
+  const [{ data: profile }, { data: driver }, { data: place }, texts] = await Promise.all([
     supabase.from("profiles").select("phone, email").eq("id", session.userId).maybeSingle(),
     supabase
       .from("drivers")
@@ -37,10 +38,7 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
       .eq("profile_id", session.userId)
       .maybeSingle(),
     supabase.from("driver_places").select("line1, unit, city, zip, notes").eq("profile_id", session.userId).maybeSingle(),
-    supabase
-      .from("notification_preferences")
-      .select("push_enabled, email_enabled, promotional_sms")
-      .maybeSingle(),
+    loadTextChoice(supabase),
   ]);
   const centroid = driver?.home_zip
     ? (await supabase.from("ga_zip_centroids").select("lat, lng, city, zip").eq("zip", driver.home_zip).maybeSingle()).data
@@ -91,9 +89,12 @@ async function ProfileContent({ searchParams }: { searchParams: PageProps<"/driv
         phone={profile?.phone ?? null}
         email={profile?.email ?? null}
         returnTo="/driver/profile"
-        pushEnabled={prefs?.push_enabled ?? true}
-        emailEnabled={prefs?.email_enabled ?? true}
-        promotional={Boolean(prefs?.promotional_sms)}
+        pushEnabled={texts.pushEnabled}
+        emailEnabled={texts.emailEnabled}
+        promotional={texts.promotional}
+        textsAvailable={texts.textsAvailable}
+        smsOptIn={texts.smsOptIn}
+        optedOut={texts.optedOut}
         saved={query.saved === "1"}
         error={query.error === "save"}
       />
