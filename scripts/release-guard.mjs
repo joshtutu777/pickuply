@@ -144,6 +144,7 @@ export function checkAncestry(containsBaseline) {
 }
 
 export const reviewedLandingMigration = "supabase/migrations/0145_landing_load_counts.sql";
+export const reviewedTransactionalMigration = "supabase/migrations/0146_transactional_sms.sql";
 
 export function compareMigrations(baseline, release, options = {}) {
   const failures = [];
@@ -154,10 +155,15 @@ export function compareMigrations(baseline, release, options = {}) {
     else if (next.get(path) !== oid) failures.push(`migration rewritten: ${path}`);
   }
   const added = [...next.keys()].filter((path) => !base.has(path)).sort();
-  const unexpected = added.filter((path) => path !== reviewedLandingMigration);
+  const unexpected = added.filter(
+    (path) => path !== reviewedLandingMigration && path !== reviewedTransactionalMigration,
+  );
   if (unexpected.length > 0) failures.push(`new migration files block the release: ${unexpected.join(", ")}`);
   if (added.includes(reviewedLandingMigration) && options.landingLoadApplied !== true) {
     failures.push(`new migration files block the release: ${reviewedLandingMigration}`);
+  }
+  if (added.includes(reviewedTransactionalMigration) && options.transactionalSmsApplied !== true) {
+    failures.push(`new migration files block the release: ${reviewedTransactionalMigration}`);
   }
   return failures;
 }
@@ -168,6 +174,19 @@ export function landingMigrationApplied(probe) {
     && probe?.specStatus === 200
     && probe?.functionExposed === true
     && probe?.minuteTableExposed === true;
+}
+
+export function transactionalMigrationApplied(probe) {
+  const anonDenied = probe?.anonStatus === 401 || probe?.anonStatus === 403;
+  return probe?.tableStatus === 200
+    && probe?.tableIsArray === true
+    && probe?.privateStatus === 200
+    && probe?.privateIsArray === true
+    && probe?.settingsStatus === 200
+    && probe?.enabledAt === null
+    && probe?.pilotOnly === true
+    && anonDenied
+    && probe?.claimExposed === true;
 }
 
 export function loadDotEnv(cwd) {
@@ -225,6 +244,69 @@ export async function readLandingLoadApplied(env) {
   }
 }
 
+export async function readTransactionalSmsApplied(env) {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const anon = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  if (!url || !key || !anon) return false;
+  try {
+    const headers = { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" };
+    const table = await fetch(`${url}/rest/v1/transactional_sms?select=id&limit=1`, { headers });
+    const tableText = await table.text();
+    let tableIsArray = false;
+    try {
+      tableIsArray = Array.isArray(JSON.parse(tableText));
+    } catch {
+      tableIsArray = false;
+    }
+    const privateTable = await fetch(`${url}/rest/v1/booking_text_private?select=id&limit=1`, { headers });
+    const privateText = await privateTable.text();
+    let privateIsArray = false;
+    try {
+      privateIsArray = Array.isArray(JSON.parse(privateText));
+    } catch {
+      privateIsArray = false;
+    }
+    const settings = await fetch(
+      `${url}/rest/v1/platform_settings?select=transactional_sms_enabled_at,transactional_pilot_only&id=eq.1`,
+      { headers },
+    );
+    const settingsText = await settings.text();
+    let enabledAt = undefined;
+    let pilotOnly = false;
+    try {
+      const rows = JSON.parse(settingsText);
+      if (Array.isArray(rows) && rows.length === 1) {
+        enabledAt = rows[0].transactional_sms_enabled_at ?? null;
+        pilotOnly = rows[0].transactional_pilot_only === true;
+      }
+    } catch {
+      enabledAt = undefined;
+    }
+    const anonRead = await fetch(`${url}/rest/v1/transactional_sms?select=id&limit=1`, {
+      headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: "application/json" },
+    });
+    await anonRead.text();
+    const spec = await fetch(`${url}/rest/v1/`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/openapi+json" },
+    });
+    const specText = await spec.text();
+    return transactionalMigrationApplied({
+      tableStatus: table.status,
+      tableIsArray,
+      privateStatus: privateTable.status,
+      privateIsArray,
+      settingsStatus: settings.status,
+      enabledAt,
+      pilotOnly,
+      anonStatus: anonRead.status,
+      claimExposed: specText.includes('"/rpc/claim_transactional_sms"'),
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function missingRoutes(files, policy) {
   const present = new Set(files);
   return policy.requiredRoutes
@@ -239,6 +321,7 @@ export function evaluateRelease(input) {
       ? ["production migration history could not be read"]
       : compareMigrations(input.baselineMigrations, input.releaseMigrations ?? [], {
           landingLoadApplied: input.landingLoadApplied === true,
+          transactionalSmsApplied: input.transactionalSmsApplied === true,
         });
   const failures = [
     ...checkRepository(input.remoteUrl, policy),
@@ -578,7 +661,9 @@ async function main() {
   const previousApproved = parent ? approvedReleaseAt(cwd, parent) : null;
   const baselineSha = approved?.sha && record?.sha === approved.sha ? approved.sha : record?.sha;
   const baseline = baselineSha ? readCommit(cwd, baselineSha) : null;
-  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(cwd));
+  const env = loadDotEnv(cwd);
+  const landingLoadApplied = await readLandingLoadApplied(env);
+  const transactionalSmsApplied = await readTransactionalSmsApplied(env);
   const result = evaluateRelease({
     policy,
     remoteUrl: snapshot?.remoteUrl,
@@ -589,6 +674,7 @@ async function main() {
     releaseMigrations: snapshot?.migrations ?? [],
     migrationsApproved: process.env.RELEASE_MIGRATIONS === "approved",
     landingLoadApplied,
+    transactionalSmsApplied,
     record,
     approved,
     previousApproved,

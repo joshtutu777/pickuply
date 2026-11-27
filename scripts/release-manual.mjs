@@ -16,6 +16,7 @@ import {
   databaseChangesAllowed,
   loadDotEnv,
   readLandingLoadApplied,
+  readTransactionalSmsApplied,
   git,
   loadApprovedRelease,
   loadProductionDeployments,
@@ -212,15 +213,15 @@ function fetchMainTip(cwd) {
   return git(cwd, ["rev-parse", "origin/main"]).trim();
 }
 
-function migrationFailures(cwd, approved, landingLoadApplied) {
+function migrationFailures(cwd, approved, landingLoadApplied, transactionalSmsApplied) {
   if (!approved?.sha) return ["production migration history could not be read"];
   const baseline = readCommit(cwd, approved.sha);
   const head = readCommit(cwd, "HEAD");
   if (!baseline || !head) return ["production migration history could not be read"];
-  return compareMigrations(baseline.migrations, head.migrations, { landingLoadApplied });
+  return compareMigrations(baseline.migrations, head.migrations, { landingLoadApplied, transactionalSmsApplied });
 }
 
-function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy, landingLoadApplied) {
+function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy, landingLoadApplied, transactionalSmsApplied) {
   const head = git(cwd, ["rev-parse", "HEAD"]).trim();
   const branch = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   const status = git(cwd, ["status", "--porcelain"]);
@@ -238,7 +239,7 @@ function releaseInput(cwd, policy, mainTip, mainTipBeforeDeploy, landingLoadAppl
     live,
     approved: atHead ?? approved,
     deployments,
-    migrationFailures: migrationFailures(cwd, atHead ?? approved, landingLoadApplied),
+    migrationFailures: migrationFailures(cwd, atHead ?? approved, landingLoadApplied, transactionalSmsApplied),
     migrationsApproved: process.env.RELEASE_MIGRATIONS === "approved",
     checksPassed: true,
     confirmSha: option("--confirm-sha"),
@@ -393,8 +394,10 @@ async function main() {
   } catch {
     refuse(["origin/main could not be verified"]);
   }
-  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(cwd));
-  let input = releaseInput(cwd, policy, mainTip, mainTip, landingLoadApplied);
+  const env = loadDotEnv(cwd);
+  const landingLoadApplied = await readLandingLoadApplied(env);
+  const transactionalSmsApplied = await readTransactionalSmsApplied(env);
+  let input = releaseInput(cwd, policy, mainTip, mainTip, landingLoadApplied, transactionalSmsApplied);
   const early = manualSourceFailures(input);
   if (early.length > 0) refuse(early, identityLine(input));
   const guard = runGuard(cwd);
@@ -405,7 +408,7 @@ async function main() {
   } catch {
     refuse(["origin/main could not be verified"], identityLine(input));
   }
-  input = releaseInput(cwd, policy, mainTip, tipBeforeDeploy, landingLoadApplied);
+  input = releaseInput(cwd, policy, mainTip, tipBeforeDeploy, landingLoadApplied, transactionalSmsApplied);
   const decision = evaluateManualRelease({ ...input, checksPassed: true });
   if (!decision.ok) refuse(decision.failures, identityLine(input));
   finish(cwd, policy, input.head);

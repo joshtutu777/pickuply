@@ -15,12 +15,15 @@ import {
   loadApprovedRelease,
   loadDotEnv,
   readLandingLoadApplied,
+  readTransactionalSmsApplied,
   loadProductionRecord,
   productionDeploymentsFromApi,
   loadReleasePolicy,
   readCommit,
   repositoryName,
   reviewedLandingMigration,
+  reviewedTransactionalMigration,
+  transactionalMigrationApplied,
   verifyGithubBranch,
 } from "./release-guard.mjs";
 
@@ -30,14 +33,17 @@ const mobileUx = "5da7fcc5327aebc79542bd0118af179d8fd48047";
 const oldMain = "8fddccd745a3ad7e46032f0c0bc768460e9c6fea";
 const remote = "https://github.com/joshtutu777/pickuply.git";
 
-function assertReleaseBlock(result, baseline, release, landingLoadApplied) {
+function assertReleaseBlock(result, baseline, release, options) {
+  const landingLoadApplied = options?.landingLoadApplied === true;
+  const transactionalSmsApplied = options?.transactionalSmsApplied === true;
   const other = result.failures.filter((failure) => !failure.startsWith("new migration files block the release:"));
   assert.deepEqual(other, []);
   const base = new Set(baseline.map((entry) => entry.path));
   const added = release
     .map((entry) => entry.path)
     .filter((path) => !base.has(path))
-    .filter((path) => path !== reviewedLandingMigration || landingLoadApplied !== true);
+    .filter((path) => path !== reviewedLandingMigration || landingLoadApplied !== true)
+    .filter((path) => path !== reviewedTransactionalMigration || transactionalSmsApplied !== true);
   if (added.length === 0) {
     assert.deepEqual(result.failures, []);
     assert.equal(result.ok, true);
@@ -212,6 +218,55 @@ test("E2 only the reviewed landing migration can pass, and only after it is appl
     true,
   );
   assert.equal(landingMigrationApplied({ tableStatus: 404, tableIsArray: false, specStatus: 200, functionExposed: false, minuteTableExposed: false }), false);
+});
+
+test("E3 only the reviewed booking-text migration can pass, and only while texts stay off", () => {
+  const commit = readCommit(root, "93ca93541f05273fbdad14e27478a7d21828bf40");
+  const reviewed = { path: reviewedTransactionalMigration, oid: "reviewed" };
+  const blocked = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed],
+      transactionalSmsApplied: false,
+    }),
+  );
+  assert.equal(blocked.ok, false);
+  assert.ok(blocked.failures.some((failure) => failure.includes("0146_transactional_sms.sql")));
+
+  const allowed = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed],
+      transactionalSmsApplied: true,
+    }),
+  );
+  assert.equal(allowed.failures.some((failure) => failure.includes("new migration files")), false);
+
+  const extra = evaluateRelease(
+    releaseOf(commit.sha, {
+      baselineMigrations: commit.migrations,
+      releaseMigrations: [...commit.migrations, reviewed, { path: "supabase/migrations/0199_new.sql", oid: "abc" }],
+      transactionalSmsApplied: true,
+    }),
+  );
+  assert.equal(extra.ok, false);
+  assert.ok(extra.failures.some((failure) => failure.includes("0199_new.sql")));
+  assert.equal(extra.failures.some((failure) => failure.includes("0146_transactional_sms.sql")), false);
+  const applied = {
+    tableStatus: 200,
+    tableIsArray: true,
+    privateStatus: 200,
+    privateIsArray: true,
+    settingsStatus: 200,
+    enabledAt: null,
+    pilotOnly: true,
+    anonStatus: 401,
+    claimExposed: true,
+  };
+  assert.equal(transactionalMigrationApplied(applied), true);
+  assert.equal(transactionalMigrationApplied({ ...applied, enabledAt: "2026-11-27T00:00:00Z" }), false);
+  assert.equal(transactionalMigrationApplied({ ...applied, pilotOnly: false }), false);
+  assert.equal(transactionalMigrationApplied({ ...applied, anonStatus: 200 }), false);
 });
 
 test("F a missing required route is refused", () => {
@@ -507,11 +562,14 @@ test("the current production commit passes source and ancestry checks", { timeou
     releaseMigrations: head.migrations,
     files: head.files,
   };
-  const landingLoadApplied = await readLandingLoadApplied(loadDotEnv(root));
-  const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved, landingLoadApplied }));
-  assertReleaseBlock(future, commit.migrations, head.migrations, landingLoadApplied);
+  const env = loadDotEnv(root);
+  const landingLoadApplied = await readLandingLoadApplied(env);
+  const transactionalSmsApplied = await readTransactionalSmsApplied(env);
+  const gates = { landingLoadApplied, transactionalSmsApplied };
+  const future = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved: approved, ...gates }));
+  assertReleaseBlock(future, commit.migrations, head.migrations, gates);
   const previousApproved = approvedReleaseAt(root, "HEAD^");
-  const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved, landingLoadApplied }));
+  const current = evaluateRelease(releaseOf(head.sha, { ...release, previousApproved, ...gates }));
   const recordMoved =
     previousApproved != null &&
     (previousApproved.sha !== approved.sha ||
@@ -522,7 +580,7 @@ test("the current production commit passes source and ancestry checks", { timeou
     assert.equal(current.ok, false);
     assert.ok(current.failures.includes("approved production baseline changed"));
   } else {
-    assertReleaseBlock(current, commit.migrations, head.migrations, landingLoadApplied);
+    assertReleaseBlock(current, commit.migrations, head.migrations, gates);
   }
   assert.equal(commitContains(root, approved.sha, head.sha), true);
   for (const route of policy.requiredRoutes) assert.ok(head.files.includes(route.file), route.route);
