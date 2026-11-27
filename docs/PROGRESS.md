@@ -2,7 +2,7 @@
 
 ## Transactional booking texts (2026-11-26)
 
-Booking texts are prepared on `feat/transactional-sms`. A stored 11-digit phone is converted to `+1` only at send time. Sign-in numbers are not rewritten. Sending stays off until an admin turns booking texts on, and the pilot list is on by default so a test request does not text every driver. Payment, cancellation, selection, and admin alerts go out before new-job texts. New-job texts are submitted at the registered carrier pace and the next batch starts immediately, so 60 drivers are submitted in about four minutes. A request that is no longer open is not texted. A STOP stays in place until the person replies START. Each eligible driver gets one future in-app new-job alert. Older open requests are not alerted again. Migration `0146_transactional_sms.sql` is not applied. No text was sent and nothing was deployed.
+Booking texts are on production commit `1f7ef8c56bd4a496d6c81c877b597e891bfe57a4`, deployment `dpl_FMB3ZJjEjsNHgz5FJcYUUB2FsfZ5`. Migration `0146` is applied. Sending stays off, pilot mode stays on, and the outbox is empty. A stored 11-digit phone is converted to `+1` only at send time. Sign-in numbers are not rewritten. Payment, cancellation, selection, and admin alerts go out before new-job texts. New-job texts are submitted at the registered carrier pace and the next batch starts immediately, so 60 drivers are submitted in about four minutes. A request that is no longer open is not texted. A STOP stays in place until the person replies START. Each eligible driver gets one future in-app new-job alert. Older open requests are not alerted again. No text was sent.
 
 ## Landing-page load counts (2026-11-21)
 

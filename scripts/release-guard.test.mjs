@@ -545,8 +545,8 @@ test("the current production commit passes source and ancestry checks", { timeou
   const approved = loadApprovedRelease();
   const record = loadProductionRecord(policy);
   assert.ok(record, "production deployment could not be verified");
-  assert.equal(approved.sha, "93ca93541f05273fbdad14e27478a7d21828bf40");
-  assert.equal(approved.deploymentId, "dpl_GSSf3Nr1tK8kk9fnKnWMwK9QmMqh");
+  assert.equal(approved.sha, "1f7ef8c56bd4a496d6c81c877b597e891bfe57a4");
+  assert.equal(approved.deploymentId, "dpl_FMB3ZJjEjsNHgz5FJcYUUB2FsfZ5");
   assert.equal(record.sha, approved.sha);
   assert.equal(record.deploymentId, approved.deploymentId);
   const commit = readCommit(root, record.sha);
